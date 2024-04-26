@@ -8,7 +8,7 @@ cmake_policy(SET CMP0091 NEW)
 project(Cabbage VERSION 1.0.0 LANGUAGES C CXX)
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION 0.0.2)
+	set(BUILD_VERSION 0.0.3)
 endif()
 
 set(IPLUG2_DIR ${CMAKE_SOURCE_DIR}/../iPlug2)
@@ -110,6 +110,11 @@ set(SRC_FILES
 
 set_source_files_properties(${PROJECT_DIR}/WebView/IPlugWebView.mm PROPERTIES COMPILE_OPTIONS -fobjc-arc)
 
+# set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version" FORCE)
+SET(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} "/Volumes/SSD_Drive/Mac/csound/build/CsoundLib64")
+find_library(CSOUND_LIBRARY NAMES CsoundLib64 HINTS /Library/Frameworks/CsoundLib64.framework/
+"/Volumes/SSD_Drive/Mac/csound/build/CsoundLib64.framework")  
+include_directories("/Library/Frameworks/CsoundLib64.framework/Headers")
 
 # While not required, creating a base interface for includes and settings seems like a good idea.
 add_library(_base INTERFACE)
@@ -119,7 +124,7 @@ iplug_target_add(_base INTERFACE
   SOURCE ${WEB_RESOURCES}
   INCLUDE ${PROJECT_DIR} ${IPLUG2_DIR}/Dependencies/Extras/nlohmann ${EXTRA_INCLUDE_DIRECTORIES} ${PROJECT_DIR}/resources
   LINK_DIR ${EXTRA_LINK_DIRECTORIES}
-  LINK iPlug2_GL2 ${EXTRA_LINK_LIBRARIES} 
+  LINK iPlug2_GL2 ${EXTRA_LINK_LIBRARIES} ${CSOUND_LIBRARY}
   FEATURE cxx_std_17
   DEFINE NO_IGRAPHICS ${EXTRA_DEFINES} CUSTOM_EDITOR="${PROJECT_DIR}/WebView/IPlugWebViewEditorDelegate.h" CUSTOM_EDITOR_CLASS=WebViewEditorDelegate
 )
