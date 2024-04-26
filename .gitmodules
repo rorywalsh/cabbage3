@@ -1,6 +1,6 @@
-[submodule "iPlug2"]
-	path = icabbage/iPlug2
-	url = https://github.com/iPlug2/iPlug2.git
-[submodule "IXWebSocket"]
+[submodule "icabbage/IXWebSocket"]
 	path = icabbage/IXWebSocket
 	url = https://github.com/machinezone/IXWebSocket.git
+[submodule "icabbage/iPlug2"]
+	path = icabbage/iPlug2
+	url = https://github.com/iPlug2/iPlug2.git
