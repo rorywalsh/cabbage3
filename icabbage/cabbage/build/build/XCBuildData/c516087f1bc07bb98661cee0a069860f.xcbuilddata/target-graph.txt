@@ -1,0 +1,13 @@
+Target dependency graph (5 targets)
+Target 'ALL_BUILD' in project 'ICabbage'
+➜ Explicit dependency on target 'app' in project 'ICabbage'
+➜ Explicit dependency on target 'vst3' in project 'ICabbage'
+➜ Explicit dependency on target 'auv2' in project 'ICabbage'
+➜ Explicit dependency on target 'ZERO_CHECK' in project 'ICabbage'
+Target 'auv2' in project 'ICabbage'
+➜ Explicit dependency on target 'ZERO_CHECK' in project 'ICabbage'
+Target 'vst3' in project 'ICabbage'
+➜ Explicit dependency on target 'ZERO_CHECK' in project 'ICabbage'
+Target 'app' in project 'ICabbage'
+➜ Explicit dependency on target 'ZERO_CHECK' in project 'ICabbage'
+Target 'ZERO_CHECK' in project 'ICabbage' (no dependencies)

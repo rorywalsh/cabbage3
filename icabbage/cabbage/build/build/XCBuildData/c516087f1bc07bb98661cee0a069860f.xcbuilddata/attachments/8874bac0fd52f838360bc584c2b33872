@@ -1,0 +1,27 @@
+#!/bin/sh
+set -e
+if test "$CONFIGURATION" = "Debug"; then :
+  cd /Users/rwalsh/sourcecode/iCabbage/ICabbage/build
+  /opt/homebrew/Cellar/cmake/3.28.3/bin/cmake -E copy_directory /Users/rwalsh/sourcecode/iCabbage/ICabbage/build/Debug/ICabbage.vst3 /Users/rwalsh/Library/Audio/Plug-Ins/VST3/ICabbage.vst3
+  cd /Users/rwalsh/sourcecode/iCabbage/ICabbage/build
+  /opt/homebrew/Cellar/cmake/3.28.3/bin/cmake -E touch /Users/rwalsh/sourcecode/iCabbage/ICabbage/build/ICabbage.vst3/Contents/PkgInfo
+fi
+if test "$CONFIGURATION" = "Release"; then :
+  cd /Users/rwalsh/sourcecode/iCabbage/ICabbage/build
+  /opt/homebrew/Cellar/cmake/3.28.3/bin/cmake -E copy_directory /Users/rwalsh/sourcecode/iCabbage/ICabbage/build/Release/ICabbage.vst3 /Users/rwalsh/Library/Audio/Plug-Ins/VST3/ICabbage.vst3
+  cd /Users/rwalsh/sourcecode/iCabbage/ICabbage/build
+  /opt/homebrew/Cellar/cmake/3.28.3/bin/cmake -E touch /Users/rwalsh/sourcecode/iCabbage/ICabbage/build/ICabbage.vst3/Contents/PkgInfo
+fi
+if test "$CONFIGURATION" = "MinSizeRel"; then :
+  cd /Users/rwalsh/sourcecode/iCabbage/ICabbage/build
+  /opt/homebrew/Cellar/cmake/3.28.3/bin/cmake -E copy_directory /Users/rwalsh/sourcecode/iCabbage/ICabbage/build/MinSizeRel/ICabbage.vst3 /Users/rwalsh/Library/Audio/Plug-Ins/VST3/ICabbage.vst3
+  cd /Users/rwalsh/sourcecode/iCabbage/ICabbage/build
+  /opt/homebrew/Cellar/cmake/3.28.3/bin/cmake -E touch /Users/rwalsh/sourcecode/iCabbage/ICabbage/build/ICabbage.vst3/Contents/PkgInfo
+fi
+if test "$CONFIGURATION" = "RelWithDebInfo"; then :
+  cd /Users/rwalsh/sourcecode/iCabbage/ICabbage/build
+  /opt/homebrew/Cellar/cmake/3.28.3/bin/cmake -E copy_directory /Users/rwalsh/sourcecode/iCabbage/ICabbage/build/RelWithDebInfo/ICabbage.vst3 /Users/rwalsh/Library/Audio/Plug-Ins/VST3/ICabbage.vst3
+  cd /Users/rwalsh/sourcecode/iCabbage/ICabbage/build
+  /opt/homebrew/Cellar/cmake/3.28.3/bin/cmake -E touch /Users/rwalsh/sourcecode/iCabbage/ICabbage/build/ICabbage.vst3/Contents/PkgInfo
+fi
+
