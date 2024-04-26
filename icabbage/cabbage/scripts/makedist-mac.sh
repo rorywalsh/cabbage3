@@ -253,8 +253,8 @@ sudo rm -R -f installer/build-mac/
 
 if [ $DEMO == 1 ]
 then
-git checkout installer/ICabbage.iss
-git checkout installer/ICabbage.pkgproj
+git checkout installer/Cabbage.iss
+git checkout installer/Cabbage.pkgproj
 git checkout resources/img/AboutBox.png
 fi
 

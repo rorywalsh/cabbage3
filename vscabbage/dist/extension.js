@@ -37,6 +37,7 @@ exports.deactivate = exports.activate = void 0;
 // Import the module and reference it with the alias vscode in your code below
 const vscode = __importStar(__webpack_require__(1));
 const widgets_js_1 = __webpack_require__(2);
+const cp = __importStar(__webpack_require__(27));
 let textEditor;
 const ws_1 = __importDefault(__webpack_require__(3));
 const ws = new ws_1.default('ws://localhost:9999');
@@ -50,6 +51,8 @@ ws.on('message', (message) => {
 ws.on('close', () => {
     console.log('Disconnected from server');
 });
+let currentPid = -1;
+let process;
 function DBG(...text) {
     console.log("Cabbage:", text.join(','));
 }
@@ -117,6 +120,14 @@ function activate(context) {
         //notify webview when various updates take place in editor
         vscode.workspace.onDidSaveTextDocument((editor) => {
             sendTextToWebView(editor, 'onFileChanged');
+            const config = vscode.workspace.getConfiguration("cabbage");
+            const command = config.get("pathToCabbageExecutable") + '/Cabbage.app/Contents/MacOS/Cabbage';
+            process = cp.spawn(command, [editor.fileName], {});
+            currentPid = process.pid;
+            if (process.pid) {
+                console.log("Cabbage is running (pid " + process.pid + ")");
+            }
+            console.log(command);
         });
         vscode.workspace.onDidOpenTextDocument((editor) => {
             sendTextToWebView(editor, 'onFileChanged');
@@ -141,6 +152,7 @@ function activate(context) {
         if (!panel) {
             return;
         }
+        process.kill("SIGTERM");
         sendTextToWebView(textEditor?.document, 'onEnterEditMode');
     }));
 }
@@ -5378,6 +5390,12 @@ function parse(header) {
 
 module.exports = { parse };
 
+
+/***/ }),
+/* 27 */
+/***/ ((module) => {
+
+module.exports = require("child_process");
 
 /***/ })
 /******/ 	]);

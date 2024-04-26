@@ -12,6 +12,16 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "Cabbage",
+      "properties": {
+        "cabbage.pathToCabbageExecutable": {
+          "type": "string",
+          "default": "/Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/build/Debug/",
+          "description": "Path to Cabbage service app (path only, no file name)"
+        }
+      }
+    },
     "commands": [
       {
         "command": "cabbage.launchUIEditor",
@@ -19,11 +29,12 @@
         "category": "Cabbage"
       },
       {
-        "command": "cabbage.editText",
-        "title": "Edit text",
+        "command": "cabbage.editMode",
+        "title": "Edit Mode",
         "category": "Cabbage"
       }
     ],
+    
     "languages": [
       {
         "id": "csound-orc",

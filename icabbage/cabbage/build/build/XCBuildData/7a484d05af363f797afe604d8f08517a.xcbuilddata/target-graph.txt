@@ -1,4 +1,0 @@
-Target dependency graph (2 targets)
-Target 'app' in project 'ICabbage'
-➜ Explicit dependency on target 'ZERO_CHECK' in project 'ICabbage'
-Target 'ZERO_CHECK' in project 'ICabbage' (no dependencies)

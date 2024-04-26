@@ -145,7 +145,7 @@ def main():
   auv3['CFBundleName'] = config['BUNDLE_NAME']
   auv3['CFBundleVersion'] = CFBundleVersion
   auv3['CFBundleShortVersionString'] = CFBundleVersion
-  auv3['LSMinimumSystemVersion'] = "10.12.0"
+  auv3['LSMinimumSystemVersion'] = "10.14.0"
   auv3['CFBundlePackageType'] = "XPC!"
   auv3['NSExtension'] = dict(
   NSExtensionAttributes = dict(
@@ -153,7 +153,7 @@ def main():
                                AudioComponents = [{}]),
 #                               NSExtensionServiceRoleType = "NSExtensionServiceRoleTypeEditor",
   NSExtensionPointIdentifier = NSEXTENSIONPOINTIDENTIFIER,
-  NSExtensionPrincipalClass = "IPlugAUViewController_vICabbage"
+  NSExtensionPrincipalClass = "IPlugAUViewController_vCabbage"
                              )
   auv3['NSExtension']['NSExtensionAttributes']['AudioComponents'] = [{}]
   auv3['NSExtension']['NSExtensionAttributes']['AudioComponents'][0]['description'] = config['PLUG_NAME']

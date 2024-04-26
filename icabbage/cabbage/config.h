@@ -1,6 +1,6 @@
 
 
-#define PLUG_NAME "ICabbage"
+#define PLUG_NAME "Cabbage"
 #define PLUG_MFR "CabbageAudio"
 #define PLUG_VERSION_HEX 0x00010000
 #define PLUG_VERSION_STR "1.0.0"
@@ -11,11 +11,11 @@
 #define PLUG_COPYRIGHT_STR "Copyright 2020 Acme Inc"
 #define PLUG_CLASS_NAME ICabbage
 
-#define BUNDLE_NAME "ICabbage"
+#define BUNDLE_NAME "Cabbage"
 #define BUNDLE_MFR "CabbageAudio"
 #define BUNDLE_DOMAIN "com"
 
-#define SHARED_RESOURCES_SUBPATH "ICabbage"
+#define SHARED_RESOURCES_SUBPATH "Cabbage"
 
 #define PLUG_CHANNEL_IO "2-2"
 
@@ -33,15 +33,15 @@
 #define PLUG_HOST_RESIZE 0
 
 #define AUV2_ENTRY ICabbage_Entry
-#define AUV2_ENTRY_STR "ICabbage_Entry"
+#define AUV2_ENTRY_STR "Cabbage_Entry"
 #define AUV2_FACTORY ICabbage_Factory
 #define AUV2_VIEW_CLASS ICabbage_View
-#define AUV2_VIEW_CLASS_STR "ICabbage_View"
+#define AUV2_VIEW_CLASS_STR "Cabbage_View"
 
 #define AAX_TYPE_IDS 'IPWV'
 #define AAX_TYPE_IDS_AUDIOSUITE 'IPWA'
 #define AAX_PLUG_MFR_STR "Acme"
-#define AAX_PLUG_NAME_STR "ICabbage\nIPEF"
+#define AAX_PLUG_NAME_STR "Cabbage\nIPEF"
 #define AAX_PLUG_CATEGORY_STR "Effect"
 #define AAX_DOES_AUDIOSUITE 1
 

@@ -5,6 +5,7 @@
 #include "Smoothers.h"
 #include <ixwebsocket/IXWebSocketServer.h>
 #include <iostream>
+#include "APP/IPlugAPP.h"
 
 
 using namespace iplug;

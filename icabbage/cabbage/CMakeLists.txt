@@ -4,22 +4,17 @@ cmake_policy(SET CMP0091 NEW)
 #########
 
 
-# To setup the build (change CMAKE_BUILD_TYPE as desired):
-#   mkdir build-mac
-#   cd build-mac
-#   cmake .. -DCMAKE_BUILD_TYPE=Debug
-# To build the APP version:
-#   cmake --build . --target app -j
-# To build the VST3 version:
-#   cmake --build . --target vst3 -j
-# To build the AUv2 version
-#   cmake --build . --target auv2 -j
 
-project(ICabbage VERSION 1.0.0 LANGUAGES C CXX)
+project(Cabbage VERSION 1.0.0 LANGUAGES C CXX)
+
+if(NOT DEFINED BUILD_VERSION)
+	set(BUILD_VERSION 0.0.1)
+endif()
 
 set(IPLUG2_DIR ${CMAKE_SOURCE_DIR}/../iPlug2)
 set(IXWebSocket_DIR ${CMAKE_SOURCE_DIR}/../IXWebSocket)
 include(${IPLUG2_DIR}/iPlug2.cmake)
+
 find_package(iPlug2)
 set(PROJECT_DIR "${CMAKE_SOURCE_DIR}")
 if(WIN32) 
@@ -64,8 +59,8 @@ elseif(APPLE)
   enable_language(OBJCXX)
 
   set(EXTRA_DEFINES 
-    OBJC_PREFIX=vICabbage
-    SWELL_APP_PREFIX=Swell_vICabbage
+    OBJC_PREFIX=vCabbage
+    SWELL_APP_PREFIX=Swell_vCabbage
     SWELL_COMPILED
   )
 
@@ -133,10 +128,9 @@ iplug_target_add(_base INTERFACE
 # For typing convenience the TARGET name is put into a variable.
 set(TARGET app)
 add_executable(${TARGET} WIN32 MACOSX_BUNDLE ${SRC_FILES} )
-iplug_target_add(${TARGET} PUBLIC LINK iPlug2_APP ZLIB::ZLIB _base RESOURCE ${RESOURCES} DEFINE Standalone)
+iplug_target_add(${TARGET} PUBLIC LINK iPlug2_APP ZLIB::ZLIB _base RESOURCE ${RESOURCES} DEFINE CUSTOM_APP_SRC)
 iplug_configure_target(${TARGET} app)
-# target_link_libraries(${TARGET} PRIVATE ${EXTRA_LINK_LIBRARIES})
-# target_compile_options(${TARGET} PRIVATE)
+
 
 #set(TARGET vst2)
 #add_library(${TARGET} MODULE ${SRC_FILES})

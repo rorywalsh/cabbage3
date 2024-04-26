@@ -1,0 +1,36 @@
+dependencies: \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/CabbageApp/CabbageAPP.cpp \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/CabbageApp/CabbageAPP.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugPlatform.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugAPIBase.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/WDL/ptrlist.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/WDL/heapbuf.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/WDL/wdltypes.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/WDL/mutex.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/WDL/wdlatomic.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugPluginBase.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugDelegate_select.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/WebView/IPlugWebViewEditorDelegate.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugEditorDelegate.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugParameter.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/WDL/wdlstring.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugUtilities.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugConstants.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugMidi.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugLogger.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugStructs.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/WebView/IPlugWebView.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/WDL/wdl_base64.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/Dependencies/Extras/nlohmann/json.hpp \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugQueue.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugTimer.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugProcessor.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/Extras/NChanDelay.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/CabbageApp/CabbageAPP_host.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/config.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugSWELL.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/WDL/swell/swell.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/WDL/swell/swell-types.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/WDL/swell/swell-functions.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/Dependencies/IPlug/RTAudio/RtAudio.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/Dependencies/IPlug/RTMidi/RtMidi.h

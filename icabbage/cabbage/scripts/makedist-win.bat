@@ -6,7 +6,7 @@ REM - zipping requires 7zip in %ProgramFiles%\7-Zip\7z.exe
 REM - building installer requires innotsetup in "%ProgramFiles(x86)%\Inno Setup 5\iscc"
 REM - AAX codesigning requires wraptool tool added to %PATH% env variable and aax.key/.crt in .\..\..\iPlug2\Certificates\
 
-if %1 == 1 (echo Making ICabbage Windows DEMO VERSION distribution ...) else (echo Making ICabbage Windows FULL VERSION distribution ...)
+if %1 == 1 (echo Making Cabbage Windows DEMO VERSION distribution ...) else (echo Making Cabbage Windows FULL VERSION distribution ...)
 
 echo "touching source"
 
@@ -49,21 +49,21 @@ REM -copy ".\resources\img\AboutBox_Registered.png" ".\resources\img\AboutBox.pn
 )
 
 REM - Could build individual targets like this:
-REM - msbuild ICabbage-app.vcxproj /p:configuration=release /p:platform=win32
+REM - msbuild Cabbage-app.vcxproj /p:configuration=release /p:platform=win32
 
 echo Building 32 bit binaries...
-msbuild ICabbage.sln /p:configuration=release /p:platform=win32 /nologo /verbosity:minimal /fileLogger /m /flp:logfile=build-win.log;errorsonly 
+msbuild Cabbage.sln /p:configuration=release /p:platform=win32 /nologo /verbosity:minimal /fileLogger /m /flp:logfile=build-win.log;errorsonly 
 
 echo Building 64 bit binaries...
-msbuild ICabbage.sln /p:configuration=release /p:platform=x64 /nologo /verbosity:minimal /fileLogger /m /flp:logfile=build-win.log;errorsonly;append
+msbuild Cabbage.sln /p:configuration=release /p:platform=x64 /nologo /verbosity:minimal /fileLogger /m /flp:logfile=build-win.log;errorsonly;append
 
 REM --echo Copying AAX Presets
 
 REM --echo ------------------------------------------------------------------
 REM --echo Code sign AAX binary...
 REM --info at pace central, login via iLok license manager https://www.paceap.com/pace-central.html
-REM --wraptool sign --verbose --account XXXXX --wcguid XXXXX --keyfile XXXXX.p12 --keypassword XXXXX --in .\build-win\aax\bin\ICabbage.aaxplugin\Contents\Win32\ICabbage.aaxplugin --out .\build-win\aax\bin\ICabbage.aaxplugin\Contents\Win32\ICabbage.aaxplugin
-REM --wraptool sign --verbose --account XXXXX --wcguid XXXXX --keyfile XXXXX.p12 --keypassword XXXXX --in .\build-win\aax\bin\ICabbage.aaxplugin\Contents\x64\ICabbage.aaxplugin --out .\build-win\aax\bin\ICabbage.aaxplugin\Contents\x64\ICabbage.aaxplugin
+REM --wraptool sign --verbose --account XXXXX --wcguid XXXXX --keyfile XXXXX.p12 --keypassword XXXXX --in .\build-win\aax\bin\Cabbage.aaxplugin\Contents\Win32\Cabbage.aaxplugin --out .\build-win\aax\bin\Cabbage.aaxplugin\Contents\Win32\Cabbage.aaxplugin
+REM --wraptool sign --verbose --account XXXXX --wcguid XXXXX --keyfile XXXXX.p12 --keypassword XXXXX --in .\build-win\aax\bin\Cabbage.aaxplugin\Contents\x64\Cabbage.aaxplugin --out .\build-win\aax\bin\Cabbage.aaxplugin\Contents\x64\Cabbage.aaxplugin
 
 REM - Make Installer (InnoSetup)
 
@@ -73,21 +73,21 @@ echo Making Installer ...
 if exist "%ProgramFiles(x86)%" (goto 64-Bit-is) else (goto 32-Bit-is)
 
 :32-Bit-is
-"%ProgramFiles%\Inno Setup 5\iscc" /Q /cc ".\installer\ICabbage.iss"
+"%ProgramFiles%\Inno Setup 5\iscc" /Q /cc ".\installer\Cabbage.iss"
 goto END-is
 
 :64-Bit-is
-"%ProgramFiles(x86)%\Inno Setup 5\iscc" /Q /cc ".\installer\ICabbage.iss"
+"%ProgramFiles(x86)%\Inno Setup 5\iscc" /Q /cc ".\installer\Cabbage.iss"
 goto END-is
 
 :END-is
 
 REM - Codesign Installer for Windows 8+
-REM -"C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Bin\signtool.exe" sign /f "XXXXX.p12" /p XXXXX /d "ICabbage Installer" ".\installer\ICabbage Installer.exe"
+REM -"C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Bin\signtool.exe" sign /f "XXXXX.p12" /p XXXXX /d "Cabbage Installer" ".\installer\Cabbage Installer.exe"
 
 REM -if %1 == 1 (
-REM -copy ".\installer\ICabbage Installer.exe" ".\installer\ICabbage Demo Installer.exe"
-REM -del ".\installer\ICabbage Installer.exe"
+REM -copy ".\installer\Cabbage Installer.exe" ".\installer\Cabbage Demo Installer.exe"
+REM -del ".\installer\Cabbage Installer.exe"
 REM -)
 
 REM - ZIP

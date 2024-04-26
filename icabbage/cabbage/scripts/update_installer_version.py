@@ -62,9 +62,9 @@ def main():
       line="AppVersion=" + config['FULL_VER_STR'] + "\n"
     if "OutputBaseFilename" in line:
       if demo:
-        line="OutputBaseFilename=ICabbage Demo Installer\n"
+        line="OutputBaseFilename=Cabbage Demo Installer\n"
       else:
-        line="OutputBaseFilename=ICabbage Installer\n"
+        line="OutputBaseFilename=Cabbage Installer\n"
         
     if 'Source: "readme' in line:
      if demo:
@@ -74,15 +74,15 @@ def main():
     
     if "WelcomeLabel1" in line:
      if demo:
-       line="WelcomeLabel1=Welcome to the ICabbage Demo installer\n"
+       line="WelcomeLabel1=Welcome to the Cabbage Demo installer\n"
      else:
-       line="WelcomeLabel1=Welcome to the ICabbage installer\n"
+       line="WelcomeLabel1=Welcome to the Cabbage installer\n"
        
     if "SetupWindowTitle" in line:
      if demo:
-       line="SetupWindowTitle=ICabbage Demo installer\n"
+       line="SetupWindowTitle=Cabbage Demo installer\n"
      else:
-       line="SetupWindowTitle=ICabbage installer\n"
+       line="SetupWindowTitle=Cabbage installer\n"
        
     sys.stdout.write(line)
     

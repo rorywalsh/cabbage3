@@ -3,6 +3,7 @@
 import * as vscode from 'vscode';
 
 import { Form, RotarySlider } from "./widgets.js";
+import * as cp from "child_process";
 
 let textEditor: vscode.TextEditor | undefined;
 
@@ -24,6 +25,8 @@ ws.on('close', () => {
   console.log('Disconnected from server');
 });
 
+let currentPid:number | undefined = -1;
+let process:cp.ChildProcessWithoutNullStreams;
 
 function DBG(...text: string[]) {
 	console.log("Cabbage:", text.join(','));
@@ -108,6 +111,15 @@ export function activate(context: vscode.ExtensionContext) {
 		//notify webview when various updates take place in editor
 		vscode.workspace.onDidSaveTextDocument((editor) => {
 			sendTextToWebView(editor, 'onFileChanged');
+			const config = vscode.workspace.getConfiguration("cabbage");
+			const command = config.get("pathToCabbageExecutable")+'/Cabbage.app/Contents/MacOS/Cabbage';
+			process = cp.spawn(command, [editor.fileName], {});
+			currentPid = process.pid;
+			if (process.pid) {
+				console.log("Cabbage is running (pid " + process.pid + ")");
+			}
+			console.log(command);
+
 		});
 
 		vscode.workspace.onDidOpenTextDocument((editor) => {
@@ -142,6 +154,7 @@ export function activate(context: vscode.ExtensionContext) {
 		if (!panel) {
 			return;
 		}
+		process.kill("SIGTERM");
 		sendTextToWebView(textEditor?.document, 'onEnterEditMode');
 	})
 	);

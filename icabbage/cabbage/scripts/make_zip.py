@@ -15,16 +15,16 @@ def  main():
   else:
     demo=int(sys.argv[1])
    
-  installer = "\installer\ICabbage Installer.exe"
+  installer = "\installer\Cabbage Installer.exe"
    
   if demo:
-    installer = "\installer\ICabbage Demo Installer.exe"
+    installer = "\installer\Cabbage Demo Installer.exe"
    
   FILES_TO_ZIP = [
     projectpath + installer,
     projectpath + "\installer\changelog.txt",
     projectpath + "\installer\known-issues.txt",
-    projectpath + "\manual\ICabbage manual.pdf" 
+    projectpath + "\manual\Cabbage manual.pdf" 
   ]
 
   # extract values from config.h
@@ -43,10 +43,10 @@ def  main():
 
   FULLVERSIONSTR = MAJORSTR + "." + MINORSTR + "." + BUGFIXSTR
 
-  ZIPNAME = "ICabbage-v" + FULLVERSIONSTR + "-win.zip"
+  ZIPNAME = "Cabbage-v" + FULLVERSIONSTR + "-win.zip"
   
   if demo:
-    ZIPNAME = "ICabbage-v" + FULLVERSIONSTR + "-win-demo.zip"
+    ZIPNAME = "Cabbage-v" + FULLVERSIONSTR + "-win-demo.zip"
   
   zf = zipfile.ZipFile(projectpath + "\installer\/" + ZIPNAME, mode="w")
 

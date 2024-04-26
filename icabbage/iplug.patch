@@ -296,11 +296,28 @@ index 91292484f..4630b703b 100644
  #elif defined NO_IGRAPHICS
    #include "IPlugEditorDelegate.h"
    using EDITOR_DELEGATE_CLASS = iplug::IEditorDelegate;
+diff --git a/IPlug/IPlug_include_in_plug_hdr.h b/IPlug/IPlug_include_in_plug_hdr.h
+index 4c1c0765d..83685b700 100644
+--- a/IPlug/IPlug_include_in_plug_hdr.h
++++ b/IPlug/IPlug_include_in_plug_hdr.h
+@@ -60,7 +60,11 @@
+   #define API_EXT "aax"
+   #define PROTOOLS
+ #elif defined APP_API
+-  #include "IPlugAPP.h"
++    #if CUSTOM_APP_SRC
++        #include "CabbageAPP.h"
++    #else
++        #include "IPlugAPP.h"
++    #endif
+   #define PLUGIN_API_BASE IPlugAPP
+   #define API_EXT "app"
+ #elif defined WAM_API
 diff --git a/Scripts/cmake/APP.cmake b/Scripts/cmake/APP.cmake
-index 70234ed49..aa670d0ad 100644
+index 70234ed49..d78710b98 100644
 --- a/Scripts/cmake/APP.cmake
 +++ b/Scripts/cmake/APP.cmake
-@@ -2,21 +2,42 @@ cmake_minimum_required(VERSION 3.11)
+@@ -2,21 +2,44 @@ cmake_minimum_required(VERSION 3.11)
  
  add_library(iPlug2_APP INTERFACE)
  set(sdk ${IPLUG2_DIR}/IPlug/APP)
@@ -321,16 +338,18 @@ index 70234ed49..aa670d0ad 100644
 -)
 +
 +if(CUSTOM_APP_SRC)
++  message("Setting Custom App target src")
 +  set(_src
-+    ${IPLUG2_DIR}/../cabbage/APP/IPlugAPP.cpp 
-+    ${IPLUG2_DIR}/../cabbage/APP/IPlugAPP_dialog.cpp 
-+    ${IPLUG2_DIR}/../cabbage/APP/IPlugAPP_host.cpp 
-+    ${IPLUG2_DIR}/../cabbage/APP/IPlugAPP_main.cpp
++    ${IPLUG2_DIR}/../cabbage/CabbageApp/CabbageAPP.cpp 
++    ${IPLUG2_DIR}/../cabbage/CabbageApp/CabbageAPP_host.h
++    ${IPLUG2_DIR}/../cabbage/CabbageApp/CabbageAPP_dialog.cpp 
++    ${IPLUG2_DIR}/../cabbage/CabbageApp/CabbageAPP_host.cpp 
++    ${IPLUG2_DIR}/../cabbage/CabbageApp/CabbageAPP_main.cpp
 +    ${IPLUG_DEPS}/RTAudio/RtAudio.cpp
 +    ${IPLUG_DEPS}/RTMidi/RtMidi.cpp
 +  )
 +  set(_inc
-+    ${IPLUG2_DIR}/../cabbage/APP
++    ${IPLUG2_DIR}/../cabbage/CabbageApp
 +    ${IPLUG_DEPS}/RTAudio
 +    ${IPLUG_DEPS}/RTAudio/include
 +    ${IPLUG_DEPS}/RTMidi
