@@ -39,4 +39,5 @@ with open("icabbage/cabbage/CMakeLists.txt", "w") as f:
 os.system('git add icabbage')
 os.system('git add vscabbage')
 os.system('git add commit.py')
+os.system('git add readme.md')
 os.system('git commit -m "'+sys.argv[1]+' - Version number:'+newVersionNum+'"')
