@@ -14,7 +14,7 @@
 #include <sys/stat.h>
 #endif
 
-#import <Cocoa/Cocoa.h>
+
 #include "IPlugLogger.h"
 
 using namespace iplug;
@@ -29,21 +29,9 @@ std::unique_ptr<IPlugAPPHost> IPlugAPPHost::sInstance;
 UINT gSCROLLMSG;
 
 IPlugAPPHost::IPlugAPPHost(std::string file)
-: mIPlug(MakePlug(InstanceInfo{this})), csdFile(file)
+: csdFile(file), mIPlug(MakePlug(InstanceInfo{this}))
 {
     std::cout << file;
-    NSString* result = [NSString stringWithUTF8String:file.c_str()];
-    NSString* alternative = [[NSString alloc] initWithUTF8String:file.c_str()];
-    
-    NSAlert *alert = [[NSAlert alloc] init];
-        [alert addButtonWithTitle:@"OK"];
-        [alert addButtonWithTitle:@"Cancel"];
-        [alert setMessageText:@"Delete the record?"];
-        [alert setInformativeText:result];
-        [alert setAlertStyle:NSWarningAlertStyle];
-
-        if ([alert runModal] == NSAlertFirstButtonReturn) {
-        }
 }
 
 IPlugAPPHost::~IPlugAPPHost()
@@ -62,7 +50,6 @@ IPlugAPPHost::~IPlugAPPHost()
 //static
 IPlugAPPHost* IPlugAPPHost::Create(std::string filePath)
 {
-
     sInstance = std::make_unique<IPlugAPPHost>(filePath);
     return sInstance.get();
 }
@@ -84,6 +71,13 @@ bool IPlugAPPHost::Init()
     mIPlug->OnParamReset(kReset);
     mIPlug->OnActivate(true);
     
+    
+    auto cabbage = dynamic_cast<ICabbage*>(mIPlug.get());
+    cabbage->setCsdFile(csdFile);
+    if(!cabbage->setupAndStartCsound())
+        showMessage(csdFile);
+    
+//    assertm(false, "Csould not compile");
     return true;
 }
 

@@ -8,6 +8,7 @@
 #include "APP/IPlugAPP.h"
 #include "csound.hpp"
 #include <cassert>
+#include <filesystem>
  
 // Use (void) to silence unused warnings.
 #define assertm(exp, msg) assert(((void)msg, exp))
@@ -52,6 +53,13 @@ public:
     static int OpenMidiOutputDevice (CSOUND* csnd, void** userData, const char* devName);
     static int ReadMidiData (CSOUND* csound, void* userData, unsigned char* mbuf, int nbytes);
     static int WriteMidiData (CSOUND* csound, void* userData, const unsigned char* mbuf, int nbytes);
+    
+    bool setupAndStartCsound();
+    
+    void setCsdFile(std::string file)
+    {
+        csdFile = file;
+    }
     
     void compileCsdFile (std::string csoundFile)
     {

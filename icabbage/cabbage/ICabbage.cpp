@@ -6,50 +6,6 @@ ICabbage::ICabbage(const InstanceInfo& info)
 : Plugin(info, MakeConfig(kNumParams, kNumPresets)), server(9999, "127.0.0.1")
 {
     
-    csound = std::make_unique<Csound>();
-        
-    csdFile = "/Users/rwalsh/sourcecode/audioFB/test.csd";
-
-    csound->SetHostImplementedMIDIIO(true);
-    csound->SetHostImplementedAudioIO(1, 0);
-    csound->SetHostData(this);
-
-    csound->CreateMessageBuffer(0);
-    csound->SetExternalMidiInOpenCallback(OpenMidiInputDevice);
-    csound->SetExternalMidiReadCallback(ReadMidiData);
-    csound->SetExternalMidiOutOpenCallback(OpenMidiOutputDevice);
-    csound->SetExternalMidiWriteCallback(WriteMidiData);
-    csoundParams = nullptr;
-    csoundParams = std::make_unique<CSOUND_PARAMS> ();
-
-    csoundParams->displays = 0;
-
-
-    csound->SetOption((char*)"-n");
-    csound->SetOption((char*)"-d");
-    csound->SetOption((char*)"-b0");
-    
-    csoundParams->nchnls_override = numCsoundOutputChannels;
-    csoundParams->nchnls_i_override = numCsoundInputChannels;
-    
-    csoundParams->sample_rate_override = 44100;
-    csound->SetParams(csoundParams.get());
-    compileCsdFile(csdFile);
-    
-    if (csdCompiledWithoutError())
-    {
-        csdKsmps = csound->GetKsmps();
-        csSpout = csound->GetSpout();
-        csSpin = csound->GetSpin();
-        csScale = csound->Get0dBFS();
-        csndIndex = csound->GetKsmps();
-    }
-    else
-    {
-        //Csound could not compile your file?
-        assertm(false, "Cound not compile file");
-    }
-    
     this->GetParam(kGain)->InitGain("Gain", -70., -70, 0.);
     
 #ifdef DEBUG
@@ -110,16 +66,82 @@ ICabbage::ICabbage(const InstanceInfo& info)
 
 ICabbage::~ICabbage(){
     server.stop();
+    if (csound)
+    {
+        csound = nullptr;
+        csoundParams = nullptr;
+    }
 }
 
 //===============================================================================
+bool ICabbage::setupAndStartCsound()
+{
+    csound = std::make_unique<Csound>();
+    csound->SetHostImplementedMIDIIO(true);
+    csound->SetHostImplementedAudioIO(1, 0);
+    csound->SetHostData(this);
+    
+    csound->CreateMessageBuffer(0);
+    csound->SetExternalMidiInOpenCallback(OpenMidiInputDevice);
+    csound->SetExternalMidiReadCallback(ReadMidiData);
+    csound->SetExternalMidiOutOpenCallback(OpenMidiOutputDevice);
+    csound->SetExternalMidiWriteCallback(WriteMidiData);
+    csoundParams = nullptr;
+    csoundParams = std::make_unique<CSOUND_PARAMS> ();
+    
+    csoundParams->displays = 0;
+    
+    
+    csound->SetOption((char*)"-n");
+    csound->SetOption((char*)"-d");
+    csound->SetOption((char*)"-b0");
+    
+//    csoundParams->nchnls_override = numCsoundOutputChannels;
+//    csoundParams->nchnls_i_override = numCsoundInputChannels;
+    
+    csoundParams->sample_rate_override = 44100;
+    csound->SetParams(csoundParams.get());
+//    compileCsdFile(csdFile);
+    
+    //csdFile = "/Users/rwalsh/Library/CloudStorage/OneDrive-Personal/Csoundfiles/addy.csd";
+    std::filesystem::path file = csdFile;
+    bool exists = std::filesystem::is_directory(file.parent_path());
+    if(exists)
+    {
+        csCompileResult = csound->Compile (csdFile.c_str());
+        
+        if (csdCompiledWithoutError())
+        {
+            csdKsmps = csound->GetKsmps();
+            csSpout = csound->GetSpout();
+            csSpin = csound->GetSpin();
+            csScale = csound->Get0dBFS();
+            csndIndex = csound->GetKsmps();
+        }
+        else
+        {
+            //Csound could not compile your file?
+            while (csound->GetMessageCnt() > 0)
+            {
+                std::string message(csound->GetFirstMessage());
+                std::cout << message << std::endl;
+                csound->PopFirstMessage();
+            }
+            return false;
+        }
+        return true;
+    }
+    else
+        return false;
+    
+}
+//===============================================================================
 void ICabbage::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
 {
-    const double gain = GetParam(kGain)->DBToAmp();
+    //const double gain = GetParam(kGain)->DBToAmp();
     
     if (csdCompiledWithoutError())
     {
-        unsigned int position = 0;
         
         for(int i = 0; i < nFrames ; i++, ++csndIndex)
         {
@@ -128,12 +150,13 @@ void ICabbage::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
                 csCompileResult = csound->PerformKsmps();
                 csndIndex = 0;
             }
-
+            
             for (int channel = 0; channel < NOutChansConnected(); channel++)
             {
-                position = csndIndex*channel;
+                pos = csndIndex*NOutChansConnected();
                 csSpin[channel+pos] =  inputs[channel][i]*csScale;
                 outputs[channel][i] = csSpout[channel+pos]/csScale;
+                //std::cout << channel+pos << std::endl;
             }
         }
     }
@@ -154,7 +177,7 @@ bool ICabbage::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pDat
 //===============================================================================
 void ICabbage::OnIdle()
 {
-
+    
 }
 
 //======================== CSOUND MIDI FUNCTIONS ================================
@@ -188,51 +211,51 @@ int ICabbage::OpenMidiInputDevice (CSOUND* csound, void** userData, const char* 
 // Reads MIDI input data from host, gets called every time there is MIDI input to our plugin
 //==============================================================================
 int ICabbage::ReadMidiData (CSOUND* /*csound*/, void* userData,
-                                         unsigned char* mbuf, int nbytes)
+                            unsigned char* mbuf, int nbytes)
 {
     auto* midiData = static_cast<ICabbage*>(userData);
-
+    
     if (!userData)
     {
         assertm(false, "\nInvalid");
         return 0;
     }
-
-    int cnt = 0;
-
     
-//    if (!midiData->midiBuffer.isEmpty() && cnt <= (nbytes - 3))
-//    {
-//        juce::MidiMessage message (0xf4, 0, 0, 0);
-//        juce::MidiBuffer::Iterator i (midiData->midiBuffer);
-//        int messageFrameRelativeTothisProcess;
-//
-//        while (i.getNextEvent (message, messageFrameRelativeTothisProcess))
-//        {
-//            
-//            const juce::uint8* data = message.getRawData();
-//            *mbuf++ = *data++;
-//
-//            if(message.isChannelPressure() || message.isProgramChange())
-//            {
-//                *mbuf++ = *data++;
-//                cnt += 2;
-//            }
-//            else
-//            {
-//                *mbuf++ = *data++;
-//                *mbuf++ = *data++;
-//                cnt  += 3;
-//            }
-//        }
-//
-//        midiData->midiBuffer.clear();
-//        
-//    }
-
+    int cnt = 0;
+    
+    
+    //    if (!midiData->midiBuffer.isEmpty() && cnt <= (nbytes - 3))
+    //    {
+    //        juce::MidiMessage message (0xf4, 0, 0, 0);
+    //        juce::MidiBuffer::Iterator i (midiData->midiBuffer);
+    //        int messageFrameRelativeTothisProcess;
+    //
+    //        while (i.getNextEvent (message, messageFrameRelativeTothisProcess))
+    //        {
+    //
+    //            const juce::uint8* data = message.getRawData();
+    //            *mbuf++ = *data++;
+    //
+    //            if(message.isChannelPressure() || message.isProgramChange())
+    //            {
+    //                *mbuf++ = *data++;
+    //                cnt += 2;
+    //            }
+    //            else
+    //            {
+    //                *mbuf++ = *data++;
+    //                *mbuf++ = *data++;
+    //                cnt  += 3;
+    //            }
+    //        }
+    //
+    //        midiData->midiBuffer.clear();
+    //
+    //    }
+    
     
     return cnt;
-
+    
 }
 
 //==============================================================================
@@ -250,17 +273,17 @@ int ICabbage::OpenMidiOutputDevice (CSOUND* csound, void** userData, const char*
 // method should be called. Note: you must have -Q set in your CsOptions
 //==============================================================================
 int ICabbage::WriteMidiData (CSOUND* /*csound*/, void* _userData,
-                                          const unsigned char* mbuf, int nbytes)
+                             const unsigned char* mbuf, int nbytes)
 {
     auto* userData = static_cast<ICabbage*>(_userData);
-
+    
     if (!userData)
     {
         assertm(false, "\n\nInvalid");
         return 0;
     }
-
-//    juce::MidiMessage message (mbuf, nbytes, 0);
-//    userData->midiOutputBuffer.addEvent (message, 0);
+    
+    //    juce::MidiMessage message (mbuf, nbytes, 0);
+    //    userData->midiOutputBuffer.addEvent (message, 0);
     return nbytes;
 }

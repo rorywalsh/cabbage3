@@ -41,6 +41,7 @@
 #include "IPlugConstants.h"
 
 #include "CabbageAPP.h"
+#include "ICabbage.h"
 
 #include "config.h"
 
@@ -51,6 +52,7 @@
 #define DEFAULT_INPUT_DEV "Default Device"
 #define DEFAULT_OUTPUT_DEV "Default Device"
 #elif defined(OS_MAC)
+#import <Cocoa/Cocoa.h>
 #include "IPlugSWELL.h"
 #define SLEEP( milliseconds ) usleep( (unsigned long) (milliseconds * 1000.0) )
 #define DEFAULT_INPUT_DEV "Built-in Input"
@@ -215,6 +217,24 @@ public:
     static WDL_DLGRET MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
     
     IPlugAPP* GetPlug() { return mIPlug.get(); }
+    
+    std::string getCsdFile(){   return csdFile; }
+    
+    void showMessage(std::string message)
+    {
+            NSString* result = [NSString stringWithUTF8String:message.c_str()];
+            NSString* alternative = [[NSString alloc] initWithUTF8String:message.c_str()];
+        
+            NSAlert *alert = [[NSAlert alloc] init];
+                [alert addButtonWithTitle:@"OK"];
+                [alert addButtonWithTitle:@"Cancel"];
+                [alert setMessageText:result];
+                [alert setInformativeText:result];
+                [alert setAlertStyle:NSWarningAlertStyle];
+        
+                if ([alert runModal] == NSAlertFirstButtonReturn) {
+                }
+    }
 private:
     std::unique_ptr<IPlugAPP> mIPlug = nullptr;
     std::unique_ptr<RtAudio> mDAC = nullptr;

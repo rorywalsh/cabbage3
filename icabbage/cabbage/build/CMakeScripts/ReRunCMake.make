@@ -15,7 +15,6 @@ TARGETS += $(subst $(space),$(spaceplus),$(wildcard /Users/rwalsh/sourcecode/cab
 TARGETS += $(subst $(space),$(spaceplus),$(wildcard /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/Scripts/cmake/AUv2.cmake))
 TARGETS += $(subst $(space),$(spaceplus),$(wildcard /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/Scripts/cmake/FindiPlug2.cmake))
 TARGETS += $(subst $(space),$(spaceplus),$(wildcard /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/Scripts/cmake/IGraphics.cmake))
-TARGETS += $(subst $(space),$(spaceplus),$(wildcard /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/Scripts/cmake/VST3.cmake))
 TARGETS += $(subst $(space),$(spaceplus),$(wildcard /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/iPlug2.cmake))
 TARGETS += $(subst $(space),$(spaceplus),$(wildcard /opt/homebrew/Cellar/cmake/3.28.3/share/cmake/Modules/CMakeCInformation.cmake))
 TARGETS += $(subst $(space),$(spaceplus),$(wildcard /opt/homebrew/Cellar/cmake/3.28.3/share/cmake/Modules/CMakeCXXInformation.cmake))
