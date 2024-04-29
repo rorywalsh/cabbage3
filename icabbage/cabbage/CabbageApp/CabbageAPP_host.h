@@ -44,6 +44,7 @@
 #include "ICabbage.h"
 
 #include "config.h"
+#include <ixwebsocket/IXWebSocketServer.h>
 
 #ifdef OS_WIN
 #include <WindowsX.h>
@@ -236,6 +237,7 @@ public:
                 }
     }
 private:
+    std::vector<ICabbage::Parameter> parameters;
     std::unique_ptr<IPlugAPP> mIPlug = nullptr;
     std::unique_ptr<RtAudio> mDAC = nullptr;
     std::unique_ptr<RtMidiIn> mMidiIn = nullptr;
@@ -243,7 +245,8 @@ private:
     int mMidiOutChannel = -1;
     int mMidiInChannel = -1;
     std::string csdFile;
-    
+    ix::WebSocket webSocket;
+    ICabbage* cabbage;
     /**  */
     AppState mState;
     /** When the preferences dialog is opened the existing state is cached here, and restored if cancel is pressed */

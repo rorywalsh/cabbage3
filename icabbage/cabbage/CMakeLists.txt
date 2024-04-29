@@ -8,7 +8,7 @@ cmake_policy(SET CMP0091 NEW)
 project(Cabbage VERSION 1.0.0 LANGUAGES C CXX)
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION 0.0.4)
+	set(BUILD_VERSION 0.0.5)
 endif()
 
 set(IPLUG2_DIR ${CMAKE_SOURCE_DIR}/../iPlug2)
@@ -142,6 +142,11 @@ iplug_target_add(${TARGET} PUBLIC
 LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} DEFINE CUSTOM_APP_SRC)
 iplug_configure_target(${TARGET} app)
 
+set(TARGET vst3)
+add_executable(${TARGET} WIN32 MACOSX_BUNDLE ${SRC_FILES} )
+iplug_target_add(${TARGET} PUBLIC 
+LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} DEFINE CUSTOM_APP_SRC)
+iplug_configure_target(${TARGET} app)
 
 if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
   set(TARGET auv2)

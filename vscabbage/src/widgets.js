@@ -50,10 +50,11 @@ export class RotarySlider {
       "colour": '#dddddd',
       "trackerColour": '#d1d323',
       "trackerBackgroundColour": '#000000',
-      "thumbStrokeColour": '#222222',
-      "thumbStrokeWidth": 1,
-      "trackerWidth" : 0.3,
-      "thumbColour": '#dddddd',
+      "trackerStrokeColour": '#222222',
+      "trackerStrokeWidth": 1,
+      "trackerWidth": .5,
+      "outlineWidth" : 0.3,
+      "trackerColour": '#dddddd',
       "fontColour": '#222222',
       "textColour": '#222222',
       "outlineColour": '#999999',
@@ -82,6 +83,7 @@ export class RotarySlider {
     this.upListener = this.pointerUp.bind(this);
     this.startY = 0;
     this.startValue = 0;
+    this.vscode = null;
   }
 
   pointerUp() { 
@@ -91,28 +93,33 @@ export class RotarySlider {
   }
 
   pointerDown(evt) {
-    console.log('slider on down');
+    // console.log('slider on down');
     this.startY = evt.clientY;
     this.startValue = this.props.value;
     window.addEventListener("pointermove", this.moveListener);
     window.addEventListener("pointerup", this.upListener);
   }
 
-  addEventListeners(widgetDiv) {
+  addEventListeners(widgetDiv, vs) {
+    this.vscode = vs;
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
   }
 
   pointerMove({ clientY }) {
-    console.log('slider on move');
+    // console.log('slider on move');
     const steps = 200;
-    console.log(clientY, this.startY);
     const valueDiff = ((this.props.max - this.props.min) * (clientY - this.startY)) / steps;
-    console.log(valueDiff);
     const value = clamp(this.startValue - valueDiff, this.props.min, this.props.max);
    
     this.props.value = Math.round(value / this.props.increment) * this.props.increment;
     const widgetDiv = document.getElementById(this.props.name);
     widgetDiv.innerHTML = this.getSVG();
+
+    const msg = {channel:this.props.channel, value: this.props.value.map(this.props.min, this.props.max, 0, 1)}
+    this.vscode.postMessage({
+      command: 'channelUpdate',
+      text: JSON.stringify(msg)
+    })
   }
 
   // https://stackoverflow.com/questions/20593575/making-circular-progress-bar-with-html5-svg
@@ -125,6 +132,7 @@ export class RotarySlider {
   }
 
   describeArc(x, y, radius, startAngle, endAngle) {
+    console.log(arguments)
     var start = this.polarToCartesian(x, y, radius, endAngle);
     var end = this.polarToCartesian(x, y, radius, startAngle);
 
@@ -146,14 +154,13 @@ export class RotarySlider {
     const trackerArcPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w/2)*(1-(this.props.trackerWidth*.5)), -130, this.props.value.map(this.props.min, this.props.max, -130, 132));
 
   
-  
+
 return `
       <svg xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
-      
       <path d='${trackerPath}' id="arc" fill="none" stroke=${this.props.trackerBackgroundColour} stroke-width=${this.props.trackerWidth*.5*w} />
       <path d='${trackerArcPath}' id="arc" fill="none" stroke=${this.props.trackerColour} stroke-width=${this.props.trackerWidth*.5*w} /> 
-      <circle cx=${this.props.width / 2} cy=${this.props.height / 2} r=${(w / 2) - this.props.trackerWidth*.5*w} stroke=${this.props.thumbStrokeColour} stroke-width=${this.props.thumbStrokeWidth} fill=${this.props.thumbColour} />
-    </svg>
+      <circle cx=${this.props.width / 2} cy=${this.props.height / 2} r=${(w / 2) - this.props.trackerWidth*.5*w} stroke=${this.props.outlineColour} stroke-width=${this.props.outlineWidth} fill=${this.props.colour} />
+      </svg>
       `;
   }
 }

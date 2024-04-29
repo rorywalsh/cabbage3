@@ -14,8 +14,8 @@
             filePath = "ICabbage.cpp"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "156"
-            endingLineNumber = "156"
+            startingLineNumber = "130"
+            endingLineNumber = "130"
             landmarkName = "ICabbage::ProcessBlock(inputs, outputs, nFrames)"
             landmarkType = "7">
          </BreakpointContent>
@@ -30,8 +30,8 @@
             filePath = "ICabbage.cpp"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "158"
-            endingLineNumber = "158"
+            startingLineNumber = "132"
+            endingLineNumber = "132"
             landmarkName = "ICabbage::ProcessBlock(inputs, outputs, nFrames)"
             landmarkType = "7">
          </BreakpointContent>
@@ -46,8 +46,8 @@
             filePath = "ICabbage.cpp"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "146"
-            endingLineNumber = "146"
+            startingLineNumber = "120"
+            endingLineNumber = "120"
             landmarkName = "ICabbage::ProcessBlock(inputs, outputs, nFrames)"
             landmarkType = "7">
          </BreakpointContent>
@@ -64,7 +64,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "288"
             endingLineNumber = "288"
-            landmarkName = "MakePlug(info)"
+            landmarkName = "MakePlug(info, csdFile)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -80,6 +80,150 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "31"
             endingLineNumber = "31"
+            landmarkName = "IPlugAPPHost::IPlugAPPHost(file)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "F3D1255F-AE20-4F65-B8C5-CFFA33469671"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "CabbageApp/CabbageAPP_host.cpp"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "115"
+            endingLineNumber = "115"
+            landmarkName = "IPlugAPPHost::~IPlugAPPHost()"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "F3D1255F-AE20-4F65-B8C5-CFFA33469671 - 64b4c0dfc699f806"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "iplug::IPlugAPPHost::~IPlugAPPHost()"
+                  moduleName = "Cabbage"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/CabbageApp/CabbageAPP_host.cpp"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "90"
+                  endingLineNumber = "90"
+                  offsetFromSymbolStart = "40">
+               </Location>
+               <Location
+                  uuid = "F3D1255F-AE20-4F65-B8C5-CFFA33469671 - 64b4c0dfc699e275"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "iplug::IPlugAPPHost::~IPlugAPPHost()"
+                  moduleName = "Cabbage"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/CabbageApp/CabbageAPP_host.cpp"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "41"
+                  endingLineNumber = "41"
+                  offsetFromSymbolStart = "40">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "B6576A1D-B214-4D95-8DCF-AE426E709267"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "ICabbage.cpp"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "168"
+            endingLineNumber = "168"
+            landmarkName = "ICabbage::parseCsd(csdFile)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "B6576A1D-B214-4D95-8DCF-AE426E709267 - 7f5f8d2c83227e30"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "ICabbage::parseCsd()"
+                  moduleName = "Cabbage"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/ICabbage.cpp"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "160"
+                  endingLineNumber = "160"
+                  offsetFromSymbolStart = "48">
+               </Location>
+               <Location
+                  uuid = "B6576A1D-B214-4D95-8DCF-AE426E709267 - 7f5f8d2c83227e30"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "ICabbage::parseCsd()"
+                  moduleName = "Cabbage"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/ICabbage.cpp"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "160"
+                  endingLineNumber = "160"
+                  offsetFromSymbolStart = "44">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "31F3CB57-CBD1-4B06-A1A9-9E806EF6DF8F"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "ICabbage.cpp"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "176"
+            endingLineNumber = "176"
+            landmarkName = "ICabbage::parseCsd(csdFile)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "9660C2FF-9598-4780-B012-CBCE5B89B508"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "ICabbage.cpp"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "5"
+            endingLineNumber = "5"
+            landmarkName = "ICabbage::ICabbage(info, csdFile)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "E9BA1938-C955-425C-B4EA-A80D312A5740"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "CabbageApp/CabbageAPP_host.cpp"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "32"
+            endingLineNumber = "32"
             landmarkName = "IPlugAPPHost::IPlugAPPHost(file)"
             landmarkType = "7">
          </BreakpointContent>

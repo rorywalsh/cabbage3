@@ -2,11 +2,9 @@
 #include "IPlug_include_in_plug_src.h"
 
 
-ICabbage::ICabbage(const InstanceInfo& info)
-: Plugin(info, MakeConfig(kNumParams, kNumPresets)), server(9999, "127.0.0.1")
+ICabbage::ICabbage(const iplug::InstanceInfo& info, std::string csdFile)
+: iplug::Plugin(info, iplug::MakeConfig(static_cast<int>(parseCsd(csdFile).size()), 0))
 {
-    
-    this->GetParam(kGain)->InitGain("Gain", -70., -70, 0.);
     
 #ifdef DEBUG
     SetEnableDevTools(true);
@@ -24,50 +22,14 @@ ICabbage::ICabbage(const InstanceInfo& info)
     };
     
     
-    server.setOnClientMessageCallback([this](std::shared_ptr<ix::ConnectionState> connectionState, ix::WebSocket & webSocket, const ix::WebSocketMessagePtr & msg) {
-        // The ConnectionState object contains information about the connection,
-        // at this point only the client ip address and the port.
-        std::cout << "Remote ip: " << connectionState->getRemoteIp() << std::endl;
-        if (msg->type == ix::WebSocketMessageType::Open)
-        {
-            std::cout << "New connection" << std::endl;
-            std::cout << "id: " << connectionState->getId() << std::endl;
-            std::cout << "Uri: " << msg->openInfo.uri << std::endl;
-            std::cout << "Headers:" << std::endl;
-            for (auto it : msg->openInfo.headers)
-            {
-                std::cout << "\t" << it.first << ": " << it.second << std::endl;
-            }
-        }
-        else if (msg->type == ix::WebSocketMessageType::Message)
-        {
-            //all incoming messages
-            auto value = 1-(std::abs(std::stod(msg->str))/70.0);
-            GetParam(0)->SetNormalized(value);
-            SendParameterValueFromDelegate(0, value, true);
-            std::cout << "Received: " << msg->str << " value:" << value << std::endl;
-        }
-    });
-    
-    
-    auto res = server.listen();
-    if (!res.first)
-    {
-        // Error handling
-        return 1;
-    }
-    
-    server.disablePerMessageDeflate();
-    
-    // Run the server in the background. Server can be stoped by calling server.stop()
-    server.start();
-    
 }
 
-ICabbage::~ICabbage(){
-    server.stop();
+ICabbage::~ICabbage()
+{
+    
     if (csound)
     {
+        csCompileResult = false;
         csound = nullptr;
         csoundParams = nullptr;
     }
@@ -96,15 +58,16 @@ bool ICabbage::setupAndStartCsound()
     csound->SetOption((char*)"-d");
     csound->SetOption((char*)"-b0");
     
-//    csoundParams->nchnls_override = numCsoundOutputChannels;
-//    csoundParams->nchnls_i_override = numCsoundInputChannels;
+    //    csoundParams->nchnls_override = numCsoundOutputChannels;
+    //    csoundParams->nchnls_i_override = numCsoundInputChannels;
     
     csoundParams->sample_rate_override = 44100;
     csound->SetParams(csoundParams.get());
-//    compileCsdFile(csdFile);
+    //    compileCsdFile(csdFile);
     
     //csdFile = "/Users/rwalsh/Library/CloudStorage/OneDrive-Personal/Csoundfiles/addy.csd";
     std::filesystem::path file = csdFile;
+    
     bool exists = std::filesystem::is_directory(file.parent_path());
     if(exists)
     {
@@ -129,6 +92,18 @@ bool ICabbage::setupAndStartCsound()
             }
             return false;
         }
+        
+
+        cabbageParameters = parseCsd(csdFile);
+        int paramCnt = 0;
+        for(auto& p : cabbageParameters)
+        {
+            this->GetParam(paramCnt)->InitDouble(p.channel.c_str(), p.range.value, p.range.min, p.range.max, p.range.increment,
+                                                 std::string(p.channel+"Label1").c_str(), iplug::IParam::EFlags::kFlagsNone, "", iplug::IParam::ShapePowCurve(p.range.skew));
+
+            paramCnt++;
+        }
+        
         return true;
     }
     else
@@ -136,13 +111,12 @@ bool ICabbage::setupAndStartCsound()
     
 }
 //===============================================================================
-void ICabbage::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
+void ICabbage::ProcessBlock(iplug::sample** inputs, iplug::sample** outputs, int nFrames)
 {
     //const double gain = GetParam(kGain)->DBToAmp();
     
     if (csdCompiledWithoutError())
     {
-        
         for(int i = 0; i < nFrames ; i++, ++csndIndex)
         {
             if (csndIndex >= csdKsmps)
@@ -160,6 +134,13 @@ void ICabbage::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
             }
         }
     }
+    else
+    {
+        for(int i = 0; i < nFrames ; i++)
+            for (int channel = 0; channel < NOutChansConnected(); channel++)
+                outputs[channel][i] = 0;
+    }
+    
 }
 
 //===============================================================================
@@ -180,20 +161,59 @@ void ICabbage::OnIdle()
     
 }
 
+std::vector<ICabbage::Parameter> ICabbage::parseCsd(std::string csdFile)
+{
+    std::vector<Parameter> params;
+    //fill vector with channels, type and ranges for all parameters
+    std::ifstream file(csdFile);
+    std::ostringstream oss;
+    oss << file.rdbuf();
+    std::string csdContents = oss.str();
+    
+    std::istringstream iss(csdContents);
+    std::string line;
+    while (std::getline(iss, line)) {
+        std::cout << line << std::endl;
+        std::regex pattern("\\b(\\w+)\\(([^)]+)\\)");
+
+        std::smatch matches;
+        std::string::const_iterator searchStart(line.cbegin());
+        Parameter param;
+        while (std::regex_search(searchStart, line.cend(), matches, pattern)) {
+            if(matches[1] == "channel")
+            {
+                //remove quotes from identifier parameters
+                std::string channel(matches[2]);
+                channel.erase(std::remove_if(channel.begin(), channel.end(), [](char c) { return c == '\"'; }), channel.end());
+                param.channel = channel;
+            }
+            else if(matches[1] == "range")
+            {
+                param.range = Range(matches[2]);
+            }
+            // Update the search start position
+            searchStart = matches.suffix().first;
+        }
+        
+        if(!param.channel.empty())
+            params.push_back(param);
+    }
+    
+    return params;
+
+}
 //======================== CSOUND MIDI FUNCTIONS ================================
 void ICabbage::OnParamChange(int paramIdx)
 {
-    DBGMSG("gain %f\n", GetParam(paramIdx)->Value());
-    auto client = server.getClients();
-    if(client.size()>0)
+    if(cabbageParameters.size() > 0)
     {
-        auto socket = *(client.begin());
-        socket->sendText(std::to_string(GetParam(paramIdx)->Value()));
+        std::cout << "Channel:" << cabbageParameters[paramIdx].channel << " Value:" << GetParam(paramIdx)->Value() << std::endl;
+        csound->SetControlChannel(cabbageParameters[paramIdx].channel.c_str(), GetParam(paramIdx)->Value());
     }
 }
 
 //======================== CSOUND MIDI FUNCTIONS ================================
-void ICabbage::ProcessMidiMsg(const IMidiMsg& msg)
+void ICabbage::ProcessMidiMsg(const iplug::IMidiMsg& msg)
 {
     TRACE;
     msg.PrintMsg();

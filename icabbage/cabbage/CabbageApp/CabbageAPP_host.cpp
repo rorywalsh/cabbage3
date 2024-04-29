@@ -29,9 +29,84 @@ std::unique_ptr<IPlugAPPHost> IPlugAPPHost::sInstance;
 UINT gSCROLLMSG;
 
 IPlugAPPHost::IPlugAPPHost(std::string file)
-: csdFile(file), mIPlug(MakePlug(InstanceInfo{this}))
+: csdFile(file), mIPlug(MakePlug(InstanceInfo{this}, file))
 {
     std::cout << file;
+    cabbage = dynamic_cast<ICabbage*>(mIPlug.get());
+    parameters = ICabbage::parseCsd(file);
+    webSocket.setUrl("ws://localhost:9991");
+    
+    webSocket.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg)
+            {
+                //remove escape quotes..
+                std::string jsonString = msg->str;
+                if (jsonString.front() == '\"' && jsonString.back() == '\"')
+                {
+                       jsonString = jsonString.substr(1, jsonString.size() - 2);
+                }
+        
+                size_t pos = jsonString.find("\\\"");
+                while (pos != std::string::npos)
+                {
+                    jsonString.replace(pos, 2, "\"");
+                    pos = jsonString.find("\\\"", pos + 1); // Find the next occurrence starting from pos + 1
+                }
+                
+//                std::cout << jsonString << std::endl;
+                if (msg->type == ix::WebSocketMessageType::Message)
+                {
+                    try{
+                        auto j = nlohmann::json::parse(jsonString);
+//                        std::cout << "JSON DUMP:" << j.dump();
+                        if(j.contains("event") && j["event"] == "stopCsound")
+                        {
+                            std::cout << "stopping Csound" << msg->str << std::endl;
+                            cabbage->stopProcessing();
+                        }
+                        else if(j.count("channel") > 0)
+                        {
+
+                            int paramIndex=0;
+                            for(const auto& p : parameters)
+                            {
+//                                std::cout << "Found channel: " << j["channel"].get<std::string>() <<  " Looking for: " << p.channel << std::endl;
+//                                std::cout << "> " << std::flush;
+                                if(p.channel == j["channel"])
+                                {
+//                                    std::cout << "updating parameters... Index:" << paramIndex << " Value:" << j["value"].get<double>() << std::endl;
+                                    mIPlug->SetParameterValue (paramIndex, j["value"].get<double>());
+                                }
+                                paramIndex++;
+                            }
+                            //
+                        }
+                        else
+                        {
+                            //std::cout << "received message: " << msg->str << std::endl;
+                            std::cout << "> " << std::flush;
+                        }
+                    }
+                    catch (nlohmann::json::exception& e) {
+                        std::cout << "JSON Error:" << e.what() << std::endl;
+                    }
+                }
+                else if (msg->type == ix::WebSocketMessageType::Open)
+                {
+                    std::cout << "Connection established" << std::endl;
+                    std::cout << "> " << std::flush;
+                }
+                else if (msg->type == ix::WebSocketMessageType::Error)
+                {
+                    // Maybe SSL is not configured properly
+                    std::cout << "Connection error: " << msg->errorInfo.reason << std::endl;
+                    std::cout << "> " << std::flush;
+                }
+            }
+    );
+
+        // Now that our callback is setup, we can start our background thread and receive messages
+    webSocket.start();
+    
 }
 
 IPlugAPPHost::~IPlugAPPHost()
@@ -39,6 +114,7 @@ IPlugAPPHost::~IPlugAPPHost()
     mExiting = true;
     
     CloseAudio();
+    
     
     if(mMidiIn)
         mMidiIn->cancelCallback();
@@ -72,7 +148,7 @@ bool IPlugAPPHost::Init()
     mIPlug->OnActivate(true);
     
     
-    auto cabbage = dynamic_cast<ICabbage*>(mIPlug.get());
+    cabbage = dynamic_cast<ICabbage*>(mIPlug.get());
     cabbage->setCsdFile(csdFile);
     if(!cabbage->setupAndStartCsound())
         showMessage(csdFile);

@@ -34,6 +34,15 @@ dependencies: \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/Extras/Oscillator_table.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/Extras/Smoothers.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/WDL/denormal.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/APP/IPlugAPP.h \
+  /Library/Frameworks/CsoundLib64.framework/Headers/csound.hpp \
+  /Library/Frameworks/CsoundLib64.framework/Headers/csound.h \
+  /Library/Frameworks/CsoundLib64.framework/Headers/sysdep.h \
+  /Library/Frameworks/CsoundLib64.framework/Headers/float-version.h \
+  /Library/Frameworks/CsoundLib64.framework/Headers/text.h \
+  /Library/Frameworks/CsoundLib64.framework/Headers/cfgvar.h \
+  /Library/Frameworks/CsoundLib64.framework/Headers/msg_attr.h \
+  /Library/Frameworks/CsoundLib64.framework/Headers/version.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketServer.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXSocketServer.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXConnectionState.h \
@@ -60,15 +69,6 @@ dependencies: \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXSocket.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketInitResult.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketPerMessageDeflate.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/APP/IPlugAPP.h \
-  /Library/Frameworks/CsoundLib64.framework/Headers/csound.hpp \
-  /Library/Frameworks/CsoundLib64.framework/Headers/csound.h \
-  /Library/Frameworks/CsoundLib64.framework/Headers/sysdep.h \
-  /Library/Frameworks/CsoundLib64.framework/Headers/float-version.h \
-  /Library/Frameworks/CsoundLib64.framework/Headers/text.h \
-  /Library/Frameworks/CsoundLib64.framework/Headers/cfgvar.h \
-  /Library/Frameworks/CsoundLib64.framework/Headers/msg_attr.h \
-  /Library/Frameworks/CsoundLib64.framework/Headers/version.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugSWELL.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/WDL/swell/swell.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/WDL/swell/swell-types.h \

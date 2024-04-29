@@ -37,28 +37,31 @@ exports.deactivate = exports.activate = void 0;
 // Import the module and reference it with the alias vscode in your code below
 const vscode = __importStar(__webpack_require__(1));
 const widgets_js_1 = __webpack_require__(2);
-const cp = __importStar(__webpack_require__(27));
+const cp = __importStar(__webpack_require__(3));
 let textEditor;
-const ws_1 = __importDefault(__webpack_require__(3));
-const ws = new ws_1.default('ws://localhost:9999');
-ws.on('open', () => {
-    console.log('Connected to server');
-    ws.send('0');
+let output;
+const ws_1 = __importDefault(__webpack_require__(4));
+const wss = new ws_1.default.Server({ port: 9991 });
+let websocket;
+wss.on('connection', (ws) => {
+    console.log('Client connected');
+    websocket = ws;
+    ws.on('message', (message) => {
+        console.log(`Received message from client: ${message}`);
+    });
+    ws.on('close', () => {
+        console.log('Client disconnected');
+    });
 });
-ws.on('message', (message) => {
-    console.log(`Received message from server: ${message}`);
-});
-ws.on('close', () => {
-    console.log('Disconnected from server');
-});
-let currentPid = -1;
-let process;
-function DBG(...text) {
-    console.log("Cabbage:", text.join(','));
-}
+let processes = [];
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 function activate(context) {
+    if (output === undefined) {
+        output = vscode.window.createOutputChannel("Cabbage output");
+    }
+    output.clear();
+    output.show(true); // true means keep focus in the editor window
     // Use the console to output diagnostic information (console.log) and errors (console.error)
     // This line of code will only be executed once when your extension is activated
     console.log('Congratulations, your extension "cabbage" is now active!');
@@ -117,17 +120,26 @@ function activate(context) {
         panel.onDidChangeViewState(() => {
             textEditor = vscode.window.activeTextEditor;
         });
+        vscode.workspace.onDidChangeTextDocument((editor) => {
+            // sendTextToWebView(editor.document, 'onFileChanged');
+        });
         //notify webview when various updates take place in editor
         vscode.workspace.onDidSaveTextDocument((editor) => {
             sendTextToWebView(editor, 'onFileChanged');
             const config = vscode.workspace.getConfiguration("cabbage");
             const command = config.get("pathToCabbageExecutable") + '/Cabbage.app/Contents/MacOS/Cabbage';
-            process = cp.spawn(command, [editor.fileName], {});
-            currentPid = process.pid;
-            if (process.pid) {
-                console.log("Cabbage is running (pid " + process.pid + ")");
-            }
-            console.log(command);
+            processes.forEach((p) => {
+                p?.kill("SIGKILL");
+            });
+            // 	process.kill("SIGKILL");
+            const process = cp.spawn(command, [editor.fileName], {});
+            // currentPid = process.pid;
+            processes.push(process);
+            process.stdout.on("data", (data) => {
+                // I've seen spurious 'ANSI reset color' sequences in some csound output
+                // which doesn't render correctly in this context. Stripping that out here.
+                output.append(data.toString().replace(/\x1b\[m/g, ""));
+            });
         });
         vscode.workspace.onDidOpenTextDocument((editor) => {
             sendTextToWebView(editor, 'onFileChanged');
@@ -142,6 +154,9 @@ function activate(context) {
                 case 'widgetUpdate':
                     updateText(message.text);
                     return;
+                case 'channelUpdate':
+                    websocket.send(JSON.stringify(message.text));
+                // console.log(message.text);
             }
         }, undefined, context.subscriptions);
     }));
@@ -152,7 +167,12 @@ function activate(context) {
         if (!panel) {
             return;
         }
-        process.kill("SIGTERM");
+        const msg = { event: "stopCsound" };
+        if (websocket)
+            websocket.send(JSON.stringify(msg));
+        processes.forEach((p) => {
+            p?.kill("SIGKILL");
+        });
         sendTextToWebView(textEditor?.document, 'onEnterEditMode');
     }));
 }
@@ -179,6 +199,11 @@ function getTokens(text) {
 function getIdentifierFromJson(json, name) {
     const obj = JSON.parse(json);
     let syntax = '';
+    if (name === 'range' && obj['type'].indexOf('slider') > -1) {
+        const { min, max, value, sliderSkew, increment } = obj;
+        syntax = `range(${min}, ${max}, ${value}, ${sliderSkew}, ${increment})`;
+        return syntax;
+    }
     for (const key in obj) {
         if (obj.hasOwnProperty(key) && key === name) {
             const value = obj[key];
@@ -221,6 +246,13 @@ function findUpdatedIdentifiers(initial, current) {
             updatedIdentifiers.push(key);
         }
     }
+    if (currentWidgetObj['type'].indexOf('slider') > -1) {
+        updatedIdentifiers.push('min');
+        updatedIdentifiers.push('max');
+        updatedIdentifiers.push('value');
+        updatedIdentifiers.push('skew');
+        updatedIdentifiers.push('increment');
+    }
     return updatedIdentifiers;
 }
 /**
@@ -243,7 +275,6 @@ function updateText(jsonText) {
             default:
                 break;
         }
-        console.log(jsonText);
         textEditor.edit(editBuilder => {
             if (textEditor) {
                 let foundChannel = false;
@@ -257,7 +288,6 @@ function updateText(jsonText) {
                             foundChannel = true;
                             //found entry - now update bounds
                             const updatedIdentifiers = findUpdatedIdentifiers(JSON.stringify(defaultProps), jsonText);
-                            console.log(updatedIdentifiers);
                             updatedIdentifiers.forEach((ident) => {
                                 if (ident != "top" && ident != "left" && ident != "width" && ident != "height" && ident != "name") {
                                     const newIndex = tokens.findIndex(({ token }) => token == ident);
@@ -273,6 +303,10 @@ function updateText(jsonText) {
                                     }
                                 }
                             });
+                            if (props.type.indexOf('slider') > -1) {
+                                const rangeIndex = tokens.findIndex(({ token }) => token === 'range');
+                                tokens[rangeIndex].values = [props.min, props.max, props.value, props.skew, props.increment];
+                            }
                             const boundsIndex = tokens.findIndex(({ token }) => token === 'bounds');
                             tokens[boundsIndex].values = [props.left, props.top, props.width, props.height];
                             lines[i] = `${lines[i].split(' ')[0]} ` + tokens.map(({ token, values }) => typeof values[0] === 'string' ? `${token}("${values.join(', ')}")` : `${token}(${values.join(', ')})`).join(', ');
@@ -280,7 +314,7 @@ function updateText(jsonText) {
                             textEditor.selection = new vscode.Selection(i, 0, i, 10000);
                         }
                         else if (props.type == "form") {
-                            DBG("should update the form code in the editor now");
+                            console.log("should update the form code in the editor now");
                         }
                     }
                     if (lines[i] === '</Cabbage>')
@@ -292,9 +326,12 @@ function updateText(jsonText) {
                         lineNumber = count;
                     count++;
                 });
+                //this is called when we create a widgets from the popup menu in the UI builder
                 if (!foundChannel && props.type != "form") {
-                    const newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${getIdentifierFromJson(jsonText, "channel")}\n`;
-                    editBuilder.insert(new vscode.Position(lineNumber, 0), newLine);
+                    let newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${getIdentifierFromJson(jsonText, "channel")}`;
+                    if (props.type.indexOf('slider') > -1)
+                        newLine += ` ${getIdentifierFromJson(jsonText, "range")}`;
+                    editBuilder.insert(new vscode.Position(lineNumber, 0), newLine + '\n');
                     textEditor.selection = new vscode.Selection(lineNumber, 0, lineNumber, 10000);
                 }
             }
@@ -444,10 +481,11 @@ class RotarySlider {
       "colour": '#dddddd',
       "trackerColour": '#d1d323',
       "trackerBackgroundColour": '#000000',
-      "thumbStrokeColour": '#222222',
-      "thumbStrokeWidth": 1,
-      "trackerWidth" : 0.3,
-      "thumbColour": '#dddddd',
+      "trackerStrokeColour": '#222222',
+      "trackerStrokeWidth": 1,
+      "trackerWidth": .5,
+      "outlineWidth" : 0.3,
+      "trackerColour": '#dddddd',
       "fontColour": '#222222',
       "textColour": '#222222',
       "outlineColour": '#999999',
@@ -476,6 +514,7 @@ class RotarySlider {
     this.upListener = this.pointerUp.bind(this);
     this.startY = 0;
     this.startValue = 0;
+    this.vscode = null;
   }
 
   pointerUp() { 
@@ -485,28 +524,33 @@ class RotarySlider {
   }
 
   pointerDown(evt) {
-    console.log('slider on down');
+    // console.log('slider on down');
     this.startY = evt.clientY;
     this.startValue = this.props.value;
     window.addEventListener("pointermove", this.moveListener);
     window.addEventListener("pointerup", this.upListener);
   }
 
-  addEventListeners(widgetDiv) {
+  addEventListeners(widgetDiv, vs) {
+    this.vscode = vs;
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
   }
 
   pointerMove({ clientY }) {
-    console.log('slider on move');
+    // console.log('slider on move');
     const steps = 200;
-    console.log(clientY, this.startY);
     const valueDiff = ((this.props.max - this.props.min) * (clientY - this.startY)) / steps;
-    console.log(valueDiff);
     const value = clamp(this.startValue - valueDiff, this.props.min, this.props.max);
    
     this.props.value = Math.round(value / this.props.increment) * this.props.increment;
     const widgetDiv = document.getElementById(this.props.name);
     widgetDiv.innerHTML = this.getSVG();
+
+    const msg = {channel:this.props.channel, value: this.props.value.map(this.props.min, this.props.max, 0, 1)}
+    this.vscode.postMessage({
+      command: 'channelUpdate',
+      text: JSON.stringify(msg)
+    })
   }
 
   // https://stackoverflow.com/questions/20593575/making-circular-progress-bar-with-html5-svg
@@ -519,6 +563,7 @@ class RotarySlider {
   }
 
   describeArc(x, y, radius, startAngle, endAngle) {
+    console.log(arguments)
     var start = this.polarToCartesian(x, y, radius, endAngle);
     var end = this.polarToCartesian(x, y, radius, startAngle);
 
@@ -540,14 +585,13 @@ class RotarySlider {
     const trackerArcPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w/2)*(1-(this.props.trackerWidth*.5)), -130, this.props.value.map(this.props.min, this.props.max, -130, 132));
 
   
-  
+
 return `
       <svg xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
-      
       <path d='${trackerPath}' id="arc" fill="none" stroke=${this.props.trackerBackgroundColour} stroke-width=${this.props.trackerWidth*.5*w} />
       <path d='${trackerArcPath}' id="arc" fill="none" stroke=${this.props.trackerColour} stroke-width=${this.props.trackerWidth*.5*w} /> 
-      <circle cx=${this.props.width / 2} cy=${this.props.height / 2} r=${(w / 2) - this.props.trackerWidth*.5*w} stroke=${this.props.thumbStrokeColour} stroke-width=${this.props.thumbStrokeWidth} fill=${this.props.thumbColour} />
-    </svg>
+      <circle cx=${this.props.width / 2} cy=${this.props.height / 2} r=${(w / 2) - this.props.trackerWidth*.5*w} stroke=${this.props.outlineColour} stroke-width=${this.props.outlineWidth} fill=${this.props.colour} />
+      </svg>
       `;
   }
 }
@@ -584,16 +628,22 @@ return `
 
 /***/ }),
 /* 3 */
+/***/ ((module) => {
+
+module.exports = require("child_process");
+
+/***/ }),
+/* 4 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const WebSocket = __webpack_require__(4);
+const WebSocket = __webpack_require__(5);
 
-WebSocket.createWebSocketStream = __webpack_require__(24);
-WebSocket.Server = __webpack_require__(25);
-WebSocket.Receiver = __webpack_require__(18);
-WebSocket.Sender = __webpack_require__(21);
+WebSocket.createWebSocketStream = __webpack_require__(25);
+WebSocket.Server = __webpack_require__(26);
+WebSocket.Receiver = __webpack_require__(19);
+WebSocket.Sender = __webpack_require__(22);
 
 WebSocket.WebSocket = WebSocket;
 WebSocket.WebSocketServer = WebSocket.Server;
@@ -602,25 +652,25 @@ module.exports = WebSocket;
 
 
 /***/ }),
-/* 4 */
+/* 5 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex|Readable$" }] */
 
 
 
-const EventEmitter = __webpack_require__(5);
-const https = __webpack_require__(6);
-const http = __webpack_require__(7);
-const net = __webpack_require__(8);
-const tls = __webpack_require__(9);
-const { randomBytes, createHash } = __webpack_require__(10);
-const { Duplex, Readable } = __webpack_require__(11);
-const { URL } = __webpack_require__(12);
+const EventEmitter = __webpack_require__(6);
+const https = __webpack_require__(7);
+const http = __webpack_require__(8);
+const net = __webpack_require__(9);
+const tls = __webpack_require__(10);
+const { randomBytes, createHash } = __webpack_require__(11);
+const { Duplex, Readable } = __webpack_require__(12);
+const { URL } = __webpack_require__(13);
 
-const PerMessageDeflate = __webpack_require__(13);
-const Receiver = __webpack_require__(18);
-const Sender = __webpack_require__(21);
+const PerMessageDeflate = __webpack_require__(14);
+const Receiver = __webpack_require__(19);
+const Sender = __webpack_require__(22);
 const {
   BINARY_TYPES,
   EMPTY_BUFFER,
@@ -630,12 +680,12 @@ const {
   kStatusCode,
   kWebSocket,
   NOOP
-} = __webpack_require__(16);
+} = __webpack_require__(17);
 const {
   EventTarget: { addEventListener, removeEventListener }
-} = __webpack_require__(22);
-const { format, parse } = __webpack_require__(23);
-const { toBuffer } = __webpack_require__(15);
+} = __webpack_require__(23);
+const { format, parse } = __webpack_require__(24);
+const { toBuffer } = __webpack_require__(16);
 
 const closeTimeout = 30 * 1000;
 const kAborted = Symbol('kAborted');
@@ -1944,64 +1994,64 @@ function socketOnError() {
 
 
 /***/ }),
-/* 5 */
+/* 6 */
 /***/ ((module) => {
 
 module.exports = require("events");
 
 /***/ }),
-/* 6 */
+/* 7 */
 /***/ ((module) => {
 
 module.exports = require("https");
 
 /***/ }),
-/* 7 */
+/* 8 */
 /***/ ((module) => {
 
 module.exports = require("http");
 
 /***/ }),
-/* 8 */
+/* 9 */
 /***/ ((module) => {
 
 module.exports = require("net");
 
 /***/ }),
-/* 9 */
+/* 10 */
 /***/ ((module) => {
 
 module.exports = require("tls");
 
 /***/ }),
-/* 10 */
+/* 11 */
 /***/ ((module) => {
 
 module.exports = require("crypto");
 
 /***/ }),
-/* 11 */
+/* 12 */
 /***/ ((module) => {
 
 module.exports = require("stream");
 
 /***/ }),
-/* 12 */
+/* 13 */
 /***/ ((module) => {
 
 module.exports = require("url");
 
 /***/ }),
-/* 13 */
+/* 14 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const zlib = __webpack_require__(14);
+const zlib = __webpack_require__(15);
 
-const bufferUtil = __webpack_require__(15);
-const Limiter = __webpack_require__(17);
-const { kStatusCode } = __webpack_require__(16);
+const bufferUtil = __webpack_require__(16);
+const Limiter = __webpack_require__(18);
+const { kStatusCode } = __webpack_require__(17);
 
 const FastBuffer = Buffer[Symbol.species];
 const TRAILER = Buffer.from([0x00, 0x00, 0xff, 0xff]);
@@ -2512,18 +2562,18 @@ function inflateOnError(err) {
 
 
 /***/ }),
-/* 14 */
+/* 15 */
 /***/ ((module) => {
 
 module.exports = require("zlib");
 
 /***/ }),
-/* 15 */
+/* 16 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { EMPTY_BUFFER } = __webpack_require__(16);
+const { EMPTY_BUFFER } = __webpack_require__(17);
 
 const FastBuffer = Buffer[Symbol.species];
 
@@ -2655,7 +2705,7 @@ if (!process.env.WS_NO_BUFFER_UTIL) {
 
 
 /***/ }),
-/* 16 */
+/* 17 */
 /***/ ((module) => {
 
 
@@ -2673,7 +2723,7 @@ module.exports = {
 
 
 /***/ }),
-/* 17 */
+/* 18 */
 /***/ ((module) => {
 
 
@@ -2734,22 +2784,22 @@ module.exports = Limiter;
 
 
 /***/ }),
-/* 18 */
+/* 19 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { Writable } = __webpack_require__(11);
+const { Writable } = __webpack_require__(12);
 
-const PerMessageDeflate = __webpack_require__(13);
+const PerMessageDeflate = __webpack_require__(14);
 const {
   BINARY_TYPES,
   EMPTY_BUFFER,
   kStatusCode,
   kWebSocket
-} = __webpack_require__(16);
-const { concat, toArrayBuffer, unmask } = __webpack_require__(15);
-const { isValidStatusCode, isValidUTF8 } = __webpack_require__(19);
+} = __webpack_require__(17);
+const { concat, toArrayBuffer, unmask } = __webpack_require__(16);
+const { isValidStatusCode, isValidUTF8 } = __webpack_require__(20);
 
 const FastBuffer = Buffer[Symbol.species];
 const promise = Promise.resolve();
@@ -3482,12 +3532,12 @@ function throwErrorNextTick(err) {
 
 
 /***/ }),
-/* 19 */
+/* 20 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { isUtf8 } = __webpack_require__(20);
+const { isUtf8 } = __webpack_require__(21);
 
 //
 // Allowed token characters:
@@ -3618,26 +3668,26 @@ if (isUtf8) {
 
 
 /***/ }),
-/* 20 */
+/* 21 */
 /***/ ((module) => {
 
 module.exports = require("buffer");
 
 /***/ }),
-/* 21 */
+/* 22 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex" }] */
 
 
 
-const { Duplex } = __webpack_require__(11);
-const { randomFillSync } = __webpack_require__(10);
+const { Duplex } = __webpack_require__(12);
+const { randomFillSync } = __webpack_require__(11);
 
-const PerMessageDeflate = __webpack_require__(13);
-const { EMPTY_BUFFER } = __webpack_require__(16);
-const { isValidStatusCode } = __webpack_require__(19);
-const { mask: applyMask, toBuffer } = __webpack_require__(15);
+const PerMessageDeflate = __webpack_require__(14);
+const { EMPTY_BUFFER } = __webpack_require__(17);
+const { isValidStatusCode } = __webpack_require__(20);
+const { mask: applyMask, toBuffer } = __webpack_require__(16);
 
 const kByteLength = Symbol('kByteLength');
 const maskBuffer = Buffer.alloc(4);
@@ -4107,12 +4157,12 @@ module.exports = Sender;
 
 
 /***/ }),
-/* 22 */
+/* 23 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { kForOnEventAttribute, kListener } = __webpack_require__(16);
+const { kForOnEventAttribute, kListener } = __webpack_require__(17);
 
 const kCode = Symbol('kCode');
 const kData = Symbol('kData');
@@ -4405,12 +4455,12 @@ function callListener(listener, thisArg, event) {
 
 
 /***/ }),
-/* 23 */
+/* 24 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { tokenChars } = __webpack_require__(19);
+const { tokenChars } = __webpack_require__(20);
 
 /**
  * Adds an offer to the map of extension offers or a parameter to the map of
@@ -4614,12 +4664,12 @@ module.exports = { format, parse };
 
 
 /***/ }),
-/* 24 */
+/* 25 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { Duplex } = __webpack_require__(11);
+const { Duplex } = __webpack_require__(12);
 
 /**
  * Emits the `'close'` event on a stream.
@@ -4779,23 +4829,23 @@ module.exports = createWebSocketStream;
 
 
 /***/ }),
-/* 25 */
+/* 26 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex$" }] */
 
 
 
-const EventEmitter = __webpack_require__(5);
-const http = __webpack_require__(7);
-const { Duplex } = __webpack_require__(11);
-const { createHash } = __webpack_require__(10);
+const EventEmitter = __webpack_require__(6);
+const http = __webpack_require__(8);
+const { Duplex } = __webpack_require__(12);
+const { createHash } = __webpack_require__(11);
 
-const extension = __webpack_require__(23);
-const PerMessageDeflate = __webpack_require__(13);
-const subprotocol = __webpack_require__(26);
-const WebSocket = __webpack_require__(4);
-const { GUID, kWebSocket } = __webpack_require__(16);
+const extension = __webpack_require__(24);
+const PerMessageDeflate = __webpack_require__(14);
+const subprotocol = __webpack_require__(27);
+const WebSocket = __webpack_require__(5);
+const { GUID, kWebSocket } = __webpack_require__(17);
 
 const keyRegex = /^[+/0-9A-Za-z]{22}==$/;
 
@@ -5324,12 +5374,12 @@ function abortHandshakeOrEmitwsClientError(server, req, socket, code, message) {
 
 
 /***/ }),
-/* 26 */
+/* 27 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { tokenChars } = __webpack_require__(19);
+const { tokenChars } = __webpack_require__(20);
 
 /**
  * Parses the `Sec-WebSocket-Protocol` header into a set of subprotocol names.
@@ -5390,12 +5440,6 @@ function parse(header) {
 
 module.exports = { parse };
 
-
-/***/ }),
-/* 27 */
-/***/ ((module) => {
-
-module.exports = require("child_process");
 
 /***/ })
 /******/ 	]);

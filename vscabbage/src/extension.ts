@@ -6,34 +6,39 @@ import { Form, RotarySlider } from "./widgets.js";
 import * as cp from "child_process";
 
 let textEditor: vscode.TextEditor | undefined;
+let output: vscode.OutputChannel;
 
 import WebSocket from 'ws';
 
-const ws = new WebSocket('ws://localhost:9999');
+const wss = new WebSocket.Server({ port: 9991 });
+let websocket: WebSocket;
 
-ws.on('open', () => {
-  console.log('Connected to server');
+wss.on('connection', (ws) => {
+	console.log('Client connected');
+	websocket = ws;
+	ws.on('message', (message) => {
+		console.log(`Received message from client: ${message}`);
+	});
 
-  ws.send('0');
+	ws.on('close', () => {
+		console.log('Client disconnected');
+	});
+
 });
 
-ws.on('message', (message: string) => {
-  console.log(`Received message from server: ${message}`);
-});
 
-ws.on('close', () => {
-  console.log('Disconnected from server');
-});
+let processes: (cp.ChildProcess | undefined)[] = [];
 
-let currentPid:number | undefined = -1;
-let process:cp.ChildProcessWithoutNullStreams;
-
-function DBG(...text: string[]) {
-	console.log("Cabbage:", text.join(','));
-}
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+
+	if (output === undefined) {
+		output = vscode.window.createOutputChannel("Cabbage output");
+	}
+
+	output.clear();
+	output.show(true); // true means keep focus in the editor window
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
@@ -108,17 +113,28 @@ export function activate(context: vscode.ExtensionContext) {
 			textEditor = vscode.window.activeTextEditor;
 		})
 
+		vscode.workspace.onDidChangeTextDocument((editor)=>{
+			// sendTextToWebView(editor.document, 'onFileChanged');
+		})
+
 		//notify webview when various updates take place in editor
 		vscode.workspace.onDidSaveTextDocument((editor) => {
 			sendTextToWebView(editor, 'onFileChanged');
 			const config = vscode.workspace.getConfiguration("cabbage");
-			const command = config.get("pathToCabbageExecutable")+'/Cabbage.app/Contents/MacOS/Cabbage';
-			process = cp.spawn(command, [editor.fileName], {});
-			currentPid = process.pid;
-			if (process.pid) {
-				console.log("Cabbage is running (pid " + process.pid + ")");
-			}
-			console.log(command);
+			const command = config.get("pathToCabbageExecutable") + '/Cabbage.app/Contents/MacOS/Cabbage';
+			processes.forEach((p) => {
+				p?.kill("SIGKILL");
+			})
+			// 	process.kill("SIGKILL");
+			const process = cp.spawn(command, [editor.fileName], {});
+			// currentPid = process.pid;
+			processes.push(process);
+
+			process.stdout.on("data", (data) => {
+				// I've seen spurious 'ANSI reset color' sequences in some csound output
+				// which doesn't render correctly in this context. Stripping that out here.
+				output.append(data.toString().replace(/\x1b\[m/g, ""));
+			});
 
 		});
 
@@ -138,6 +154,9 @@ export function activate(context: vscode.ExtensionContext) {
 					case 'widgetUpdate':
 						updateText(message.text);
 						return;
+					case 'channelUpdate':
+						websocket.send(JSON.stringify(message.text));
+					// console.log(message.text);
 				}
 			},
 			undefined,
@@ -154,7 +173,12 @@ export function activate(context: vscode.ExtensionContext) {
 		if (!panel) {
 			return;
 		}
-		process.kill("SIGTERM");
+		const msg = { event: "stopCsound" };
+		if(websocket)
+			websocket.send(JSON.stringify(msg));
+		processes.forEach((p) => {
+			p?.kill("SIGKILL");
+		})
 		sendTextToWebView(textEditor?.document, 'onEnterEditMode');
 	})
 	);
@@ -184,8 +208,15 @@ function getTokens(text: string) {
 function getIdentifierFromJson(json: string, name: string): string {
 	const obj = JSON.parse(json);
 	let syntax = '';
+
+	if (name === 'range' && obj['type'].indexOf('slider') > -1) {
+        const { min, max, value, sliderSkew, increment } = obj;
+        syntax = `range(${min}, ${max}, ${value}, ${sliderSkew}, ${increment})`;
+        return syntax;
+    }
+
 	for (const key in obj) {
-		if (obj.hasOwnProperty(key) && key === name) {
+			if (obj.hasOwnProperty(key) && key === name) {
 			const value = obj[key];
 			// Check if value is string and if so, wrap it in single quotes
 			const formattedValue = typeof value === 'string' ? `"${value}"` : value;
@@ -230,6 +261,15 @@ function findUpdatedIdentifiers(initial: string, current: string) {
 		}
 	}
 
+	
+	if (currentWidgetObj['type'].indexOf('slider') > -1){
+		updatedIdentifiers.push('min');
+		updatedIdentifiers.push('max');
+		updatedIdentifiers.push('value');
+		updatedIdentifiers.push('skew');
+		updatedIdentifiers.push('increment');
+
+	}
 	return updatedIdentifiers;
 }
 
@@ -253,8 +293,7 @@ function updateText(jsonText: string) {
 			default:
 				break;
 		}
-		
-		console.log(jsonText);
+
 
 		textEditor.edit(editBuilder => {
 			if (textEditor) {
@@ -272,7 +311,7 @@ function updateText(jsonText: string) {
 							foundChannel = true;
 							//found entry - now update bounds
 							const updatedIdentifiers = findUpdatedIdentifiers(JSON.stringify(defaultProps), jsonText);
-							console.log(updatedIdentifiers);
+	
 							updatedIdentifiers.forEach((ident) => {
 								if (ident != "top" && ident != "left" && ident != "width" && ident != "height" && ident != "name") {
 									const newIndex = tokens.findIndex(({ token }) => token == ident);
@@ -288,8 +327,15 @@ function updateText(jsonText: string) {
 									}
 								}
 							})
+
+							if(props.type.indexOf('slider')>-1){
+								const rangeIndex = tokens.findIndex(({ token }) => token === 'range');
+								tokens[rangeIndex].values = [props.min, props.max, props.value, props.skew, props.increment];
+							}
+
 							const boundsIndex = tokens.findIndex(({ token }) => token === 'bounds');
 							tokens[boundsIndex].values = [props.left, props.top, props.width, props.height];
+							
 							lines[i] = `${lines[i].split(' ')[0]} ` + tokens.map(({ token, values }) =>
 								typeof values[0] === 'string' ? `${token}("${values.join(', ')}")` : `${token}(${values.join(', ')})`
 							).join(', ');
@@ -297,7 +343,7 @@ function updateText(jsonText: string) {
 							textEditor.selection = new vscode.Selection(i, 0, i, 10000);
 						}
 						else if (props.type == "form") {
-							DBG("should update the form code in the editor now");
+							console.log("should update the form code in the editor now");
 						}
 					}
 					if (lines[i] === '</Cabbage>')
@@ -311,9 +357,14 @@ function updateText(jsonText: string) {
 					count++;
 				})
 
+				//this is called when we create a widgets from the popup menu in the UI builder
 				if (!foundChannel && props.type != "form") {
-					const newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${getIdentifierFromJson(jsonText, "channel")}\n`;
-					editBuilder.insert(new vscode.Position(lineNumber, 0), newLine);
+					let newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${getIdentifierFromJson(jsonText, "channel")}`;
+					
+					if(props.type.indexOf('slider') > -1)
+						newLine+=` ${getIdentifierFromJson(jsonText, "range")}`
+
+					editBuilder.insert(new vscode.Position(lineNumber, 0), newLine+'\n');
 					textEditor.selection = new vscode.Selection(lineNumber, 0, lineNumber, 10000);
 				}
 			}

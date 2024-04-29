@@ -17,23 +17,6 @@ const form = document.getElementById('MainForm');
 
 const widgetWrappers = new WidgetWrapper(updatePanel);
 
-function DBG(...text) {
-  console.log("Cabbage:", text.join());
-}
-
-/**
- * gets widget from its name
- */
-function getWidgetDiv(name) {
-  
-  widgets.forEach((w) => {
-    if (w.props.name == name) {
-      console.log('widget found', name);
-      return document.getElementById(name);
-    }
-  });
-  return null;
-}
 
 
 /**
@@ -57,6 +40,15 @@ function getCabbageCodeAsJSON(text) {
       jsonObj['top'] = top;
       jsonObj['width'] = width;
       jsonObj['height'] = height;
+    }
+    else if (name === 'range') {
+      // Splitting the value into individual parts for top, left, width, and height
+      const [min, max, initValue, sliderSkew, increment] = value.split(',').map(v => parseFloat(v.trim()));
+      jsonObj['min'] = min;
+      jsonObj['max'] = max;
+      jsonObj['value'] = initValue;
+      jsonObj['sliderSkew'] = sliderSkew;
+      jsonObj['increment'] = increment;
     }
     else if (name === 'size') {
       // Splitting the value into individual parts for width and height
@@ -101,7 +93,6 @@ window.addEventListener('message', event => {
  * this function parses the Cabbage code and creates new widgets accordingly..
  */
 function parseCabbageCsdTile(text) {
-  DBG("parseCabbageCsdTile()");
   //leave main form in the widget array - there is only one..
   widgets.splice(1, widgets.length - 1);
 
@@ -161,7 +152,7 @@ function updatePanel(eventType, name, bounds) {
 
 
   widgets.forEach((widget) => {
-    console.log(widget.props.name);
+
     // DBG(JSON.stringify(widget.props));
     if (widget.props.name == name) {
       // DBG(widget.name, name);
@@ -173,7 +164,6 @@ function updatePanel(eventType, name, bounds) {
         // document.getElementById(widget.props.name).style.width = widget.props.width;
         // document.getElementById(widget.props.name).style.height = widget.props.height;
         document.getElementById(widget.props.name).innerHTML = widget.getSVG();
-        console.log('-------------------------------------------------------\n', widget.getSVG());
       }
 
       if (widget.props.hasOwnProperty('channel'))
@@ -235,7 +225,6 @@ class PropertyPanel {
             if (widget.props.name == evt.target.dataset.parent) {
               widget.props[evt.target.id] = evt.target.value;
               const widgetDiv = document.getElementById(widget.props.name);
-              console.log(widgetDiv.innerHTML);
               //widgetDiv.innerHTML = WidgetSVG(widget);
               vscode.postMessage({
                 command: 'widgetUpdate',
@@ -244,8 +233,16 @@ class PropertyPanel {
             }
           })
         }
-        else {
-          console.log(evt.target.id);
+        else if(evt.target.type === 'text'){
+          widgets.forEach((widget) => {
+            if (widget.props.name == evt.target.dataset.parent) {
+                widget.props[evt.target.id] = evt.target.value;
+                vscode.postMessage({
+                  command: 'widgetUpdate',
+                  text: JSON.stringify(widget.props)
+                })
+            }
+          })
         }
 
       }, this);
@@ -270,6 +267,7 @@ form.addEventListener("contextmenu", e => {
     winHeight = window.innerHeight,
     cmWidth = contextMenu.offsetWidth,
     cmHeight = contextMenu.offsetHeight;
+
   x = x > winWidth - cmWidth ? winWidth - cmWidth - 5 : x;
   y = y > winHeight - cmHeight ? winHeight - cmHeight - 5 : y;
 
@@ -291,7 +289,6 @@ let menuItems = document.getElementsByTagName('*');
 for (var i = 0; i < menuItems.length; i++) {
   if (menuItems[i].getAttribute('class') == 'menuItem') {
     menuItems[i].addEventListener("click", async (e) => {
-      DBG("contextMenuItemClicks()");
       const type = e.target.innerHTML.replace(/(<([^>]+)>)/ig);
       const channel = type + String(numberOfWidgets);
       numberOfWidgets++;
@@ -313,6 +310,7 @@ for (var i = 0; i < menuItems.length; i++) {
  * click and add widgets
  */
 async function insertWidget(type, props) {
+
   const widgetDiv = document.createElement('div');
   //widgetDiv.className = 'editMode';
   widgetDiv.className = cabbageMode;
@@ -332,12 +330,9 @@ async function insertWidget(type, props) {
       widget = new Form();
       break;
     default:
-      DBG('+++++++++++++++++++++++++++++++++');
       return;
   }
 
-  DBG('+++++++++++++++++++++++++++++++++');
-  console.log('Cab Incoming props', props);
   Object.entries(props).forEach((entry) => {
     const [key, value] = entry;
 
@@ -349,11 +344,11 @@ async function insertWidget(type, props) {
   })
 
   
+  console.log(widget.props, null, 2);
   widgets.push(widget); // Push the new widget object into the array
-  console.log('Cab', widget.props);
 
   if(cabbageMode === 'playMode')
-    widget.addEventListeners(widgetDiv);
+    widget.addEventListeners(widgetDiv, vscode);
 
 
   widgetDiv.id = widget.props.name;
@@ -364,7 +359,7 @@ async function insertWidget(type, props) {
   widgetDiv.style.width = widget.props.width + 'px'
   widgetDiv.style.height = widget.props.height + 'px'
 
-  return widget;
+  return widget.props;
 }
 
 

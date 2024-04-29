@@ -3,19 +3,21 @@
 #include "IPlug_include_in_plug_hdr.h"
 #include "Oscillator.h"
 #include "Smoothers.h"
-#include <ixwebsocket/IXWebSocketServer.h>
+
 #include <iostream>
 #include "APP/IPlugAPP.h"
 #include "csound.hpp"
 #include <cassert>
 #include <filesystem>
- 
+#include <sstream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <regex>
+
 // Use (void) to silence unused warnings.
 #define assertm(exp, msg) assert(((void)msg, exp))
 
-using namespace iplug;
-
-const int kNumPresets = 3;
 
 enum EParams
 {
@@ -36,13 +38,63 @@ enum EControlTags
     kCtrlTagMeter = 0,
 };
 
-class ICabbage final : public Plugin
+class ICabbage final : public iplug::Plugin
 {
 public:
-    ICabbage(const InstanceInfo& info);
+    struct Range {
+        double min = 0;
+        double max = 1;
+        double value = 0;
+        double skew = 1;
+        double increment = 0.01;
+        
+        Range() = default;
+        
+        Range(std::string r){
+            std::istringstream iss(r);
+            std::cout << r << std::endl;
+            double v;
+            int cnt = 0;
+            while (iss >> v) {
+                switch(cnt){
+                    case 0:
+                        min = v;
+                        break;
+                    case 1:
+                        max = v;
+                        break;
+                    case 2:
+                        value = v;
+                        break;
+                    case 3:
+                        skew = v;
+                        break;
+                    case 4:
+                        increment = v;
+                        break;
+                    default:
+                        break;
+                }
+                cnt++;
+                // Ignore commas and spaces
+                if (iss.peek() == ',' || iss.peek() == ' ') {
+                    iss.ignore();
+                }
+                
+            }
+        }
+    };
+    
+    struct Parameter {
+        std::string channel;
+        std::string type;
+        Range range;
+    };
+    
+    ICabbage(const iplug::InstanceInfo& info, std::string csdFile);
     ~ICabbage();
-    void ProcessBlock(sample** inputs, sample** outputs, int nFrames) override;
-    void ProcessMidiMsg(const IMidiMsg& msg) override;
+    void ProcessBlock(iplug::sample** inputs, iplug::sample** outputs, int nFrames) override;
+    void ProcessMidiMsg(const iplug::IMidiMsg& msg) override;
     void OnReset() override;
     void OnIdle() override;
     bool OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData) override;
@@ -71,9 +123,17 @@ public:
         return csCompileResult == 0 ? true : false;
     }
     
+    void stopProcessing()
+    {
+        csCompileResult = -1;
+    }
+    
+    static std::vector<Parameter> parseCsd(std::string csdFile);
 private:
+    
+    
     std::string host = {"127.0.0.1"};
-    ix::WebSocketServer server;
+    std::vector<Parameter> cabbageParameters;
     int samplePosForMidi = 0;
     std::string csoundOutput = {};
     std::unique_ptr<CSOUND_PARAMS> csoundParams;

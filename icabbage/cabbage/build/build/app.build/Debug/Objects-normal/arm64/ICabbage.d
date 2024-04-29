@@ -33,32 +33,6 @@ dependencies: \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/Extras/Oscillator_table.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/Extras/Smoothers.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/WDL/denormal.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketServer.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXSocketServer.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXConnectionState.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXNetSystem.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXSelectInterrupt.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXSocketTLSOptions.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocket.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXProgressCallback.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketCloseConstants.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketErrorInfo.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketHttpHeaders.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXCancellationRequest.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXStrCaseCompare.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketMessage.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketCloseInfo.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketMessageType.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketOpenInfo.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketPerMessageDeflateOptions.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketSendData.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketSendInfo.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketTransport.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketHandshake.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXHttp.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXSocket.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketInitResult.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketPerMessageDeflate.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/APP/IPlugAPP.h \
   /Library/Frameworks/CsoundLib64.framework/Headers/csound.hpp \
   /Library/Frameworks/CsoundLib64.framework/Headers/csound.h \
