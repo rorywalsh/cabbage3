@@ -343,8 +343,6 @@ async function insertWidget(type, props) {
     }
   })
 
-  
-  console.log(widget.props, null, 2);
   widgets.push(widget); // Push the new widget object into the array
 
   if(cabbageMode === 'playMode')

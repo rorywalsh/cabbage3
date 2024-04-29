@@ -8,7 +8,7 @@ cmake_policy(SET CMP0091 NEW)
 project(Cabbage VERSION 1.0.0 LANGUAGES C CXX)
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION 0.0.5)
+	set(BUILD_VERSION 0.0.6)
 endif()
 
 set(IPLUG2_DIR ${CMAKE_SOURCE_DIR}/../iPlug2)
@@ -98,8 +98,12 @@ endif()
 #find_package(iPlug2 REQUIRED COMPONENTS Skia)
 set(SRC_FILES
   ${PROJECT_DIR}/config.h
-  ${PROJECT_DIR}/ICabbage.h
-  ${PROJECT_DIR}/ICabbage.cpp
+  ${PROJECT_DIR}/CabbageProcessor.h
+  ${PROJECT_DIR}/CabbageProcessor.cpp
+  ${PROJECT_DIR}/CabbageParser.h
+  ${PROJECT_DIR}/Cabbage.h
+  ${PROJECT_DIR}/Cabbage.cpp
+  ${PROJECT_DIR}/CabbageWidgetDescriptors.h
   ${PROJECT_DIR}/WebView/IPlugWebView.mm 
   ${PROJECT_DIR}/WebView/IPlugWebViewEditorDelegate.mm
   ${PROJECT_DIR}/WebView/IPlugWebView.h 

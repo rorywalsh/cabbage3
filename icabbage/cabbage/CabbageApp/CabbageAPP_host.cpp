@@ -32,8 +32,10 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
 : csdFile(file), mIPlug(MakePlug(InstanceInfo{this}, file))
 {
     std::cout << file;
-    cabbage = dynamic_cast<ICabbage*>(mIPlug.get());
-    parameters = ICabbage::parseCsd(file);
+    cabbageProcessor = dynamic_cast<CabbageProcessor*>(mIPlug.get());
+    parameters = cabbageProcessor->getCabbage().getWidgets();
+    parameterChannels =  cabbageProcessor->getCabbage().getParameterChannel();
+    
     webSocket.setUrl("ws://localhost:9991");
     
     webSocket.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg)
@@ -61,22 +63,24 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                         if(j.contains("event") && j["event"] == "stopCsound")
                         {
                             std::cout << "stopping Csound" << msg->str << std::endl;
-                            cabbage->stopProcessing();
+                            cabbageProcessor->stopProcessing();
                         }
                         else if(j.count("channel") > 0)
                         {
-
-                            int paramIndex=0;
-                            for(const auto& p : parameters)
+                            for(const auto& channel : parameterChannels)
                             {
-//                                std::cout << "Found channel: " << j["channel"].get<std::string>() <<  " Looking for: " << p.channel << std::endl;
+                                std::cout << "Channel: " << channel <<  " Looking for: " << j["channel"].get<std::string>() << std::endl;
 //                                std::cout << "> " << std::flush;
-                                if(p.channel == j["channel"])
+                                if(channel == j["channel"].get<std::string>())
                                 {
-//                                    std::cout << "updating parameters... Index:" << paramIndex << " Value:" << j["value"].get<double>() << std::endl;
-                                    mIPlug->SetParameterValue (paramIndex, j["value"].get<double>());
+                                    auto position = std::distance(parameterChannels.begin(),
+                                                                          std::find(parameterChannels.begin(),
+                                                                                    parameterChannels.end(),
+                                                                                    channel));
+                                        mIPlug->SetParameterValue (static_cast<int>(position), j["value"].get<double>());
+                                    
+                                        std::cout << "updating parameters... Index:" << position << " Value:" << j["value"].get<double>() << std::endl;
                                 }
-                                paramIndex++;
                             }
                             //
                         }
@@ -148,10 +152,10 @@ bool IPlugAPPHost::Init()
     mIPlug->OnActivate(true);
     
     
-    cabbage = dynamic_cast<ICabbage*>(mIPlug.get());
-    cabbage->setCsdFile(csdFile);
-    if(!cabbage->setupAndStartCsound())
-        showMessage(csdFile);
+//    cabbageProcessor = dynamic_cast<CabbageProcessor*>(mIPlug.get());
+//    cabbageProcessor->setCsdFile(csdFile);
+//    if(!cabbageProcessor->setupAndStartCsound())
+//        showMessage(csdFile);
     
 //    assertm(false, "Csould not compile");
     return true;

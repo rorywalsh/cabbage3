@@ -42,4 +42,5 @@ dependencies: \
   /Library/Frameworks/CsoundLib64.framework/Headers/cfgvar.h \
   /Library/Frameworks/CsoundLib64.framework/Headers/msg_attr.h \
   /Library/Frameworks/CsoundLib64.framework/Headers/version.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/ICabbageParser.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlug_include_in_plug_src.h

@@ -41,7 +41,7 @@
 #include "IPlugConstants.h"
 
 #include "CabbageAPP.h"
-#include "ICabbage.h"
+#include "CabbageProcessor.h"
 
 #include "config.h"
 #include <ixwebsocket/IXWebSocketServer.h>
@@ -237,7 +237,8 @@ public:
                 }
     }
 private:
-    std::vector<ICabbage::Parameter> parameters;
+    std::vector<nlohmann::json> parameters;
+    std::vector<std::string> parameterChannels;
     std::unique_ptr<IPlugAPP> mIPlug = nullptr;
     std::unique_ptr<RtAudio> mDAC = nullptr;
     std::unique_ptr<RtMidiIn> mMidiIn = nullptr;
@@ -246,7 +247,7 @@ private:
     int mMidiInChannel = -1;
     std::string csdFile;
     ix::WebSocket webSocket;
-    ICabbage* cabbage;
+    CabbageProcessor* cabbageProcessor;
     /**  */
     AppState mState;
     /** When the preferences dialog is opened the existing state is cached here, and restored if cancel is pressed */

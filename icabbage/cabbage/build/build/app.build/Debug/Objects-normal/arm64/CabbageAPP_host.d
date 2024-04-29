@@ -27,7 +27,7 @@ dependencies: \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugTimer.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlugProcessor.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/Extras/NChanDelay.h \
-  /Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/ICabbage.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/CabbageProcessor.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/IPlug_include_in_plug_hdr.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/config.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/Extras/Oscillator.h \
@@ -35,6 +35,8 @@ dependencies: \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/Extras/Smoothers.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/WDL/denormal.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/iPlug2/IPlug/APP/IPlugAPP.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/CabbageParser.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/Cabbage.h \
   /Library/Frameworks/CsoundLib64.framework/Headers/csound.hpp \
   /Library/Frameworks/CsoundLib64.framework/Headers/csound.h \
   /Library/Frameworks/CsoundLib64.framework/Headers/sysdep.h \
@@ -43,6 +45,7 @@ dependencies: \
   /Library/Frameworks/CsoundLib64.framework/Headers/cfgvar.h \
   /Library/Frameworks/CsoundLib64.framework/Headers/msg_attr.h \
   /Library/Frameworks/CsoundLib64.framework/Headers/version.h \
+  /Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/CabbageWidgetDescriptors.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXWebSocketServer.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXSocketServer.h \
   /Users/rwalsh/sourcecode/cabbage3/icabbage/IXWebSocket/ixwebsocket/IXConnectionState.h \
