@@ -1,3 +1,15 @@
+diff --git a/Dependencies/IPlug/RTAudio/include/iasiodrv.h b/Dependencies/IPlug/RTAudio/include/iasiodrv.h
+index 64d2dbb66..b3fab9bcb 100755
+--- a/Dependencies/IPlug/RTAudio/include/iasiodrv.h
++++ b/Dependencies/IPlug/RTAudio/include/iasiodrv.h
+@@ -1,6 +1,6 @@
+ #include "asiosys.h"
+ #include "asio.h"
+-
++#include <combaseapi.h>
+ /* Forward Declarations */ 
+ 
+ #ifndef __ASIODRIVER_FWD_DEFINED__
 diff --git a/Dependencies/IPlug/VST3_SDK/README.md b/Dependencies/IPlug/VST3_SDK/README.md
 index 408f08d02..9bfdcf6ac 100644
 --- a/Dependencies/IPlug/VST3_SDK/README.md
@@ -313,6 +325,26 @@ index 4c1c0765d..83685b700 100644
    #define PLUGIN_API_BASE IPlugAPP
    #define API_EXT "app"
  #elif defined WAM_API
+diff --git a/IPlug/IPlug_include_in_plug_src.h b/IPlug/IPlug_include_in_plug_src.h
+index dea4c90be..d706583f7 100644
+--- a/IPlug/IPlug_include_in_plug_src.h
++++ b/IPlug/IPlug_include_in_plug_src.h
+@@ -285,13 +285,13 @@ BEGIN_IPLUG_NAMESPACE
+ 
+ #if defined VST2_API || defined VST3_API || defined AAX_API || defined AUv3_API || defined APP_API  || defined WAM_API || defined WEB_API
+ 
+-Plugin* MakePlug(const iplug::InstanceInfo& info)
++Plugin* MakePlug(const iplug::InstanceInfo& info, std::string csdFile)
+ {
+   // From VST3 - is this necessary?
+   static WDL_Mutex sMutex;
+   WDL_MutexLock lock(&sMutex);
+   
+-  return new PLUG_CLASS_NAME(info);
++  return new PLUG_CLASS_NAME(info, csdFile);
+ }
+ 
+ #pragma mark - AUv2
 diff --git a/Scripts/cmake/APP.cmake b/Scripts/cmake/APP.cmake
 index 70234ed49..d78710b98 100644
 --- a/Scripts/cmake/APP.cmake

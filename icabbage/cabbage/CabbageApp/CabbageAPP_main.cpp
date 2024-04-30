@@ -23,6 +23,7 @@ using namespace iplug;
 #pragma mark - WINDOWS
 #if defined OS_WIN
 #include <windows.h>
+#include <WinSock2.h>
 #include <commctrl.h>
 
 extern WDL_DLGRET MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -52,7 +53,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
         InitCommonControls();
         gScrollMessage = RegisterWindowMessage("MSWHEEL_ROLLMSG");
         
-        IPlugAPPHost* pAppHost = IPlugAPPHost::Create();
+        IPlugAPPHost* pAppHost = IPlugAPPHost::Create("");
         pAppHost->Init();
         pAppHost->TryToChangeAudio();
         

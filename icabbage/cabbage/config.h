@@ -1,5 +1,4 @@
 
-
 #define PLUG_NAME "Cabbage"
 #define PLUG_MFR "CabbageAudio"
 #define PLUG_VERSION_HEX 0x00010000
