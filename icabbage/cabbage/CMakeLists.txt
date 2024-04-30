@@ -8,7 +8,7 @@ cmake_policy(SET CMP0091 NEW)
 project(Cabbage VERSION 1.0.0 LANGUAGES C CXX)
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION 0.0.6)
+	set(BUILD_VERSION 0.0.7)
 endif()
 
 set(IPLUG2_DIR ${CMAKE_SOURCE_DIR}/../iPlug2)
@@ -16,8 +16,16 @@ set(IXWebSocket_DIR ${CMAKE_SOURCE_DIR}/../IXWebSocket)
 include(${IPLUG2_DIR}/iPlug2.cmake)
 
 find_package(iPlug2)
+
 set(PROJECT_DIR "${CMAKE_SOURCE_DIR}")
+
+#==========================================================================
 if(WIN32) 
+  set(VCPKG_CMAKE "C:/Users/walshr/sourcecode/vcpkg/scripts/buildsystems/vcpkg.cmake")
+  SET(CMAKE_TOOLCHAIN_FILE ${VCPKG_CMAKE})
+  set(ZLIB_LIBRARY "C:\\Users\\walshr\\sourcecode\\vcpkg\\packages\\zlib_x64-windows-static\\lib\\zlib.lib")
+  set(ZLIB_INCLUDE_DIR "C:\\Users\\walshr\\sourcecode\\vcpkg\\packages\\zlib_x64-windows-static\\include")
+  
   # Courtesy of rovingeye, again
   execute_process(
     # requires NuGet
@@ -51,13 +59,17 @@ if(WIN32)
     ${IPLUG2_DIR}/IPlug/Extras/WebView/IPlugWebViewEditorDelegate.cpp
   )
 
+
+  find_package(ZLIB REQUIRED) 
+  include_directories("C:\\Program Files\\Csound6_x64\\include\\csound" "C:\\SDKs\\ASIOSDK2.3.3\\asiosdk_2.3.3_2019-06-14\\common")
+  find_library(CSOUND_LIBRARY NAMES csound64 HINTS "c:\\Program Files\\Csound6_x64\\lib")
 # ================================================================================
 elseif(APPLE) 
   # thanks ben vining!!
   # On further inspection, this is done in the top-level cmake file anyway - but maybe doesn't hurt for OOS builds and verbosity
   enable_language(OBJC)
   enable_language(OBJCXX)
-
+  find_package(ZLIB REQUIRED)
   set(EXTRA_DEFINES 
     OBJC_PREFIX=vCabbage
     SWELL_APP_PREFIX=Swell_vCabbage
@@ -70,7 +82,6 @@ elseif(APPLE)
   )
 
   # find_package(OpenSSL REQUIRED)
-  find_package(ZLIB REQUIRED)
 
   set(EXTRA_LINK_DIRECTORIES 
     ${IXWebSocket_DIR}/build
@@ -93,6 +104,11 @@ elseif(APPLE)
   set_source_files_properties(${PROJECT_DIR}/resources/web/script.js PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/web")
   set_source_files_properties(${PROJECT_DIR}/resources/web/webaudio-controls.js PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/web")
 
+  SET(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} "/Library/Frameworks/CsoundLib64")
+  find_library(CSOUND_LIBRARY NAMES CsoundLib64 HINTS /Library/Frameworks/CsoundLib64.framework/
+  "/Library/Frameworks/CsoundLib64.framework")  
+  include_directories("/Library/Frameworks/CsoundLib64.framework/Headers")
+
 endif()
 
 #find_package(iPlug2 REQUIRED COMPONENTS Skia)
@@ -112,18 +128,6 @@ set(SRC_FILES
 
 
 set_source_files_properties(${PROJECT_DIR}/WebView/IPlugWebView.mm PROPERTIES COMPILE_OPTIONS -fobjc-arc)
-
-# set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version" FORCE)
-# SET(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} "/Volumes/SSD_Drive/Mac/csound/build/CsoundLib64")
-# find_library(CSOUND_LIBRARY NAMES CsoundLib64 HINTS /Library/Frameworks/CsoundLib64.framework/
-# "/Volumes/SSD_Drive/Mac/csound/build/CsoundLib64.framework")  
-# include_directories("/Library/Frameworks/CsoundLib64.framework/Headers")
-# set(CMAKE_OSX_DEPLOYMENT_TARGET "10.12" CACHE STRING "Minimum OS X deployment version" FORCE)
-SET(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} "/Library/Frameworks/CsoundLib64")
-find_library(CSOUND_LIBRARY NAMES CsoundLib64 HINTS /Library/Frameworks/CsoundLib64.framework/
-"/Library/Frameworks/CsoundLib64.framework")  
-include_directories("/Library/Frameworks/CsoundLib64.framework/Headers")
-
 
 # While not required, creating a base interface for includes and settings seems like a good idea.
 add_library(_base INTERFACE)
@@ -146,18 +150,11 @@ iplug_target_add(${TARGET} PUBLIC
 LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} DEFINE CUSTOM_APP_SRC)
 iplug_configure_target(${TARGET} app)
 
-set(TARGET vst3)
-add_executable(${TARGET} WIN32 MACOSX_BUNDLE ${SRC_FILES} )
-iplug_target_add(${TARGET} PUBLIC 
-LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} DEFINE CUSTOM_APP_SRC)
-iplug_configure_target(${TARGET} app)
 
-if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  set(TARGET auv2)
-  add_library(${TARGET} MODULE ${SRC_FILES})
-  iplug_target_add(${TARGET} PUBLIC LINK iPlug2_AUv2 _base RESOURCE ${RESOURCES})
-  iplug_configure_target(${TARGET} auv2)
-endif()
+
+
+
+
 
 if (WIN32)
   set(CMAKE_RC_FLAGS "/I${PROJECT_DIR}/resources /I${PROJECT_DIR}/resources/fonts /I${PROJECT_DIR}/resources/img ${CMAKE_RC_FLAGS}")
