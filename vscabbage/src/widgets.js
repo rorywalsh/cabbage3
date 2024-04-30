@@ -22,13 +22,22 @@ export class Form {
       "automatable": 0.0,
       "visible": 1,
       "scrollbars": 0,
-      "titleBarColour": '57, 70, 76',
+      "titleBarColour": "95CFC2",
       "titleBarGradient": 0.15,
       "titleBarHeight": 24,
       "style": "",
       "channelType": "number",
-      "colour": '2, 149, 207'
+      "colour": "#0295CF"
     }
+  }
+
+  getSVG() {
+
+return `
+      <svg xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
+      <rect width="${this.props.width} " height="${this.props.height}" x="0" y="0" rx="2" ry="2" fill="${this.props.colour}" />
+      </svg>
+      `;
   }
 }
 

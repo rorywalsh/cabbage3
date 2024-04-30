@@ -314,7 +314,6 @@ function updateText(jsonText) {
                             textEditor.selection = new vscode.Selection(i, 0, i, 10000);
                         }
                         else if (props.type == "form") {
-                            console.log("should update the form code in the editor now");
                         }
                     }
                     if (lines[i] === '</Cabbage>')
@@ -361,7 +360,7 @@ function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetSVGs
 
   <div id="parent">
     <div id="LeftCol">
-		<div id="MainForm" class="form">
+		<div id="MainForm" class="form editMode">
 		<div class="wrapper">
 		<div class="content" style="overflow-y: auto;height: 300px;">
 		  <ul class="menu">
@@ -453,13 +452,22 @@ class Form {
       "automatable": 0.0,
       "visible": 1,
       "scrollbars": 0,
-      "titleBarColour": '57, 70, 76',
+      "titleBarColour": "95CFC2",
       "titleBarGradient": 0.15,
       "titleBarHeight": 24,
       "style": "",
       "channelType": "number",
-      "colour": '2, 149, 207'
+      "colour": "#0295CF"
     }
+  }
+
+  getSVG() {
+
+return `
+      <svg xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
+      <rect width="${this.props.width} " height="${this.props.height}" x="0" y="0" rx="2" ry="2" fill="${this.props.colour}" />
+      </svg>
+      `;
   }
 }
 

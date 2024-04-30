@@ -90,7 +90,7 @@ void CabbageProcessor::OnParamChange(int paramIdx)
 {
     if(cabbage.getNumberOfParameter() > 0)
     {
-        std::cout << "Channel:" << cabbage.getParameterChannel(paramIdx) << " Value:" << GetParam(paramIdx)->Value() << std::endl;
+        std::cout << "Processor Channel:" << cabbage.getParameterChannel(paramIdx) << " Value:" << GetParam(paramIdx)->Value() << std::endl;
         cabbage.setControlChannel(cabbage.getParameterChannel(paramIdx).c_str(), GetParam(paramIdx)->Value());
     }
 }

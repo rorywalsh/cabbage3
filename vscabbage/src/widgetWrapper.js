@@ -15,6 +15,8 @@ export class WidgetWrapper {
 
         function dragMoveListener(event) {
             var target = event.target
+            // target.style.zIndex = 1;
+            console.log(target);
             // keep the dragged position in the data-x/data-y attributes
             var x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx
             var y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy
@@ -76,8 +78,10 @@ export class WidgetWrapper {
                     interact.modifiers.restrictRect(restrictions)
                 ]
             }).on('down', function (event) {
-                if (event.target.id) //form
+                if (event.target.id){ //form
+                    console.log(event.target)
                     updatePanelCallback("click", event.target.id, {});
+                }
                 else{ //all widgets placed on form
                     const widgetId = event.target.parentElement.parentElement.id.replace(/(<([^>]+)>)/ig);
                     updatePanelCallback("click", widgetId, {});

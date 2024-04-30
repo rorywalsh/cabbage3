@@ -8,7 +8,7 @@ cmake_policy(SET CMP0091 NEW)
 project(Cabbage VERSION 1.0.0 LANGUAGES C CXX)
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION 0.0.9)
+	set(BUILD_VERSION 0.0.10)
 endif()
 
 set(IPLUG2_DIR ${CMAKE_SOURCE_DIR}/../iPlug2)

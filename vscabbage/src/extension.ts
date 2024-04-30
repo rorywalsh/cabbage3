@@ -343,7 +343,7 @@ function updateText(jsonText: string) {
 							textEditor.selection = new vscode.Selection(i, 0, i, 10000);
 						}
 						else if (props.type == "form") {
-							console.log("should update the form code in the editor now");
+							
 						}
 					}
 					if (lines[i] === '</Cabbage>')
@@ -395,7 +395,7 @@ function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri, cabbageStyles
 
   <div id="parent">
     <div id="LeftCol">
-		<div id="MainForm" class="form">
+		<div id="MainForm" class="form editMode">
 		<div class="wrapper">
 		<div class="content" style="overflow-y: auto;height: 300px;">
 		  <ul class="menu">

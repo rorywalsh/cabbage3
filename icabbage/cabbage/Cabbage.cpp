@@ -101,10 +101,10 @@ void Cabbage::updateJsonFromSyntax(nlohmann::json& jsonObj, const std::string& s
                 
                 if(tokens[i].numericArgs.size()==5)
                 {
-                    double increment = tokens[i].numericArgs[3];
-                    double sliderSkew = tokens[i].numericArgs[4];
-                    jsonObj["increment"] = increment;
+                    double sliderSkew = tokens[i].numericArgs[3];
+                    double increment = tokens[i].numericArgs[4];
                     jsonObj["sliderSkew"] = sliderSkew;
+                    jsonObj["increment"] = increment;
                 }
             }
             else
@@ -254,6 +254,7 @@ bool Cabbage::setupCsound()
             {
                 if(w["type"] == "rslider")
                 {
+                    std::cout << w.dump(4) << std::endl;
                     processor.GetParam(numberOfParameters)->InitDouble(w["channel"].get<std::string>().c_str(),
                                                              w["value"].get<float>(),
                                                              w["min"].get<float>(),

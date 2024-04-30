@@ -8,7 +8,8 @@ const currentWidget = [{ name: "Top", value: 0 }, { name: "Left", value: 0 }, { 
 const vscode = acquireVsCodeApi();
 const widgets = [];
 
-let cabbageMode = 'playMode';
+let cabbageMode = 'editMode';
+//adding this messes up dragging of main form
 widgets.push(new Form());
 
 let numberOfWidgets = 1;
@@ -77,11 +78,12 @@ window.addEventListener('message', event => {
   const message = event.data;
   switch (message.command) {
     case 'onFileChanged':
-      cabbageMode = 'playMode';
+      // cabbageMode = 'playMode';
       parseCabbageCsdTile(message.text);
       break;
     case 'onEnterEditMode':
-      cabbageMode = 'editMode';
+      // cabbageMode = 'editMode';
+      // form.className = "form editMode";
       parseCabbageCsdTile(message.text);
       break;
     default:
@@ -96,7 +98,7 @@ function parseCabbageCsdTile(text) {
   //leave main form in the widget array - there is only one..
   widgets.splice(1, widgets.length - 1);
 
-
+  
   let cabbageStart = 0;
   let cabbageEnd = 0;
   let lines = text.split(/\r?\n/);
@@ -150,7 +152,6 @@ function updatePanel(eventType, name, bounds) {
   if (element)
     element.innerHTML = '';
 
-
   widgets.forEach((widget) => {
 
     // DBG(JSON.stringify(widget.props));
@@ -164,6 +165,9 @@ function updatePanel(eventType, name, bounds) {
         // document.getElementById(widget.props.name).style.width = widget.props.width;
         // document.getElementById(widget.props.name).style.height = widget.props.height;
         document.getElementById(widget.props.name).innerHTML = widget.getSVG();
+        if(widget.props.type == 'form'){
+          // document.getElementById(widget.props.name).style.zIndex = "-999";
+        }
       }
 
       if (widget.props.hasOwnProperty('channel'))
@@ -315,10 +319,6 @@ async function insertWidget(type, props) {
   //widgetDiv.className = 'editMode';
   widgetDiv.className = cabbageMode;
 
-  if (form) {
-    form.appendChild(widgetDiv);
-  }
-
 
   let widget = {};
 
@@ -351,12 +351,16 @@ async function insertWidget(type, props) {
 
   widgetDiv.id = widget.props.name;
   widgetDiv.innerHTML = widget.getSVG();
+  if (form) {
+    form.appendChild(widgetDiv);
+  }
   widgetDiv.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
   widgetDiv.setAttribute('data-x', widget.props.left);
   widgetDiv.setAttribute('data-y', widget.props.top);
   widgetDiv.style.width = widget.props.width + 'px'
   widgetDiv.style.height = widget.props.height + 'px'
 
+  
   return widget.props;
 }
 

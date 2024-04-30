@@ -44,7 +44,7 @@
 #include "CabbageProcessor.h"
 
 #include "config.h"
-
+#include <ixwebsocket/IXWebSocketServer.h>
 
 #ifdef OS_WIN
 #include <WindowsX.h>
@@ -246,7 +246,7 @@ private:
     int mMidiOutChannel = -1;
     int mMidiInChannel = -1;
     std::string csdFile;
-    //ix::WebSocket webSocket;
+    ix::WebSocket webSocket;
     CabbageProcessor* cabbageProcessor;
     /**  */
     AppState mState;
