@@ -44,7 +44,7 @@
 #include "CabbageProcessor.h"
 
 #include "config.h"
-#include <ixwebsocket/IXWebSocketServer.h>
+
 
 #ifdef OS_WIN
 #include <WindowsX.h>
@@ -223,7 +223,7 @@ public:
     
     void showMessage(std::string message)
     {
-            NSString* result = [NSString stringWithUTF8String:message.c_str()];
+           /* NSString* result = [NSString stringWithUTF8String:message.c_str()];
             NSString* alternative = [[NSString alloc] initWithUTF8String:message.c_str()];
         
             NSAlert *alert = [[NSAlert alloc] init];
@@ -234,7 +234,7 @@ public:
                 [alert setAlertStyle:NSWarningAlertStyle];
         
                 if ([alert runModal] == NSAlertFirstButtonReturn) {
-                }
+                }*/
     }
 private:
     std::vector<nlohmann::json> parameters;
@@ -246,7 +246,7 @@ private:
     int mMidiOutChannel = -1;
     int mMidiInChannel = -1;
     std::string csdFile;
-    ix::WebSocket webSocket;
+    //ix::WebSocket webSocket;
     CabbageProcessor* cabbageProcessor;
     /**  */
     AppState mState;

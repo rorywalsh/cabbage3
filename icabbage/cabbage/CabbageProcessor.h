@@ -1,8 +1,20 @@
 #pragma once
 
+#ifndef AF_IPX
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef WIN32
+#define WIN32
+#endif
+#include <WinSock2.h>
+#include <Windows.h>
+#endif
+
+
+#include <ixwebsocket/IXWebSocketServer.h>
+
 #include "IPlug_include_in_plug_hdr.h"
-#include "Oscillator.h"
-#include "Smoothers.h"
 
 #include <iostream>
 #include "APP/IPlugAPP.h"
@@ -14,6 +26,8 @@
 #include <string>
 #include <vector>
 #include <regex>
+
+
 
 #include "CabbageParser.h"
 #include "Cabbage.h"

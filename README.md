@@ -1,5 +1,6 @@
 # cabbage3
 
+
 This repo contains the Cabbage3 project, and its corresponding vscode extension project. 
 
 
@@ -11,3 +12,11 @@ Patches need to be applied to iPlug source to allow for the above changes. The p
 
 `cd ICabbage`
 `cmake -GXcode -S . -B build -DCMAKE_BUILD_TYPE=Debug`
+
+=======
+`git submodule update --init --recursive`
+`cd icabbage/iPlug2`
+`git apply ../iplug.patch`
+`cd ../cabbage`
+`cmake -GXcode -S . -B build -DCMAKE_BUILD_TYPE=Debug`
+

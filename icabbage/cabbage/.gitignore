@@ -18,6 +18,6 @@
 build-*
 ipch/*
 gui/*
-
+build
 Icon?
 .DS_Stor*

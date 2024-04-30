@@ -36,81 +36,81 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
     parameters = cabbageProcessor->getCabbage().getWidgets();
     parameterChannels =  cabbageProcessor->getCabbage().getParameterChannel();
     
-    webSocket.setUrl("ws://localhost:9991");
-    
-    webSocket.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg)
-            {
-                //remove escape quotes..
-                std::string jsonString = msg->str;
-                if (jsonString.front() == '\"' && jsonString.back() == '\"')
-                {
-                       jsonString = jsonString.substr(1, jsonString.size() - 2);
-                }
-        
-                size_t pos = jsonString.find("\\\"");
-                while (pos != std::string::npos)
-                {
-                    jsonString.replace(pos, 2, "\"");
-                    pos = jsonString.find("\\\"", pos + 1); // Find the next occurrence starting from pos + 1
-                }
-                
-//                std::cout << jsonString << std::endl;
-                if (msg->type == ix::WebSocketMessageType::Message)
-                {
-                    try{
-                        auto j = nlohmann::json::parse(jsonString);
-//                        std::cout << "JSON DUMP:" << j.dump();
-                        if(j.contains("event") && j["event"] == "stopCsound")
-                        {
-                            std::cout << "stopping Csound" << msg->str << std::endl;
-                            cabbageProcessor->stopProcessing();
-                        }
-                        else if(j.count("channel") > 0)
-                        {
-                            for(const auto& channel : parameterChannels)
-                            {
-                                std::cout << "Channel: " << channel <<  " Looking for: " << j["channel"].get<std::string>() << std::endl;
-//                                std::cout << "> " << std::flush;
-                                if(channel == j["channel"].get<std::string>())
-                                {
-                                    auto position = std::distance(parameterChannels.begin(),
-                                                                          std::find(parameterChannels.begin(),
-                                                                                    parameterChannels.end(),
-                                                                                    channel));
-                                        mIPlug->SetParameterValue (static_cast<int>(position), j["value"].get<double>());
-                                    
-                                        std::cout << "updating parameters... Index:" << position << " Value:" << j["value"].get<double>() << std::endl;
-                                }
-                            }
-                            //
-                        }
-                        else
-                        {
-                            //std::cout << "received message: " << msg->str << std::endl;
-                            std::cout << "> " << std::flush;
-                        }
-                    }
-                    catch (nlohmann::json::exception& e) {
-                        std::cout << "JSON Error:" << e.what() << std::endl;
-                    }
-                }
-                else if (msg->type == ix::WebSocketMessageType::Open)
-                {
-                    std::cout << "Connection established" << std::endl;
-                    std::cout << "> " << std::flush;
-                }
-                else if (msg->type == ix::WebSocketMessageType::Error)
-                {
-                    // Maybe SSL is not configured properly
-                    std::cout << "Connection error: " << msg->errorInfo.reason << std::endl;
-                    std::cout << "> " << std::flush;
-                }
-            }
-    );
-
-        // Now that our callback is setup, we can start our background thread and receive messages
-    webSocket.start();
-    
+//    webSocket.setUrl("ws://localhost:9991");
+//    
+//    webSocket.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg)
+//            {
+//                //remove escape quotes..
+//                std::string jsonString = msg->str;
+//                if (jsonString.front() == '\"' && jsonString.back() == '\"')
+//                {
+//                       jsonString = jsonString.substr(1, jsonString.size() - 2);
+//                }
+//        
+//                size_t pos = jsonString.find("\\\"");
+//                while (pos != std::string::npos)
+//                {
+//                    jsonString.replace(pos, 2, "\"");
+//                    pos = jsonString.find("\\\"", pos + 1); // Find the next occurrence starting from pos + 1
+//                }
+//                
+////                std::cout << jsonString << std::endl;
+//                if (msg->type == ix::WebSocketMessageType::Message)
+//                {
+//                    try{
+//                        auto j = nlohmann::json::parse(jsonString);
+////                        std::cout << "JSON DUMP:" << j.dump();
+//                        if(j.contains("event") && j["event"] == "stopCsound")
+//                        {
+//                            std::cout << "stopping Csound" << msg->str << std::endl;
+//                            cabbageProcessor->stopProcessing();
+//                        }
+//                        else if(j.count("channel") > 0)
+//                        {
+//                            for(const auto& channel : parameterChannels)
+//                            {
+//                                std::cout << "Channel: " << channel <<  " Looking for: " << j["channel"].get<std::string>() << std::endl;
+////                                std::cout << "> " << std::flush;
+//                                if(channel == j["channel"].get<std::string>())
+//                                {
+//                                    auto position = std::distance(parameterChannels.begin(),
+//                                                                          std::find(parameterChannels.begin(),
+//                                                                                    parameterChannels.end(),
+//                                                                                    channel));
+//                                        mIPlug->SetParameterValue (static_cast<int>(position), j["value"].get<double>());
+//                                    
+//                                        std::cout << "updating parameters... Index:" << position << " Value:" << j["value"].get<double>() << std::endl;
+//                                }
+//                            }
+//                            //
+//                        }
+//                        else
+//                        {
+//                            //std::cout << "received message: " << msg->str << std::endl;
+//                            std::cout << "> " << std::flush;
+//                        }
+//                    }
+//                    catch (nlohmann::json::exception& e) {
+//                        std::cout << "JSON Error:" << e.what() << std::endl;
+//                    }
+//                }
+//                else if (msg->type == ix::WebSocketMessageType::Open)
+//                {
+//                    std::cout << "Connection established" << std::endl;
+//                    std::cout << "> " << std::flush;
+//                }
+//                else if (msg->type == ix::WebSocketMessageType::Error)
+//                {
+//                    // Maybe SSL is not configured properly
+//                    std::cout << "Connection error: " << msg->errorInfo.reason << std::endl;
+//                    std::cout << "> " << std::flush;
+//                }
+//            }
+//    );
+//
+//        // Now that our callback is setup, we can start our background thread and receive messages
+//    webSocket.start();
+//    
 }
 
 IPlugAPPHost::~IPlugAPPHost()
