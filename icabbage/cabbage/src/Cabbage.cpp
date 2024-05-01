@@ -270,6 +270,9 @@ bool Cabbage::setupCsound()
             }
         }
                 
+
+        csnd::plugin<CabbageGetValue>((csnd::Csound*)csound->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
+
         return true;
     }
     else

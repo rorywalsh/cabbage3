@@ -96,6 +96,8 @@ typedef _Return_type_success_(return >= 0) LONG NTSTATUS;
     ((NTSTATUS)(x) <= 0 ? ((NTSTATUS)(x)) : ((NTSTATUS)(((x)&0x0000FFFF) | (FACILITY_WIN32 << 16) | ERROR_SEVERITY_ERROR)))
 #endif
 
+
+
 #ifndef WIL_AllocateMemory
 #ifdef _KERNEL_MODE
 #define WIL_AllocateMemory(SIZE) ExAllocatePoolWithTag(NonPagedPoolNx, SIZE, 'LIW')

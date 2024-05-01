@@ -8,12 +8,14 @@ cmake_policy(SET CMP0091 NEW)
 project(Cabbage VERSION 1.0.0 LANGUAGES C CXX)
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION 0.0.12)
+	set(BUILD_VERSION 0.0.13)
 endif()
 
 set(IPLUG2_DIR ${CMAKE_SOURCE_DIR}/../iPlug2)
 set(IXWebSocket_DIR ${CMAKE_SOURCE_DIR}/../IXWebSocket)
 include(${IPLUG2_DIR}/iPlug2.cmake)
+
+set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
 
 find_package(iPlug2)
 
@@ -141,13 +143,29 @@ ${PROJECT_DIR}/src/CabbageParser.h
 ${PROJECT_DIR}/src/Cabbage.h
 ${PROJECT_DIR}/src/Cabbage.cpp
 ${PROJECT_DIR}/src/CabbageWidgetDescriptors.h
+)
+
+set(APP_SRC_FILES
+    ${PROJECT_DIR}/src/app/CabbageAPP.cpp 
+    ${PROJECT_DIR}/src/app/CabbageAPP_host.h
+    ${PROJECT_DIR}/src/app/CabbageAPP_dialog.cpp 
+    ${PROJECT_DIR}/src/app/CabbageAPP_host.cpp 
+    ${PROJECT_DIR}/src/app/CabbageAPP_main.cpp
+)
+
+set(OPCODE_SRC_FILES
+${PROJECT_DIR}/src/opcodes/CabbageGetOpcodes.h
+${PROJECT_DIR}/src/opcodes/CabbageGetOpcodes.cpp
 ${PROJECT_DIR}/src/opcodes/CabbageProfilerOpcodes.h
 ${PROJECT_DIR}/src/opcodes/CabbageProfilerOpcodes.cpp
 )
 
 #find_package(iPlug2 REQUIRED COMPONENTS Skia)
 
-source_group("Cabbage" FILES ${SRC_FILES} ${WEBVIEW_SRC_FILES})
+source_group("Cabbage Base" FILES ${SRC_FILES} )
+source_group("Webview" FILES ${WEBVIEW_SRC_FILES})
+source_group("Cabbage App" FILES ${APP_SRC_FILES})
+source_group("Opcodes" FILES ${OPCODE_SRC_FILES})
 
 set_source_files_properties(${PROJECT_DIR}/WebView/IPlugWebView.mm PROPERTIES COMPILE_OPTIONS -fobjc-arc)
 
@@ -155,7 +173,7 @@ set_source_files_properties(${PROJECT_DIR}/WebView/IPlugWebView.mm PROPERTIES CO
 add_library(_base INTERFACE)
 # iplug_target_add() is a shorthand function for adding sources and include directories,
 # linking libraries, adding resources, setting compile options, etc.
-iplug_target_add(_base INTERFACE
+iplug_target_add(_base INTERFACE  
   SOURCE ${WEB_RESOURCES}
   INCLUDE ${PROJECT_DIR} ${IPLUG2_DIR}/Dependencies/Extras/nlohmann ${EXTRA_INCLUDE_DIRECTORIES} ${PROJECT_DIR}/resources
   LINK_DIR ${EXTRA_LINK_DIRECTORIES}
@@ -163,11 +181,11 @@ iplug_target_add(_base INTERFACE
   FEATURE cxx_std_17
   DEFINE NO_IGRAPHICS ${EXTRA_DEFINES} CUSTOM_EDITOR="${PROJECT_DIR}/src/WebView/IPlugWebViewEditorDelegate.h" CUSTOM_EDITOR_CLASS=WebViewEditorDelegate
 )
-
+  
 
 # For typing convenience the TARGET name is put into a variable.
 if(WIN32) 
-add_executable(${TARGET} WIN32 MACOSX_BUNDLE ${SRC_FILES} ${WEBVIEW_SRC_FILES} )
+add_executable(${TARGET} WIN32 MACOSX_BUNDLE  ${WEBVIEW_SRC_FILES} ${SRC_FILES} ${OPCODE_SRC_FILES} )
 iplug_target_add(${TARGET} PUBLIC 
 LINK iPlug2_APP _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} DEFINE WIN32_LEAN_AND_MEAN CUSTOM_APP_SRC)
 iplug_configure_target(${TARGET} app)

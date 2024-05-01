@@ -1,11 +1,20 @@
 #pragma once
 
+
+
 #include <iostream>
 #include <regex>
 #include <string>
 #include <vector>
-#include "csound.hpp"
+
+
 #include "CabbageWidgetDescriptors.h"
+
+#include "csound.hpp"
+
+#include "Opcodes/CabbageGetOpcodes.h"
+
+
 
 #define assertm(exp, msg) assert(((void)msg, exp))
 

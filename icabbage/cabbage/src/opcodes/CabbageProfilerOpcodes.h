@@ -1,17 +1,22 @@
 #pragma once
 
-#undef _CR
-#include <plugin.h>
 
 #include <map>
-//#include <string>
 #include <chrono>
 #include <algorithm>
 #include <fstream>
 #include <string>
 
+/**
+ * There is a conflict between the preprocessor definition "_CR" in the
+ * standard C++ library and in Csound. To work around this, undefine "_CR" and
+ * include ALL standard library include files BEFORE including ANY Csound
+ * include files.
+ */
+//#undef _CR
+#include <plugin.h>
 
-class ProfilerTimer
+class ProfilerTimer 
 {
 public:
     void start()

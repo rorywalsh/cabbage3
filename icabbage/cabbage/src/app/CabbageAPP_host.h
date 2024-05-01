@@ -27,6 +27,9 @@
  /Users/USERNAME/Library/Containers/BUNDLE_ID/Data/Library/Application Support/BUNDLE_NAME/settings.ini
  
  */
+#undef OK
+
+
 
 #include <cstdlib>
 #include <string>
@@ -39,9 +42,6 @@
 
 #include "IPlugPlatform.h"
 #include "IPlugConstants.h"
-
-#include "CabbageAPP.h"
-#include "CabbageProcessor.h"
 
 #include "config.h"
 #include <ixwebsocket/IXWebSocketServer.h>
@@ -64,6 +64,9 @@
 
 #include "RtAudio.h"
 #include "RtMidi.h"
+
+#include "CabbageAPP.h"
+#include "CabbageProcessor.h"
 
 #define OFF_TEXT "off"
 

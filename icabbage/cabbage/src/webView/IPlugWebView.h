@@ -9,6 +9,7 @@
 */
 
 #pragma once
+#undef OK
 
 #include "IPlugPlatform.h"
 #include "wdlstring.h"
