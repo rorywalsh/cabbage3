@@ -266,7 +266,7 @@ function findUpdatedIdentifiers(initial: string, current: string) {
 		updatedIdentifiers.push('min');
 		updatedIdentifiers.push('max');
 		updatedIdentifiers.push('value');
-		updatedIdentifiers.push('skew');
+		updatedIdentifiers.push('sliderSkew');
 		updatedIdentifiers.push('increment');
 
 	}
@@ -281,7 +281,7 @@ function updateText(jsonText: string) {
 	if (textEditor) {
 		const document = textEditor.document;
 		let lineNumber = 0;
-		//get default props so we can compare them to incoming one and display any that are different
+		//get default props so we can compare them to incoming ones and display any that are different
 		let defaultProps = {};
 		switch (props.type) {
 			case 'rslider':
@@ -295,13 +295,13 @@ function updateText(jsonText: string) {
 		}
 
 
+		const internalIdentifiers:string[] = ['top', 'left', 'width', 'name', 'height', 'increment', 'min', 'max', 'sliderSkew'];
 		textEditor.edit(editBuilder => {
 			if (textEditor) {
 
 				let foundChannel = false;
 				let lines = document.getText().split(/\r?\n/);
 				for (let i = 0; i < lines.length; i++) {
-
 					let tokens = getTokens(lines[i]);
 					const index = tokens.findIndex(({ token }) => token === 'channel');
 
@@ -313,7 +313,8 @@ function updateText(jsonText: string) {
 							const updatedIdentifiers = findUpdatedIdentifiers(JSON.stringify(defaultProps), jsonText);
 	
 							updatedIdentifiers.forEach((ident) => {
-								if (ident != "top" && ident != "left" && ident != "width" && ident != "height" && ident != "name") {
+								//only want to display user-accessible identifiers...
+								if (!internalIdentifiers.includes(ident)) {
 									const newIndex = tokens.findIndex(({ token }) => token == ident);
 									//each token has an array of values with it..
 									const data: string[] = [];
@@ -330,7 +331,7 @@ function updateText(jsonText: string) {
 
 							if(props.type.indexOf('slider')>-1){
 								const rangeIndex = tokens.findIndex(({ token }) => token === 'range');
-								tokens[rangeIndex].values = [props.min, props.max, props.value, props.skew, props.increment];
+								tokens[rangeIndex].values = [props.min, props.max, props.value, props.sliderSkew, props.increment];
 							}
 
 							const boundsIndex = tokens.findIndex(({ token }) => token === 'bounds');
@@ -342,8 +343,8 @@ function updateText(jsonText: string) {
 							editBuilder.replace(new vscode.Range(document.lineAt(i).range.start, document.lineAt(i).range.end), lines[i]);
 							textEditor.selection = new vscode.Selection(i, 0, i, 10000);
 						}
-						else if (props.type == "form") {
-							
+						else {
+							console.log('found a widget without a channel...')
 						}
 					}
 					if (lines[i] === '</Cabbage>')
@@ -361,8 +362,9 @@ function updateText(jsonText: string) {
 				if (!foundChannel && props.type != "form") {
 					let newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${getIdentifierFromJson(jsonText, "channel")}`;
 					
-					if(props.type.indexOf('slider') > -1)
+					if(props.type.indexOf('slider') > -1){
 						newLine+=` ${getIdentifierFromJson(jsonText, "range")}`
+					}
 
 					editBuilder.insert(new vscode.Position(lineNumber, 0), newLine+'\n');
 					textEditor.selection = new vscode.Selection(lineNumber, 0, lineNumber, 10000);

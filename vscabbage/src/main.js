@@ -164,9 +164,8 @@ function updatePanel(eventType, name, bounds) {
         widget.props.height = Math.floor(bounds.h);
         // document.getElementById(widget.props.name).style.width = widget.props.width;
         // document.getElementById(widget.props.name).style.height = widget.props.height;
-        document.getElementById(widget.props.name).innerHTML = widget.getSVG();
-        if(widget.props.type == 'form'){
-          // document.getElementById(widget.props.name).style.zIndex = "-999";
+        if(widget.props.type != 'form'){
+          document.getElementById(widget.props.name).innerHTML = widget.getSVG();      
         }
       }
 
@@ -229,7 +228,7 @@ class PropertyPanel {
             if (widget.props.name == evt.target.dataset.parent) {
               widget.props[evt.target.id] = evt.target.value;
               const widgetDiv = document.getElementById(widget.props.name);
-              //widgetDiv.innerHTML = WidgetSVG(widget);
+              widgetDiv.innerHTML = widget.getSVG();
               vscode.postMessage({
                 command: 'widgetUpdate',
                 text: JSON.stringify(widget.props)

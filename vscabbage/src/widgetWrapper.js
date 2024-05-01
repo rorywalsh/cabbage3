@@ -15,8 +15,6 @@ export class WidgetWrapper {
 
         function dragMoveListener(event) {
             var target = event.target
-            // target.style.zIndex = 1;
-            console.log(target);
             // keep the dragged position in the data-x/data-y attributes
             var x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx
             var y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy

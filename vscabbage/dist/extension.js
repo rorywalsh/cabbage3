@@ -250,7 +250,7 @@ function findUpdatedIdentifiers(initial, current) {
         updatedIdentifiers.push('min');
         updatedIdentifiers.push('max');
         updatedIdentifiers.push('value');
-        updatedIdentifiers.push('skew');
+        updatedIdentifiers.push('sliderSkew');
         updatedIdentifiers.push('increment');
     }
     return updatedIdentifiers;
@@ -263,7 +263,7 @@ function updateText(jsonText) {
     if (textEditor) {
         const document = textEditor.document;
         let lineNumber = 0;
-        //get default props so we can compare them to incoming one and display any that are different
+        //get default props so we can compare them to incoming ones and display any that are different
         let defaultProps = {};
         switch (props.type) {
             case 'rslider':
@@ -275,6 +275,7 @@ function updateText(jsonText) {
             default:
                 break;
         }
+        const internalIdentifiers = ['top', 'left', 'width', 'name', 'height', 'increment', 'min', 'max', 'sliderSkew'];
         textEditor.edit(editBuilder => {
             if (textEditor) {
                 let foundChannel = false;
@@ -289,7 +290,8 @@ function updateText(jsonText) {
                             //found entry - now update bounds
                             const updatedIdentifiers = findUpdatedIdentifiers(JSON.stringify(defaultProps), jsonText);
                             updatedIdentifiers.forEach((ident) => {
-                                if (ident != "top" && ident != "left" && ident != "width" && ident != "height" && ident != "name") {
+                                //only want to display user-accessible identifiers...
+                                if (!internalIdentifiers.includes(ident)) {
                                     const newIndex = tokens.findIndex(({ token }) => token == ident);
                                     //each token has an array of values with it..
                                     const data = [];
@@ -305,7 +307,7 @@ function updateText(jsonText) {
                             });
                             if (props.type.indexOf('slider') > -1) {
                                 const rangeIndex = tokens.findIndex(({ token }) => token === 'range');
-                                tokens[rangeIndex].values = [props.min, props.max, props.value, props.skew, props.increment];
+                                tokens[rangeIndex].values = [props.min, props.max, props.value, props.sliderSkew, props.increment];
                             }
                             const boundsIndex = tokens.findIndex(({ token }) => token === 'bounds');
                             tokens[boundsIndex].values = [props.left, props.top, props.width, props.height];
@@ -313,7 +315,8 @@ function updateText(jsonText) {
                             editBuilder.replace(new vscode.Range(document.lineAt(i).range.start, document.lineAt(i).range.end), lines[i]);
                             textEditor.selection = new vscode.Selection(i, 0, i, 10000);
                         }
-                        else if (props.type == "form") {
+                        else {
+                            console.log('found a widget without a channel...');
                         }
                     }
                     if (lines[i] === '</Cabbage>')
@@ -328,8 +331,9 @@ function updateText(jsonText) {
                 //this is called when we create a widgets from the popup menu in the UI builder
                 if (!foundChannel && props.type != "form") {
                     let newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${getIdentifierFromJson(jsonText, "channel")}`;
-                    if (props.type.indexOf('slider') > -1)
+                    if (props.type.indexOf('slider') > -1) {
                         newLine += ` ${getIdentifierFromJson(jsonText, "range")}`;
+                    }
                     editBuilder.insert(new vscode.Position(lineNumber, 0), newLine + '\n');
                     textEditor.selection = new vscode.Selection(lineNumber, 0, lineNumber, 10000);
                 }
@@ -571,7 +575,6 @@ class RotarySlider {
   }
 
   describeArc(x, y, radius, startAngle, endAngle) {
-    console.log(arguments)
     var start = this.polarToCartesian(x, y, radius, endAngle);
     var end = this.polarToCartesian(x, y, radius, startAngle);
 

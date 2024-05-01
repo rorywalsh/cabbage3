@@ -141,7 +141,6 @@ export class RotarySlider {
   }
 
   describeArc(x, y, radius, startAngle, endAngle) {
-    console.log(arguments)
     var start = this.polarToCartesian(x, y, radius, endAngle);
     var end = this.polarToCartesian(x, y, radius, startAngle);
 
