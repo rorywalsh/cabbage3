@@ -85,7 +85,6 @@ public:
     
     void setControlChannel(std::string channel, MYFLT value)
     {
-        if(csound)
             csound->SetControlChannel(channel.c_str(), value);
     }
     

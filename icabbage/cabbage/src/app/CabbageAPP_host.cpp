@@ -108,18 +108,18 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
         // Now that our callback is setup, we can start our background thread and receive messages
     webSocket.start();
     
-//    auto callback = [&](CabbageOpcodeData data) {
-////            data.channel
-//        if(data.type == CabbageOpcodeData::MessageType::Value){
-//            nlohmann::json j;
-//            j["parameterUpdate"]["channel"] = data.channel;
-//            j["parameterUpdate"]["value"] = data.value;
-//            webSocket.send(j.dump());
-//        }
-//
-//        };
-//    
-//    cabbageProcessor->hostCallback = callback;
+    auto callback = [&](CabbageOpcodeData data) {
+//            data.channel
+        if(data.type == CabbageOpcodeData::MessageType::Value){
+            nlohmann::json j;
+            j["parameterUpdate"]["channel"] = data.channel;
+            j["parameterUpdate"]["value"] = data.value;
+            webSocket.send(j.dump());
+        }
+
+        };
+    
+    cabbageProcessor->hostCallback = callback;
     
 }
 

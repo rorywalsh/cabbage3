@@ -7,8 +7,9 @@
  */
 #undef _CR
 
-#include <plugin.h>
 #include <readerwriterqueue.h>
+#include <plugin.h>
+
 
 struct CabbageOpcodeData
 {

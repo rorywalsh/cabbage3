@@ -57,16 +57,16 @@ void CabbageProcessor::timerCallback()
     {
         auto cabbageOpcodeData = *od;
         CabbageOpcodeData data;
-//        while (cabbageOpcodeData->try_dequeue(data))
-//        {
-//            if(data.type == CabbageOpcodeData::MessageType::Value)
-//            {
-//                //if incoming data is from a value opcode update Csound...
-////                std::cout << "Channel: " << data.channel << " Value: " << data.value << std::endl;
-//                cabbage.setControlChannel(data.channel, data.value);
-//            }
-////            hostCallback(data);
-//        }
+        while (cabbageOpcodeData->try_dequeue(data))
+        {
+            if(data.type == CabbageOpcodeData::MessageType::Value)
+            {
+                //if incoming data is from a value opcode update Csound...
+//                std::cout << "Channel: " << data.channel << " Value: " << data.value << std::endl;
+                cabbage.setControlChannel(data.channel, data.value);
+            }
+            hostCallback(data);
+        }
     }
 }
 //===============================================================================
@@ -124,7 +124,7 @@ void CabbageProcessor::OnParamChange(int paramIdx)
 {
     if(cabbage.getNumberOfParameter() > 0)
     {
-        std::cout << "Processor Channel:" << cabbage.getParameterChannel(paramIdx) << " Value:" << GetParam(paramIdx)->Value() << std::endl;
+//        std::cout << "Processor Channel:" << cabbage.getParameterChannel(paramIdx) << " Value:" << GetParam(paramIdx)->Value() << std::endl;
         cabbage.setControlChannel(cabbage.getParameterChannel(paramIdx).c_str(), GetParam(paramIdx)->Value());
         GetParam(0)->SetNormalized(0.1);
     }

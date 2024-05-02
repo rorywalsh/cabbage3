@@ -5,7 +5,7 @@
 //  Created by Rory on 09/02/2023.
 //
 
-#include <sstream>
+
 #include "CabbageSetOpcodes.h"
 
 
@@ -13,7 +13,7 @@
 int CabbageSetValue::init()
 {
     std::cout << "cabbageSetValue\n";
-    return 1;
+    return 0;
 }
 
 int CabbageSetValue::kperf()
@@ -24,8 +24,8 @@ int CabbageSetValue::kperf()
     CabbageOpcodeData data = getValueIdentData(args, true, 0, 1);
     data.value = args[1];
     data.type = CabbageOpcodeData::MessageType::Value;
-    if(!varData->enqueue(data))
-        std::cout << "Error adding to queue";
+    varData->enqueue(data);
+        
     
-    return 1;
+    return 0;
 }
