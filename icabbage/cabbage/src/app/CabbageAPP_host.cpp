@@ -110,10 +110,18 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
     
     auto callback = [&](CabbageOpcodeData data) {
 //            data.channel
-        if(data.type == CabbageOpcodeData::MessageType::Value){
+        if(data.type == CabbageOpcodeData::MessageType::Value)
+        {
             nlohmann::json j;
-            j["parameterUpdate"]["channel"] = data.channel;
-            j["parameterUpdate"]["value"] = data.value;
+            j["widgetUpdate"]["channel"] = data.channel;
+            j["widgetUpdate"]["value"] = data.value;
+            webSocket.send(j.dump());
+        }
+        else
+        {
+            nlohmann::json j;
+            j["widgetUpdate"]["channel"] = data.channel;
+            j["widgetUpdate"]["data"] = data.identifier;
             webSocket.send(j.dump());
         }
 

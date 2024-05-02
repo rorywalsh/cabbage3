@@ -11,6 +11,7 @@
 #include "CabbageWidgetDescriptors.h"
 #include "csound.hpp"
 #include "opcodes/CabbageSetOpcodes.h"
+#include "CabbageParser.h"
 
 
 
@@ -103,7 +104,7 @@ public:
         return numberOfParameters;
     }
     
-    std::vector<nlohmann::json> getWidgets()
+    std::vector<nlohmann::json>& getWidgets()
     {
         return widgets;
     }
@@ -113,11 +114,11 @@ public:
         return parameterChannels;
     }
     //===============================================================================
-    static std::vector<nlohmann::json> parseCsdForWidgets(std::string csdFile);
+//    static std::vector<nlohmann::json> parseCsdForWidgets(std::string csdFile);
     static int getNumberOfParameters(const std::string& csdFile);
-    static std::string getWidgetType(const std::string& line);
-    static void updateJsonFromSyntax(nlohmann::json& jsonObj, const std::string& syntax);
-    static std::vector<Identifier> tokeniseLine(const std::string& syntax);
+//    static std::string getWidgetType(const std::string& line);
+//    static void updateJsonFromSyntax(nlohmann::json& jsonObj, const std::string& syntax);
+//    static std::vector<Identifier> tokeniseLine(const std::string& syntax);
     
 private:
     void addOpcodesAndGlobalVars();

@@ -13,6 +13,14 @@
 //==================================================================================
 struct CabbageSetValue : csnd::InPlug<2>, CabbageOpcodes<2>
 {
-    int init();
-    int kperf();
+    int init(){ return setAttribute(CabbageOpcodeData::PassType::Init); };
+    int kperf(){ return setAttribute(CabbageOpcodeData::PassType::Perf); };
+    int setAttribute(int init);
+};
+
+struct CabbageSetIdentifier : csnd::InPlug<64>, CabbageOpcodes<64>
+{
+    int init(){ return setAttribute(CabbageOpcodeData::PassType::Init); };
+    int kperf(){ return setAttribute(CabbageOpcodeData::PassType::Init); };
+    int setAttribute(int init);
 };

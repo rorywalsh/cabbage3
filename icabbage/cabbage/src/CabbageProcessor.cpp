@@ -62,10 +62,32 @@ void CabbageProcessor::timerCallback()
             if(data.type == CabbageOpcodeData::MessageType::Value)
             {
                 //if incoming data is from a value opcode update Csound...
-//                std::cout << "Channel: " << data.channel << " Value: " << data.value << std::endl;
                 cabbage.setControlChannel(data.channel, data.value);
+                for(auto &widget : cabbage.getWidgets())
+                {
+                    //update widget objects in case UI is closed and reopened...
+                    if(widget["channel"] == data.channel)
+                        widget["value"] = data.value;
+                }
             }
+            else
+            {
+                for(auto& widget : cabbage.getWidgets())
+                {
+                    std::cout << "Incoming channel:" << data.channel << "- Widget channel: " << CabbageParser::removeQuotes(widget["channel"]) << std::endl;
+                    //update widget objects in case UI is closed and reopened...
+                    if(data.channel == CabbageParser::removeQuotes(widget["channel"]))
+                    {
+                        CabbageParser::updateJsonFromSyntax(widget, data.identifier);
+                    }
+                }
+            }
+            
             hostCallback(data);
+            
+            //in plugins this data needs to get sent to webview, but in this case
+            //it goes back to the host
+            
         }
     }
 }

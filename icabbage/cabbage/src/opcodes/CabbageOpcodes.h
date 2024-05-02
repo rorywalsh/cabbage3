@@ -16,8 +16,16 @@ struct CabbageOpcodeData
     //I could enum all identifiers, this would be quicker then search strings..
     enum MessageType{
         Value,
-        String
+        Identifier
     };
+    
+    enum PassType{
+        Init,
+        Perf
+    };
+    
+    
+    
     std::string identifier = {};
     std::string channel = {};
     std::vector<float> numericData;
@@ -37,6 +45,9 @@ struct CabbageOpcodes
     MYFLT* value = {};
     MYFLT lastValue = 0;
     MYFLT* str = {};
+    int IS_OK = 0;
+    int NOT_OK = -1;
+    
         
     static moodycamel::ReaderWriterQueue<CabbageOpcodeData>* getGlobalvariable(csnd::Csound* csound, moodycamel::ReaderWriterQueue<CabbageOpcodeData>** vt)
     {
@@ -88,10 +99,8 @@ struct CabbageOpcodes
                 identifier = args.str_data(identIndex).data;
         }
         
-        if(String(name).isNotEmpty())
-            data.channel = name;
-        if(String(identifier).isNotEmpty())
-            data.identifier = Identifier(identifier);
+        data.channel = name;
+        data.identifier = identifier;
 
         return data;
     }

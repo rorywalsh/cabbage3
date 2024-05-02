@@ -19,8 +19,9 @@ wss.on('connection', (ws) => {
 	websocket = ws;
 	ws.on('message', (message) => {
 		const msg = JSON.parse(message.toString());
+		// console.log(JSON.stringify(msg["widgetUpdate"], null, 2));
 		if(panel)
-			panel.webview.postMessage({ command: "parameterUpdate", text: JSON.stringify(msg["parameterUpdate"]) })
+			panel.webview.postMessage({ command: "widgetUpdate", text: JSON.stringify(msg["widgetUpdate"]) })
 		
 	});
 

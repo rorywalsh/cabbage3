@@ -18,14 +18,28 @@ const form = document.getElementById('MainForm');
 
 const widgetWrappers = new WidgetWrapper(updatePanel);
 
-function updateWidgetValue(channel, value){
-  for(const widget of widgets){
+function updateWidget(obj) {
+  const channel = obj['channel'];
+  for (const widget of widgets) {
     if (widget.props.name == channel) {
-      widget.props.value = value;
-      document.getElementById(widget.props.name).innerHTML = widget.getSVG();   
+      if (obj.hasOwnProperty('value')) {
+        widget.props.value = obj['value'];
+      }
+      else if(obj.hasOwnProperty('data')){
+        const identifierStr = obj['data'];
+        Object.entries(getCabbageCodeAsJSON(obj['data'])).forEach((entry) => {
+          const [key, value] = entry;      
+          widget.props[key] = value;
+        });
+      }
+      document.getElementById(widget.props.name).style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
+      document.getElementById(widget.props.name).setAttribute('data-x', widget.props.left);
+      document.getElementById(widget.props.name).setAttribute('data-y', widget.props.top);
+      document.getElementById(widget.props.name).innerHTML = widget.getSVG();
     }
   }
 }
+
 
 /**
  * This uses a simple regex pattern to parse a line of Cabbage code such as 
@@ -89,11 +103,11 @@ window.addEventListener('message', event => {
       form.className = "form";
       parseCabbageCsdTile(message.text);
       break;
-    case 'parameterUpdate':
-        const msg = JSON.parse(message.text);
-        updateWidgetValue(msg['channel'], msg['value']);
-        // console.log(msg['value']);
-        break;
+    case 'widgetUpdate':
+      const msg = JSON.parse(message.text);
+      updateWidget(msg);
+      // console.log(msg['value']);
+      break;
     case 'onEnterEditMode':
       cabbageMode = 'editMode';
       form.className = "form editMode";
@@ -111,7 +125,7 @@ function parseCabbageCsdTile(text) {
   //leave main form in the widget array - there is only one..
   widgets.splice(1, widgets.length - 1);
 
-  
+
   let cabbageStart = 0;
   let cabbageEnd = 0;
   let lines = text.split(/\r?\n/);
@@ -177,8 +191,8 @@ function updatePanel(eventType, name, bounds) {
         widget.props.height = Math.floor(bounds.h);
         // document.getElementById(widget.props.name).style.width = widget.props.width;
         // document.getElementById(widget.props.name).style.height = widget.props.height;
-        if(widget.props.type != 'form'){
-          document.getElementById(widget.props.name).innerHTML = widget.getSVG();      
+        if (widget.props.type != 'form') {
+          document.getElementById(widget.props.name).innerHTML = widget.getSVG();
         }
       }
 
@@ -249,14 +263,14 @@ class PropertyPanel {
             }
           })
         }
-        else if(evt.target.type === 'text'){
+        else if (evt.target.type === 'text') {
           widgets.forEach((widget) => {
             if (widget.props.name == evt.target.dataset.parent) {
-                widget.props[evt.target.id] = evt.target.value;
-                vscode.postMessage({
-                  command: 'widgetUpdate',
-                  text: JSON.stringify(widget.props)
-                })
+              widget.props[evt.target.id] = evt.target.value;
+              vscode.postMessage({
+                command: 'widgetUpdate',
+                text: JSON.stringify(widget.props)
+              })
             }
           })
         }
@@ -357,7 +371,7 @@ async function insertWidget(type, props) {
 
   widgets.push(widget); // Push the new widget object into the array
 
-  if(cabbageMode === 'playMode')
+  if (cabbageMode === 'playMode')
     widget.addEventListeners(widgetDiv, vscode);
 
 
@@ -372,7 +386,7 @@ async function insertWidget(type, props) {
   widgetDiv.style.width = widget.props.width + 'px'
   widgetDiv.style.height = widget.props.height + 'px'
 
-  
+
   return widget.props;
 }
 
