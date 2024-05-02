@@ -33,6 +33,7 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
 {
     std::cout << file;
     cabbageProcessor = dynamic_cast<CabbageProcessor*>(mIPlug.get());
+    
     parameters = cabbageProcessor->getCabbage().getWidgets();
     parameterChannels =  cabbageProcessor->getCabbage().getParameterChannel();
     
@@ -75,7 +76,7 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                                                                   std::find(parameterChannels.begin(),parameterChannels.end(), channel));
                                     mIPlug->SetParameterValue (static_cast<int>(position), j["value"].get<double>());
                                 
-                                    std::cout << "Host: " << channel << " Value:" << j["value"].get<double>() << std::endl;
+//                                    std::cout << "Host: " << channel << " Value:" << j["value"].get<double>() << std::endl;
                                 }
                             }
                             //
@@ -98,14 +99,27 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                 else if (msg->type == ix::WebSocketMessageType::Error)
                 {
                     // Maybe SSL is not configured properly
-                    std::cout << "Connection error: " << msg->errorInfo.reason << std::endl;
-                    std::cout << "> " << std::flush;
+                    //std::cout << "Connection error: " << msg->errorInfo.reason << std::endl;
+                    //std::cout << "> " << std::flush;
                 }
             }
     );
 
         // Now that our callback is setup, we can start our background thread and receive messages
     webSocket.start();
+    
+//    auto callback = [&](CabbageOpcodeData data) {
+////            data.channel
+//        if(data.type == CabbageOpcodeData::MessageType::Value){
+//            nlohmann::json j;
+//            j["parameterUpdate"]["channel"] = data.channel;
+//            j["parameterUpdate"]["value"] = data.value;
+//            webSocket.send(j.dump());
+//        }
+//
+//        };
+//    
+//    cabbageProcessor->hostCallback = callback;
     
 }
 
@@ -148,7 +162,7 @@ bool IPlugAPPHost::Init()
     mIPlug->OnActivate(true);
     
     
-//    cabbageProcessor = dynamic_cast<CabbageProcessor*>(mIPlug.get());
+    
 //    cabbageProcessor->setCsdFile(csdFile);
 //    if(!cabbageProcessor->setupAndStartCsound())
 //        showMessage(csdFile);

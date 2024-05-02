@@ -62,11 +62,14 @@
 #include "IPlugSWELL.h"
 #endif
 
+#include "../choc_DisableAllWarnings.h"
 #include "RtAudio.h"
 #include "RtMidi.h"
+#include "../choc_ReenableAllWarnings.h"
 
 #include "CabbageAPP.h"
 #include "CabbageProcessor.h"
+
 
 #define OFF_TEXT "off"
 
@@ -240,6 +243,7 @@ public:
                 }*/
     }
 private:
+    void updateHost(CabbageOpcodeData data);
     std::vector<nlohmann::json> parameters;
     std::vector<std::string> parameterChannels;
     std::unique_ptr<IPlugAPP> mIPlug = nullptr;

@@ -1,15 +1,87 @@
-diff --git a/Dependencies/IPlug/RTAudio/include/iasiodrv.h b/Dependencies/IPlug/RTAudio/include/iasiodrv.h
-index 64d2dbb66..b3fab9bcb 100755
---- a/Dependencies/IPlug/RTAudio/include/iasiodrv.h
-+++ b/Dependencies/IPlug/RTAudio/include/iasiodrv.h
-@@ -1,6 +1,6 @@
- #include "asiosys.h"
- #include "asio.h"
--
-+#include <combaseapi.h>
- /* Forward Declarations */ 
+diff --git a/Dependencies/IPlug/RTAudio/RtAudio.cpp b/Dependencies/IPlug/RTAudio/RtAudio.cpp
+index 0837d98ef..f612c05ad 100755
+--- a/Dependencies/IPlug/RTAudio/RtAudio.cpp
++++ b/Dependencies/IPlug/RTAudio/RtAudio.cpp
+@@ -696,7 +696,7 @@ RtAudio::DeviceInfo RtApiCore :: getDeviceInfo( unsigned int device )
+   }
  
- #ifndef __ASIODRIVER_FWD_DEFINED__
+   //const char *mname = CFStringGetCStringPtr( cfname, CFStringGetSystemEncoding() );
+-  int length = CFStringGetLength(cfname);
++  int length = static_cast<int>(CFStringGetLength(cfname));
+   char *mname = (char *)malloc(length * 3 + 1);
+ #if defined( UNICODE ) || defined( _UNICODE )
+   CFStringGetCString(cfname, mname, length * 3 + 1, kCFStringEncodingUTF8);
+@@ -718,7 +718,7 @@ RtAudio::DeviceInfo RtApiCore :: getDeviceInfo( unsigned int device )
+   }
+ 
+   //const char *name = CFStringGetCStringPtr( cfname, CFStringGetSystemEncoding() );
+-  length = CFStringGetLength(cfname);
++  length = static_cast<int>(CFStringGetLength(cfname));
+   char *name = (char *)malloc(length * 3 + 1);
+ #if defined( UNICODE ) || defined( _UNICODE )
+   CFStringGetCString(cfname, name, length * 3 + 1, kCFStringEncodingUTF8);
+@@ -1084,9 +1084,9 @@ bool RtApiCore :: probeDeviceOpen( unsigned int device, StreamMode mode, unsigne
+     return FAILURE;
+   }
+ 
+-  if ( bufferRange.mMinimum > *bufferSize ) *bufferSize = (unsigned long) bufferRange.mMinimum;
+-  else if ( bufferRange.mMaximum < *bufferSize ) *bufferSize = (unsigned long) bufferRange.mMaximum;
+-  if ( options && options->flags & RTAUDIO_MINIMIZE_LATENCY ) *bufferSize = (unsigned long) bufferRange.mMinimum;
++  if ( bufferRange.mMinimum > *bufferSize ) *bufferSize = (unsigned int) bufferRange.mMinimum;
++  else if ( bufferRange.mMaximum < *bufferSize ) *bufferSize = (unsigned int) bufferRange.mMaximum;
++  if ( options && options->flags & RTAUDIO_MINIMIZE_LATENCY ) *bufferSize = (unsigned int) bufferRange.mMinimum;
+ 
+   // Set the buffer size.  For multiple streams, I'm assuming we only
+   // need to make this setting for the master channel.
+diff --git a/Dependencies/IPlug/RTMidi/RtMidi.cpp b/Dependencies/IPlug/RTMidi/RtMidi.cpp
+index 2524ae58d..d5800e07c 100644
+--- a/Dependencies/IPlug/RTMidi/RtMidi.cpp
++++ b/Dependencies/IPlug/RTMidi/RtMidi.cpp
+@@ -937,7 +937,7 @@ void MidiInCore :: openPort( unsigned int portNumber, const std::string &portNam
+   }
+ 
+   CFRunLoopRunInMode( kCFRunLoopDefaultMode, 0, false );
+-  unsigned int nSrc = MIDIGetNumberOfSources();
++  unsigned int nSrc = static_cast<int>(MIDIGetNumberOfSources());
+   if ( nSrc < 1 ) {
+     errorString_ = "MidiInCore::openPort: no MIDI input sources found!";
+     error( RtMidiError::NO_DEVICES_FOUND, errorString_ );
+@@ -1051,7 +1051,7 @@ void MidiInCore :: setPortName ( const std::string& )
+ unsigned int MidiInCore :: getPortCount()
+ {
+   CFRunLoopRunInMode( kCFRunLoopDefaultMode, 0, false );
+-  return MIDIGetNumberOfSources();
++  return static_cast<int>(MIDIGetNumberOfSources());
+ }
+ 
+ // This function was submitted by Douglas Casey Tucker and apparently
+@@ -1142,7 +1142,7 @@ static CFStringRef ConnectedEndpointName( MIDIEndpointRef endpoint )
+   if ( connections != NULL ) {
+     // It has connections, follow them
+     // Concatenate the names of all connected devices
+-    nConnected = CFDataGetLength( connections ) / sizeof(MIDIUniqueID);
++    nConnected = static_cast<int>(CFDataGetLength( connections ) / sizeof(MIDIUniqueID));
+     if ( nConnected ) {
+       const SInt32 *pid = (const SInt32 *)(CFDataGetBytePtr(connections));
+       for ( i=0; i<nConnected; ++i, ++pid ) {
+@@ -1254,7 +1254,7 @@ void MidiOutCore :: initialize( const std::string& clientName )
+ unsigned int MidiOutCore :: getPortCount()
+ {
+   CFRunLoopRunInMode( kCFRunLoopDefaultMode, 0, false );
+-  return MIDIGetNumberOfDestinations();
++  return static_cast<int>(MIDIGetNumberOfDestinations());
+ }
+ 
+ std::string MidiOutCore :: getPortName( unsigned int portNumber )
+@@ -1290,7 +1290,7 @@ void MidiOutCore :: openPort( unsigned int portNumber, const std::string &portNa
+   }
+ 
+   CFRunLoopRunInMode( kCFRunLoopDefaultMode, 0, false );
+-  unsigned int nDest = MIDIGetNumberOfDestinations();
++  unsigned int nDest = static_cast<int>(MIDIGetNumberOfDestinations());
+   if (nDest < 1) {
+     errorString_ = "MidiOutCore::openPort: no MIDI output destinations found!";
+     error( RtMidiError::NO_DEVICES_FOUND, errorString_ );
 diff --git a/Dependencies/IPlug/VST3_SDK/README.md b/Dependencies/IPlug/VST3_SDK/README.md
 index 408f08d02..9bfdcf6ac 100644
 --- a/Dependencies/IPlug/VST3_SDK/README.md
@@ -294,248 +366,20 @@ index 408f08d02..9bfdcf6ac 100644
 +## License & Usage guidelines
 +
 +More details are found at [www.steinberg.net/sdklicenses_vst3](http://www.steinberg.net/sdklicenses_vst3)
-diff --git a/Examples/IPlugWebUI/projects/IPlugWebUI-aax.vcxproj b/Examples/IPlugWebUI/projects/IPlugWebUI-aax.vcxproj
-index a357d4cfb..46c6e087e 100644
---- a/Examples/IPlugWebUI/projects/IPlugWebUI-aax.vcxproj
-+++ b/Examples/IPlugWebUI/projects/IPlugWebUI-aax.vcxproj
-@@ -36,27 +36,27 @@
-   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Tracer|Win32'" Label="Configuration">
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Tracer|x64'" Label="Configuration">
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
-diff --git a/Examples/IPlugWebUI/projects/IPlugWebUI-aax.vcxproj.filters b/Examples/IPlugWebUI/projects/IPlugWebUI-aax.vcxproj.filters
-index dc86c0d7e..9604038d2 100644
---- a/Examples/IPlugWebUI/projects/IPlugWebUI-aax.vcxproj.filters
-+++ b/Examples/IPlugWebUI/projects/IPlugWebUI-aax.vcxproj.filters
-@@ -111,6 +111,7 @@
-     <ClInclude Include="..\..\..\IPlug\Extras\WebView\IPlugWebView.h">
-       <Filter>IPlug\Extras\WebView</Filter>
-     </ClInclude>
-+    <ClInclude Include="..\..\..\IPlug\ISender.h" />
-   </ItemGroup>
-   <ItemGroup>
-     <Filter Include="resources">
-diff --git a/Examples/IPlugWebUI/projects/IPlugWebUI-app.vcxproj b/Examples/IPlugWebUI/projects/IPlugWebUI-app.vcxproj
-index f25503bd7..20be068e5 100644
---- a/Examples/IPlugWebUI/projects/IPlugWebUI-app.vcxproj
-+++ b/Examples/IPlugWebUI/projects/IPlugWebUI-app.vcxproj
-@@ -38,41 +38,41 @@
-     <ConfigurationType>Application</ConfigurationType>
-     <UseDebugLibraries>true</UseDebugLibraries>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-     <ConfigurationType>Application</ConfigurationType>
-     <UseDebugLibraries>true</UseDebugLibraries>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-     <ConfigurationType>Application</ConfigurationType>
-     <UseDebugLibraries>false</UseDebugLibraries>
-     <WholeProgramOptimization>true</WholeProgramOptimization>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-     <ConfigurationType>Application</ConfigurationType>
-     <UseDebugLibraries>false</UseDebugLibraries>
-     <WholeProgramOptimization>true</WholeProgramOptimization>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Tracer|Win32'" Label="Configuration">
-     <ConfigurationType>Application</ConfigurationType>
-     <UseDebugLibraries>false</UseDebugLibraries>
-     <WholeProgramOptimization>true</WholeProgramOptimization>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Tracer|x64'" Label="Configuration">
-     <ConfigurationType>Application</ConfigurationType>
-     <UseDebugLibraries>false</UseDebugLibraries>
-     <WholeProgramOptimization>true</WholeProgramOptimization>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-diff --git a/Examples/IPlugWebUI/projects/IPlugWebUI-app.vcxproj.filters b/Examples/IPlugWebUI/projects/IPlugWebUI-app.vcxproj.filters
-index 3ab8e113a..bfc02c6f8 100644
---- a/Examples/IPlugWebUI/projects/IPlugWebUI-app.vcxproj.filters
-+++ b/Examples/IPlugWebUI/projects/IPlugWebUI-app.vcxproj.filters
-@@ -159,6 +159,7 @@
-     <ClInclude Include="..\..\..\IPlug\Extras\WebView\IPlugWebView.h">
-       <Filter>IPlug\Extras\WebView</Filter>
-     </ClInclude>
-+    <ClInclude Include="..\..\..\IPlug\ISender.h" />
-   </ItemGroup>
-   <ItemGroup>
-     <Filter Include="resources">
-diff --git a/Examples/IPlugWebUI/projects/IPlugWebUI-vst2.vcxproj b/Examples/IPlugWebUI/projects/IPlugWebUI-vst2.vcxproj
-index fac64dcc9..550b47992 100644
---- a/Examples/IPlugWebUI/projects/IPlugWebUI-vst2.vcxproj
-+++ b/Examples/IPlugWebUI/projects/IPlugWebUI-vst2.vcxproj
-@@ -38,41 +38,41 @@
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
-     <UseDebugLibraries>true</UseDebugLibraries>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
-     <UseDebugLibraries>true</UseDebugLibraries>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
-     <UseDebugLibraries>false</UseDebugLibraries>
-     <WholeProgramOptimization>true</WholeProgramOptimization>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
-     <UseDebugLibraries>false</UseDebugLibraries>
-     <WholeProgramOptimization>true</WholeProgramOptimization>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Tracer|Win32'" Label="Configuration">
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
-     <UseDebugLibraries>false</UseDebugLibraries>
-     <WholeProgramOptimization>true</WholeProgramOptimization>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Tracer|x64'" Label="Configuration">
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
-     <UseDebugLibraries>false</UseDebugLibraries>
-     <WholeProgramOptimization>true</WholeProgramOptimization>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-diff --git a/Examples/IPlugWebUI/projects/IPlugWebUI-vst2.vcxproj.filters b/Examples/IPlugWebUI/projects/IPlugWebUI-vst2.vcxproj.filters
-index 4b4c66b61..02b21b7a7 100644
---- a/Examples/IPlugWebUI/projects/IPlugWebUI-vst2.vcxproj.filters
-+++ b/Examples/IPlugWebUI/projects/IPlugWebUI-vst2.vcxproj.filters
-@@ -96,6 +96,7 @@
-     <ClInclude Include="..\..\..\IPlug\Extras\WebView\IPlugWebView.h">
-       <Filter>IPlug\Extras\WebView</Filter>
-     </ClInclude>
-+    <ClInclude Include="..\..\..\IPlug\ISender.h" />
-   </ItemGroup>
-   <ItemGroup>
-     <Filter Include="IPlug">
-diff --git a/Examples/IPlugWebUI/projects/IPlugWebUI-vst3.vcxproj b/Examples/IPlugWebUI/projects/IPlugWebUI-vst3.vcxproj
-index 21d54f1b5..2c0a77ade 100644
---- a/Examples/IPlugWebUI/projects/IPlugWebUI-vst3.vcxproj
-+++ b/Examples/IPlugWebUI/projects/IPlugWebUI-vst3.vcxproj
-@@ -38,41 +38,41 @@
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
-     <UseDebugLibraries>true</UseDebugLibraries>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
-     <UseDebugLibraries>true</UseDebugLibraries>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
-     <UseDebugLibraries>false</UseDebugLibraries>
-     <WholeProgramOptimization>true</WholeProgramOptimization>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
-     <UseDebugLibraries>false</UseDebugLibraries>
-     <WholeProgramOptimization>true</WholeProgramOptimization>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Tracer|Win32'" Label="Configuration">
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
-     <UseDebugLibraries>false</UseDebugLibraries>
-     <WholeProgramOptimization>true</WholeProgramOptimization>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Tracer|x64'" Label="Configuration">
-     <ConfigurationType>DynamicLibrary</ConfigurationType>
-     <UseDebugLibraries>false</UseDebugLibraries>
-     <WholeProgramOptimization>true</WholeProgramOptimization>
-     <CharacterSet>MultiByte</CharacterSet>
--    <PlatformToolset>v142</PlatformToolset>
-+    <PlatformToolset>v143</PlatformToolset>
-   </PropertyGroup>
-   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-diff --git a/Examples/IPlugWebUI/projects/IPlugWebUI-vst3.vcxproj.filters b/Examples/IPlugWebUI/projects/IPlugWebUI-vst3.vcxproj.filters
-index e3c6ba436..314e3cf99 100644
---- a/Examples/IPlugWebUI/projects/IPlugWebUI-vst3.vcxproj.filters
-+++ b/Examples/IPlugWebUI/projects/IPlugWebUI-vst3.vcxproj.filters
-@@ -261,6 +261,7 @@
-     <ClInclude Include="..\..\..\IPlug\Extras\WebView\IPlugWebView.h">
-       <Filter>IPlug\Extras\WebView</Filter>
-     </ClInclude>
-+    <ClInclude Include="..\..\..\IPlug\ISender.h" />
-   </ItemGroup>
-   <ItemGroup>
-     <Filter Include="resources">
+diff --git a/IPlug/IPlugConstants.h b/IPlug/IPlugConstants.h
+index 3c936e671..265045d5b 100644
+--- a/IPlug/IPlugConstants.h
++++ b/IPlug/IPlugConstants.h
+@@ -61,7 +61,8 @@ enum EVST3ParamIDs
+ #endif
+ };
+ 
+-static const double PI = 3.1415926535897932384626433832795;
++//case conflict with Csound's define..
++//static const double PI = 3.1415926535897932384626433832795;
+ 
+ /** @brief Magic number for gain to dB conversion.
+  * Approximates \f$ 20*log_{10}(x) \f$
 diff --git a/IPlug/IPlugDelegate_select.h b/IPlug/IPlugDelegate_select.h
 index 91292484f..4630b703b 100644
 --- a/IPlug/IPlugDelegate_select.h
@@ -588,10 +432,10 @@ index dea4c90be..d706583f7 100644
  
  #pragma mark - AUv2
 diff --git a/Scripts/cmake/APP.cmake b/Scripts/cmake/APP.cmake
-index 70234ed49..c565cc94e 100644
+index 70234ed49..cf1dbb434 100644
 --- a/Scripts/cmake/APP.cmake
 +++ b/Scripts/cmake/APP.cmake
-@@ -2,21 +2,44 @@ cmake_minimum_required(VERSION 3.11)
+@@ -2,21 +2,45 @@ cmake_minimum_required(VERSION 3.11)
  
  add_library(iPlug2_APP INTERFACE)
  set(sdk ${IPLUG2_DIR}/IPlug/APP)
@@ -619,11 +463,12 @@ index 70234ed49..c565cc94e 100644
 +    ${IPLUG2_DIR}/../cabbage/src/app/CabbageAPP_dialog.cpp 
 +    ${IPLUG2_DIR}/../cabbage/src/app/CabbageAPP_host.cpp 
 +    ${IPLUG2_DIR}/../cabbage/src/app/CabbageAPP_main.cpp
++    ${IPLUG2_DIR}/../cabbage/src/app/CabbageAPP.h
 +    ${IPLUG_DEPS}/RTAudio/RtAudio.cpp
 +    ${IPLUG_DEPS}/RTMidi/RtMidi.cpp
 +  )
 +  set(_inc
-+    ${IPLUG2_DIR}/../cabbage/src/CabbageApp
++    ${IPLUG2_DIR}/../cabbage/src
 +    ${IPLUG_DEPS}/RTAudio
 +    ${IPLUG_DEPS}/RTAudio/include
 +    ${IPLUG_DEPS}/RTMidi
@@ -652,7 +497,7 @@ index 70234ed49..c565cc94e 100644
  
  # Link Windows sound libraies if on Windows
 diff --git a/Scripts/cmake/FindiPlug2.cmake b/Scripts/cmake/FindiPlug2.cmake
-index a7f43796d..fc567c651 100644
+index a7f43796d..e2c8b9b1d 100644
 --- a/Scripts/cmake/FindiPlug2.cmake
 +++ b/Scripts/cmake/FindiPlug2.cmake
 @@ -105,7 +105,11 @@ endmacro()
@@ -661,7 +506,7 @@ index a7f43796d..fc567c651 100644
    if (NOT "${_tmp}" STREQUAL "_tmp-NOTFOUND")
 -    source_group(TREE ${IPLUG2_DIR} PREFIX "IPlug" FILES ${_tmp})
 +    if(CUSTOM_APP_SRC)
-+      
++      source_group("IPlug" FILES ${_tmp})
 +    else()
 +      source_group(TREE ${IPLUG2_DIR} PREFIX "IPlug" FILES ${_tmp})
 +    endif()

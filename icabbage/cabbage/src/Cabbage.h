@@ -9,10 +9,8 @@
 
 
 #include "CabbageWidgetDescriptors.h"
-
 #include "csound.hpp"
-
-#include "Opcodes/CabbageGetOpcodes.h"
+#include "opcodes/CabbageSetOpcodes.h"
 
 
 
@@ -42,6 +40,11 @@ public:
     Cabbage(CabbageProcessor& p, std::string file);
     ~Cabbage();
     
+    Csound* getCsound()
+    {
+        return csound.get();
+    }
+    
     bool setupCsound();
     
     void setCsdFile(std::string file)
@@ -66,7 +69,8 @@ public:
     
     MYFLT getSpOut(int index)
     {
-        return csSpout[index]/csScale;
+        auto outSample = csSpout[index]/csScale;
+        return outSample;
     }
     
     bool csdCompiledWithoutError()
@@ -81,7 +85,8 @@ public:
     
     void setControlChannel(std::string channel, MYFLT value)
     {
-        csound->SetControlChannel(channel.c_str(), value);
+        if(csound)
+            csound->SetControlChannel(channel.c_str(), value);
     }
     
     void stopProcessing()
@@ -116,6 +121,7 @@ public:
     static std::vector<Identifier> tokeniseLine(const std::string& syntax);
     
 private:
+    void addOpcodesAndGlobalVars();
     int numberOfParameters = 0;
     std::vector<std::string> parameterChannels;
     std::vector<nlohmann::json> widgets;

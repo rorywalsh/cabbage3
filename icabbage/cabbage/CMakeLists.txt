@@ -8,7 +8,7 @@ cmake_policy(SET CMP0091 NEW)
 project(Cabbage VERSION 1.0.0 LANGUAGES C CXX)
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION 0.0.13)
+	set(BUILD_VERSION 0.0.14)
 endif()
 
 set(IPLUG2_DIR ${CMAKE_SOURCE_DIR}/../iPlug2)
@@ -20,8 +20,18 @@ set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
 find_package(iPlug2)
 
 set(PROJECT_DIR "${CMAKE_SOURCE_DIR}")
-
 set(TARGET app)
+
+include(FetchContent)
+
+FetchContent_Declare(
+  readerwriterqueue
+  GIT_REPOSITORY    https://github.com/cameron314/readerwriterqueue
+  GIT_TAG           master
+)
+
+FetchContent_MakeAvailable(readerwriterqueue)
+
 #==========================================================================
 if(WIN32) 
   set(VCPKG_CMAKE "C:/Users/walshr/sourcecode/vcpkg/scripts/buildsystems/vcpkg.cmake")
@@ -58,6 +68,7 @@ if(WIN32)
   )
   set(EXTRA_LINK_LIBRARIES 
     WebView2LoaderStatic.lib 
+    readerwriterqueue
     "${IXWebSocket_DIR}/build/Debug/ixwebsocket.lib"
   )
 
@@ -73,9 +84,9 @@ if(WIN32)
 
   set(WEBVIEW_SRC_FILES
   ${PROJECT_DIR}/src/webView/IPlugWebView.cpp 
-  ${PROJECT_DIR}/src/webView/IPlugWebViewEditorDelegate.cpp
+  ${PROJECT_DIR}/src/webView/CabbageEditorDelegate.cpp
   ${PROJECT_DIR}/src/webView/IPlugWebView.h 
-  ${PROJECT_DIR}/src/webView/IPlugWebViewEditorDelegate.h
+  ${PROJECT_DIR}/src/webView/CabbageEditorDelegate.h
   )
 
 # ================================================================================
@@ -108,6 +119,7 @@ elseif(APPLE)
   set(EXTRA_LINK_LIBRARIES 
     "-framework Carbon -framework AppKit -framework Metal -framework MetalKit -framework WebKit -framework CoreFoundation"
     "${IXWebSocket_DIR}/build/libixwebsocket.a"
+    readerwriterqueue
   )
   
   # because the file hierarchy needs preserving, I did this the KISS way - but maybe some of the existing iPlug stuff has a more elegant way to do this
@@ -128,46 +140,45 @@ elseif(APPLE)
 
   set(WEBVIEW_SRC_FILES
   ${PROJECT_DIR}/src/webView/IPlugWebView.mm
-  ${PROJECT_DIR}/src/webView/IPlugWebViewEditorDelegate.mm
+  ${PROJECT_DIR}/src/webView/CabbageEditorDelegate.mm
   ${PROJECT_DIR}/src/webView/IPlugWebView.h 
-  ${PROJECT_DIR}/src/webView/IPlugWebViewEditorDelegate.h
+  ${PROJECT_DIR}/src/webView/CabbageEditorDelegate.h
   )
 
 endif()
 
 set(SRC_FILES
-${PROJECT_DIR}/src/config.h
-${PROJECT_DIR}/src/CabbageProcessor.h
-${PROJECT_DIR}/src/CabbageProcessor.cpp
-${PROJECT_DIR}/src/CabbageParser.h
-${PROJECT_DIR}/src/Cabbage.h
-${PROJECT_DIR}/src/Cabbage.cpp
-${PROJECT_DIR}/src/CabbageWidgetDescriptors.h
+  ${PROJECT_DIR}/src/config.h
+  ${PROJECT_DIR}/src/CabbageProcessor.h
+  ${PROJECT_DIR}/src/CabbageProcessor.cpp
+  ${PROJECT_DIR}/src/CabbageParser.h
+  ${PROJECT_DIR}/src/Cabbage.h
+  ${PROJECT_DIR}/src/Cabbage.cpp
+  ${PROJECT_DIR}/src/CabbageWidgetDescriptors.h
 )
 
 set(APP_SRC_FILES
-    ${PROJECT_DIR}/src/app/CabbageAPP.cpp 
-    ${PROJECT_DIR}/src/app/CabbageAPP_host.h
-    ${PROJECT_DIR}/src/app/CabbageAPP_dialog.cpp 
-    ${PROJECT_DIR}/src/app/CabbageAPP_host.cpp 
-    ${PROJECT_DIR}/src/app/CabbageAPP_main.cpp
+  ../src/app/CabbageAPP.cpp 
+  ../src/app/CabbageAPP_host.h
+  ../src/app/CabbageAPP_dialog.cpp 
+  ../src/app/CabbageAPP_host.cpp 
+  ../src/app/CabbageAPP_main.cpp
+  ../src/app/CabbageAPP.h
 )
 
 set(OPCODE_SRC_FILES
-${PROJECT_DIR}/src/opcodes/CabbageGetOpcodes.h
-${PROJECT_DIR}/src/opcodes/CabbageGetOpcodes.cpp
-${PROJECT_DIR}/src/opcodes/CabbageProfilerOpcodes.h
-${PROJECT_DIR}/src/opcodes/CabbageProfilerOpcodes.cpp
+  ${PROJECT_DIR}/src/opcodes/CabbageGetOpcodes.h
+  ${PROJECT_DIR}/src/opcodes/CabbageGetOpcodes.cpp
+  ${PROJECT_DIR}/src/opcodes/CabbageSetOpcodes.h
+  ${PROJECT_DIR}/src/opcodes/CabbageSetOpcodes.cpp
+  ${PROJECT_DIR}/src/opcodes/CabbageProfilerOpcodes.h
+  ${PROJECT_DIR}/src/opcodes/CabbageProfilerOpcodes.cpp
+  ${PROJECT_DIR}/src/opcodes/CabbageOpcodes.h
 )
 
 #find_package(iPlug2 REQUIRED COMPONENTS Skia)
 
-source_group("Cabbage Base" FILES ${SRC_FILES} )
-source_group("Webview" FILES ${WEBVIEW_SRC_FILES})
-source_group("Cabbage App" FILES ${APP_SRC_FILES})
-source_group("Opcodes" FILES ${OPCODE_SRC_FILES})
-
-set_source_files_properties(${PROJECT_DIR}/WebView/IPlugWebView.mm PROPERTIES COMPILE_OPTIONS -fobjc-arc)
+set_source_files_properties(${PROJECT_DIR}/src/webView/IPlugWebView.mm PROPERTIES COMPILE_OPTIONS -fobjc-arc)
 
 # While not required, creating a base interface for includes and settings seems like a good idea.
 add_library(_base INTERFACE)
@@ -179,7 +190,7 @@ iplug_target_add(_base INTERFACE
   LINK_DIR ${EXTRA_LINK_DIRECTORIES}
   LINK iPlug2_GL2 ${EXTRA_LINK_LIBRARIES} ${CSOUND_LIBRARY} ${LIB_SNDFILE}
   FEATURE cxx_std_17
-  DEFINE NO_IGRAPHICS ${EXTRA_DEFINES} CUSTOM_EDITOR="${PROJECT_DIR}/src/WebView/IPlugWebViewEditorDelegate.h" CUSTOM_EDITOR_CLASS=WebViewEditorDelegate
+  DEFINE NO_IGRAPHICS ${EXTRA_DEFINES} CUSTOM_EDITOR="${PROJECT_DIR}/src/webView/CabbageEditorDelegate.h" CUSTOM_EDITOR_CLASS=CabbageEditorDelegate
 )
   
 
@@ -190,15 +201,16 @@ iplug_target_add(${TARGET} PUBLIC
 LINK iPlug2_APP _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} DEFINE WIN32_LEAN_AND_MEAN CUSTOM_APP_SRC)
 iplug_configure_target(${TARGET} app)
 else()
-add_executable(${TARGET} WIN32 MACOSX_BUNDLE ${SRC_FILES} ${WEBVIEW_SRC_FILES} )
+add_executable(${TARGET} WIN32 MACOSX_BUNDLE ${SRC_FILES} ${WEBVIEW_SRC_FILES}  ${OPCODE_SRC_FILES})
 iplug_target_add(${TARGET} PUBLIC 
 LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} DEFINE CUSTOM_APP_SRC)
 iplug_configure_target(${TARGET} app)
 endif()
 
-
-
-
+source_group("Cabbage Base" FILES ${SRC_FILES} )
+source_group("Webview" FILES ${WEBVIEW_SRC_FILES})
+source_group("Opcodes" FILES ${OPCODE_SRC_FILES})
+source_group("Cabbage App" FILES ${APP_SRC_FILES})
 
 
 if (WIN32)

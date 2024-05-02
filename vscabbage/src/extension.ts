@@ -7,6 +7,7 @@ import * as cp from "child_process";
 
 let textEditor: vscode.TextEditor | undefined;
 let output: vscode.OutputChannel;
+let panel: vscode.WebviewPanel | undefined = undefined;
 
 import WebSocket from 'ws';
 
@@ -17,7 +18,10 @@ wss.on('connection', (ws) => {
 	console.log('Client connected');
 	websocket = ws;
 	ws.on('message', (message) => {
-		console.log(`Received message from client: ${message}`);
+		const msg = JSON.parse(message.toString());
+		if(panel)
+			panel.webview.postMessage({ command: "parameterUpdate", text: JSON.stringify(msg["parameterUpdate"]) })
+		
 	});
 
 	ws.on('close', () => {
@@ -43,7 +47,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "cabbage" is now active!');
-	let panel: vscode.WebviewPanel | undefined = undefined;
+	
 
 	//send text to webview for parsing if file has an extension of csd and contains valid Cabbage tags
 	function sendTextToWebView(editor: vscode.TextDocument | undefined, command: string) {

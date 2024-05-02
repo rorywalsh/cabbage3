@@ -77,7 +77,6 @@ export class WidgetWrapper {
                 ]
             }).on('down', function (event) {
                 if (event.target.id){ //form
-                    console.log(event.target)
                     updatePanelCallback("click", event.target.id, {});
                 }
                 else{ //all widgets placed on form

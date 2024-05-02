@@ -18,7 +18,14 @@ const form = document.getElementById('MainForm');
 
 const widgetWrappers = new WidgetWrapper(updatePanel);
 
-
+function updateWidgetValue(channel, value){
+  for(const widget of widgets){
+    if (widget.props.name == channel) {
+      widget.props.value = value;
+      document.getElementById(widget.props.name).innerHTML = widget.getSVG();   
+    }
+  }
+}
 
 /**
  * This uses a simple regex pattern to parse a line of Cabbage code such as 
@@ -78,12 +85,18 @@ window.addEventListener('message', event => {
   const message = event.data;
   switch (message.command) {
     case 'onFileChanged':
-      // cabbageMode = 'playMode';
+      cabbageMode = 'playMode';
+      form.className = "form";
       parseCabbageCsdTile(message.text);
       break;
+    case 'parameterUpdate':
+        const msg = JSON.parse(message.text);
+        updateWidgetValue(msg['channel'], msg['value']);
+        // console.log(msg['value']);
+        break;
     case 'onEnterEditMode':
-      // cabbageMode = 'editMode';
-      // form.className = "form editMode";
+      cabbageMode = 'editMode';
+      form.className = "form editMode";
       parseCabbageCsdTile(message.text);
       break;
     default:
@@ -315,7 +328,7 @@ for (var i = 0; i < menuItems.length; i++) {
 async function insertWidget(type, props) {
 
   const widgetDiv = document.createElement('div');
-  //widgetDiv.className = 'editMode';
+  widgetDiv.className = 'editMode';
   widgetDiv.className = cabbageMode;
 
 

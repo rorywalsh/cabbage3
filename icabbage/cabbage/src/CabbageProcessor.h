@@ -13,6 +13,10 @@
 #include <filesystem>
 #include <sstream>
 #include <fstream>
+#include <thread>
+#include <chrono>
+#include <functional>
+#include <atomic>
 #include <string>
 #include <vector>
 #include <regex>
@@ -21,7 +25,37 @@
 #include "Cabbage.h"
 
 
+class TimerThread {
+public:
+    TimerThread() : mStop(false) {}
 
+    // Start the thread with a member function callback and a timer interval
+        template <typename T>
+        void Start(T* obj, void (T::*memberFunc)(), int intervalMillis) {
+            mThread = std::thread([=]() {
+                while (!mStop) {
+                    // Call the member function on the object instance
+                    (obj->*memberFunc)();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(intervalMillis)); // Sleep for the specified interval
+                    //std::cout << "Timer tick" << std::endl; // Debug output
+                }
+                //std::cout << "Timer stopped" << std::endl; // Debug output
+            });
+        }
+
+
+    // Stop the timer thread
+    void Stop() {
+        mStop = true;
+        if (mThread.joinable()) {
+            mThread.join();
+        }
+    }
+
+private:
+    std::thread mThread;
+    std::atomic<bool> mStop;
+};
 
 
 enum EParams
@@ -61,7 +95,12 @@ public:
     static int OpenMidiOutputDevice (CSOUND* csnd, void** userData, const char* devName);
     static int ReadMidiData (CSOUND* csound, void* userData, unsigned char* mbuf, int nbytes);
     static int WriteMidiData (CSOUND* csound, void* userData, const unsigned char* mbuf, int nbytes);
-      
+    
+    void updateUI()
+    {
+        
+    }
+    
     void stopProcessing()
     {
         cabbage.stopProcessing();
@@ -72,9 +111,11 @@ public:
         return cabbage;
     }
     
+    std::function<void(CabbageOpcodeData)> hostCallback = nullptr;
 private:
     
-    
+    TimerThread timer;
+    void timerCallback();
     std::string host = {"127.0.0.1"};
 
     Cabbage cabbage;

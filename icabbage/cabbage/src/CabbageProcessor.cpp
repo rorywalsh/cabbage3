@@ -2,11 +2,16 @@
 #include "IPlug_include_in_plug_src.h"
 
 
+
 CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info, std::string csdFile)
 : iplug::Plugin(info, iplug::MakeConfig(Cabbage::getNumberOfParameters(csdFile), 0)),
 cabbage(*this, csdFile)
 {
-    cabbage.setupCsound();
+    
+    if(!cabbage.setupCsound())
+        assertm(false, "couldn't set up Csound");
+        
+        
     
     csndIndex = 0;
 #ifdef DEBUG
@@ -14,7 +19,7 @@ cabbage(*this, csdFile)
 #endif
     
     // Hard-coded paths must be modified!
-    mEditorInitFunc = [&]() {
+    editorInitFunc = [&]() {
 #ifdef OS_WIN
         LoadFile(R"(C:\Users\oli\Dev\iPlug2\Examples\CabbageProcessor\resources\web\index.html)", nullptr);
 #else
@@ -22,18 +27,48 @@ cabbage(*this, csdFile)
 #endif
         
         EnableScroll(false);
+        //setCabbage(cabbage);
     };
+
     
+    timer.Start(this, &CabbageProcessor::timerCallback, 1);
+
     
 }
 
 CabbageProcessor::~CabbageProcessor()
 {
-    
+    timer.Stop();
 }
 
-//===============================================================================
-
+//timer thread listens for incoming data from Csound using a lock free fifo
+void CabbageProcessor::timerCallback()
+{
+    //Csound could not compile your file?
+    while (cabbage.getCsound()->GetMessageCnt() > 0)
+    {
+        std::string message(cabbage.getCsound()->GetFirstMessage());
+        std::cout << message << std::endl;
+        cabbage.getCsound()->PopFirstMessage();
+    }
+    
+    auto** od = (moodycamel::ReaderWriterQueue<CabbageOpcodeData>**)cabbage.getCsound()->QueryGlobalVariable("cabbageOpcodeData");
+    if (od != nullptr)
+    {
+        auto cabbageOpcodeData = *od;
+        CabbageOpcodeData data;
+//        while (cabbageOpcodeData->try_dequeue(data))
+//        {
+//            if(data.type == CabbageOpcodeData::MessageType::Value)
+//            {
+//                //if incoming data is from a value opcode update Csound...
+////                std::cout << "Channel: " << data.channel << " Value: " << data.value << std::endl;
+//                cabbage.setControlChannel(data.channel, data.value);
+//            }
+////            hostCallback(data);
+//        }
+    }
+}
 //===============================================================================
 void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outputs, int nFrames)
 {
@@ -54,7 +89,6 @@ void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
                 pos = csndIndex*NOutChansConnected();
                 cabbage.setSpIn(channel+pos, inputs[channel][i]);
                 outputs[channel][i] = cabbage.getSpOut(channel+pos);
-                //std::cout << channel+pos << std::endl;
             }
         }
     }
@@ -85,17 +119,18 @@ void CabbageProcessor::OnIdle()
     
 }
 
-//======================== CSOUND MIDI FUNCTIONS ================================
+
 void CabbageProcessor::OnParamChange(int paramIdx)
 {
     if(cabbage.getNumberOfParameter() > 0)
     {
         std::cout << "Processor Channel:" << cabbage.getParameterChannel(paramIdx) << " Value:" << GetParam(paramIdx)->Value() << std::endl;
         cabbage.setControlChannel(cabbage.getParameterChannel(paramIdx).c_str(), GetParam(paramIdx)->Value());
+        GetParam(0)->SetNormalized(0.1);
     }
 }
 
-//======================== CSOUND MIDI FUNCTIONS ================================
+
 void CabbageProcessor::ProcessMidiMsg(const iplug::IMidiMsg& msg)
 {
     TRACE;

@@ -98,7 +98,6 @@ export class RotarySlider {
   pointerUp() { 
     window.removeEventListener("pointermove", this.moveListener);
     window.removeEventListener("pointerup", this.upListener);
-    console.log('pointer up');
   }
 
   pointerDown(evt) {

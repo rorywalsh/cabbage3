@@ -40,6 +40,7 @@ const widgets_js_1 = __webpack_require__(2);
 const cp = __importStar(__webpack_require__(3));
 let textEditor;
 let output;
+let panel = undefined;
 const ws_1 = __importDefault(__webpack_require__(4));
 const wss = new ws_1.default.Server({ port: 9991 });
 let websocket;
@@ -47,7 +48,9 @@ wss.on('connection', (ws) => {
     console.log('Client connected');
     websocket = ws;
     ws.on('message', (message) => {
-        console.log(`Received message from client: ${message}`);
+        const msg = JSON.parse(message.toString());
+        if (panel)
+            panel.webview.postMessage({ command: "parameterUpdate", text: JSON.stringify(msg["parameterUpdate"]) });
     });
     ws.on('close', () => {
         console.log('Client disconnected');
@@ -65,7 +68,6 @@ function activate(context) {
     // Use the console to output diagnostic information (console.log) and errors (console.error)
     // This line of code will only be executed once when your extension is activated
     console.log('Congratulations, your extension "cabbage" is now active!');
-    let panel = undefined;
     //send text to webview for parsing if file has an extension of csd and contains valid Cabbage tags
     function sendTextToWebView(editor, command) {
         if (editor) {
@@ -532,7 +534,6 @@ class RotarySlider {
   pointerUp() { 
     window.removeEventListener("pointermove", this.moveListener);
     window.removeEventListener("pointerup", this.upListener);
-    console.log('pointer up');
   }
 
   pointerDown(evt) {

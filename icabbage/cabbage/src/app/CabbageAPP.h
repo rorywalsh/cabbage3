@@ -64,7 +64,7 @@ private:
 };
 
 IPlugAPP* MakePlug(const InstanceInfo& info, std::string csdFile);
-
+	
 END_IPLUG_NAMESPACE
 
 #endif

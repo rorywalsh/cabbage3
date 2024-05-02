@@ -18,9 +18,10 @@
 #undef _CR
 
 #include <plugin.h>
-//
+#include "CabbageSetOpcodes.h"
+
 struct CabbageGetValue : csnd::InPlug<2>
 {
-    int init() { return OK;     };
-    int kperf() { return OK;    };
+    int init() { return 1;     };
+    int kperf() { return 1;    };
 };

@@ -190,12 +190,28 @@ std::string Cabbage::getWidgetType(const std::string& line)
     return firstWord;
 }
 
+void Cabbage::addOpcodesAndGlobalVars()
+{
+    csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Sk", csnd::thread::k);
+    
+//    auto** wi = (moodycamel::ReaderWriterQueue<CabbageWidgetDescriptors>**)csound->QueryGlobalVariable("cabbageData");
+//    if (wi == nullptr)
+//    {
+//        csound->CreateGlobalVariable("cabbageOpcodeData", sizeof(moodycamel::ReaderWriterQueue<CabbageWidgetDescriptors>*));
+//        wi = (moodycamel::ReaderWriterQueue<CabbageWidgetDescriptors>**)csound->QueryGlobalVariable("cabbageOpcodeData");
+//        *wi = new moodycamel::ReaderWriterQueue<CabbageWidgetDescriptors>(100);
+//    }
+    
+}
+
 bool Cabbage::setupCsound()
 {
     csound = std::make_unique<Csound>();
     csound->SetHostImplementedMIDIIO(true);
     csound->SetHostImplementedAudioIO(1, 0);
     csound->SetHostData(this);
+    
+    addOpcodesAndGlobalVars();
     
     csound->CreateMessageBuffer(0);
     csound->SetExternalMidiInOpenCallback(CabbageProcessor::OpenMidiInputDevice);
@@ -270,9 +286,7 @@ bool Cabbage::setupCsound()
             }
         }
                 
-
-        csnd::plugin<CabbageGetValue>((csnd::Csound*)csound->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
-
+                
         return true;
     }
     else
