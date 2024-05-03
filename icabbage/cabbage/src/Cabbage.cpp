@@ -23,7 +23,8 @@ int Cabbage::getNumberOfParameters(const std::string& csdFile)
         const std::string cabbageResourceDir(CabbageFile::getCabbageResourceDir());
         const std::string cabbageBinaryName(CabbageFile::getBinaryFileName());
         const std::string cabbageBinaryPath(CabbageFile::getBinaryPath());
-        std::cout << CabbageFile::joinPath(cabbageResourceDir, cabbageBinaryName);
+        std::cout << CabbageFile::getCsdPath();
+        
         
                                             
                                             

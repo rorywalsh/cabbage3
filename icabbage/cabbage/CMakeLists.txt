@@ -17,7 +17,7 @@ elseif(DEFINED CabbagePluginSynth)
 endif()
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION 0.0.18)
+	set(BUILD_VERSION 0.0.19)
 endif()
 
 set(IPLUG2_DIR ${CMAKE_SOURCE_DIR}/../iPlug2)

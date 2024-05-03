@@ -95,6 +95,15 @@ public:
         }
     }
 
+    static std::string getCsdPath() {
+        std::string resourceDir = getCabbageResourceDir();
+        std::string binaryFileName = getBinaryFileName();
+        size_t pos = binaryFileName.find_last_of(".");
+        if (pos != std::string::npos)
+            binaryFileName = binaryFileName.substr(0, pos);
+        return joinPath(resourceDir, binaryFileName + ".csd");
+    }
+
 private:
     #if defined(_WIN32)
     static std::string getWindowsBinaryPath() {
@@ -106,7 +115,7 @@ private:
     static std::string getWindowsProgramDataDir() {
         char path[MAX_PATH];
         if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_COMMON_APPDATA, NULL, 0, path)))
-            return std::string(path+"/CabbageAudio");
+            return std::string(path) + "/CabbageAudio";
         else
             return "";
     }
