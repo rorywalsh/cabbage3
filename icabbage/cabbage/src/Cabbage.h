@@ -9,6 +9,7 @@
 
 
 #include "CabbageWidgetDescriptors.h"
+#include "CabbageUtils.h"
 #include "csound.hpp"
 #include "opcodes/CabbageSetOpcodes.h"
 #include "CabbageParser.h"

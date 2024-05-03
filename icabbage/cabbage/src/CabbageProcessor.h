@@ -21,41 +21,25 @@
 #include <vector>
 #include <regex>
 #include "APP/IPlugAPP.h"
+#include "IPlugPaths.h"
 #include "CabbageParser.h"
 #include "Cabbage.h"
 
 
-class TimerThread {
-public:
-    TimerThread() : mStop(false) {}
-
-    // Start the thread with a member function callback and a timer interval
-        template <typename T>
-        void Start(T* obj, void (T::*memberFunc)(), int intervalMillis) {
-            mThread = std::thread([=]() {
-                while (!mStop) {
-                    // Call the member function on the object instance
-                    (obj->*memberFunc)();
-                    std::this_thread::sleep_for(std::chrono::milliseconds(intervalMillis)); // Sleep for the specified interval
-                    //std::cout << "Timer tick" << std::endl; // Debug output
-                }
-                //std::cout << "Timer stopped" << std::endl; // Debug output
-            });
-        }
 
 
-    // Stop the timer thread
-    void Stop() {
-        mStop = true;
-        if (mThread.joinable()) {
-            mThread.join();
-        }
-    }
+#include <iostream>
+#include <string>
 
-private:
-    std::thread mThread;
-    std::atomic<bool> mStop;
-};
+#if defined(_WIN32)
+#include <windows.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#elif defined(__linux__)
+#include <unistd.h>
+#endif
+
+
 
 
 enum EParams
@@ -81,7 +65,11 @@ class CabbageProcessor final : public iplug::Plugin
 {
 public:
     
+#ifdef CabbageApp
     CabbageProcessor(const iplug::InstanceInfo& info, std::string csdFile);
+#else
+    CabbageProcessor(const iplug::InstanceInfo& info);
+#endif
     ~CabbageProcessor();
     void ProcessBlock(iplug::sample** inputs, iplug::sample** outputs, int nFrames) override;
     void ProcessMidiMsg(const iplug::IMidiMsg& msg) override;

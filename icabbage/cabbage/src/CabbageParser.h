@@ -7,6 +7,7 @@
 #include <json.hpp>
 #include "../CabbageWidgetDescriptors.h"
 
+
 class CabbageParser {
 public:
     struct StringArgument {

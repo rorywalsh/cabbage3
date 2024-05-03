@@ -2,7 +2,7 @@
 #include "IPlug_include_in_plug_src.h"
 
 
-
+#ifdef CabbageApp
 CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info, std::string csdFile)
 : iplug::Plugin(info, iplug::MakeConfig(Cabbage::getNumberOfParameters(csdFile), 0)),
 cabbage(*this, csdFile)
@@ -10,14 +10,22 @@ cabbage(*this, csdFile)
     
     if(!cabbage.setupCsound())
         assertm(false, "couldn't set up Csound");
-        
-        
+
+    timer.Start(this, &CabbageProcessor::timerCallback, 1);
+}
+#else
+CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info)
+: iplug::Plugin(info, iplug::MakeConfig(Cabbage::getNumberOfParameters(""), 0)),
+cabbage(*this, "")
+{
     
-    csndIndex = 0;
+    if(!cabbage.setupCsound())
+        assertm(false, "couldn't set up Csound");
+
 #ifdef DEBUG
     SetEnableDevTools(true);
 #endif
-    
+
     // Hard-coded paths must be modified!
     editorInitFunc = [&]() {
 #ifdef OS_WIN
@@ -25,16 +33,18 @@ cabbage(*this, csdFile)
 #else
         LoadFile("index.html", GetBundleID());
 #endif
-        
+
         EnableScroll(false);
         //setCabbage(cabbage);
     };
 
-    
+
     timer.Start(this, &CabbageProcessor::timerCallback, 1);
 
     
 }
+#endif
+
 
 CabbageProcessor::~CabbageProcessor()
 {

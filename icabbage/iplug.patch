@@ -395,7 +395,7 @@ index 91292484f..4630b703b 100644
    #include "IPlugEditorDelegate.h"
    using EDITOR_DELEGATE_CLASS = iplug::IEditorDelegate;
 diff --git a/IPlug/IPlug_include_in_plug_hdr.h b/IPlug/IPlug_include_in_plug_hdr.h
-index 4c1c0765d..83685b700 100644
+index 4c1c0765d..da49d1ebc 100644
 --- a/IPlug/IPlug_include_in_plug_hdr.h
 +++ b/IPlug/IPlug_include_in_plug_hdr.h
 @@ -60,7 +60,11 @@
@@ -403,7 +403,7 @@ index 4c1c0765d..83685b700 100644
    #define PROTOOLS
  #elif defined APP_API
 -  #include "IPlugAPP.h"
-+    #if CUSTOM_APP_SRC
++    #if CabbageApp
 +        #include "CabbageAPP.h"
 +    #else
 +        #include "IPlugAPP.h"
@@ -412,30 +412,44 @@ index 4c1c0765d..83685b700 100644
    #define API_EXT "app"
  #elif defined WAM_API
 diff --git a/IPlug/IPlug_include_in_plug_src.h b/IPlug/IPlug_include_in_plug_src.h
-index dea4c90be..d706583f7 100644
+index dea4c90be..0a35f1b53 100644
 --- a/IPlug/IPlug_include_in_plug_src.h
 +++ b/IPlug/IPlug_include_in_plug_src.h
-@@ -285,13 +285,13 @@ BEGIN_IPLUG_NAMESPACE
+@@ -285,14 +285,24 @@ BEGIN_IPLUG_NAMESPACE
  
  #if defined VST2_API || defined VST3_API || defined AAX_API || defined AUv3_API || defined APP_API  || defined WAM_API || defined WEB_API
  
--Plugin* MakePlug(const iplug::InstanceInfo& info)
++#ifdef CabbageApp
 +Plugin* MakePlug(const iplug::InstanceInfo& info, std::string csdFile)
++{
++    // From VST3 - is this necessary?
++    static WDL_Mutex sMutex;
++    WDL_MutexLock lock(&sMutex);
++    return new PLUG_CLASS_NAME(info, csdFile);
++}
++#else
+ Plugin* MakePlug(const iplug::InstanceInfo& info)
  {
-   // From VST3 - is this necessary?
-   static WDL_Mutex sMutex;
-   WDL_MutexLock lock(&sMutex);
-   
+-  // From VST3 - is this necessary?
+-  static WDL_Mutex sMutex;
+-  WDL_MutexLock lock(&sMutex);
+-  
 -  return new PLUG_CLASS_NAME(info);
-+  return new PLUG_CLASS_NAME(info, csdFile);
++    // From VST3 - is this necessary?
++    static WDL_Mutex sMutex;
++    WDL_MutexLock lock(&sMutex);
++    return new PLUG_CLASS_NAME(info);
  }
++#endif
++
  
  #pragma mark - AUv2
+ #elif defined AU_API
 diff --git a/Scripts/cmake/APP.cmake b/Scripts/cmake/APP.cmake
-index 70234ed49..cf1dbb434 100644
+index 70234ed49..d6717ba53 100644
 --- a/Scripts/cmake/APP.cmake
 +++ b/Scripts/cmake/APP.cmake
-@@ -2,21 +2,45 @@ cmake_minimum_required(VERSION 3.11)
+@@ -2,21 +2,46 @@ cmake_minimum_required(VERSION 3.11)
  
  add_library(iPlug2_APP INTERFACE)
  set(sdk ${IPLUG2_DIR}/IPlug/APP)
@@ -455,8 +469,8 @@ index 70234ed49..cf1dbb434 100644
 -  ${IPLUG_DEPS}/RTMidi/include
 -)
 +
-+if(CUSTOM_APP_SRC)
-+  message("Setting Custom App target src")
++if(DEFINED CabbageApp)
++  message("Setting custom Cabbage app target src")
 +  set(_src
 +    ${IPLUG2_DIR}/../cabbage/src/app/CabbageAPP.cpp 
 +    ${IPLUG2_DIR}/../cabbage/src/app/CabbageAPP_host.h
@@ -475,6 +489,7 @@ index 70234ed49..cf1dbb434 100644
 +    ${IPLUG_DEPS}/RTMidi/include
 +  )
 +else()
++  message("Setting IPlug app target src")
 +  set(_src
 +    ${sdk}/IPlugAPP.cpp 
 +    ${sdk}/IPlugAPP_dialog.cpp 
@@ -497,7 +512,7 @@ index 70234ed49..cf1dbb434 100644
  
  # Link Windows sound libraies if on Windows
 diff --git a/Scripts/cmake/FindiPlug2.cmake b/Scripts/cmake/FindiPlug2.cmake
-index a7f43796d..e2c8b9b1d 100644
+index a7f43796d..710300507 100644
 --- a/Scripts/cmake/FindiPlug2.cmake
 +++ b/Scripts/cmake/FindiPlug2.cmake
 @@ -105,7 +105,11 @@ endmacro()
@@ -505,7 +520,7 @@ index a7f43796d..e2c8b9b1d 100644
    get_target_property(_tmp ${target} INTERFACE_SOURCES)
    if (NOT "${_tmp}" STREQUAL "_tmp-NOTFOUND")
 -    source_group(TREE ${IPLUG2_DIR} PREFIX "IPlug" FILES ${_tmp})
-+    if(CUSTOM_APP_SRC)
++    if(CabbageApp)
 +      source_group("IPlug" FILES ${_tmp})
 +    else()
 +      source_group(TREE ${IPLUG2_DIR} PREFIX "IPlug" FILES ${_tmp})
@@ -513,3 +528,11 @@ index a7f43796d..e2c8b9b1d 100644
    endif()
  endmacro()
  
+@@ -273,6 +277,7 @@ set(_src
+   ${sdk}/IPlugUtilities.h
+ )
+ 
++
+ if (NOT PLUG_RESOURCES_DIR)
+   set(PLUG_RESOURCES_DIR ${CMAKE_SOURCE_DIR}/resources)
+   message("Setting PLUG_RESOURCES_DIR to ${PLUG_RESOURCES_DIR}")

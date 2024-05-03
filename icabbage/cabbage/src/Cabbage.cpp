@@ -18,6 +18,18 @@ Cabbage::~Cabbage()
 
 int Cabbage::getNumberOfParameters(const std::string& csdFile)
 {
+    if(csdFile.empty())
+    {
+        const std::string cabbageResourceDir(CabbageFile::getCabbageResourceDir());
+        const std::string cabbageBinaryName(CabbageFile::getBinaryFileName());
+        const std::string cabbageBinaryPath(CabbageFile::getBinaryPath());
+        std::cout << CabbageFile::joinPath(cabbageResourceDir, cabbageBinaryName);
+        
+                                            
+                                            
+        
+        return 0;
+    }
     std::vector<nlohmann::json> widgets = CabbageParser::parseCsdForWidgets(csdFile);
     int numParams = 0;
     for(auto& w : widgets)

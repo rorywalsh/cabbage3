@@ -3,12 +3,21 @@ cmake_policy(SET CMP0091 NEW)
 
 #########
 
+project(Cabbage LANGUAGES C CXX)
 
-
-project(Cabbage VERSION 1.0.0 LANGUAGES C CXX)
+if(DEFINED CabbagePluginEffect)
+  message("Defining CabbagePluginEffect")
+  set(ProductName "CabbagePluginEffect")
+elseif(DEFINED CabbageApp)
+  message("Defining CabbageApp")
+  set(ProductName "CabbageApp")
+elseif(DEFINED CabbagePluginSynth)
+  message("Defining CabbagePluginSynth")
+  set(ProductName "CabbagePluginSynth")
+endif()
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION 0.0.16)
+	set(BUILD_VERSION 0.0.17)
 endif()
 
 set(IPLUG2_DIR ${CMAKE_SOURCE_DIR}/../iPlug2)
@@ -17,10 +26,10 @@ include(${IPLUG2_DIR}/iPlug2.cmake)
 
 set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
 
-find_package(iPlug2)
 
-set(PROJECT_DIR "${CMAKE_SOURCE_DIR}")
-set(TARGET app)
+
+
+find_package(iPlug2)
 
 include(FetchContent)
 
@@ -31,6 +40,9 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(readerwriterqueue)
+
+set(PROJECT_DIR "${CMAKE_SOURCE_DIR}")
+
 
 #==========================================================================
 if(WIN32) 
@@ -83,6 +95,7 @@ if(WIN32)
   find_library(CSOUND_LIBRARY NAMES csound64 HINTS "c:\\Program Files\\Csound6_x64\\lib")
 
   set(WEBVIEW_SRC_FILES
+  ${IPLUG2_DIR}/IPlug/IPlugPaths.mm
   ${PROJECT_DIR}/src/webView/IPlugWebView.cpp 
   ${PROJECT_DIR}/src/webView/CabbageEditorDelegate.cpp
   ${PROJECT_DIR}/src/webView/IPlugWebView.h 
@@ -155,6 +168,7 @@ set(SRC_FILES
   ${PROJECT_DIR}/src/Cabbage.h
   ${PROJECT_DIR}/src/Cabbage.cpp
   ${PROJECT_DIR}/src/CabbageWidgetDescriptors.h
+  ${PROJECT_DIR}/src/CabbageUtils.h
 )
 
 set(APP_SRC_FILES
@@ -196,15 +210,49 @@ iplug_target_add(_base INTERFACE
 
 # For typing convenience the TARGET name is put into a variable.
 if(WIN32) 
-add_executable(${TARGET} WIN32 MACOSX_BUNDLE  ${WEBVIEW_SRC_FILES} ${SRC_FILES} ${OPCODE_SRC_FILES} )
-iplug_target_add(${TARGET} PUBLIC 
-LINK iPlug2_APP _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} DEFINE WIN32_LEAN_AND_MEAN CUSTOM_APP_SRC)
-iplug_configure_target(${TARGET} app)
+# add_executable(${TARGET} WIN32 MACOSX_BUNDLE  ${WEBVIEW_SRC_FILES} ${SRC_FILES} ${OPCODE_SRC_FILES} )
+# iplug_target_add(${TARGET} PUBLIC 
+# LINK iPlug2_APP _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} DEFINE WIN32_LEAN_AND_MEAN CUSTOM_APP_SRC)
+# iplug_configure_target(${TARGET} app)
 else()
-add_executable(${TARGET} WIN32 MACOSX_BUNDLE ${SRC_FILES} ${WEBVIEW_SRC_FILES}  ${OPCODE_SRC_FILES})
-iplug_target_add(${TARGET} PUBLIC 
-LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} DEFINE CUSTOM_APP_SRC)
-iplug_configure_target(${TARGET} app)
+  if (DEFINED CabbageApp)
+    # this is the taget for the command line app that runs from vscode
+    set(TARGET app)    
+    add_executable(${TARGET} MACOSX_BUNDLE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
+    iplug_target_add(${TARGET} PUBLIC 
+    LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} 
+    DEFINE ${ProductName})
+    iplug_configure_target(${TARGET} app)
+    set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
+  else()
+    # this app is the stadnalone target export from Cabbage
+    set(TARGET app)
+    add_executable(${TARGET} MACOSX_BUNDLE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
+    iplug_target_add(${TARGET} PUBLIC 
+    LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} 
+    DEFINE ${ProductName})
+    iplug_configure_target(${TARGET} app )
+    set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
+
+    
+
+    set(TARGET vst3)
+    add_library(${TARGET} MODULE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
+    iplug_target_add(${TARGET} PUBLIC 
+    LINK iPlug2_VST3 ZLIB::ZLIB _base RESOURCE ${RESOURCES}
+    DEFINE ${ProductName})
+    iplug_configure_target(${TARGET} vst3)
+    set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
+
+    if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
+      set(TARGET auv2)
+      add_library(${TARGET} MODULE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
+      iplug_target_add(${TARGET} PUBLIC 
+      LINK iPlug2_AUv2 ZLIB::ZLIB _base RESOURCE ${RESOURCES})
+      iplug_configure_target(${TARGET} auv2)
+      set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
+    endif()
+  endif()
 endif()
 
 source_group("Cabbage Base" FILES ${SRC_FILES} )
