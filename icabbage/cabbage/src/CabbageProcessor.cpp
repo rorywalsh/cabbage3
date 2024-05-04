@@ -1,7 +1,7 @@
 #include "CabbageProcessor.h"
 #include "IPlug_include_in_plug_src.h"
 
-
+//Users/rwalsh/Library/CloudStorage/OneDrive-Personal/Csoundfiles/addy.csd;
 #ifdef CabbageApp
 CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info, std::string csdFile)
 : iplug::Plugin(info, iplug::MakeConfig(Cabbage::getNumberOfParameters(csdFile), 0)),
@@ -31,7 +31,8 @@ cabbage(*this, "")
 #ifdef OS_WIN
         LoadFile(R"(C:\Users\oli\Dev\iPlug2\Examples\CabbageProcessor\resources\web\index.html)", nullptr);
 #else
-        LoadFile("index.html", GetBundleID());
+        
+        LoadFile("/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/index.html", GetBundleID());
 #endif
 
         EnableScroll(false);
@@ -93,8 +94,9 @@ void CabbageProcessor::timerCallback()
                 }
             }
             
+#ifdef CabbageApp
             hostCallback(data);
-            
+#endif
             //in plugins this data needs to get sent to webview, but in this case
             //it goes back to the host
             

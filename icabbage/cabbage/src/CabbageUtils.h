@@ -22,8 +22,12 @@
 #elif defined(__linux__)
 #include <unistd.h>
 #include <sys/stat.h>
+#endif
+
+#if defined(__APPLE__) || defined(__linux__)
 #include <pwd.h>
 #endif
+
 
 class CabbageFile {
 public:
@@ -101,7 +105,8 @@ public:
         size_t pos = binaryFileName.find_last_of(".");
         if (pos != std::string::npos)
             binaryFileName = binaryFileName.substr(0, pos);
-        return joinPath(resourceDir, binaryFileName + ".csd");
+        const std::string newPath = joinPath(resourceDir, binaryFileName);
+        return joinPath(newPath, binaryFileName + ".csd");
     }
 
 private:
@@ -130,8 +135,18 @@ private:
     }
 
     static std::string getMacCabbageResourceDir() {
-        return "/Library/Application Support/CabbageAudio";
+        const char *homeDir = getenv("HOME");
+        if (homeDir)
+            return std::string(homeDir) + "/Library/CabbageAudio";
+        else {
+            struct passwd *pw = getpwuid(getuid());
+            if (pw)
+                return std::string(pw->pw_dir) + "/Library/CaggaeAudio";
+            else
+                return "";
+        }
     }
+    
     #elif defined(__linux__)
     static std::string getLinuxBinaryPath() {
         char path[PATH_MAX];

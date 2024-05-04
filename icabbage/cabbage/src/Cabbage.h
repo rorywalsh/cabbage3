@@ -122,7 +122,7 @@ public:
 //    static std::vector<Identifier> tokeniseLine(const std::string& syntax);
     
 private:
-    void addOpcodesAndGlobalVars();
+    void addOpcodes();
     int numberOfParameters = 0;
     std::vector<std::string> parameterChannels;
     std::vector<nlohmann::json> widgets;
@@ -138,7 +138,7 @@ private:
     MYFLT *csSpout = nullptr;
     int samplingRate = 44100;
     
-    std::string csdFile = {}, csdFilePath = {};
+    std::string csdFile = {};
     std::unique_ptr<Csound> csound;
     CabbageProcessor& processor;
 };

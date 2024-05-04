@@ -99,7 +99,10 @@ public:
         return cabbage;
     }
     
+#ifdef CabbageApp
     std::function<void(CabbageOpcodeData)> hostCallback = nullptr;
+#endif
+    
 private:
     
     TimerThread timer;

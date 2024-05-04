@@ -18,20 +18,7 @@ Cabbage::~Cabbage()
 
 int Cabbage::getNumberOfParameters(const std::string& csdFile)
 {
-    if(csdFile.empty())
-    {
-        const std::string cabbageResourceDir(CabbageFile::getCabbageResourceDir());
-        const std::string cabbageBinaryName(CabbageFile::getBinaryFileName());
-        const std::string cabbageBinaryPath(CabbageFile::getBinaryPath());
-        std::cout << CabbageFile::getCsdPath();
-        
-        
-                                            
-                                            
-        
-        return 0;
-    }
-    std::vector<nlohmann::json> widgets = CabbageParser::parseCsdForWidgets(csdFile);
+    std::vector<nlohmann::json> widgets = CabbageParser::parseCsdForWidgets(csdFile.empty() ? CabbageFile::getCsdPath() : csdFile);
     int numParams = 0;
     for(auto& w : widgets)
     {
@@ -43,17 +30,10 @@ int Cabbage::getNumberOfParameters(const std::string& csdFile)
 }
 
 
-void Cabbage::addOpcodesAndGlobalVars()
+void Cabbage::addOpcodes()
 {
     csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Sk", csnd::thread::k);
     csnd::plugin<CabbageSetIdentifier>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSS", csnd::thread::ik);
-//    auto** wi = (moodycamel::ReaderWriterQueue<CabbageWidgetDescriptors>**)csound->QueryGlobalVariable("cabbageData");
-//    if (wi == nullptr)
-//    {
-//        csound->CreateGlobalVariable("cabbageOpcodeData", sizeof(moodycamel::ReaderWriterQueue<CabbageWidgetDescriptors>*));
-//        wi = (moodycamel::ReaderWriterQueue<CabbageWidgetDescriptors>**)csound->QueryGlobalVariable("cabbageOpcodeData");
-//        *wi = new moodycamel::ReaderWriterQueue<CabbageWidgetDescriptors>(100);
-//    }
     
 }
 
@@ -64,7 +44,7 @@ bool Cabbage::setupCsound()
     csound->SetHostImplementedAudioIO(1, 0);
     csound->SetHostData(this);
     
-    addOpcodesAndGlobalVars();
+    addOpcodes();
     
     csound->CreateMessageBuffer(0);
     csound->SetExternalMidiInOpenCallback(CabbageProcessor::OpenMidiInputDevice);
@@ -89,12 +69,12 @@ bool Cabbage::setupCsound()
     //    compileCsdFile(csdFile);
     
     //csdFile = "/Users/rwalsh/Library/CloudStorage/OneDrive-Personal/Csoundfiles/addy.csd";
-    std::filesystem::path file = csdFile;
+    std::filesystem::path file = csdFile.empty() ? CabbageFile::getCsdPath() : csdFile;
     
     bool exists = std::filesystem::is_directory(file.parent_path());
     if(exists)
     {
-        csCompileResult = csound->Compile (csdFile.c_str());
+        csCompileResult = csound->Compile (file.string().c_str());
         
         if (csdCompiledWithoutError())
         {
