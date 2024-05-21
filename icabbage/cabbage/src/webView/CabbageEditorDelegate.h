@@ -15,6 +15,7 @@
 #include "wdl_base64.h"
 #include "json.hpp"
 #include <functional>
+#include "CabbageUtils.h"
 
 
 /** This Editor Delegate allows using a platform native web view as the UI for an iPlug plugin */
@@ -55,6 +56,10 @@ public:
     void OnWebContentLoaded() override
     {
         OnUIOpen();
+        std::string result = StringFormatter::format(R"(
+                                                     window.postMessage({ command: "onFileChanged", text: `{}` });
+                                                     )", CabbageFile::getFileAsString());
+        EvaluateJavaScript(result.c_str());
     }
     
     void SetMaxJSStringLength(int length)

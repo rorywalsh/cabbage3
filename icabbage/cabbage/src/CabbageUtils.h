@@ -1,16 +1,13 @@
 #pragma once
 
-#include <iostream>
-#include <cassert>
-#include <filesystem>
-#include <sstream>
-#include <fstream>
+#define cabassert(exp, msg) assert(((void)msg, exp))
+
 #include <thread>
-#include <chrono>
-#include <functional>
-#include <atomic>
+#include <iostream>
 #include <string>
-#include <vector>
+#include <fstream>
+#include <sstream>
+#include <filesystem>
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -19,15 +16,13 @@
 #include <mach-o/dyld.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <pwd.h>
+#include <dlfcn.h>
 #elif defined(__linux__)
 #include <unistd.h>
 #include <sys/stat.h>
-#endif
-
-#if defined(__APPLE__) || defined(__linux__)
 #include <pwd.h>
 #endif
-
 
 class CabbageFile {
 public:
@@ -65,7 +60,7 @@ public:
         #elif defined(__APPLE__)
             return getMacCabbageResourceDir();
         #elif defined(__linux__)
-            return getLinuxHomeDir();
+            return getLinuxHomeDir() + "/CabbageAudio";
         #else
             return "";
         #endif
@@ -108,30 +103,43 @@ public:
         const std::string newPath = joinPath(resourceDir, binaryFileName);
         return joinPath(newPath, binaryFileName + ".csd");
     }
+    
+    static std::string getFileAsString(std::string csdFile = ""){
+        if(csdFile.empty())
+            csdFile = getCsdPath();
+        
+        std::ifstream file(csdFile);
+        std::ostringstream oss;
+        oss << file.rdbuf();
+        std::string csdContents = oss.str();
+        return csdContents;
+    }
 
 private:
     #if defined(_WIN32)
     static std::string getWindowsBinaryPath() {
         char path[MAX_PATH];
-        GetModuleFileName(NULL, path, MAX_PATH);
+        HMODULE hModule = NULL;
+        GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCSTR>(&getWindowsBinaryPath), &hModule);
+        GetModuleFileName(hModule, path, MAX_PATH);
         return std::string(path);
     }
 
     static std::string getWindowsProgramDataDir() {
         char path[MAX_PATH];
         if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_COMMON_APPDATA, NULL, 0, path)))
-            return std::string(path) + "/CabbageAudio";
+            return std::string(path) + "\\CabbageAudio";
         else
             return "";
     }
     #elif defined(__APPLE__)
-    static std::string getMacBinaryPath() {
-        char path[PATH_MAX];
-        uint32_t size = sizeof(path);
-        if (_NSGetExecutablePath(path, &size) == 0)
-            return std::string(path);
-        else
-            return "";
+    static std::string getMacBinaryPath() 
+    {
+        Dl_info info;
+        if (dladdr(reinterpret_cast<void*>(&getMacBinaryPath), &info)) {
+            return std::string(info.dli_fname);
+        }
+        return "";
     }
 
     static std::string getMacCabbageResourceDir() {
@@ -141,12 +149,11 @@ private:
         else {
             struct passwd *pw = getpwuid(getuid());
             if (pw)
-                return std::string(pw->pw_dir) + "/Library/CaggaeAudio";
+                return std::string(pw->pw_dir) + "/Library/CabbageAudio";
             else
                 return "";
         }
     }
-    
     #elif defined(__linux__)
     static std::string getLinuxBinaryPath() {
         char path[PATH_MAX];
@@ -168,7 +175,6 @@ private:
     }
     #endif
 };
-
 
 class TimerThread {
 public:
@@ -200,4 +206,39 @@ public:
 private:
     std::thread mThread;
     std::atomic<bool> mStop;
+};
+
+
+class StringFormatter {
+public:
+    template <typename... Args>
+    static std::string format(const std::string& templateStr, Args&&... args) {
+        std::vector<std::string> arguments{ toString(std::forward<Args>(args))... };
+        return processTemplate(templateStr, arguments);
+    }
+
+private:
+    template <typename T>
+    static std::string toString(T&& value) {
+        std::ostringstream oss;
+        oss << std::forward<T>(value);
+        return oss.str();
+    }
+
+    static std::string processTemplate(const std::string& templateStr, const std::vector<std::string>& args) {
+        std::string result;
+        result.reserve(templateStr.size());
+
+        size_t argIndex = 0;
+        for (size_t i = 0; i < templateStr.size(); ++i) {
+            if (templateStr[i] == '{' && i + 1 < templateStr.size() && templateStr[i + 1] == '}' && argIndex < args.size()) {
+                result += args[argIndex++];
+                ++i;  // Skip the '}'
+            } else {
+                result += templateStr[i];
+            }
+        }
+
+        return result;
+    }
 };

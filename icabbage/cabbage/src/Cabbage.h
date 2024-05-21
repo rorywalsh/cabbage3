@@ -16,8 +16,6 @@
 
 
 
-#define assertm(exp, msg) assert(((void)msg, exp))
-
 class CabbageProcessor;
 
 class Cabbage {
@@ -39,6 +37,11 @@ public:
         }
     };
     
+    struct ParameterChannel {
+        std::string name;
+        float value;
+    };
+    
     Cabbage(CabbageProcessor& p, std::string file);
     ~Cabbage();
     
@@ -52,6 +55,11 @@ public:
     void setCsdFile(std::string file)
     {
         csdFile = file;
+    }
+    
+    std::string getCsdFile()
+    {
+        return csdFile;
     }
     
     void compileCsdFile (std::string csoundFile)
@@ -85,17 +93,28 @@ public:
         return csdKsmps;
     }
     
-    void setControlChannel(std::string channel, MYFLT value)
+    void setControlChannel(const std::string channel, MYFLT value)
     {
-            csound->SetControlChannel(channel.c_str(), value);
+        //update Csound channel, and update ParameterChannel values..
+        csound->SetControlChannel(channel.c_str(), value);
+        
+        auto it = std::find_if(parameterChannels.begin(), parameterChannels.end(), [&channel](const ParameterChannel& paramChannel) {
+            return paramChannel.name == channel;
+        });
+
+        if (it != parameterChannels.end()) {
+            size_t index = std::distance(parameterChannels.begin(), it);
+            getParameterChannel(static_cast<int>(index)).value = value;
+        }
     }
+
     
     void stopProcessing()
     {
         csCompileResult = -1;
     }
     
-    std::string getParameterChannel(int index)
+    ParameterChannel& getParameterChannel(int index)
     {
         return parameterChannels[index];
     }
@@ -110,10 +129,10 @@ public:
         return widgets;
     }
     
-    std::vector<std::string> getParameterChannel()
-    {
-        return parameterChannels;
-    }
+//    std::vector<std::string> getParameterChannel()
+//    {
+//        return parameterChannels;
+//    }
     //===============================================================================
 //    static std::vector<nlohmann::json> parseCsdForWidgets(std::string csdFile);
     static int getNumberOfParameters(const std::string& csdFile);
@@ -124,7 +143,7 @@ public:
 private:
     void addOpcodes();
     int numberOfParameters = 0;
-    std::vector<std::string> parameterChannels;
+    std::vector<ParameterChannel> parameterChannels;
     std::vector<nlohmann::json> widgets;
     int samplePosForMidi = 0;
     std::string csoundOutput = {};

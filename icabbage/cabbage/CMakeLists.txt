@@ -17,7 +17,12 @@ elseif(DEFINED CabbagePluginSynth)
 endif()
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION 0.0.20)
+	set(BUILD_VERSION 0.0.21)
+endif()
+
+
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release) # Set default build type to Release if not specified
 endif()
 
 set(IPLUG2_DIR ${CMAKE_SOURCE_DIR}/../iPlug2)
@@ -169,6 +174,8 @@ set(SRC_FILES
   ${PROJECT_DIR}/src/Cabbage.cpp
   ${PROJECT_DIR}/src/CabbageWidgetDescriptors.h
   ${PROJECT_DIR}/src/CabbageUtils.h
+  ${PROJECT_DIR}/src/CabbageServer.cpp
+  ${PROJECT_DIR}/src/CabbageServer.h
 )
 
 set(APP_SRC_FILES
@@ -243,6 +250,19 @@ else()
     DEFINE ${ProductName})
     iplug_configure_target(${TARGET} vst3)
     set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
+    add_custom_command(TARGET ${TARGET} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_directory" "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${ProductName}.vst3" "$ENV{HOME}/Library/Audio/Plug-Ins/VST3")
+
+    # set(TARGET vst2)
+    # add_library(${TARGET} MODULE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
+    # iplug_target_add(${TARGET} PUBLIC 
+    # LINK iPlug2_VST2 ZLIB::ZLIB _base RESOURCE ${RESOURCES}
+    # DEFINE ${ProductName})
+    # iplug_configure_target(${TARGET} vst2)
+    # set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
+    # add_custom_command(TARGET ${TARGET} POST_BUILD
+    # COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_directory" "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${ProductName}.vst3" "$ENV{HOME}/Library/Audio/Plug-Ins/VST3")
+
 
     if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
       set(TARGET auv2)

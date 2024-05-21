@@ -126,7 +126,7 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.workspace.onDidSaveTextDocument((editor) => {
 			sendTextToWebView(editor, 'onFileChanged');
 			const config = vscode.workspace.getConfiguration("cabbage");
-			const command = config.get("pathToCabbageExecutable") + '/Cabbage.app/Contents/MacOS/Cabbage';
+			const command = config.get("pathToCabbageExecutable") + '/CabbageApp.app/Contents/MacOS/CabbageApp';
 			processes.forEach((p) => {
 				p?.kill("SIGKILL");
 			})

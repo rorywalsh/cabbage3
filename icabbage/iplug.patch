@@ -536,3 +536,18 @@ index a7f43796d..710300507 100644
  if (NOT PLUG_RESOURCES_DIR)
    set(PLUG_RESOURCES_DIR ${CMAKE_SOURCE_DIR}/resources)
    message("Setting PLUG_RESOURCES_DIR to ${PLUG_RESOURCES_DIR}")
+diff --git a/Scripts/cmake/VST3.cmake b/Scripts/cmake/VST3.cmake
+index 5fba83fcb..b0896e721 100644
+--- a/Scripts/cmake/VST3.cmake
++++ b/Scripts/cmake/VST3.cmake
+@@ -198,8 +198,8 @@ function(iplug_configure_vst3 target)
+       set(res_dir "")
+     endif()
+     
+-    add_custom_command(TARGET ${target} POST_BUILD
+-      COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_directory" "${out_dir}" "${install_dir}")
++    # add_custom_command(TARGET ${target} POST_BUILD
++    #   COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_directory" "${out_dir}" "${install_dir}")
+ 
+     iplug_target_add(${TARGET} PUBLIC LINK iPlug2_VST3 _base RESOURCE ${RESOURCES})
+     

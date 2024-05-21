@@ -17,7 +17,7 @@
       "properties": {
         "cabbage.pathToCabbageExecutable": {
           "type": "string",
-          "default": "/Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/build/Debug/",
+          "default": "/Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/build/Debug",
           "description": "Path to Cabbage service app (path only, no file name)"
         }
       }

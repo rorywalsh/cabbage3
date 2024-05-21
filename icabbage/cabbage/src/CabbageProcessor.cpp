@@ -19,26 +19,31 @@ CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info)
 cabbage(*this, "")
 {
     
+
+    
     if(!cabbage.setupCsound())
-        assertm(false, "couldn't set up Csound");
+        cabassert(false, "couldn't set up Csound");
 
 #ifdef DEBUG
     SetEnableDevTools(true);
 #endif
 
-    // Hard-coded paths must be modified!
+    //editor onInit callback function
     editorInitFunc = [&]() {
 #ifdef OS_WIN
         LoadFile(R"(C:\Users\oli\Dev\iPlug2\Examples\CabbageProcessor\resources\web\index.html)", nullptr);
 #else
+        if(!server.isThreadRunning())
+            server.start("/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/");
         
-        LoadFile("/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/index.html", GetBundleID());
+        const std::string mntPoint = "http://127.0.0.1:" + std::to_string(server.getCurrentPort()) + "/index.html";
+        LoadURL(mntPoint.c_str());
+   
 #endif
 
         EnableScroll(false);
         //setCabbage(cabbage);
     };
-
 
     timer.Start(this, &CabbageProcessor::timerCallback, 1);
 
@@ -55,7 +60,6 @@ CabbageProcessor::~CabbageProcessor()
 //timer thread listens for incoming data from Csound using a lock free fifo
 void CabbageProcessor::timerCallback()
 {
-    //Csound could not compile your file?
     while (cabbage.getCsound()->GetMessageCnt() > 0)
     {
         std::string message(cabbage.getCsound()->GetFirstMessage());
@@ -158,9 +162,25 @@ void CabbageProcessor::OnParamChange(int paramIdx)
 {
     if(cabbage.getNumberOfParameter() > 0)
     {
-//        std::cout << "Processor Channel:" << cabbage.getParameterChannel(paramIdx) << " Value:" << GetParam(paramIdx)->Value() << std::endl;
-        cabbage.setControlChannel(cabbage.getParameterChannel(paramIdx).c_str(), GetParam(paramIdx)->Value());
-        GetParam(0)->SetNormalized(0.1);
+        //only update if we need to...
+        auto& p = cabbage.getParameterChannel(paramIdx);
+        if(p.value != GetParam(paramIdx)->Value())
+        {
+            cabbage.setControlChannel(p.name.c_str(), GetParam(paramIdx)->Value());
+//            GetParam(0)->SetNormalized(0.1);
+            std::string message =  StringFormatter::format(R"(
+                                                         window.postMessage({
+                                                           command: "widgetUpdate",
+                                                           text: JSON.stringify({
+                                                               channel: "{}",
+                                                               value: {}
+                                                           })
+                                                         });
+                                                         )", p.name.c_str(),
+                                                           GetParam(paramIdx)->Value());
+            std::cout << message << std::endl;
+            EvaluateJavaScript(message.c_str());
+        }
     }
 }
 
@@ -189,7 +209,7 @@ int CabbageProcessor::ReadMidiData (CSOUND* /*csound*/, void* userData,
     
     if (!userData)
     {
-        assertm(false, "\nInvalid");
+        cabassert(false, "\nInvalid");
         return 0;
     }
     
@@ -251,7 +271,7 @@ int CabbageProcessor::WriteMidiData (CSOUND* /*csound*/, void* _userData,
     
     if (!userData)
     {
-        assertm(false, "\n\nInvalid");
+        cabassert(false, "\n\nInvalid");
         return 0;
     }
     

@@ -5,6 +5,7 @@ rm -rf build
 # Check if the correct number of arguments is provided
 if [ "$#" -ne 1 ]; then
     echo "Usage: $0 <target>"
+    echo "Valid targets are: CabbageApp, CabbagePluginEffect, CabbagePluginSynth"
     exit 1
 fi
 
@@ -23,7 +24,7 @@ esac
 target="$1"
 
 # Construct the CMake command with the target variable
-command="cmake -GXcode -B build -S . -D${target}=On"
+command="cmake -GXcode -B build -S . -D${target}=On -DCMAKE_BUILD_TYPE=Debug"
 
 # Print the constructed command
 echo "$command"

@@ -68,8 +68,9 @@ bool Cabbage::setupCsound()
     csound->SetParams(csoundParams.get());
     //    compileCsdFile(csdFile);
     
-    //csdFile = "/Users/rwalsh/Library/CloudStorage/OneDrive-Personal/Csoundfiles/addy.csd";
+//    csdFile = "/Users/rwalsh/Library/CloudStorage/OneDrive-Personal/Csoundfiles/addy.csd";
     std::filesystem::path file = csdFile.empty() ? CabbageFile::getCsdPath() : csdFile;
+    csdFile = file.string();
     
     bool exists = std::filesystem::is_directory(file.parent_path());
     if(exists)
@@ -113,7 +114,7 @@ bool Cabbage::setupCsound()
                                                              iplug::IParam::EFlags::kFlagsNone,
                                                              "",
                                                              iplug::IParam::ShapePowCurve(w["sliderSkew"].get<float>()));
-                    parameterChannels.push_back(CabbageParser::removeQuotes(w["channel"].get<std::string>()));
+                    parameterChannels.push_back({CabbageParser::removeQuotes(w["channel"].get<std::string>()), w["value"].get<float>()});
                     numberOfParameters++;
                 }
             }

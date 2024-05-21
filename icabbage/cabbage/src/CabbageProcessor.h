@@ -25,8 +25,9 @@
 #include "CabbageParser.h"
 #include "Cabbage.h"
 
-
-
+#ifndef CabbageApp
+#include "CabbageServer.h"
+#endif
 
 #include <iostream>
 #include <string>
@@ -69,6 +70,7 @@ public:
     CabbageProcessor(const iplug::InstanceInfo& info, std::string csdFile);
 #else
     CabbageProcessor(const iplug::InstanceInfo& info);
+    CabbageServer server;
 #endif
     ~CabbageProcessor();
     void ProcessBlock(iplug::sample** inputs, iplug::sample** outputs, int nFrames) override;
@@ -110,6 +112,7 @@ private:
     std::string host = {"127.0.0.1"};
 
     Cabbage cabbage;
+    
     int csndIndex = 0;
     int csdKsmps = 0;
     int pos = 0;
