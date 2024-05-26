@@ -33,7 +33,7 @@ export class Form {
 
   getSVG() {
 
-    return `
+return `
       <svg xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
       <rect width="${this.props.width} " height="${this.props.height}" x="0" y="0" rx="2" ry="2" fill="${this.props.colour}" />
       </svg>
@@ -54,7 +54,6 @@ export class RotarySlider {
       "value": 0,
       "sliderSkew": 1,
       "increment": 0.001,
-      "index": 0,
       "text": "",
       "valueTextBox": 0,
       "colour": "#dddddd",
@@ -63,7 +62,7 @@ export class RotarySlider {
       "trackerStrokeColour": "#222222",
       "trackerStrokeWidth": 1,
       "trackerWidth": 0.5,
-      "outlineWidth": 0.3,
+      "outlineWidth" : 0.3,
       "trackerColour": "#dddddd",
       "fontColour": "#222222",
       "textColour": "#222222",
@@ -96,7 +95,7 @@ export class RotarySlider {
     this.vscode = null;
   }
 
-  pointerUp() {
+  pointerUp() { 
     window.removeEventListener("pointermove", this.moveListener);
     window.removeEventListener("pointerup", this.upListener);
   }
@@ -114,36 +113,21 @@ export class RotarySlider {
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
   }
 
-  addEventListeners(widgetDiv) {
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-  }
-
   pointerMove({ clientY }) {
     // console.log('slider on move');
     const steps = 200;
     const valueDiff = ((this.props.max - this.props.min) * (clientY - this.startY)) / steps;
     const value = clamp(this.startValue - valueDiff, this.props.min, this.props.max);
-
+   
     this.props.value = Math.round(value / this.props.increment) * this.props.increment;
     const widgetDiv = document.getElementById(this.props.name);
     widgetDiv.innerHTML = this.getSVG();
 
-    const msg = { channel: this.props.channel, value: this.props.value.map(this.props.min, this.props.max, 0, 1) }
-    if (this.vscode) {
-      this.vscode.postMessage({
-        command: 'channelUpdate',
-        text: JSON.stringify(msg)
-      })
-    }
-    else{
-      var message = {
-        "msg": "parameterUpdate",
-        "paramIdx": this.props.index,
-        "value": this.props.value.map(this.props.min, this.props.max, 0, 1)
-      };
-    
-     // IPlugSendMsg(message);
-    }
+    const msg = {channel:this.props.channel, value: this.props.value.map(this.props.min, this.props.max, 0, 1)}
+    this.vscode.postMessage({
+      command: 'channelUpdate',
+      text: JSON.stringify(msg)
+    })
   }
 
   // https://stackoverflow.com/questions/20593575/making-circular-progress-bar-with-html5-svg
@@ -172,17 +156,17 @@ export class RotarySlider {
   }
 
   getSVG() {
-    const w = (this.props.width > this.props.height ? this.props.height : this.props.width) * .75;
-    const trackerPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth * .5)), -130, 132);
-    const trackerArcPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth * .5)), -130, this.props.value.map(this.props.min, this.props.max, -130, 132));
+    const w = (this.props.width > this.props.height ? this.props.height : this.props.width)*.75;
+    const trackerPath = this.describeArc(   this.props.width / 2, this.props.height / 2, (w/2)*(1-(this.props.trackerWidth*.5)), -130, 132);
+    const trackerArcPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w/2)*(1-(this.props.trackerWidth*.5)), -130, this.props.value.map(this.props.min, this.props.max, -130, 132));
 
+  
 
-
-    return `
+return `
       <svg xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
-      <path d='${trackerPath}' id="arc" fill="none" stroke=${this.props.trackerBackgroundColour} stroke-width=${this.props.trackerWidth * .5 * w} />
-      <path d='${trackerArcPath}' id="arc" fill="none" stroke=${this.props.trackerColour} stroke-width=${this.props.trackerWidth * .5 * w} /> 
-      <circle cx=${this.props.width / 2} cy=${this.props.height / 2} r=${(w / 2) - this.props.trackerWidth * .5 * w} stroke=${this.props.outlineColour} stroke-width=${this.props.outlineWidth} fill=${this.props.colour} />
+      <path d='${trackerPath}' id="arc" fill="none" stroke=${this.props.trackerBackgroundColour} stroke-width=${this.props.trackerWidth*.5*w} />
+      <path d='${trackerArcPath}' id="arc" fill="none" stroke=${this.props.trackerColour} stroke-width=${this.props.trackerWidth*.5*w} /> 
+      <circle cx=${this.props.width / 2} cy=${this.props.height / 2} r=${(w / 2) - this.props.trackerWidth*.5*w} stroke=${this.props.outlineColour} stroke-width=${this.props.outlineWidth} fill=${this.props.colour} />
       </svg>
       `;
   }

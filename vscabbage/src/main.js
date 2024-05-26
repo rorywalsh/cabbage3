@@ -1,11 +1,25 @@
 
 
 import { Form, RotarySlider } from "./widgets.js";
-import { WidgetWrapper } from "./widgetWrapper.js";
 
+let vscode = null;
+let widgetWrappers = null;
+
+if (typeof acquireVsCodeApi === 'function') {
+  vscode = acquireVsCodeApi();
+  try {
+    const module = await import("./widgetWrapper.js");
+    const { WidgetWrapper } = module;
+    // You can now use WidgetWrapper here
+    console.log('WidgetWrapper loaded:', WidgetWrapper);
+    widgetWrappers = new WidgetWrapper(updatePanel);
+  } catch (error) {
+    console.error("Error loading widgetWrapper.js:", error);
+  }
+}
 
 const currentWidget = [{ name: "Top", value: 0 }, { name: "Left", value: 0 }, { name: "Width", value: 0 }, { name: "Height", value: 0 }];
-const vscode = acquireVsCodeApi();
+
 const widgets = [];
 
 let cabbageMode = 'editMode';
@@ -16,7 +30,8 @@ let numberOfWidgets = 1;
 const contextMenu = document.querySelector(".wrapper");
 const form = document.getElementById('MainForm');
 
-const widgetWrappers = new WidgetWrapper(updatePanel);
+
+
 
 function updateWidget(obj) {
   const channel = obj['channel'];
@@ -24,11 +39,12 @@ function updateWidget(obj) {
     if (widget.props.name == channel) {
       if (obj.hasOwnProperty('value')) {
         widget.props.value = obj['value'];
+        console.log(widget.props.value)
       }
-      else if(obj.hasOwnProperty('data')){
+      else if (obj.hasOwnProperty('data')) {
         const identifierStr = obj['data'];
         Object.entries(getCabbageCodeAsJSON(obj['data'])).forEach((entry) => {
-          const [key, value] = entry;      
+          const [key, value] = entry;
           widget.props[key] = value;
         });
       }
@@ -40,6 +56,28 @@ function updateWidget(obj) {
   }
 }
 
+/**
+ * this function will return the number of plugin parameter in our widgets array
+ */
+function getNumberOfPluginParameters(...types) {
+  // Create a set from the types for faster lookup
+  const typeSet = new Set(types);
+
+  // Initialize the counter
+  let count = 0;
+
+  // Iterate over each widget in the array
+  for (const widget of widgets) {
+    // Check if the widget's type is one of the specified types
+    if (typeSet.has(widget.props.type)) {
+      // Increment the counter if the type matches
+      count++;
+    }
+  }
+
+  // Return the final count
+  return count;
+}
 
 /**
  * This uses a simple regex pattern to parse a line of Cabbage code such as 
@@ -106,7 +144,6 @@ window.addEventListener('message', event => {
     case 'widgetUpdate':
       const msg = JSON.parse(message.text);
       updateWidget(msg);
-      // console.log(msg['value']);
       break;
     case 'onEnterEditMode':
       cabbageMode = 'editMode';
@@ -285,56 +322,58 @@ class PropertyPanel {
   }
 };
 
+
 /**
  * Add listener for context menu. Also keeps the current x and x positions 
  * in case a user adds a widget
  */
-let mouseDownPosition = {};
-form.addEventListener("contextmenu", e => {
-  e.preventDefault();
-  let x = e.offsetX, y = e.offsetY,
-    winWidth = window.innerWidth,
-    winHeight = window.innerHeight,
-    cmWidth = contextMenu.offsetWidth,
-    cmHeight = contextMenu.offsetHeight;
+if (typeof acquireVsCodeApi === 'function') {
+  let mouseDownPosition = {};
+  form.addEventListener("contextmenu", e => {
+    e.preventDefault();
+    let x = e.offsetX, y = e.offsetY,
+      winWidth = window.innerWidth,
+      winHeight = window.innerHeight,
+      cmWidth = contextMenu.offsetWidth,
+      cmHeight = contextMenu.offsetHeight;
 
-  x = x > winWidth - cmWidth ? winWidth - cmWidth - 5 : x;
-  y = y > winHeight - cmHeight ? winHeight - cmHeight - 5 : y;
+    x = x > winWidth - cmWidth ? winWidth - cmWidth - 5 : x;
+    y = y > winHeight - cmHeight ? winHeight - cmHeight - 5 : y;
 
-  contextMenu.style.left = `${x}px`;
-  contextMenu.style.top = `${y}px`;
-  mouseDownPosition = { x: x, y: y };
-  contextMenu.style.visibility = "visible";
-});
-document.addEventListener("click", () => contextMenu.style.visibility = "hidden");
+    contextMenu.style.left = `${x}px`;
+    contextMenu.style.top = `${y}px`;
+    mouseDownPosition = { x: x, y: y };
+    contextMenu.style.visibility = "visible";
+  });
+  document.addEventListener("click", () => contextMenu.style.visibility = "hidden");
 
-new PropertyPanel('slider', currentWidget);
+  new PropertyPanel('slider', currentWidget);
 
-/**
- * Add a click callback listener for each item in the menu. Within the click callback
- * a new widget is added to the form, and a new widget object is pushed to the widgets array. 
- * Assigning class type 'editMode' gives it draggable and resizable functionality. 
- */
-let menuItems = document.getElementsByTagName('*');
-for (var i = 0; i < menuItems.length; i++) {
-  if (menuItems[i].getAttribute('class') == 'menuItem') {
-    menuItems[i].addEventListener("click", async (e) => {
-      const type = e.target.innerHTML.replace(/(<([^>]+)>)/ig);
-      const channel = type + String(numberOfWidgets);
-      numberOfWidgets++;
-      const w = await insertWidget(type, { channel: channel, top: mouseDownPosition.y, left: mouseDownPosition.x });
-      if (widgets) {
-        //update text editor with last added widget
-        vscode.postMessage({
-          command: 'widgetUpdate',
-          text: JSON.stringify(w)
-        })
-      }
+  /**
+   * Add a click callback listener for each item in the menu. Within the click callback
+   * a new widget is added to the form, and a new widget object is pushed to the widgets array. 
+   * Assigning class type 'editMode' gives it draggable and resizable functionality. 
+   */
+  let menuItems = document.getElementsByTagName('*');
+  for (var i = 0; i < menuItems.length; i++) {
+    if (menuItems[i].getAttribute('class') == 'menuItem') {
+      menuItems[i].addEventListener("click", async (e) => {
+        const type = e.target.innerHTML.replace(/(<([^>]+)>)/ig);
+        const channel = type + String(numberOfWidgets);
+        numberOfWidgets++;
+        const w = await insertWidget(type, { channel: channel, top: mouseDownPosition.y, left: mouseDownPosition.x });
+        if (widgets) {
+          //update text editor with last added widget
+          vscode.postMessage({
+            command: 'widgetUpdate',
+            text: JSON.stringify(w)
+          })
+        }
 
-    });
+      });
+    }
   }
 }
-
 /**
  * insets a new widget to the form, this can be called when loading/saving a file, or when we right-
  * click and add widgets
@@ -359,6 +398,7 @@ async function insertWidget(type, props) {
       return;
   }
 
+
   Object.entries(props).forEach((entry) => {
     const [key, value] = entry;
 
@@ -369,10 +409,26 @@ async function insertWidget(type, props) {
     }
   })
 
-  widgets.push(widget); // Push the new widget object into the array
 
-  if (cabbageMode === 'playMode')
-    widget.addEventListeners(widgetDiv, vscode);
+
+
+  widgets.push(widget); // Push the new widget object into the array
+  const index = getNumberOfPluginParameters("rslider", "hslider", "button", "checkbox");
+  widget.props.index = index - 1;
+  console.log(JSON.stringify(widget.props, null, 2));
+
+  if (cabbageMode === 'playMode') {
+    if (typeof acquireVsCodeApi === 'function') {
+      if (!vscode)
+        vscode = acquireVsCodeApi();
+
+      widget.addEventListeners(widgetDiv, vscode);
+    }
+
+  }
+  else {
+    widget.addEventListeners(widgetDiv);
+  }
 
 
   widgetDiv.id = widget.props.name;

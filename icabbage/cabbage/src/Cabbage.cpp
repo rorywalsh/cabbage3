@@ -68,14 +68,14 @@ bool Cabbage::setupCsound()
     csound->SetParams(csoundParams.get());
     //    compileCsdFile(csdFile);
     
-//    csdFile = "/Users/rwalsh/Library/CloudStorage/OneDrive-Personal/Csoundfiles/addy.csd";
+    csdFile = "/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/CabbagePluginEffect.csd";
     std::filesystem::path file = csdFile.empty() ? CabbageFile::getCsdPath() : csdFile;
     csdFile = file.string();
     
-    bool exists = std::filesystem::is_directory(file.parent_path());
+    bool exists = std::filesystem::exists(csdFile);
     if(exists)
     {
-        csCompileResult = csound->Compile (file.string().c_str());
+        csCompileResult = csound->Compile (csdFile.c_str());
         
         if (csdCompiledWithoutError())
         {

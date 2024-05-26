@@ -133,10 +133,9 @@ private:
             return "";
     }
     #elif defined(__APPLE__)
-    static std::string getMacBinaryPath() 
-    {
+    static std::string getMacBinaryPath() {
         Dl_info info;
-        if (dladdr(reinterpret_cast<void*>(&getMacBinaryPath), &info)) {
+        if (dladdr((void*)"getMacBinaryPath", &info)){
             return std::string(info.dli_fname);
         }
         return "";
@@ -154,6 +153,7 @@ private:
                 return "";
         }
     }
+    
     #elif defined(__linux__)
     static std::string getLinuxBinaryPath() {
         char path[PATH_MAX];

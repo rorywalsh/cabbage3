@@ -14,7 +14,7 @@
 
 #import <Foundation/Foundation.h>
 #import <WebKit/WebKit.h>
-
+#import <objc/message.h>
 #include "IPlugWebView.h"
 #include "IPlugPaths.h"
 
@@ -46,14 +46,44 @@ using namespace iplug;
 }
 
 #ifdef OS_MAC
+// Override the rightMouseDown method to handle right-click events
+- (void)mouseDown:(NSEvent *)event {
+    [super rightMouseDown:event];
+    [[self window] makeFirstResponder:self];  // Make this view the first responder
+    [self makeSubviewsFirstResponder:self];  // Traverse subviews and make them first responders if possible
+}
+
+// Recursive method to traverse subviews and make them first responders if they accept first responder status
+- (void)makeSubviewsFirstResponder:(NSView *)view {
+    for (NSView *subview in [view subviews]) {
+        //if ([subview acceptsFirstResponder]) {
+            [[subview window] makeFirstResponder:subview];
+        //}
+        // Recursively traverse subviews
+        [self makeSubviewsFirstResponder:subview];
+    }
+}
+
+- (void)rightMouseDown:(NSEvent *)event
+{
+    [super mouseDown:event];
+    [[self window] makeFirstResponder:self];
+}
+
+- (BOOL)acceptsFirstMouse:(NSEvent *)event {
+    return YES;
+}
+
 - (NSView *)hitTest:(NSPoint)point
 {
-  if (!mEnableInteraction)
-  {
-    return nil;
-  }
-  else
-    return [super hitTest:point];
+    if (!mEnableInteraction) {
+            return nil;
+        } else {
+            
+            NSView *hitView = [super hitTest:point];
+            [self makeSubviewsFirstResponder:self];
+                    return hitView;
+        }
 }
 
 - (void)willOpenMenu:(NSMenu *)menu withEvent:(NSEvent *)event
@@ -129,6 +159,7 @@ using namespace iplug;
   
   if (self)
     mWebView = webView;
+    
   
   return self;
 }
@@ -165,9 +196,11 @@ void* IWebView::OpenWebView(void* pParent, float x, float y, float w, float h, f
 {  
   WKWebViewConfiguration* webConfig = [[WKWebViewConfiguration alloc] init];
   WKPreferences* preferences = [[WKPreferences alloc] init];
-  
+
+    
   WKUserContentController* controller = [[WKUserContentController alloc] init];
   webConfig.userContentController = controller;
+ 
 
   IPLUG_WKSCRIPTHANDLER* scriptHandler = [[IPLUG_WKSCRIPTHANDLER alloc] initWithIWebView: this];
   [controller addScriptMessageHandler: scriptHandler name:@"callback"];
@@ -213,6 +246,18 @@ void* IWebView::OpenWebView(void* pParent, float x, float y, float w, float h, f
     [webView setValue:@(NO) forKey:@"drawsBackground"];
   
   [webView setAllowsMagnification:NO];
+    
+    // Ensure webView is a WKWebView instance
+      if ([webView isKindOfClass:[WKWebView class]]) {
+        WKWebView *wkWebView = (WKWebView *)webView;
+        
+        if ([wkWebView respondsToSelector:@selector(_setKeyboardDisplayRequiresUserAction:)]) {
+          // Use Objective-C runtime to call the private method
+          void (*setKeyboardDisplayRequiresUserAction)(id, SEL, BOOL) = (void (*)(id, SEL, BOOL))objc_msgSend;
+          setKeyboardDisplayRequiresUserAction(wkWebView, @selector(_setKeyboardDisplayRequiresUserAction:), NO);
+        }
+      }
+
 #endif
   
   [webView setNavigationDelegate:scriptHandler];

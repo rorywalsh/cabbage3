@@ -19,6 +19,8 @@
 class CabbageProcessor;
 
 class Cabbage {
+    std::vector<nlohmann::json> widgets;
+    
 public:
     struct StringArgument {
         std::vector<std::string> values;
@@ -37,9 +39,23 @@ public:
         }
     };
     
+    
     struct ParameterChannel {
         std::string name;
+        void setValue(float v, float min = 0, float max = 1, float skew= 1, float increment = 1){
+            value = v;
+        }
+
+        float getValue(){
+            return value;
+        }
+        
+        bool hasValueChanged(float newValue){
+            return value == newValue;
+        }
+        
         float value;
+
     };
     
     Cabbage(CabbageProcessor& p, std::string file);
@@ -93,19 +109,32 @@ public:
         return csdKsmps;
     }
     
+    size_t getIndexForParamChannel(std::string name)
+    {
+        auto it = std::find_if(parameterChannels.begin(), parameterChannels.end(), [&name](const ParameterChannel& paramChannel) {
+            return paramChannel.name == name;
+        });
+
+        if (it != parameterChannels.end()) {
+            size_t index = std::distance(parameterChannels.begin(), it);
+            return index;
+        }
+        
+        return -1;
+    }
+    
     void setControlChannel(const std::string channel, MYFLT value)
     {
         //update Csound channel, and update ParameterChannel values..
         csound->SetControlChannel(channel.c_str(), value);
         
-        auto it = std::find_if(parameterChannels.begin(), parameterChannels.end(), [&channel](const ParameterChannel& paramChannel) {
-            return paramChannel.name == channel;
-        });
-
-        if (it != parameterChannels.end()) {
-            size_t index = std::distance(parameterChannels.begin(), it);
-            getParameterChannel(static_cast<int>(index)).value = value;
+        auto index = getIndexForParamChannel(channel);
+        if(index != -1)
+        {
+            if(widgets[getIndexForParamChannel(channel)]["type"].contains("slider"))
+                getParameterChannel(static_cast<int>(index)).setValue(value);
         }
+
     }
 
     
@@ -144,7 +173,6 @@ private:
     void addOpcodes();
     int numberOfParameters = 0;
     std::vector<ParameterChannel> parameterChannels;
-    std::vector<nlohmann::json> widgets;
     int samplePosForMidi = 0;
     std::string csoundOutput = {};
     std::unique_ptr<CSOUND_PARAMS> csoundParams;

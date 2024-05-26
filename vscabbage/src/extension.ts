@@ -419,6 +419,7 @@ function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri, cabbageStyles
       </div>
     </div>
   </div>
+  <script>var vscodeMode = true; </script>
   <script type="module" src="${widgetSVGs}"></script>
   <script type="module" src="${widgetWrapper}"></script>
   <script type="module" src="${mainJS}"></script>

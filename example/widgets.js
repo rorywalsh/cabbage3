@@ -135,14 +135,16 @@ export class RotarySlider {
         text: JSON.stringify(msg)
       })
     }
-    else{
+    else {
       var message = {
         "msg": "parameterUpdate",
         "paramIdx": this.props.index,
         "value": this.props.value.map(this.props.min, this.props.max, 0, 1)
       };
-    
-      IPlugSendMsg(message);
+
+      if (typeof IPlugSendMsg === 'function') {
+        IPlugSendMsg(message);
+      }
     }
   }
 
