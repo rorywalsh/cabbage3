@@ -394,31 +394,36 @@ function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri, cabbageStyles
   <script type="module" src="${interactJS}"></script>
   <link href="${styles}" rel="stylesheet">
   <link href="${cabbageStyles}" rel="stylesheet">  
+  <style>
+  .full-height-div {
+	height: 100vh; /* Set the height to 100% of the viewport height */
+  }
+  </style>
 </head>
 
 <body data-vscode-context='{"webviewSection": "nav", "preventDefaultContextMenuItems": true}'>
 
 
 
-  <div id="parent">
-    <div id="LeftCol">
-		<div id="MainForm" class="form editMode">
-		<div class="wrapper">
-		<div class="content" style="overflow-y: auto;height: 300px;">
-		  <ul class="menu">
-			${menu}
-		  </ul>
-		</div>
-  </div>
-		</div>
-    	<!-- new draggables go here -->
-    </div>
-    <div id="RightCol">
-      <div class="property-panel">
-        <!-- Properties will be dynamically added here -->
+<div id="parent" class="full-height-div">
+  <div id="LeftCol" class="full-height-div">
+    <div id="MainForm" class="form editMode">
+      <div class="wrapper">
+        <div class="content" style="overflow-y: auto;">
+          <ul class="menu">
+            ${menu}
+          </ul>
+        </div>
       </div>
     </div>
+    <!-- new draggables go here -->
   </div>
+  <div id="RightCol" class="full-height-div">
+    <div class="property-panel full-height-div">
+      <!-- Properties will be dynamically added here -->
+    </div>
+  </div>
+</div>
   <script>var vscodeMode = true; </script>
   <script type="module" src="${widgetSVGs}"></script>
   <script type="module" src="${widgetWrapper}"></script>

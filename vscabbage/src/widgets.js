@@ -52,18 +52,18 @@ export class RotarySlider {
       "min": 0,
       "max": 1,
       "value": 0,
+      "default": 0,
       "sliderSkew": 1,
       "increment": 0.001,
       "index": 0,
       "text": "",
+      "textFamily": "",
+      "textSize": 12,
       "valueTextBox": 0,
       "colour": "#dddddd",
       "trackerColour": "#d1d323",
       "trackerBackgroundColour": "#000000",
       "trackerStrokeColour": "#222222",
-      "trackerStrokeWidth": 1,
-      "trackerWidth": 0.5,
-      "outlineWidth": 0.3,
       "trackerColour": "#dddddd",
       "fontColour": "#222222",
       "textColour": "#222222",
@@ -71,6 +71,9 @@ export class RotarySlider {
       "textBoxOutlineColour": "#999999",
       "textBoxColour": "#555555",
       "markerColour": "#222222",
+      "trackerStrokeWidth": 1,
+      "trackerWidth": 0.5,
+      "outlineWidth": 0.3,
       "markerThickness": 0.2,
       "markerStart": 0.5,
       "markerEnd": 0.9,
@@ -88,6 +91,14 @@ export class RotarySlider {
       "valuePrefix": "",
       "valuePostfix": ""
     }
+
+    this.panelSections = {
+      "Info":["channel","type"],
+      "Bounds":["left", "top", "width", "height"],
+      "Range":["min", "max", "default", "skew", "increment"],
+      "Text":["text", "textSize", "textFamily"],
+      "Colours":["colour","trackerColour","trackerBackgroundColour","trackerStrokeColour","trackerColour","fontColour","textColour","outlineColour","textBoxOutlineColour","textBoxColour","markerColour"]
+    };
 
     this.moveListener = this.pointerMove.bind(this);
     this.upListener = this.pointerUp.bind(this);

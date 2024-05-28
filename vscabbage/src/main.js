@@ -236,7 +236,7 @@ function updatePanel(eventType, name, bounds) {
       if (widget.props.hasOwnProperty('channel'))
         widget.props.channel = name;
 
-      new PropertyPanel(widget.props.type, widget.props);
+      new PropertyPanel(widget.props.type, widget.props, widget.panelSections);
       vscode.postMessage({
         command: 'widgetUpdate',
         text: JSON.stringify(widget.props)
@@ -249,17 +249,40 @@ function updatePanel(eventType, name, bounds) {
  * Gets passed the widget type, and a JSON object containing all the widget properties 
  */
 class PropertyPanel {
-  constructor(type, properties) {
+  constructor(type, properties, panelSections) {
     this.type = type;
+    this.panelSections = panelSections;
     var panel = document.querySelector('.property-panel');
 
-    Object.entries(properties).forEach((entry) => {
-      const [key, value] = entry;
+    // Helper function to create a section
+    const createSection = (sectionName) => {
+      const sectionDiv = document.createElement('div');
+      sectionDiv.classList.add('property-section');
+      
+      const header = document.createElement('h3');
+      header.textContent = sectionName;
+      sectionDiv.appendChild(header);
+      
+      return sectionDiv;
+    };
+
+    // Create sections based on the panelSections object
+    const sections = {};
+    Object.entries(panelSections).forEach(([sectionName, keys]) => {
+      sections[sectionName] = createSection(sectionName);
+    });
+
+    // Create a section for Miscellaneous properties
+    const miscSection = createSection('Misc');
+    sections['Misc'] = miscSection;
+
+    // Iterate over properties and assign them to their respective sections
+    Object.entries(properties).forEach(([key, value]) => {
       var propertyDiv = document.createElement('div');
       propertyDiv.classList.add('property');
 
       var label = document.createElement('label');
-      let text = `${key}`
+      let text = `${key}`;
 
       let result = text.replace(/([A-Z])/g, " $1");
       const separatedName = result.charAt(0).toUpperCase() + result.slice(1);
@@ -272,55 +295,54 @@ class PropertyPanel {
 
       if (text.toLowerCase().indexOf("colour") != -1) {
         input.type = 'color';
-        function rgbToHex(rgbText) {
-          return rgbText.replace(/rgb\((.+?)\)/ig, (_, rgb) => {
-            return '#' + rgb.split(',')
-              .map(str => parseInt(str, 10).toString(16).padStart(2, '0'))
-              .join('')
-          })
-        }
         input.value = value;
-      }
-      else {
+      } else {
         input.type = 'text';
         input.value = `${value}`;
       }
 
       input.addEventListener('input', function (evt) {
-        if (evt.target.type === 'color') {
-          widgets.forEach((widget) => {
-            if (widget.props.name == evt.target.dataset.parent) {
-              widget.props[evt.target.id] = evt.target.value;
-              const widgetDiv = document.getElementById(widget.props.name);
-              widgetDiv.innerHTML = widget.getSVG();
-              vscode.postMessage({
-                command: 'widgetUpdate',
-                text: JSON.stringify(widget.props)
-              })
-            }
-          })
-        }
-        else if (evt.target.type === 'text') {
-          widgets.forEach((widget) => {
-            if (widget.props.name == evt.target.dataset.parent) {
-              widget.props[evt.target.id] = evt.target.value;
-              vscode.postMessage({
-                command: 'widgetUpdate',
-                text: JSON.stringify(widget.props)
-              })
-            }
-          })
-        }
-
-      }, this);
+        widgets.forEach((widget) => {
+          if (widget.props.name == evt.target.dataset.parent) {
+            widget.props[evt.target.id] = evt.target.value;
+            const widgetDiv = document.getElementById(widget.props.name);
+            widgetDiv.innerHTML = widget.getSVG();
+            vscode.postMessage({
+              command: 'widgetUpdate',
+              text: JSON.stringify(widget.props)
+            });
+          }
+        });
+      });
 
       propertyDiv.appendChild(input);
 
-      if (panel)
-        panel.appendChild(propertyDiv);
+      let sectionFound = false;
+      Object.entries(panelSections).forEach(([sectionName, keys]) => {
+        if (keys.includes(key)) {
+          sections[sectionName].appendChild(propertyDiv);
+          sectionFound = true;
+        }
+      });
+
+      if (!sectionFound) {
+        sections['Misc'].appendChild(propertyDiv);
+      }
     });
+
+    // Append sections to the panel in the specified order
+    Object.keys(panelSections).forEach((sectionName) => {
+      if (sections[sectionName].childNodes.length > 1) {
+        panel.appendChild(sections[sectionName]);
+      }
+    });
+
+    // Append the Misc section last
+    if (sections['Misc'].childNodes.length > 1) {
+      panel.appendChild(sections['Misc']);
+    }
   }
-};
+}
 
 
 /**
@@ -347,7 +369,7 @@ if (typeof acquireVsCodeApi === 'function') {
   });
   document.addEventListener("click", () => contextMenu.style.visibility = "hidden");
 
-  new PropertyPanel('slider', currentWidget);
+  new PropertyPanel('slider', currentWidget, {});
 
   /**
    * Add a click callback listener for each item in the menu. Within the click callback

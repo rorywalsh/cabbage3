@@ -170,53 +170,84 @@
 } */
 
 .property-panel {
-	width: 200px;
+	width: 100%;
+	/* Adjust width to fit the page */
+	height: 100%;
+	/* Adjust height to fit the page */
 	padding: 0;
-	border: 1px solid #cfcfcf; /* Adjust border color */
+	border: 1px solid #cfcfcf;
+	/* Adjust border color */
 	border-radius: 3px;
-	background-color: #ffffff; /* Adjust background color */
-	overflow-y: auto;
-	visibility: hidden;
-	z-index: 9999;
+	background-color: #ffffff;
+	/* Adjust background color */
+	overflow: auto;
+	/* Add scrollbar for overflow */
+	display: flex;
+	flex-direction: column;
+}
+
+.property-section {
+	margin-bottom: 10px;
+	/* Add margin between sections */
+	text-align: center;
+	/* Center section header text */
+	padding: 5px 0;
+	/* Add padding to section header */
+}
+
+.property-section h3 {
+	margin: 0;
+	font-size: 14px;
+	/* Adjust font size */
+	color: #333333;
+	background-color: #f0f0f0;
+	margin-bottom: 10px;
+	/* Adjust section header color */
 }
 
 .property {
 	margin: 0;
 	display: flex;
 	align-items: center;
-	border-bottom: 1px solid #cfcfcf; /* Adjust border color */
-	padding: 0;
-}
 
-.property:last-child {
-	border-bottom: none;
+	/* Adjust border color */
+	padding: 0;
+	background-color: #ffffff;
 }
 
 .property label {
 	flex: 3;
-	font-size: 12px; /* Adjust font size */
+	font-size: 12px;
+	/* Adjust font size */
 	margin: 0;
 	margin-right: 10px;
 	text-align: right;
 	font-weight: bold;
-	color: #333333; /* Adjust label color */
+	color: #333333;
+	/* Adjust label color */
 }
 
 .property input {
 	flex: 2;
-	font-size: 12px; /* Adjust font size */
+	font-size: 12px;
+	/* Adjust font size */
 	padding: 5px;
-	border: 1px solid #cfcfcf; /* Adjust border color */
+	border: 1px solid #cfcfcf;
+	/* Adjust border color */
 	border-radius: 3px;
 	width: 100%;
-	color: #333333; /* Adjust input color */
-	background-color: #f0f0f0; /* Adjust input background color */
+	color: #333333;
+	/* Adjust input color */
+	background-color: #f0f0f0;
+	/* Adjust input background color */
 }
 
 .property input[type="color"] {
 	flex: 1;
-	border: 1px solid #cfcfcf; /* Adjust border color */
-	font-size: 12px; /* Adjust font size */
+	border: 1px solid #cfcfcf;
+	/* Adjust border color */
+	font-size: 12px;
+	/* Adjust font size */
 	padding: 0px;
 	width: 100%;
 }
