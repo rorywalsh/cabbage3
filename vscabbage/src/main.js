@@ -461,45 +461,49 @@ if (form) {
   let startX, startY;
   
   form.addEventListener('pointerdown', (event) => {
+    const clickedElement = event.target;
+
     if ((event.shiftKey || event.altKey) && event.target === form) {
-      // Start selection mode
-      isSelecting = true;
-  
-      startX = event.clientX;
-      startY = event.clientY;
-  
-      selectionBox = document.createElement('div');
-      selectionBox.style.position = 'absolute';
-      selectionBox.style.border = '1px dashed #000';
-      selectionBox.style.backgroundColor = 'rgba(20, 20, 20, 0.3)';
-      selectionBox.style.left = `${startX}px`;
-      selectionBox.style.top = `${startY}px`;
-  
-      form.appendChild(selectionBox);
-    } else if (event.target.classList.contains('draggable')) {
-      if (!event.shiftKey && !event.altKey) {
-        // Deselect all elements if clicking on a non-selected element without Shift or Alt key
-        if (!selectedElements.has(event.target)) {
-          selectedElements.forEach(element => element.classList.remove('selected'));
-          selectedElements.clear();
-          selectedElements.add(event.target);
-        }
-        event.target.classList.add('selected');
-      } else {
-        // Toggle selection state if Shift or Alt key is pressed
-        event.target.classList.toggle('selected');
-        if (event.target.classList.contains('selected')) {
-          selectedElements.add(event.target);
+        // Start selection mode
+        isSelecting = true;
+
+        startX = event.clientX;
+        startY = event.clientY;
+
+        selectionBox = document.createElement('div');
+        selectionBox.style.position = 'absolute';
+        selectionBox.style.border = '1px dashed #000';
+        selectionBox.style.backgroundColor = 'rgba(20, 20, 20, 0.3)';
+        selectionBox.style.left = `${startX}px`;
+        selectionBox.style.top = `${startY}px`;
+
+        form.appendChild(selectionBox);
+    } else if (clickedElement.classList.contains('draggable')) {
+        if (!event.shiftKey && !event.altKey) {
+            // Deselect all elements if clicking on a non-selected element without Shift or Alt key
+            if (!selectedElements.has(clickedElement)) {
+                selectedElements.forEach(element => element.classList.remove('selected'));
+                selectedElements.clear();
+                selectedElements.add(clickedElement);
+            }
+            clickedElement.classList.add('selected');
         } else {
-          selectedElements.delete(event.target);
+            // Toggle selection state if Shift or Alt key is pressed
+            clickedElement.classList.toggle('selected');
+            if (clickedElement.classList.contains('selected')) {
+                selectedElements.add(clickedElement);
+            } else {
+                selectedElements.delete(clickedElement);
+            }
         }
-      }
-    } else if (!event.shiftKey && !event.altKey && event.target === form) {
-      // Deselect all elements if clicking on the form without Shift or Alt key
-      selectedElements.forEach(element => element.classList.remove('selected'));
-      selectedElements.clear();
+    } 
+    
+    if (event.target === form) {
+        // Deselect all elements if clicking on the form without Shift or Alt key
+        selectedElements.forEach(element => element.classList.remove('selected'));
+        selectedElements.clear();
     }
-  });
+});
   
   form.addEventListener('pointermove', (event) => {
     if (isSelecting) {
@@ -515,32 +519,26 @@ if (form) {
   
   form.addEventListener('pointerup', (event) => {
     if (isSelecting) {
-      const rect = selectionBox.getBoundingClientRect();
-  
-      const elements = form.querySelectorAll('.draggable');
-  
-      elements.forEach((element) => {
-        const elementRect = element.getBoundingClientRect();
-        const elementLeft = elementRect.left;
-        const elementRight = elementRect.right;
-        const elementTop = elementRect.top;
-        const elementBottom = elementRect.bottom;
-  
-        if (
-          elementLeft >= rect.left &&
-          elementRight <= rect.right &&
-          elementTop >= rect.top &&
-          elementBottom <= rect.bottom
-        ) {
-          element.classList.add('selected');
-          selectedElements.add(element);
-        }
-      });
-  
-      form.removeChild(selectionBox);
-      isSelecting = false;
+        const rect = selectionBox.getBoundingClientRect();
+        const elements = form.querySelectorAll('.draggable');
+
+        elements.forEach((element) => {
+            const elementRect = element.getBoundingClientRect();
+
+            // Check for intersection between the element and the selection box
+            if (elementRect.right >= rect.left &&
+                elementRect.left <= rect.right &&
+                elementRect.bottom >= rect.top &&
+                elementRect.top <= rect.bottom) {
+                element.classList.add('selected');
+                selectedElements.add(element);
+            }
+        });
+
+        form.removeChild(selectionBox);
+        isSelecting = false;
     }
-  });
+});
 }
 
 /**
