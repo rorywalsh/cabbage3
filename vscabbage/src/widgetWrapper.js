@@ -14,7 +14,6 @@ export class WidgetWrapper {
     }
 
     dragMoveListener(event) {
-        console.log("DRAG_MOVE");
         if (event.shiftKey || event.altKey) {
             return;
         }
@@ -50,7 +49,6 @@ export class WidgetWrapper {
         interact('.draggable').unset(); // Unset previous interact configuration
 
         interact('.draggable').on('down', (event) => {
-            console.log("++++++++++++++++++++++++++++++++");
             if (event.target.id) {
                 this.updatePanelCallback("click", event.target.id, {});
             } else {
@@ -98,24 +96,67 @@ export class WidgetWrapper {
                 }),
             ],
             inertia: true
-        })
-            .draggable({
-                listeners: {
-                    move: this.dragMoveListener,
-                    end: this.dragEndListener
-                },
-                inertia: true,
-                modifiers: [
-                    interact.modifiers.snap({
-                        targets: [
-                            interact.snappers.grid({ x: this.snapSize, y: this.snapSize })
-                        ],
-                        range: Infinity,
-                        relativePoints: [{ x: 0, y: 0 }]
-                    }),
-                    interact.modifiers.restrictRect(restrictions),
-                ]
-            });
+        }).draggable({
+            listeners: {
+                move: this.dragMoveListener,
+                end: this.dragEndListener
+            },
+            inertia: true,
+            modifiers: [
+                interact.modifiers.snap({
+                    targets: [
+                        interact.snappers.grid({ x: this.snapSize, y: this.snapSize })
+                    ],
+                    range: Infinity,
+                    relativePoints: [{ x: 0, y: 0 }]
+                }),
+                interact.modifiers.restrictRect(restrictions),
+            ]
+        });
+
+        //main form only..........
+        interact('.resizeOnly').on('down', (event) => {
+            if (event.target.id) {
+                this.updatePanelCallback("click", event.target.id, {});
+            } else {
+                const widgetId = event.target.parentElement.parentElement.id.replace(/(<([^>]+)>)/ig, '');
+                this.updatePanelCallback("click", widgetId, {});
+            }
+        }).draggable(false).resizable({
+            edges: { left: true, right: true, bottom: true, top: true }, // Enable resizing from all edges
+            listeners: {
+                move: (event) => {
+                    if (event.shiftKey || event.altKey) {
+                        return;
+                    }
+                    const target = event.target;
+                    restrictions.restriction = (target.id === 'MainForm' ? 'none' : 'parent');
+                    console.log(`Restrictions applied to ${target.id}:`, restrictions); // Log restrictions
+                    let x = (parseFloat(target.getAttribute('data-x')) || 0);
+                    let y = (parseFloat(target.getAttribute('data-y')) || 0);
+
+                    target.style.width = event.rect.width + 'px';
+                    target.style.height = event.rect.height + 'px';
+
+                    x += event.deltaRect.left;
+                    y += event.deltaRect.top;
+
+                    this.updatePanelCallback("resize", event.target.id, { x: x, y: y, w: event.rect.width, h: event.rect.height });
+
+                    target.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+
+                    target.setAttribute('data-x', x);
+                    target.setAttribute('data-y', y);
+                }
+            },
+            modifiers: [
+                interact.modifiers.restrictSize({
+                    min: { width: 50, height: 50 }, // Minimum size for the element
+                    max: { width: 1500, height: 1500 } // Maximum size for the element
+                })
+            ],
+            inertia: true
+        });
 
         // Logging to verify MainForm is targeted
         console.log('applyInteractConfig called with restrictions:', restrictions);
@@ -131,7 +172,9 @@ export class WidgetWrapper {
     }
 }
 
-//basic dragable form
+/*
+This is a simple panel that the main form sits on. It can be dragged around without restriction
+*/
 interact('.draggable-panel')
     .draggable({
         inertia: true,
@@ -155,3 +198,6 @@ function dragMoveListener(event) {
     target.setAttribute('data-x', x);
     target.setAttribute('data-y', y);
 }
+
+
+

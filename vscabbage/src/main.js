@@ -56,7 +56,7 @@ window.addEventListener('message', event => {
       break;
     case 'onEnterEditMode':
       cabbageMode = 'draggable';
-      form.className = "form draggable";
+      // form.className = "form draggable";
       parseCabbageCsdTile(message.text);
       break;
     default:
@@ -492,7 +492,6 @@ if (form) {
 
       form.appendChild(selectionBox);
     } else if (clickedElement.classList.contains('draggable') && event.target.id != "MainForm") {
-      console.log("here we are--------------------------------")
       if (!event.shiftKey && !event.altKey) {
         // Deselect all elements if clicking on a non-selected element without Shift or Alt key
         if (!selectedElements.has(clickedElement)) {
@@ -562,7 +561,23 @@ if (form) {
 async function insertWidget(type, props) {
 
   const widgetDiv = document.createElement('div');
-  widgetDiv.className = cabbageMode;
+  let widget = {};
+
+  switch (type) {
+    case "rslider":
+      widget = new RotarySlider();
+      break;
+    case "form":
+      widget = new Form();
+      break;
+    default:
+      return;
+  }
+
+  if (type === "form")
+    widgetDiv.className = "resizeOnly";
+  else
+    widgetDiv.className = cabbageMode;
   if (cabbageMode === 'draggable') {
     widgetDiv.addEventListener('pointerdown', (e) => {
       if (e.altKey || e.shiftKey) {  // Use Alt key for multi-selection
@@ -583,20 +598,6 @@ async function insertWidget(type, props) {
       console.log(selectedElements.size);
     });
   }
-
-  let widget = {};
-
-  switch (type) {
-    case "rslider":
-      widget = new RotarySlider();
-      break;
-    case "form":
-      widget = new Form();
-      break;
-    default:
-      return;
-  }
-
 
   Object.entries(props).forEach((entry) => {
     const [key, value] = entry;

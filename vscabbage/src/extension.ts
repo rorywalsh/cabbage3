@@ -421,7 +421,7 @@ function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri, cabbageStyles
 
 <div id="parent" class="full-height-div">
   <div id="LeftCol" class="full-height-div draggable-panel">
-    <div id="MainForm" class="form draggable">
+    <div id="MainForm" class="form resizeOnly">
       <div class="wrapper">
         <div class="content" style="overflow-y: auto;">
           <ul class="menu">
