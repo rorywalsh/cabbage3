@@ -17,19 +17,18 @@ export class Form {
       "caption": "",
       "name": "MainForm",
       "type": "form",
-      "guiRefresh": 128,
-      "identChannel": "",
-      "automatable": 0.0,
-      "visible": 1,
-      "scrollbars": 0,
-      "titleBarColour": "95CFC2",
-      "titleBarGradient": 0.15,
-      "titleBarHeight": 24,
-      "style": "",
-      "channelType": "number",
-      "colour": "#0295CF"
+      "colour": "#0295CF",
+      "channel": "MainForm"
     }
+
+    this.panelSections = {
+      "Info": ["type"],
+      "Bounds": ["width", "height"],
+      "Text": ["caption"],
+      "Colours": ["colour"]
+    };
   }
+
 
   getSVG() {
 
@@ -53,12 +52,14 @@ export class RotarySlider {
       "max": 1,
       "value": 0,
       "default": 0,
-      "sliderSkew": 1,
+      "skew": 1,
       "increment": 0.001,
       "index": 0,
       "text": "",
-      "textFamily": "",
-      "textSize": 12,
+      "fontFamily": "Verdana",
+      "fontSize": 0,
+      "align": "centre",
+      "textOffsetY": 0,
       "valueTextBox": 0,
       "colour": "#dddddd",
       "trackerColour": "#d1d323",
@@ -82,7 +83,6 @@ export class RotarySlider {
       "kind": "rotary",
       "decimalPlaces": 1,
       "velocity": 0,
-      "identChannel": "",
       "trackerStart": 0.1,
       "trackerEnd": 0.9,
       "trackerCentre": 0.1,
@@ -93,11 +93,11 @@ export class RotarySlider {
     }
 
     this.panelSections = {
-      "Info":["channel","type"],
-      "Bounds":["left", "top", "width", "height"],
-      "Range":["min", "max", "default", "skew", "increment"],
-      "Text":["text", "textSize", "textFamily"],
-      "Colours":["colour","trackerColour","trackerBackgroundColour","trackerStrokeColour","trackerColour","fontColour","textColour","outlineColour","textBoxOutlineColour","textBoxColour","markerColour"]
+      "Info": ["type", "channel"],
+      "Bounds": ["left", "top", "width", "height"],
+      "Range": ["min", "max", "default", "skew", "increment"],
+      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
+      "Colours": ["colour", "trackerColour", "trackerBackgroundColour", "trackerStrokeColour", "trackerColour", "outlineColour", "textBoxOutlineColour", "textBoxColour", "markerColour"]
     };
 
     this.moveListener = this.pointerMove.bind(this);
@@ -146,14 +146,14 @@ export class RotarySlider {
         text: JSON.stringify(msg)
       })
     }
-    else{
+    else {
       var message = {
         "msg": "parameterUpdate",
         "paramIdx": this.props.index,
         "value": this.props.value.map(this.props.min, this.props.max, 0, 1)
       };
-    
-     // IPlugSendMsg(message);
+
+      // IPlugSendMsg(message);
     }
   }
 
@@ -183,48 +183,26 @@ export class RotarySlider {
   }
 
   getSVG() {
-    const w = (this.props.width > this.props.height ? this.props.height : this.props.width) * .75;
-    const trackerPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth * .5)), -130, 132);
-    const trackerArcPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth * .5)), -130, this.props.value.map(this.props.min, this.props.max, -130, 132));
+    const w = (this.props.width > this.props.height ? this.props.height : this.props.width) * 0.75;
+    const trackerPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth * 0.5)), -130, 132);
+    const trackerArcPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth * 0.5)), -130, this.props.value.map(this.props.min, this.props.max, -130, 132));
+    const textY = this.props.height + (this.props.fontSize > 0 ? this.props.textOffsetY : 0);
 
-
+    // Calculate proportional font size if this.props.fontSize is 0
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : w * 0.3; // Example: 10% of w
 
     return `
-      <svg xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
-      <path d='${trackerPath}' id="arc" fill="none" stroke=${this.props.trackerBackgroundColour} stroke-width=${this.props.trackerWidth * .5 * w} />
-      <path d='${trackerArcPath}' id="arc" fill="none" stroke=${this.props.trackerColour} stroke-width=${this.props.trackerWidth * .5 * w} /> 
-      <circle cx=${this.props.width / 2} cy=${this.props.height / 2} r=${(w / 2) - this.props.trackerWidth * .5 * w} stroke=${this.props.outlineColour} stroke-width=${this.props.outlineWidth} fill=${this.props.colour} />
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
+      <path d='${trackerPath}' id="arc" fill="none" stroke=${this.props.trackerBackgroundColour} stroke-width=${this.props.trackerWidth * 0.5 * w} />
+      <path d='${trackerArcPath}' id="arc" fill="none" stroke=${this.props.trackerColour} stroke-width=${this.props.trackerWidth * 0.5 * w} /> 
+      <circle cx=${this.props.width / 2} cy=${this.props.height / 2} r=${(w / 2) - this.props.trackerWidth * 0.5 * w} stroke=${this.props.outlineColour} stroke-width=${this.props.outlineWidth} fill=${this.props.colour} />
+      <text text-anchor="middle" x=${this.props.width / 2} y=${textY} font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">${this.props.text}</text>
       </svg>
-      `;
+    `;
   }
+
+
 }
 
 
 
-
-
-//
-// export function WidgetSVG(widget) {
-//   switch (widget.type) {
-//     case 'rslider':
-//       const arcPath = describeArc(widget.width / 2, widget.height / 2, widget.trackerWidth, -130, widget.value.map(widget.min, widget.max, -130, 132));
-//       const trackerPath = describeArc(widget.width / 2, widget.height / 2, widget.trackerWidth, -130, 132);
-//       return `
-//       <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
-//         <path d='${trackerPath}' id="arc" fill="none" stroke=${widget.trackerBackgroundColour} stroke-width=${widget.trackerWidth} />
-//         <path d='${arcPath}' id="arc" fill="none" stroke=${widget.trackerColour} stroke-width=${widget.trackerWidth} />
-//         <circle cx=${widget.width / 2} cy=${widget.height / 2} r=${widget.thumbRadius} stroke=${widget.thumbStrokeColour} stroke-width=${widget.thumbStrokeWidth} fill=${widget.thumbColour} />
-//         <text text-anchor="middle" x=${widget.width / 2} y=${widget.height} font-size="${widget.fontHeight}px" font-family="Arial, Helvetica, sans-serif" fill="${widget.textColour}">${widget.text}</text>
-//     </svg>
-//       `;
-//     //       return `
-//     //       <svg width="100%" height="100%" viewBox="0 0 87 99" fill="none" xmlns="http://www.w3.org/2000/svg">
-//     // <path d="M65.9417 80.5413C73.837 75.7352 79.9735 68.5131 83.4416 59.9454C86.9097 51.3777 87.5248 41.9205 85.1957 32.9758C82.8666 24.031 77.7173 16.0749 70.511 10.2866C63.3048 4.49843 54.4253 1.18627 45.1887 0.841165C35.9522 0.496059 26.8503 3.13637 19.2322 8.37071C11.6142 13.6051 5.88549 21.1548 2.8954 29.9008C-0.0946829 38.6468 -0.187024 48.1235 2.63207 56.9261C5.45116 65.7287 11.0316 73.3886 18.5462 78.7704L43.5833 43.8112L65.9417 80.5413Z" fill="${widget.trackerBgColour}"/>
-//     // <circle cx="44" cy="44" r="33" fill="${widget.colour}"/>
-//     // <rect x="23" y="66.8579" width="13.3991" height="5.72696" rx="1" transform="rotate(-54.1296 23 66.8579)" fill="${widget.markerColour}"/>
-//     // </svg>
-//     //       `;
-//     default:
-//       return "";
-//   }
-// }

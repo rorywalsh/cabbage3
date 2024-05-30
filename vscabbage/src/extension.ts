@@ -215,8 +215,8 @@ function getIdentifierFromJson(json: string, name: string): string {
 	let syntax = '';
 
 	if (name === 'range' && obj['type'].indexOf('slider') > -1) {
-        const { min, max, value, sliderSkew, increment } = obj;
-        syntax = `range(${min}, ${max}, ${value}, ${sliderSkew}, ${increment})`;
+        const { min, max, value, skew, increment } = obj;
+        syntax = `range(${min}, ${max}, ${value}, ${skew}, ${increment})`;
         return syntax;
     }
 
@@ -235,7 +235,8 @@ function getIdentifierFromJson(json: string, name: string): string {
 
 /**
  * This function will check the current widget props against the default set, and return an 
- * array for any identifiers that are different to their default values
+ * array for any identifiers that are different to their default values - this only returns the identifiers
+ * that need updating, not their parameters..
  */
 function findUpdatedIdentifiers(initial: string, current: string) {
 	const initialWidgetObj = JSON.parse(initial);
@@ -271,7 +272,7 @@ function findUpdatedIdentifiers(initial: string, current: string) {
 		updatedIdentifiers.push('min');
 		updatedIdentifiers.push('max');
 		updatedIdentifiers.push('value');
-		updatedIdentifiers.push('sliderSkew');
+		updatedIdentifiers.push('skew');
 		updatedIdentifiers.push('increment');
 
 	}
@@ -300,7 +301,11 @@ function updateText(jsonText: string) {
 		}
 
 
-		const internalIdentifiers:string[] = ['top', 'left', 'width', 'name', 'height', 'increment', 'min', 'max', 'sliderSkew'];
+		const internalIdentifiers:string[] = ['top', 'left', 'width', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index'];
+		if(props.type.indexOf('slider')!=-1)
+			internalIdentifiers.push('value');
+
+
 		textEditor.edit(editBuilder => {
 			if (textEditor) {
 
@@ -316,27 +321,33 @@ function updateText(jsonText: string) {
 							foundChannel = true;
 							//found entry - now update bounds
 							const updatedIdentifiers = findUpdatedIdentifiers(JSON.stringify(defaultProps), jsonText);
-	
+
 							updatedIdentifiers.forEach((ident) => {
-								//only want to display user-accessible identifiers...
+								// Only want to display user-accessible identifiers...
 								if (!internalIdentifiers.includes(ident)) {
-									const newIndex = tokens.findIndex(({ token }) => token == ident);
-									//each token has an array of values with it..
-									const data: string[] = [];
-									data.push(props[ident])
-									if (newIndex == -1) {
+									const newIndex = tokens.findIndex(({ token }) => token === ident);
+							
+									// Create the data array with the appropriate type based on props[ident]
+									let data: any[] = [];
+							
+									if (Array.isArray(props[ident])) {
+										data = [...props[ident]];
+									} else {
+										data.push(props[ident]);
+									}
+							
+									if (newIndex === -1) {
 										const identifier: string = ident;
 										tokens.push({ token: identifier, values: data });
-									}
-									else {
+									} else {
 										tokens[newIndex].values = data;
 									}
 								}
-							})
+							});
 
 							if(props.type.indexOf('slider')>-1){
 								const rangeIndex = tokens.findIndex(({ token }) => token === 'range');
-								tokens[rangeIndex].values = [props.min, props.max, props.value, props.sliderSkew, props.increment];
+								tokens[rangeIndex].values = [props.min, props.max, props.value, props.skew, props.increment];
 							}
 
 							const boundsIndex = tokens.findIndex(({ token }) => token === 'bounds');
@@ -404,10 +415,9 @@ function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri, cabbageStyles
 <body data-vscode-context='{"webviewSection": "nav", "preventDefaultContextMenuItems": true}'>
 
 
-
 <div id="parent" class="full-height-div">
   <div id="LeftCol" class="full-height-div">
-    <div id="MainForm" class="form editMode">
+    <div id="MainForm" class="form draggable">
       <div class="wrapper">
         <div class="content" style="overflow-y: auto;">
           <ul class="menu">
@@ -432,34 +442,3 @@ function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri, cabbageStyles
 
 </html>`}
 
-
-
-
-// 	`<!DOCTYPE html>
-//   <html lang="en">
-//   <head>
-// 	  <meta charset="UTF-8">
-// 	  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-// 	  <title>Cat Coding</title>
-//   </head>
-//   <body>
-// 	  <h1>Hello rory</h1>
-// 	  <script>
-//   (function() {
-// 	  const vscode = acquireVsCodeApi();
-// 	  addEventListener("mousedown", (event) => {
-// 		vscode.postMessage({
-// 			command: 'updateText',
-// 			text: 'Update to fuck!'
-// 		})
-// 	  });
-//   }())
-// </script>
-//   </body>
-
-//   </html>
-//   `;
-// }
-
-// This method is called when your extension is deactivated
-export function deactivate() { }

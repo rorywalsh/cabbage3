@@ -68,7 +68,7 @@ bool Cabbage::setupCsound()
     csound->SetParams(csoundParams.get());
     //    compileCsdFile(csdFile);
     
-    csdFile = "/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/CabbagePluginEffect.csd";
+    //csdFile = "/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/CabbagePluginEffect.csd";
     std::filesystem::path file = csdFile.empty() ? CabbageFile::getCsdPath() : csdFile;
     csdFile = file.string();
     

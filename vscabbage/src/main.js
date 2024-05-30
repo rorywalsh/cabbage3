@@ -4,6 +4,7 @@ import { Form, RotarySlider } from "./widgets.js";
 
 let vscode = null;
 let widgetWrappers = null;
+let selectedElements = new Set();
 
 if (typeof acquireVsCodeApi === 'function') {
   vscode = acquireVsCodeApi();
@@ -11,18 +12,17 @@ if (typeof acquireVsCodeApi === 'function') {
     const module = await import("./widgetWrapper.js");
     const { WidgetWrapper } = module;
     // You can now use WidgetWrapper here
-    console.log('WidgetWrapper loaded:', WidgetWrapper);
-    widgetWrappers = new WidgetWrapper(updatePanel);
+
+    widgetWrappers = new WidgetWrapper(updatePanel, selectedElements);
   } catch (error) {
     console.error("Error loading widgetWrapper.js:", error);
   }
 }
 
-const currentWidget = [{ name: "Top", value: 0 }, { name: "Left", value: 0 }, { name: "Width", value: 0 }, { name: "Height", value: 0 }];
 
 const widgets = [];
 
-let cabbageMode = 'editMode';
+let cabbageMode = 'draggable';
 //adding this messes up dragging of main form
 widgets.push(new Form());
 
@@ -39,7 +39,6 @@ function updateWidget(obj) {
     if (widget.props.name == channel) {
       if (obj.hasOwnProperty('value')) {
         widget.props.value = obj['value'];
-        console.log(widget.props.value)
       }
       else if (obj.hasOwnProperty('data')) {
         const identifierStr = obj['data'];
@@ -103,11 +102,11 @@ function getCabbageCodeAsJSON(text) {
     }
     else if (name === 'range') {
       // Splitting the value into individual parts for top, left, width, and height
-      const [min, max, initValue, sliderSkew, increment] = value.split(',').map(v => parseFloat(v.trim()));
+      const [min, max, initValue, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
       jsonObj['min'] = min;
       jsonObj['max'] = max;
       jsonObj['value'] = initValue;
-      jsonObj['sliderSkew'] = sliderSkew;
+      jsonObj['skew'] = skew;
       jsonObj['increment'] = increment;
     }
     else if (name === 'size') {
@@ -137,7 +136,7 @@ window.addEventListener('message', event => {
   const message = event.data;
   switch (message.command) {
     case 'onFileChanged':
-      cabbageMode = 'playMode';
+      cabbageMode = 'nonDraggable';
       form.className = "form";
       parseCabbageCsdTile(message.text);
       break;
@@ -146,8 +145,8 @@ window.addEventListener('message', event => {
       updateWidget(msg);
       break;
     case 'onEnterEditMode':
-      cabbageMode = 'editMode';
-      form.className = "form editMode";
+      cabbageMode = 'draggable';
+      form.className = "form draggable";
       parseCabbageCsdTile(message.text);
       break;
     default:
@@ -205,7 +204,7 @@ function parseCabbageCsdTile(text) {
 }
 
 /**
- * this callback is triggered whenever a user move/drags a widget in edit modes
+ * this callback is triggered whenever a user move/drags a widget in edit mode
  * The innerHTML is constantly updated. When this is called, the editor is also
  * updated accordingly. 
  */
@@ -258,16 +257,20 @@ class PropertyPanel {
     const createSection = (sectionName) => {
       const sectionDiv = document.createElement('div');
       sectionDiv.classList.add('property-section');
-      
+
       const header = document.createElement('h3');
       header.textContent = sectionName;
       sectionDiv.appendChild(header);
-      
+
       return sectionDiv;
     };
 
     // Create sections based on the panelSections object
     const sections = {};
+
+    if (panelSections === undefined)
+      return;
+
     Object.entries(panelSections).forEach(([sectionName, keys]) => {
       sections[sectionName] = createSection(sectionName);
     });
@@ -276,58 +279,108 @@ class PropertyPanel {
     const miscSection = createSection('Misc');
     sections['Misc'] = miscSection;
 
-    // Iterate over properties and assign them to their respective sections
-    Object.entries(properties).forEach(([key, value]) => {
-      var propertyDiv = document.createElement('div');
-      propertyDiv.classList.add('property');
+    // List of popular online fonts
+    const fontList = [
+      'Arial', 'Verdana', 'Helvetica', 'Tahoma', 'Trebuchet MS',
+      'Times New Roman', 'Georgia', 'Garamond', 'Courier New',
+      'Brush Script MT', 'Comic Sans MS', 'Impact', 'Lucida Sans',
+      'Palatino', 'Century Gothic', 'Bookman', 'Candara', 'Consolas'
+    ];
 
-      var label = document.createElement('label');
-      let text = `${key}`;
+    // Helper function to create an input element based on the property key
+    const createInputElement = (key, value) => {
+      let input;
 
-      let result = text.replace(/([A-Z])/g, " $1");
-      const separatedName = result.charAt(0).toUpperCase() + result.slice(1);
-      label.textContent = separatedName;
-      propertyDiv.appendChild(label);
-
-      var input = document.createElement('input');
-      input.id = text;
-      input.dataset.parent = properties.name;
-
-      if (text.toLowerCase().indexOf("colour") != -1) {
+      if (key.toLowerCase().includes("colour")) {
+        input = document.createElement('input');
         input.type = 'color';
         input.value = value;
+      } else if (key.toLowerCase().includes("family")) {
+        input = document.createElement('select');
+        fontList.forEach((font) => {
+          const option = document.createElement('option');
+          option.value = font;
+          option.textContent = font;
+          if (font === 'Verdana') {
+            option.selected = true;  // Set Verdana as default
+          }
+          input.appendChild(option);
+        });
+        input.value = value || 'Verdana';
+      } else if (key.toLowerCase() === 'align') {
+        input = document.createElement('select');
+        const alignments = ['left', 'right', 'centre'];
+        alignments.forEach((align) => {
+          const option = document.createElement('option');
+          option.value = align;
+          option.textContent = align;
+          if (align === 'centre') {
+            option.selected = true;  // Set centre as default
+          }
+          input.appendChild(option);
+        });
+        input.value = value || 'centre';
       } else {
+        input = document.createElement('input');
         input.type = 'text';
         input.value = `${value}`;
+
+        // Set the input to readonly if the key is "type"
+        if (key.toLowerCase() === 'type') {
+          input.readOnly = true;
+        }
       }
 
-      input.addEventListener('input', function (evt) {
-        widgets.forEach((widget) => {
-          if (widget.props.name == evt.target.dataset.parent) {
-            widget.props[evt.target.id] = evt.target.value;
-            const widgetDiv = document.getElementById(widget.props.name);
-            widgetDiv.innerHTML = widget.getSVG();
-            vscode.postMessage({
-              command: 'widgetUpdate',
-              text: JSON.stringify(widget.props)
+      return input;
+    };
+
+    // Iterate over panelSections and properties to assign them to their respective sections in order
+    Object.entries(panelSections).forEach(([sectionName, keys]) => {
+      keys.forEach((key) => {
+        if (properties.hasOwnProperty(key)) {
+          var propertyDiv = document.createElement('div');
+          propertyDiv.classList.add('property');
+
+          var label = document.createElement('label');
+          let text = `${key}`;
+
+          let result = text.replace(/([A-Z])/g, " $1");
+          const separatedName = result.charAt(0).toUpperCase() + result.slice(1);
+          label.textContent = separatedName;
+          propertyDiv.appendChild(label);
+
+          var input = createInputElement(key, properties[key]);
+
+          input.id = key;
+          input.dataset.parent = properties.name;
+
+          input.addEventListener('input', function (evt) {
+            widgets.forEach((widget) => {
+              if (widget.props.name === evt.target.dataset.parent) {
+                const inputValue = evt.target.value;
+                let parsedValue;
+
+                // Check if the input value can be parsed to a number
+                if (!isNaN(inputValue) && inputValue.trim() !== "") {
+                  parsedValue = Number(inputValue);
+                } else {
+                  parsedValue = inputValue;
+                }
+                widget.props[evt.target.id] = parsedValue;
+                const widgetDiv = document.getElementById(widget.props.name);
+                widgetDiv.innerHTML = widget.getSVG();
+                vscode.postMessage({
+                  command: 'widgetUpdate',
+                  text: JSON.stringify(widget.props)
+                });
+              }
             });
-          }
-        });
-      });
+          });
 
-      propertyDiv.appendChild(input);
-
-      let sectionFound = false;
-      Object.entries(panelSections).forEach(([sectionName, keys]) => {
-        if (keys.includes(key)) {
+          propertyDiv.appendChild(input);
           sections[sectionName].appendChild(propertyDiv);
-          sectionFound = true;
         }
       });
-
-      if (!sectionFound) {
-        sections['Misc'].appendChild(propertyDiv);
-      }
     });
 
     // Append sections to the panel in the specified order
@@ -343,6 +396,7 @@ class PropertyPanel {
     }
   }
 }
+
 
 
 /**
@@ -369,7 +423,7 @@ if (typeof acquireVsCodeApi === 'function') {
   });
   document.addEventListener("click", () => contextMenu.style.visibility = "hidden");
 
-  new PropertyPanel('slider', currentWidget, {});
+  // new PropertyPanel('slider', currentWidget, {});
 
   /**
    * Add a click callback listener for each item in the menu. Within the click callback
@@ -383,7 +437,7 @@ if (typeof acquireVsCodeApi === 'function') {
         const type = e.target.innerHTML.replace(/(<([^>]+)>)/ig);
         const channel = type + String(numberOfWidgets);
         numberOfWidgets++;
-        const w = await insertWidget(type, { channel: channel, top: mouseDownPosition.y, left: mouseDownPosition.x });
+        const w = await insertWidget(type, { channel: channel, top: mouseDownPosition.y - 20, left: mouseDownPosition.x - 20 });
         if (widgets) {
           //update text editor with last added widget
           vscode.postMessage({
@@ -396,6 +450,99 @@ if (typeof acquireVsCodeApi === 'function') {
     }
   }
 }
+
+/*
+ * Various listeners for the main form to handle grouping ans moving of multiple elements
+ */
+if (form) {
+  
+  let isSelecting = false;
+  let selectionBox;
+  let startX, startY;
+  
+  form.addEventListener('pointerdown', (event) => {
+    if ((event.shiftKey || event.altKey) && event.target === form) {
+      // Start selection mode
+      isSelecting = true;
+  
+      startX = event.clientX;
+      startY = event.clientY;
+  
+      selectionBox = document.createElement('div');
+      selectionBox.style.position = 'absolute';
+      selectionBox.style.border = '1px dashed #000';
+      selectionBox.style.backgroundColor = 'rgba(20, 20, 20, 0.3)';
+      selectionBox.style.left = `${startX}px`;
+      selectionBox.style.top = `${startY}px`;
+  
+      form.appendChild(selectionBox);
+    } else if (event.target.classList.contains('draggable')) {
+      if (!event.shiftKey && !event.altKey) {
+        // Deselect all elements if clicking on a non-selected element without Shift or Alt key
+        if (!selectedElements.has(event.target)) {
+          selectedElements.forEach(element => element.classList.remove('selected'));
+          selectedElements.clear();
+          selectedElements.add(event.target);
+        }
+        event.target.classList.add('selected');
+      } else {
+        // Toggle selection state if Shift or Alt key is pressed
+        event.target.classList.toggle('selected');
+        if (event.target.classList.contains('selected')) {
+          selectedElements.add(event.target);
+        } else {
+          selectedElements.delete(event.target);
+        }
+      }
+    } else if (!event.shiftKey && !event.altKey && event.target === form) {
+      // Deselect all elements if clicking on the form without Shift or Alt key
+      selectedElements.forEach(element => element.classList.remove('selected'));
+      selectedElements.clear();
+    }
+  });
+  
+  form.addEventListener('pointermove', (event) => {
+    if (isSelecting) {
+      const currentX = event.clientX;
+      const currentY = event.clientY;
+  
+      selectionBox.style.width = `${Math.abs(currentX - startX)}px`;
+      selectionBox.style.height = `${Math.abs(currentY - startY)}px`;
+      selectionBox.style.left = `${Math.min(currentX, startX)}px`;
+      selectionBox.style.top = `${Math.min(currentY, startY)}px`;
+    }
+  });
+  
+  form.addEventListener('pointerup', (event) => {
+    if (isSelecting) {
+      const rect = selectionBox.getBoundingClientRect();
+  
+      const elements = form.querySelectorAll('.draggable');
+  
+      elements.forEach((element) => {
+        const elementRect = element.getBoundingClientRect();
+        const elementLeft = elementRect.left;
+        const elementRight = elementRect.right;
+        const elementTop = elementRect.top;
+        const elementBottom = elementRect.bottom;
+  
+        if (
+          elementLeft >= rect.left &&
+          elementRight <= rect.right &&
+          elementTop >= rect.top &&
+          elementBottom <= rect.bottom
+        ) {
+          element.classList.add('selected');
+          selectedElements.add(element);
+        }
+      });
+  
+      form.removeChild(selectionBox);
+      isSelecting = false;
+    }
+  });
+}
+
 /**
  * insets a new widget to the form, this can be called when loading/saving a file, or when we right-
  * click and add widgets
@@ -403,9 +550,27 @@ if (typeof acquireVsCodeApi === 'function') {
 async function insertWidget(type, props) {
 
   const widgetDiv = document.createElement('div');
-  widgetDiv.className = 'editMode';
   widgetDiv.className = cabbageMode;
-
+  if (cabbageMode === 'draggable') {
+    widgetDiv.addEventListener('pointerdown', (e) => {
+      if (e.altKey || e.shiftKey) {  // Use Alt key for multi-selection
+        widgetDiv.classList.toggle('selected');
+        if (widgetDiv.classList.contains('selected')) {
+          selectedElements.add(widgetDiv);
+        } else {
+          selectedElements.delete(widgetDiv);
+        }
+      } else {
+        if (!widgetDiv.classList.contains('selected')) {
+          selectedElements.forEach(element => element.classList.remove('selected'));
+          selectedElements.clear();
+          widgetDiv.classList.add('selected');
+          selectedElements.add(widgetDiv);
+      }
+      }
+      console.log(selectedElements.size);
+    });
+  }
 
   let widget = {};
 
@@ -437,20 +602,21 @@ async function insertWidget(type, props) {
   widgets.push(widget); // Push the new widget object into the array
   const index = getNumberOfPluginParameters("rslider", "hslider", "button", "checkbox");
   widget.props.index = index - 1;
-  console.log(JSON.stringify(widget.props, null, 2));
 
-  if (cabbageMode === 'playMode') {
+
+  if (cabbageMode === 'nonDraggable') {
     if (typeof acquireVsCodeApi === 'function') {
       if (!vscode)
         vscode = acquireVsCodeApi();
 
+      console.log('adding listeners');
       widget.addEventListeners(widgetDiv, vscode);
     }
 
   }
-  else {
-    widget.addEventListeners(widgetDiv);
-  }
+  // else {
+  //   widget.addEventListeners(widgetDiv);
+  // }
 
 
   widgetDiv.id = widget.props.name;
