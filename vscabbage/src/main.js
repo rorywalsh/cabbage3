@@ -7,6 +7,7 @@ let widgetWrappers = null;
 let selectedElements = new Set();
 
 if (typeof acquireVsCodeApi === 'function') {
+
   vscode = acquireVsCodeApi();
   try {
     const module = await import("./widgetWrapper.js");
@@ -14,6 +15,7 @@ if (typeof acquireVsCodeApi === 'function') {
     // You can now use WidgetWrapper here
 
     widgetWrappers = new WidgetWrapper(updatePanel, selectedElements);
+    vscode.postMessage({ command: 'ready' });
   } catch (error) {
     console.error("Error loading widgetWrapper.js:", error);
   }
@@ -31,7 +33,42 @@ const contextMenu = document.querySelector(".wrapper");
 const form = document.getElementById('MainForm');
 
 
+/**
+ * called from the webview panel on startup, and when a user saves/updates or changes .csd file
+ */
 
+
+window.addEventListener('message', event => {
+  const message = event.data;
+  switch (message.command) {
+    case 'onFileChanged':
+      cabbageMode = 'nonDraggable';
+      form.className = "form";
+      parseCabbageCsdTile(message.text);
+      break;
+    case 'snapToSize':
+      console.log("NapSize", parseInt(message.text));
+      widgetWrappers.setSnapSize(parseInt(message.text));
+      break;
+    case 'widgetUpdate':
+      const msg = JSON.parse(message.text);
+      updateWidget(msg);
+      break;
+    case 'onEnterEditMode':
+      cabbageMode = 'draggable';
+      form.className = "form draggable";
+      parseCabbageCsdTile(message.text);
+      break;
+    default:
+      return;
+  }
+});
+
+
+/*
+* this is called from the plugin and will update either the value of 
+* a widget, or some of its properties
+*/
 
 function updateWidget(obj) {
   const channel = obj['channel'];
@@ -129,30 +166,6 @@ function getCabbageCodeAsJSON(text) {
 
   return jsonObj;
 }
-/**
- * called whenever a user saves/updates or changes .csd file
- */
-window.addEventListener('message', event => {
-  const message = event.data;
-  switch (message.command) {
-    case 'onFileChanged':
-      cabbageMode = 'nonDraggable';
-      form.className = "form";
-      parseCabbageCsdTile(message.text);
-      break;
-    case 'widgetUpdate':
-      const msg = JSON.parse(message.text);
-      updateWidget(msg);
-      break;
-    case 'onEnterEditMode':
-      cabbageMode = 'draggable';
-      form.className = "form draggable";
-      parseCabbageCsdTile(message.text);
-      break;
-    default:
-      return;
-  }
-});
 
 /**
  * this function parses the Cabbage code and creates new widgets accordingly..
@@ -455,90 +468,90 @@ if (typeof acquireVsCodeApi === 'function') {
  * Various listeners for the main form to handle grouping ans moving of multiple elements
  */
 if (form) {
-  
+
   let isSelecting = false;
   let selectionBox;
   let startX, startY;
-  
+
   form.addEventListener('pointerdown', (event) => {
     const clickedElement = event.target;
 
     if ((event.shiftKey || event.altKey) && event.target === form) {
-        // Start selection mode
-        isSelecting = true;
+      // Start selection mode
+      isSelecting = true;
 
-        startX = event.clientX;
-        startY = event.clientY;
+      startX = event.clientX;
+      startY = event.clientY;
 
-        selectionBox = document.createElement('div');
-        selectionBox.style.position = 'absolute';
-        selectionBox.style.border = '1px dashed #000';
-        selectionBox.style.backgroundColor = 'rgba(20, 20, 20, 0.3)';
-        selectionBox.style.left = `${startX}px`;
-        selectionBox.style.top = `${startY}px`;
+      selectionBox = document.createElement('div');
+      selectionBox.style.position = 'absolute';
+      selectionBox.style.border = '1px dashed #000';
+      selectionBox.style.backgroundColor = 'rgba(20, 20, 20, 0.3)';
+      selectionBox.style.left = `${startX}px`;
+      selectionBox.style.top = `${startY}px`;
 
-        form.appendChild(selectionBox);
+      form.appendChild(selectionBox);
     } else if (clickedElement.classList.contains('draggable')) {
-        if (!event.shiftKey && !event.altKey) {
-            // Deselect all elements if clicking on a non-selected element without Shift or Alt key
-            if (!selectedElements.has(clickedElement)) {
-                selectedElements.forEach(element => element.classList.remove('selected'));
-                selectedElements.clear();
-                selectedElements.add(clickedElement);
-            }
-            clickedElement.classList.add('selected');
-        } else {
-            // Toggle selection state if Shift or Alt key is pressed
-            clickedElement.classList.toggle('selected');
-            if (clickedElement.classList.contains('selected')) {
-                selectedElements.add(clickedElement);
-            } else {
-                selectedElements.delete(clickedElement);
-            }
+      if (!event.shiftKey && !event.altKey) {
+        // Deselect all elements if clicking on a non-selected element without Shift or Alt key
+        if (!selectedElements.has(clickedElement)) {
+          selectedElements.forEach(element => element.classList.remove('selected'));
+          selectedElements.clear();
+          selectedElements.add(clickedElement);
         }
-    } 
-    
-    if (event.target === form) {
-        // Deselect all elements if clicking on the form without Shift or Alt key
-        selectedElements.forEach(element => element.classList.remove('selected'));
-        selectedElements.clear();
+        clickedElement.classList.add('selected');
+      } else {
+        // Toggle selection state if Shift or Alt key is pressed
+        clickedElement.classList.toggle('selected');
+        if (clickedElement.classList.contains('selected')) {
+          selectedElements.add(clickedElement);
+        } else {
+          selectedElements.delete(clickedElement);
+        }
+      }
     }
-});
-  
+
+    if (event.target === form) {
+      // Deselect all elements if clicking on the form without Shift or Alt key
+      selectedElements.forEach(element => element.classList.remove('selected'));
+      selectedElements.clear();
+    }
+  });
+
   form.addEventListener('pointermove', (event) => {
     if (isSelecting) {
       const currentX = event.clientX;
       const currentY = event.clientY;
-  
+
       selectionBox.style.width = `${Math.abs(currentX - startX)}px`;
       selectionBox.style.height = `${Math.abs(currentY - startY)}px`;
       selectionBox.style.left = `${Math.min(currentX, startX)}px`;
       selectionBox.style.top = `${Math.min(currentY, startY)}px`;
     }
   });
-  
+
   form.addEventListener('pointerup', (event) => {
     if (isSelecting) {
-        const rect = selectionBox.getBoundingClientRect();
-        const elements = form.querySelectorAll('.draggable');
+      const rect = selectionBox.getBoundingClientRect();
+      const elements = form.querySelectorAll('.draggable');
 
-        elements.forEach((element) => {
-            const elementRect = element.getBoundingClientRect();
+      elements.forEach((element) => {
+        const elementRect = element.getBoundingClientRect();
 
-            // Check for intersection between the element and the selection box
-            if (elementRect.right >= rect.left &&
-                elementRect.left <= rect.right &&
-                elementRect.bottom >= rect.top &&
-                elementRect.top <= rect.bottom) {
-                element.classList.add('selected');
-                selectedElements.add(element);
-            }
-        });
+        // Check for intersection between the element and the selection box
+        if (elementRect.right >= rect.left &&
+          elementRect.left <= rect.right &&
+          elementRect.bottom >= rect.top &&
+          elementRect.top <= rect.bottom) {
+          element.classList.add('selected');
+          selectedElements.add(element);
+        }
+      });
 
-        form.removeChild(selectionBox);
-        isSelecting = false;
+      form.removeChild(selectionBox);
+      isSelecting = false;
     }
-});
+  });
 }
 
 /**
@@ -564,7 +577,7 @@ async function insertWidget(type, props) {
           selectedElements.clear();
           widgetDiv.classList.add('selected');
           selectedElements.add(widgetDiv);
-      }
+        }
       }
       console.log(selectedElements.size);
     });

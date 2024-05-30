@@ -4,76 +4,82 @@ export class WidgetWrapper {
             restriction: 'parent',
             endOnly: true
         };
-        let selectedElements = selectedSet;
-        let initialPointerX, initialPointerY;
+        this.snapSize = 4;
+        this.selectedElements = selectedSet;
+        this.updatePanelCallback = updatePanelCallback;
 
-        function dragMoveListener(event) {
-            if (event.shiftKey || event.altKey) {
-                // Prevent dragging when Shift or Alt is pressed
-                return;
+        this.dragMoveListener = this.dragMoveListener.bind(this);
+        this.dragEndListener = this.dragEndListener.bind(this);
+
+        this.applyInteractConfig(restrictions);
+
+        interact('.draggable').on('down', (event) => {
+            if (event.target.id) {
+                updatePanelCallback("click", event.target.id, {});
+            } else {
+                const widgetId = event.target.parentElement.parentElement.id.replace(/(<([^>]+)>)/ig, '');
+                updatePanelCallback("click", widgetId, {});
             }
+        });
+    }
 
-            const { dx, dy } = event;
-
-            // Apply translation to each selected element
-            selectedElements.forEach(element => {
-                const x = (parseFloat(element.getAttribute('data-x')) || 0) + dx;
-                const y = (parseFloat(element.getAttribute('data-y')) || 0) + dy;
-
-                element.style.transform = `translate(${x}px, ${y}px)`;
-                // Update data-x and data-y attributes
-                element.setAttribute('data-x', x);
-                element.setAttribute('data-y', y);
-
-                // Update panel callback for resize
-                // updatePanelCallback("resize", element.id, { x: x, y: y, w: element.offsetWidth, h: element.offsetHeight });
-            });
+    dragMoveListener(event) {
+        if (event.shiftKey || event.altKey) {
+            return;
         }
 
-        // Reset initial pointer position when drag operation ends
-        function dragEndListener(event) {
-            const { dx, dy } = event;
-            selectedElements.forEach(element => {
-                const x = (parseFloat(element.getAttribute('data-x')) || 0) + dx;
-                const y = (parseFloat(element.getAttribute('data-y')) || 0) + dy;
+        const { dx, dy } = event;
+        this.selectedElements.forEach(element => {
+            const x = (parseFloat(element.getAttribute('data-x')) || 0) + dx;
+            const y = (parseFloat(element.getAttribute('data-y')) || 0) + dy;
 
-                element.style.transform = `translate(${x}px, ${y}px)`;
-                // Update data-x and data-y attributes
-                element.setAttribute('data-x', x);
-                element.setAttribute('data-y', y);
-                updatePanelCallback("resize", element.id, { x: x, y: y, w: element.offsetWidth, h: element.offsetHeight });
-            });
+            element.style.transform = `translate(${x}px, ${y}px)`;
+            element.setAttribute('data-x', x);
+            element.setAttribute('data-y', y);
+        });
+    }
 
-            initialPointerX = null;
-            initialPointerY = null;
-        }
+    dragEndListener(event) {
+        const { dx, dy } = event;
+        this.selectedElements.forEach(element => {
+            const x = (parseFloat(element.getAttribute('data-x')) || 0) + dx;
+            const y = (parseFloat(element.getAttribute('data-y')) || 0) + dy;
+
+            element.style.transform = `translate(${x}px, ${y}px)`;
+            element.setAttribute('data-x', x);
+            element.setAttribute('data-y', y);
+            this.updatePanelCallback("resize", element.id, { x: x, y: y, w: element.offsetWidth, h: element.offsetHeight });
+        });
+    }
+
+    applyInteractConfig(restrictions) {
+        interact('.draggable').unset(); // Unset previous interact configuration
 
         interact('.draggable')
             .resizable({
                 edges: { left: true, right: true, bottom: true, top: true },
                 listeners: {
-                    move(event) {
+                    move: (event) => {
                         if (event.shiftKey || event.altKey) {
-                            // Prevent resizing when Shift or Alt is pressed
                             return;
                         }
-                        var target = event.target
+                        const target = event.target;
                         restrictions.restriction = (target.id === 'MainForm' ? 'none' : 'parent');
-                        var x = (parseFloat(target.getAttribute('data-x')) || 0)
-                        var y = (parseFloat(target.getAttribute('data-y')) || 0)
+                        let x = (parseFloat(target.getAttribute('data-x')) || 0);
+                        let y = (parseFloat(target.getAttribute('data-y')) || 0);
 
-                        target.style.width = event.rect.width + 'px'
-                        target.style.height = event.rect.height + 'px'
+                        target.style.width = event.rect.width + 'px';
+                        target.style.height = event.rect.height + 'px';
 
-                        x += event.deltaRect.left
-                        y += event.deltaRect.top
+                        x += event.deltaRect.left;
+                        y += event.deltaRect.top;
 
-                        updatePanelCallback("resize", event.target.id, { x: x, y: y, w: event.rect.width, h: event.rect.height });
+                        this.updatePanelCallback("resize", event.target.id, { x: x, y: y, w: event.rect.width, h: event.rect.height });
 
-                        target.style.transform = 'translate(' + x + 'px,' + y + 'px)'
+                        target.style.transform = 'translate(' + x + 'px,' + y + 'px)';
 
-                        target.setAttribute('data-x', x)
-                        target.setAttribute('data-y', y)
+                        target.setAttribute('data-x', x);
+                        target.setAttribute('data-y', y);
                     }
                 },
                 modifiers: [
@@ -85,21 +91,28 @@ export class WidgetWrapper {
                 inertia: true
             }).draggable({
                 listeners: {
-                    move: dragMoveListener,
-                    end: dragEndListener
+                    move: this.dragMoveListener,
+                    end: this.dragEndListener
                 },
                 inertia: true,
                 modifiers: [
+                    interact.modifiers.snap({
+                        targets: [
+                            interact.snappers.grid({ x: this.snapSize, y: this.snapSize })
+                        ],
+                        range: Infinity,
+                        relativePoints: [{ x: 0, y: 0 }]
+                    }),
                     interact.modifiers.restrictRect(restrictions),
                 ]
-            }).on('down', function (event) {
-                if (event.target.id) { //form
-                    updatePanelCallback("click", event.target.id, {});
-                }
-                else { //all widgets placed on form
-                    const widgetId = event.target.parentElement.parentElement.id.replace(/(<([^>]+)>)/ig);
-                    updatePanelCallback("click", widgetId, {});
-                }
-            })
+            });
+    }
+
+    setSnapSize(size) {
+        this.snapSize = size;
+        this.applyInteractConfig({
+            restriction: 'parent',
+            endOnly: true
+        });
     }
 }

@@ -88,6 +88,7 @@ function activate(context) {
         panel = vscode.window.createWebviewPanel('cabbageUIEditor', 'Cabbage UI Editor', 
         //load in second column, I guess this could be controlled by settings
         vscode.ViewColumn.Two, {});
+        const config = vscode.workspace.getConfiguration("cabbage");
         //makes sure the editor currently displayed has focus..
         vscode.commands.executeCommand('workbench.action.focusNextGroup');
         vscode.commands.executeCommand('workbench.action.focusPreviousGroup');
@@ -129,7 +130,6 @@ function activate(context) {
         //notify webview when various updates take place in editor
         vscode.workspace.onDidSaveTextDocument((editor) => {
             sendTextToWebView(editor, 'onFileChanged');
-            const config = vscode.workspace.getConfiguration("cabbage");
             const command = config.get("pathToCabbageExecutable") + '/CabbageApp.app/Contents/MacOS/CabbageApp';
             processes.forEach((p) => {
                 p?.kill("SIGKILL");
@@ -160,6 +160,9 @@ function activate(context) {
                 case 'channelUpdate':
                     websocket.send(JSON.stringify(message.text));
                 // console.log(message.text);
+                case 'ready': //trigger when webview is opened
+                    if (panel)
+                        panel.webview.postMessage({ command: "snapToSize", text: config.get("snapToSize") });
             }
         }, undefined, context.subscriptions);
     }));
@@ -396,7 +399,9 @@ function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetSVGs
     </div>
   </div>
 </div>
-  <script>var vscodeMode = true; </script>
+  	<script>
+  		var vscodeMode = true; 
+	</script>
   <script type="module" src="${widgetSVGs}"></script>
   <script type="module" src="${widgetWrapper}"></script>
   <script type="module" src="${mainJS}"></script>

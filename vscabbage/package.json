@@ -18,7 +18,12 @@
         "cabbage.pathToCabbageExecutable": {
           "type": "string",
           "default": "/Users/rwalsh/sourcecode/cabbage3/icabbage/cabbage/build/Debug",
-          "description": "Path to Cabbage service app (path only, no file name)"
+          "description": "Path to Cabbage service app (path only, don't pass the file name)."
+        },
+        "cabbage.snapToSize": {
+          "type": "number",
+          "default": 4,
+          "description": "Set the number of pixels to move by when dragging an element."
         }
       }
     },

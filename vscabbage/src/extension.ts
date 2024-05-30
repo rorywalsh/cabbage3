@@ -65,6 +65,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	}
 
+
 	context.subscriptions.push(vscode.commands.registerCommand('cabbage.launchUIEditor', () => {
 		// The code you place here will be executed every time your command is executed
 		panel = vscode.window.createWebviewPanel(
@@ -75,6 +76,7 @@ export function activate(context: vscode.ExtensionContext) {
 			{}
 		);
 
+		const config = vscode.workspace.getConfiguration("cabbage");
 
 		//makes sure the editor currently displayed has focus..
 		vscode.commands.executeCommand('workbench.action.focusNextGroup');
@@ -125,7 +127,6 @@ export function activate(context: vscode.ExtensionContext) {
 		//notify webview when various updates take place in editor
 		vscode.workspace.onDidSaveTextDocument((editor) => {
 			sendTextToWebView(editor, 'onFileChanged');
-			const config = vscode.workspace.getConfiguration("cabbage");
 			const command = config.get("pathToCabbageExecutable") + '/CabbageApp.app/Contents/MacOS/CabbageApp';
 			processes.forEach((p) => {
 				p?.kill("SIGKILL");
@@ -162,6 +163,9 @@ export function activate(context: vscode.ExtensionContext) {
 					case 'channelUpdate':
 						websocket.send(JSON.stringify(message.text));
 					// console.log(message.text);
+					case 'ready': //trigger when webview is opened
+						if (panel)
+							panel.webview.postMessage({ command: "snapToSize", text: config.get("snapToSize") });
 				}
 			},
 			undefined,
@@ -434,7 +438,9 @@ function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri, cabbageStyles
     </div>
   </div>
 </div>
-  <script>var vscodeMode = true; </script>
+  	<script>
+  		var vscodeMode = true; 
+	</script>
   <script type="module" src="${widgetSVGs}"></script>
   <script type="module" src="${widgetWrapper}"></script>
   <script type="module" src="${mainJS}"></script>
