@@ -7,6 +7,8 @@ function clamp(num, min, max) {
   return Math.max(min, Math.min(num, max));
 }
 
+let selectedElements = new Set();
+
 export class Form {
   constructor() {
     this.props = {
@@ -113,7 +115,7 @@ export class RotarySlider {
   }
 
   pointerDown(evt) {
-    // console.log('slider on down');
+    console.log('slider on down');
     this.startY = evt.clientY;
     this.startValue = this.props.value;
     window.addEventListener("pointermove", this.moveListener);

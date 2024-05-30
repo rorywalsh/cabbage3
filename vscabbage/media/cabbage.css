@@ -72,16 +72,26 @@
 }
 
 #LeftCol {
-	flex-grow: 1;
-	/* border: 1px solid red; */
-	resize: horizontal;
-	overflow: auto;
+  flex-grow: 1;
+  /* border: 1px solid red; */
+  resize: horizontal;
+  overflow: auto;
+  width: 2000px;
+  height: 2000px;
+  position: absolute;
+  top: 0px;
+  left: 0px;
 }
 
 #RightCol {
-	flex-grow: 0;
-	padding:0px;
-	/* border: 1px solid red; */
+  flex-grow: 0;
+  padding: 0px;
+  /* border: 1px solid red; */
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 300px; /* Adjust the width as needed */
+  height: 100%; /* Take full height of the page */
 }
 
 .form {

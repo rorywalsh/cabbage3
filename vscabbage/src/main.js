@@ -491,7 +491,8 @@ if (form) {
       selectionBox.style.top = `${startY}px`;
 
       form.appendChild(selectionBox);
-    } else if (clickedElement.classList.contains('draggable')) {
+    } else if (clickedElement.classList.contains('draggable') && event.target.id != "MainForm") {
+      console.log("here we are--------------------------------")
       if (!event.shiftKey && !event.altKey) {
         // Deselect all elements if clicking on a non-selected element without Shift or Alt key
         if (!selectedElements.has(clickedElement)) {

@@ -163,7 +163,7 @@ export function activate(context: vscode.ExtensionContext) {
 					case 'channelUpdate':
 						websocket.send(JSON.stringify(message.text));
 					// console.log(message.text);
-					case 'ready': //trigger when webview is opened
+					case 'ready': //trigger when webview is open
 						if (panel)
 							panel.webview.postMessage({ command: "snapToSize", text: config.get("snapToSize") });
 				}
@@ -420,7 +420,7 @@ function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri, cabbageStyles
 
 
 <div id="parent" class="full-height-div">
-  <div id="LeftCol" class="full-height-div">
+  <div id="LeftCol" class="full-height-div draggable-panel">
     <div id="MainForm" class="form draggable">
       <div class="wrapper">
         <div class="content" style="overflow-y: auto;">

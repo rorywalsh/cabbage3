@@ -160,7 +160,7 @@ function activate(context) {
                 case 'channelUpdate':
                     websocket.send(JSON.stringify(message.text));
                 // console.log(message.text);
-                case 'ready': //trigger when webview is opened
+                case 'ready': //trigger when webview is open
                     if (panel)
                         panel.webview.postMessage({ command: "snapToSize", text: config.get("snapToSize") });
             }
@@ -381,7 +381,7 @@ function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetSVGs
 
 
 <div id="parent" class="full-height-div">
-  <div id="LeftCol" class="full-height-div">
+  <div id="LeftCol" class="full-height-div draggable-panel">
     <div id="MainForm" class="form draggable">
       <div class="wrapper">
         <div class="content" style="overflow-y: auto;">
@@ -434,6 +434,8 @@ Number.prototype.map = function (in_min, in_max, out_min, out_max) {
 function clamp(num, min, max) {
   return Math.max(min, Math.min(num, max));
 }
+
+let selectedElements = new Set();
 
 class Form {
   constructor() {
@@ -541,7 +543,7 @@ class RotarySlider {
   }
 
   pointerDown(evt) {
-    // console.log('slider on down');
+    console.log('slider on down');
     this.startY = evt.clientY;
     this.startValue = this.props.value;
     window.addEventListener("pointermove", this.moveListener);
