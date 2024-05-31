@@ -25,12 +25,15 @@
 }
 
 .lasso-rectangle {
-    border: 2px dashed blue; /* Style of the lasso rectangle */
-    pointer-events: none; /* Ensure the rectangle does not interfere with pointer events */
+	border: 2px dashed blue;
+	/* Style of the lasso rectangle */
+	pointer-events: none;
+	/* Ensure the rectangle does not interfere with pointer events */
 }
 
 .selection-box {
-    background-color: rgba(255, 0, 0, 0.3); /* Example background color */
+	background-color: rgba(255, 0, 0, 0.3);
+	/* Example background color */
 }
 
 .selected {
@@ -71,27 +74,29 @@
 	padding: 0px;
 }
 
-#LeftCol {
-  flex-grow: 1;
-  /* border: 1px solid red; */
-  resize: horizontal;
-  overflow: auto;
-  width: 2000px;
-  height: 2000px;
-  position: absolute;
-  top: 0px;
-  left: 0px;
+#LeftPanel {
+	flex-grow: 1;
+	/* border: 1px solid red; */
+	resize: horizontal;
+	overflow: auto;
+	width: 2000px;
+	height: 2000px;
+	position: absolute;
+	top: 50px;
+	left: 50px;
 }
 
-#RightCol {
-  flex-grow: 0;
-  padding: 0px;
-  /* border: 1px solid red; */
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 300px; /* Adjust the width as needed */
-  height: 100%; /* Take full height of the page */
+#RightPanel {
+	flex-grow: 0;
+	padding: 0px;
+	/* border: 1px solid red; */
+	position: absolute;
+	top: 0;
+	right: 0;
+	width: 300px;
+	/* Adjust the width as needed */
+	height: 100%;
+	/* Take full height of the page */
 }
 
 .form {
@@ -150,6 +155,7 @@
 	width: 100%;
 	padding: 0px;
 }
+
 /*
 	dark theme
 
@@ -267,5 +273,26 @@
 	font-size: 12px;
 	padding: 0;
 	width: 100%;
-	height: 32px; /* Ensure color input has the same height */
+	height: 32px;
+	/* Ensure color input has the same height */
+}
+
+.full-screen-div {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: rgba(144, 144, 144);
+	/* Semi-transparent background */
+	z-index: 9999;
+	/* Ensure it's above other content */
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.full-screen-div svg {
+	max-width: 90%;
+	max-height: 90%;
 }

@@ -20,7 +20,6 @@ export class WidgetWrapper {
 
         const { dx, dy } = event;
         this.selectedElements.forEach(element => {
-            console.log(`Dragging element ${element.id}: dx=${dx}, dy=${dy}`); // Logging drag details
             const x = (parseFloat(element.getAttribute('data-x')) || 0) + dx;
             const y = (parseFloat(element.getAttribute('data-y')) || 0) + dy;
 
@@ -31,17 +30,20 @@ export class WidgetWrapper {
     }
 
     dragEndListener(event) {
-        console.log("DRAG_END");
         const { dx, dy } = event;
+
         this.selectedElements.forEach(element => {
-            console.log(`Drag ended for element ${element.id}: dx=${dx}, dy=${dy}`); // Logging drag end details
+
             const x = (parseFloat(element.getAttribute('data-x')) || 0) + dx;
             const y = (parseFloat(element.getAttribute('data-y')) || 0) + dy;
 
             element.style.transform = `translate(${x}px, ${y}px)`;
             element.setAttribute('data-x', x);
             element.setAttribute('data-y', y);
-            this.updatePanelCallback("resize", element.id, { x: x, y: y, w: element.offsetWidth, h: element.offsetHeight });
+            this.updatePanelCallback({ eventType: "move", name: element.id, bounds: { x: x, y: y, w: element.offsetWidth, h: element.offsetHeight } });
+
+
+            // console.log(`Drag ended for element ${element.id}: x=${x}, y=${y}`); // Logging drag end details
         });
     }
 
@@ -49,11 +51,14 @@ export class WidgetWrapper {
         interact('.draggable').unset(); // Unset previous interact configuration
 
         interact('.draggable').on('down', (event) => {
-            if (event.target.id) {
-                this.updatePanelCallback("click", event.target.id, {});
-            } else {
-                const widgetId = event.target.parentElement.parentElement.id.replace(/(<([^>]+)>)/ig, '');
-                this.updatePanelCallback("click", widgetId, {});
+
+            if (this.selectedElements.size <= 1) {
+                if (event.target.id) {
+                    this.updatePanelCallback({eventType:"click", name:event.target.id, bounds:{}});
+                } else {
+                    const widgetId = event.target.parentElement.parentElement.id.replace(/(<([^>]+)>)/ig, '');
+                    this.updatePanelCallback({eventType:"click", name:widgetId, bounds:{}});
+                }
             }
         }).resizable({
             edges: { left: true, right: true, bottom: true, top: true },
@@ -64,7 +69,6 @@ export class WidgetWrapper {
                     }
                     const target = event.target;
                     restrictions.restriction = (target.id === 'MainForm' ? 'none' : 'parent');
-                    console.log(`Restrictions applied to ${target.id}:`, restrictions); // Log restrictions
                     let x = (parseFloat(target.getAttribute('data-x')) || 0);
                     let y = (parseFloat(target.getAttribute('data-y')) || 0);
 
@@ -74,7 +78,7 @@ export class WidgetWrapper {
                     x += event.deltaRect.left;
                     y += event.deltaRect.top;
 
-                    this.updatePanelCallback("resize", event.target.id, { x: x, y: y, w: event.rect.width, h: event.rect.height });
+                    this.updatePanelCallback({ eventType: "resize", name: event.target.id, bounds: { x: x, y: y, w: event.rect.width, h: event.rect.height } });
 
                     target.style.transform = 'translate(' + x + 'px,' + y + 'px)';
 
@@ -117,10 +121,10 @@ export class WidgetWrapper {
         //main form only..........
         interact('.resizeOnly').on('down', (event) => {
             if (event.target.id) {
-                this.updatePanelCallback("click", event.target.id, {});
+                this.updatePanelCallback({eventType:"click", name:event.target.id, bounds:{}});
             } else {
                 const widgetId = event.target.parentElement.parentElement.id.replace(/(<([^>]+)>)/ig, '');
-                this.updatePanelCallback("click", widgetId, {});
+                this.updatePanelCallback({eventType:"click", name:widgetId, bounds:{}});
             }
         }).draggable(false).resizable({
             edges: { left: true, right: true, bottom: true, top: true }, // Enable resizing from all edges
@@ -131,7 +135,6 @@ export class WidgetWrapper {
                     }
                     const target = event.target;
                     restrictions.restriction = (target.id === 'MainForm' ? 'none' : 'parent');
-                    console.log(`Restrictions applied to ${target.id}:`, restrictions); // Log restrictions
                     let x = (parseFloat(target.getAttribute('data-x')) || 0);
                     let y = (parseFloat(target.getAttribute('data-y')) || 0);
 
@@ -141,7 +144,7 @@ export class WidgetWrapper {
                     x += event.deltaRect.left;
                     y += event.deltaRect.top;
 
-                    this.updatePanelCallback("resize", event.target.id, { x: x, y: y, w: event.rect.width, h: event.rect.height });
+                    this.updatePanelCallback({ eventType: "resize", name: event.target.id, bounds: { x: x, y: y, w: event.rect.width, h: event.rect.height } });
 
                     target.style.transform = 'translate(' + x + 'px,' + y + 'px)';
 
@@ -158,9 +161,6 @@ export class WidgetWrapper {
             inertia: true
         });
 
-        // Logging to verify MainForm is targeted
-        console.log('applyInteractConfig called with restrictions:', restrictions);
-        console.log('MainForm draggable configuration applied.');
     }
 
     setSnapSize(size) {
@@ -175,7 +175,7 @@ export class WidgetWrapper {
 /*
 This is a simple panel that the main form sits on. It can be dragged around without restriction
 */
-interact('.draggable-panel')
+interact('.draggablePanel')
     .draggable({
         inertia: true,
         autoScroll: true,
@@ -183,8 +183,11 @@ interact('.draggable-panel')
     });
 
 function dragMoveListener(event) {
-    var target = event.target;
 
+    var target = event.target;
+    if (event.shiftKey || event.altKey) {
+        return;
+    }
     // keep the dragged position in the data-x/data-y attributes
     var x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
     var y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;

@@ -31,7 +31,21 @@ widgets.push(new Form());
 let numberOfWidgets = 1;
 const contextMenu = document.querySelector(".wrapper");
 const form = document.getElementById('MainForm');
+const leftPanel = document.getElementById('LeftPanel');
+const rightPanel = document.getElementById('RightPanel');
+showOverlay();
 
+function showOverlay() {
+  document.getElementById('fullScreenOverlay').style.display = 'flex';
+  leftPanel.style.display = 'none';
+  rightPanel.style.display = 'none';
+}
+
+function hideOverlay() {
+  document.getElementById('fullScreenOverlay').style.display = 'none';
+  leftPanel.style.display = 'flex';
+  rightPanel.style.display = 'flex';
+}
 
 /**
  * called from the webview panel on startup, and when a user saves/updates or changes .csd file
@@ -42,8 +56,11 @@ window.addEventListener('message', event => {
   const message = event.data;
   switch (message.command) {
     case 'onFileChanged':
+      hideOverlay();
       cabbageMode = 'nonDraggable';
-      form.className = "form";
+      form.className = "form nonDraggable";
+      leftPanel.className = "full-height-div nonDraggable"
+      rightPanel.style.visibility = "hidden";
       parseCabbageCsdTile(message.text);
       break;
     case 'snapToSize':
@@ -55,8 +72,9 @@ window.addEventListener('message', event => {
       updateWidget(msg);
       break;
     case 'onEnterEditMode':
+      hideOverlay();
       cabbageMode = 'draggable';
-      // form.className = "form draggable";
+      //form.className = "form draggable";
       parseCabbageCsdTile(message.text);
       break;
     default:
@@ -210,52 +228,63 @@ function parseCabbageCsdTile(text) {
         });
       }
     }
-
   });
-
 
 }
 
 /**
  * this callback is triggered whenever a user move/drags a widget in edit mode
  * The innerHTML is constantly updated. When this is called, the editor is also
- * updated accordingly. 
+ * updated accordingly. It accepts an array of object with details about the event
+ * type, name and bounds updates 
  */
-function updatePanel(eventType, name, bounds) {
+async function updatePanel(input) {
+  // Ensure input is an array of objects
+  let events = Array.isArray(input) ? input : [input];
+  
   const element = document.querySelector('.property-panel');
-  element.style.visibility = "visible";
+  if (element) {
+      element.style.visibility = "visible";
+      element.innerHTML = '';
+  }
 
-  if (element)
-    element.innerHTML = '';
+  // Iterate over the array of event objects
+  events.forEach(eventObj => {
+    const { eventType, name, bounds } = eventObj;
+    widgets.forEach((widget, index) => {
+      if (widget.props.name === name) {
+        if (eventType !== 'click') {
+          widget.props.left = Math.floor(bounds.x);
+          widget.props.top = Math.floor(bounds.y);
+          widget.props.width = Math.floor(bounds.w);
+          widget.props.height = Math.floor(bounds.h);
 
-  widgets.forEach((widget) => {
-
-    // DBG(JSON.stringify(widget.props));
-    if (widget.props.name == name) {
-      // DBG(widget.name, name);
-      if (eventType != 'click') {
-        widget.props.left = Math.floor(bounds.x);
-        widget.props.top = Math.floor(bounds.y);
-        widget.props.width = Math.floor(bounds.w);
-        widget.props.height = Math.floor(bounds.h);
-        // document.getElementById(widget.props.name).style.width = widget.props.width;
-        // document.getElementById(widget.props.name).style.height = widget.props.height;
-        if (widget.props.type != 'form') {
-          document.getElementById(widget.props.name).innerHTML = widget.getSVG();
+          if (widget.props.type !== 'form') {
+            document.getElementById(widget.props.name).innerHTML = widget.getSVG();
+          }
         }
+
+        if (widget.props.hasOwnProperty('channel')) {
+          widget.props.channel = name;
+        }
+
+        new PropertyPanel(widget.props.type, widget.props, widget.panelSections);
+
+        //firing these off in one go cause the vs-code editor to shit its pant
+        setTimeout(() => {
+          vscode.postMessage({
+            command: 'widgetUpdate',
+            text: JSON.stringify(widget.props)
+          });
+        }, (index+1) * 50);
       }
-
-      if (widget.props.hasOwnProperty('channel'))
-        widget.props.channel = name;
-
-      new PropertyPanel(widget.props.type, widget.props, widget.panelSections);
-      vscode.postMessage({
-        command: 'widgetUpdate',
-        text: JSON.stringify(widget.props)
-      })
-    }
+    });
   });
+
 }
+
+
+
 /**
  * PropertyPanel Class. Lightweight component that up updated its innerHTML when properties change.
  * Gets passed the widget type, and a JSON object containing all the widget properties 
@@ -432,7 +461,8 @@ if (typeof acquireVsCodeApi === 'function') {
     contextMenu.style.left = `${x}px`;
     contextMenu.style.top = `${y}px`;
     mouseDownPosition = { x: x, y: y };
-    contextMenu.style.visibility = "visible";
+    if (cabbageMode === 'draggable')
+      contextMenu.style.visibility = "visible";
   });
   document.addEventListener("click", () => contextMenu.style.visibility = "hidden");
 
@@ -468,20 +498,25 @@ if (typeof acquireVsCodeApi === 'function') {
  * Various listeners for the main form to handle grouping ans moving of multiple elements
  */
 if (form) {
-
   let isSelecting = false;
+  let isDragging = false;
   let selectionBox;
   let startX, startY;
+  let offsetX = 0;
+  let offsetY = 0;
 
   form.addEventListener('pointerdown', (event) => {
     const clickedElement = event.target;
+    const formRect = form.getBoundingClientRect();
+    offsetX = formRect.left;
+    offsetY = formRect.top;
 
     if ((event.shiftKey || event.altKey) && event.target === form) {
       // Start selection mode
       isSelecting = true;
 
-      startX = event.clientX;
-      startY = event.clientY;
+      startX = event.clientX - offsetX;
+      startY = event.clientY - offsetY;
 
       selectionBox = document.createElement('div');
       selectionBox.style.position = 'absolute';
@@ -491,7 +526,7 @@ if (form) {
       selectionBox.style.top = `${startY}px`;
 
       form.appendChild(selectionBox);
-    } else if (clickedElement.classList.contains('draggable') && event.target.id != "MainForm") {
+    } else if (clickedElement.classList.contains('draggable') && event.target.id !== "MainForm") {
       if (!event.shiftKey && !event.altKey) {
         // Deselect all elements if clicking on a non-selected element without Shift or Alt key
         if (!selectedElements.has(clickedElement)) {
@@ -518,19 +553,42 @@ if (form) {
     }
   });
 
-  form.addEventListener('pointermove', (event) => {
+  document.addEventListener('pointermove', (event) => {
     if (isSelecting) {
-      const currentX = event.clientX;
-      const currentY = event.clientY;
+      const currentX = event.clientX - offsetX;
+      const currentY = event.clientY - offsetY;
 
       selectionBox.style.width = `${Math.abs(currentX - startX)}px`;
       selectionBox.style.height = `${Math.abs(currentY - startY)}px`;
       selectionBox.style.left = `${Math.min(currentX, startX)}px`;
       selectionBox.style.top = `${Math.min(currentY, startY)}px`;
     }
+
+    if (isDragging && selectionBox) {
+      const currentX = event.clientX;
+      const currentY = event.clientY;
+
+      const boxWidth = selectionBox.offsetWidth;
+      const boxHeight = selectionBox.offsetHeight;
+
+      const parentWidth = form.offsetWidth;
+      const parentHeight = form.offsetHeight;
+
+      const maxX = parentWidth - boxWidth;
+      const maxY = parentHeight - boxHeight;
+
+      let newLeft = currentX - offsetX;
+      let newTop = currentY - offsetY;
+
+      newLeft = Math.max(0, Math.min(maxX, newLeft));
+      newTop = Math.max(0, Math.min(maxY, newTop));
+
+      selectionBox.style.left = `${newLeft}px`;
+      selectionBox.style.top = `${newTop}px`;
+    }
   });
 
-  form.addEventListener('pointerup', (event) => {
+  document.addEventListener('pointerup', (event) => {
     if (isSelecting) {
       const rect = selectionBox.getBoundingClientRect();
       const elements = form.querySelectorAll('.draggable');
@@ -551,9 +609,20 @@ if (form) {
       form.removeChild(selectionBox);
       isSelecting = false;
     }
-  });
-}
 
+    isDragging = false;
+  });
+  if (selectionBox) {
+    selectionBox.addEventListener('pointerdown', (event) => {
+      isDragging = true;
+      offsetX = event.clientX - selectionBox.getBoundingClientRect().left;
+      offsetY = event.clientY - selectionBox.getBoundingClientRect().top;
+      event.stopPropagation();
+    });
+  }
+
+
+}
 /**
  * insets a new widget to the form, this can be called when loading/saving a file, or when we right-
  * click and add widgets
@@ -627,10 +696,6 @@ async function insertWidget(type, props) {
     }
 
   }
-  // else {
-  //   widget.addEventListeners(widgetDiv);
-  // }
-
 
   widgetDiv.id = widget.props.name;
   widgetDiv.innerHTML = widget.getSVG();
