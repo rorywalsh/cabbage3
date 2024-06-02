@@ -49,6 +49,7 @@ export function getCabbageCodeAsJSON(text) {
         }
     }
 
+    console.log(jsonObj);
     return jsonObj;
 }
 
@@ -132,4 +133,22 @@ export function hideOverlay() {
     const rightPanel = document.getElementById('RightPanel');
     leftPanel.style.display = 'flex';
     rightPanel.style.display = 'flex';
+}
+
+
+export function clamp(num, min, max) {
+    return Math.max(min, Math.min(num, max));
+}
+
+export function map(value, in_min, in_max, out_min, out_max) {
+    return ((value - in_min) * (out_max - out_min)) / (in_max - in_min) + out_min;
+};
+
+export function getDecimalPlaces(num) {
+    const numString = num.toString();
+    if (numString.includes('.')) {
+        return numString.split('.')[1].length;
+    } else {
+        return 0;
+    }
 }

@@ -301,6 +301,7 @@
 	position: absolute;
 	top: -30px;
 	background-color: #333;
+	/* color: #3c5600; */
 	color: white;
 	padding: 5px;
 	border-radius: 5px;
@@ -310,6 +311,7 @@
 	transition: opacity 0.3s ease-in-out;
 	pointer-events: none; /* Prevent pointer events while hidden */
 }
+
 
 .popup::after {
 	content: '';

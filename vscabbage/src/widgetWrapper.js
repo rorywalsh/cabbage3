@@ -1,4 +1,7 @@
-
+/**
+ * This is a wrapper for all widgets. It provides the drag and drop functionality
+ * for the UI designer
+ */
 export class WidgetWrapper {
     constructor(updatePanelCallback, selectedSet, widgets, vscode) {
         const restrictions = {
@@ -63,7 +66,7 @@ export class WidgetWrapper {
                 }
             }
         }).resizable({
-            edges: { left: true, right: true, bottom: true, top: true },
+            edges: { left: false, right: true, bottom: true, top: false },
             listeners: {
                 move: (event) => {
                     if (event.shiftKey || event.altKey) {
@@ -91,7 +94,7 @@ export class WidgetWrapper {
             modifiers: [
                 interact.modifiers.restrictRect(restrictions),
                 interact.modifiers.restrictSize({
-                    min: { width: 100, height: 50 }
+                    min: { width: 10, height: 10 }
                 }),
                 interact.modifiers.snap({
                     targets: [
@@ -103,6 +106,7 @@ export class WidgetWrapper {
             ],
             inertia: true
         }).draggable({
+            startThreshold: 1,
             listeners: {
                 move: this.dragMoveListener,
                 end: this.dragEndListener

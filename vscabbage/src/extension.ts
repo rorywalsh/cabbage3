@@ -3,7 +3,9 @@
 import * as vscode from 'vscode';
 
 // @ts-ignore
-import { Form, RotarySlider } from "./widgets.js";
+import { RotarySlider } from "./rotarySlider.js";
+// @ts-ignore
+import { Form } from "./form.js";
 import * as cp from "child_process";
 
 let textEditor: vscode.TextEditor | undefined;
@@ -113,7 +115,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 		// set webview HTML content and options
-		panel.webview.html = getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetSVGs, widgetWrapper, menuItems);
+		panel.webview.html = getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrapper, menuItems);
 		panel.webview.options = { enableScripts: true };
 
 		//assign current textEditor so we can track it even if focus changes to the webview
@@ -413,7 +415,7 @@ async function updateText(jsonText: string) {
 /**
  * Returns html text to use in webview - various scripts get passed as vscode.Uri's
  */
-function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri, cabbageStyles: vscode.Uri, interactJS: vscode.Uri, widgetSVGs: vscode.Uri, widgetWrapper: vscode.Uri, menu: string) {
+function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri, cabbageStyles: vscode.Uri, interactJS: vscode.Uri, widgetWrapper: vscode.Uri, menu: string) {
 	return `
 <!doctype html>
 <html lang="en">
@@ -473,7 +475,6 @@ function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri, cabbageStyles
   	<script>
   		var vscodeMode = true; 
 	</script>
-  <script type="module" src="${widgetSVGs}"></script>
   <script type="module" src="${widgetWrapper}"></script>
   <script type="module" src="${mainJS}"></script>
 </body>

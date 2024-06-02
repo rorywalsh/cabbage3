@@ -1,6 +1,8 @@
 
 
-import { Form, RotarySlider } from "./widgets.js";
+import { RotarySlider } from "./rotarySlider.js";
+import { HorizontalSlider } from "./horizontalSlider.js";
+import { Form } from "./form.js";
 import { PropertyPanel } from "./propertyPanel.js";
 import { getCabbageCodeAsJSON, parseCabbageCode, getNumberOfPluginParameters, showOverlay, hideOverlay } from "./utils.js";
 
@@ -10,13 +12,12 @@ let selectedElements = new Set();
 const widgets = [];
 
 if (typeof acquireVsCodeApi === 'function') {
-
   vscode = acquireVsCodeApi();
   try {
     const module = await import("./widgetWrapper.js");
     const { WidgetWrapper } = module;
     // You can now use WidgetWrapper here
-
+    console.log("loading interface");
     widgetWrappers = new WidgetWrapper(PropertyPanel.updatePanel, selectedElements, widgets, vscode);
     vscode.postMessage({ command: 'ready' });
   } catch (error) {
@@ -54,10 +55,10 @@ window.addEventListener('message', event => {
       const leftPanel = document.getElementById('LeftPanel');
       leftPanel.className = "full-height-div nonDraggable"
       rightPanel.style.visibility = "hidden";
+      console.log("onFileChanged");
       parseCabbageCode(message.text, widgets, form, insertWidget);
       break;
     case 'snapToSize':
-      console.log("NapSize", parseInt(message.text));
       widgetWrappers.setSnapSize(parseInt(message.text));
       break;
     case 'widgetUpdate':
@@ -66,6 +67,7 @@ window.addEventListener('message', event => {
       break;
     case 'onEnterEditMode':
       hideOverlay();
+      console.log("onEnterEditMode");
       cabbageMode = 'draggable';
       //form.className = "form draggable";
       parseCabbageCode(message.text, widgets, form, insertWidget);
@@ -305,6 +307,9 @@ async function insertWidget(type, props) {
   switch (type) {
     case "rslider":
       widget = new RotarySlider();
+      break;
+    case "hslider":
+      widget = new HorizontalSlider();
       break;
     case "form":
       widget = new Form();

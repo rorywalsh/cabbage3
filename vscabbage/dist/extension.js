@@ -37,7 +37,9 @@ exports.activate = void 0;
 // Import the module and reference it with the alias vscode in your code below
 const vscode = __importStar(__webpack_require__(1));
 // @ts-ignore
-const widgets_js_1 = __webpack_require__(2);
+const rotarySlider_js_1 = __webpack_require__(2);
+// @ts-ignore
+const form_js_1 = __webpack_require__(29);
 const cp = __importStar(__webpack_require__(3));
 let textEditor;
 let output;
@@ -119,7 +121,7 @@ function activate(context) {
 			`;
         });
         // set webview HTML content and options
-        panel.webview.html = getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetSVGs, widgetWrapper, menuItems);
+        panel.webview.html = getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrapper, menuItems);
         panel.webview.options = { enableScripts: true };
         //assign current textEditor so we can track it even if focus changes to the webview
         panel.onDidChangeViewState(() => {
@@ -287,10 +289,10 @@ async function updateText(jsonText) {
         let defaultProps = {};
         switch (props.type) {
             case 'rslider':
-                defaultProps = new widgets_js_1.RotarySlider().props;
+                defaultProps = new rotarySlider_js_1.RotarySlider().props;
                 break;
             case 'form':
-                defaultProps = new widgets_js_1.Form().props;
+                defaultProps = new form_js_1.Form().props;
                 break;
             default:
                 break;
@@ -371,7 +373,7 @@ async function updateText(jsonText) {
 /**
  * Returns html text to use in webview - various scripts get passed as vscode.Uri's
  */
-function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetSVGs, widgetWrapper, menu) {
+function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrapper, menu) {
     return `
 <!doctype html>
 <html lang="en">
@@ -431,7 +433,6 @@ function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetSVGs
   	<script>
   		var vscodeMode = true; 
 	</script>
-  <script type="module" src="${widgetSVGs}"></script>
   <script type="module" src="${widgetWrapper}"></script>
   <script type="module" src="${mainJS}"></script>
 </body>
@@ -452,60 +453,14 @@ module.exports = require("vscode");
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   Form: () => (/* binding */ Form),
 /* harmony export */   RotarySlider: () => (/* binding */ RotarySlider)
 /* harmony export */ });
-
-Number.prototype.map = function (in_min, in_max, out_min, out_max) {
-  return ((this - in_min) * (out_max - out_min)) / (in_max - in_min) + out_min;
-};
-
-function clamp(num, min, max) {
-  return Math.max(min, Math.min(num, max));
-}
-
-function getDecimalPlaces(num) {
-  const numString = num.toString();
-  if (numString.includes('.')) {
-    return numString.split('.')[1].length;
-  } else {
-    return 0;
-  }
-}
-
-class Form {
-  constructor() {
-    this.props = {
-      "top": 0,
-      "left": 0,
-      "width": 600,
-      "height": 300,
-      "caption": "",
-      "name": "MainForm",
-      "type": "form",
-      "colour": "#0295CF",
-      "channel": "MainForm"
-    }
-
-    this.panelSections = {
-      "Info": ["type"],
-      "Bounds": ["width", "height"],
-      "Text": ["caption"],
-      "Colours": ["colour"]
-    };
-  }
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(28);
 
 
-  getSVG() {
-
-    return `
-      <svg xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
-      <rect width="${this.props.width} " height="${this.props.height}" x="0" y="0" rx="2" ry="2" fill="${this.props.colour}" />
-      </svg>
-      `;
-  }
-}
-
+/**
+ * Rotary Slider (rslider) class
+ */
 class RotarySlider {
   constructor() {
     this.props = {
@@ -513,7 +468,7 @@ class RotarySlider {
       "left": 10,
       "width": 60,
       "height": 60,
-      "channel": "rslider",
+      "channel": "rslider1",
       "min": 0,
       "max": 1,
       "value": 0,
@@ -527,20 +482,19 @@ class RotarySlider {
       "align": "centre",
       "textOffsetY": 0,
       "valueTextBox": 0,
-      "colour": "#dddddd",
-      "trackerColour": "#d1d323",
-      "trackerBackgroundColour": "#000000",
-      "trackerStrokeColour": "#222222",
+      "colour": "#93D200",
       "trackerColour": "#dddddd",
+      "trackerBackgroundColour": "#222222",
+      "trackerOutlineColour": "#000000",
       "fontColour": "#222222",
       "textColour": "#222222",
-      "outlineColour": "#999999",
+      "outlineColour": "#222222",
       "textBoxOutlineColour": "#999999",
       "textBoxColour": "#555555",
       "markerColour": "#222222",
-      "trackerStrokeWidth": 1,
-      "trackerWidth": 0.5,
-      "outlineWidth": 0.3,
+      "trackerOutlineWidth": 3,
+      "trackerWidth": 30,
+      "outlineWidth": 2,
       "markerThickness": 0.2,
       "markerStart": 0.5,
       "markerEnd": 0.9,
@@ -596,7 +550,7 @@ class RotarySlider {
     const popup = document.getElementById('popupValue');
     const form = document.getElementById('MainForm');
     const rect = form.getBoundingClientRect();
-    this.decimalPlaces = getDecimalPlaces(this.props.increment);
+    this.decimalPlaces = (0,_utils_js__WEBPACK_IMPORTED_MODULE_0__.getDecimalPlaces)(this.props.increment);
 
     if (popup) {
         popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
@@ -659,13 +613,13 @@ class RotarySlider {
     // console.log('slider on move');
     const steps = 200;
     const valueDiff = ((this.props.max - this.props.min) * (clientY - this.startY)) / steps;
-    const value = clamp(this.startValue - valueDiff, this.props.min, this.props.max);
+    const value = (0,_utils_js__WEBPACK_IMPORTED_MODULE_0__.clamp)(this.startValue - valueDiff, this.props.min, this.props.max);
 
     this.props.value = Math.round(value / this.props.increment) * this.props.increment;
     const widgetDiv = document.getElementById(this.props.name);
     widgetDiv.innerHTML = this.getSVG();
 
-    const msg = { channel: this.props.channel, value: this.props.value.map(this.props.min, this.props.max, 0, 1) }
+    const msg = { channel: this.props.channel, value: (0,_utils_js__WEBPACK_IMPORTED_MODULE_0__.map)(this.props.value.map, this.props.min, this.props.max, 0, 1) }
     if (this.vscode) {
       this.vscode.postMessage({
         command: 'channelUpdate',
@@ -676,7 +630,7 @@ class RotarySlider {
       var message = {
         "msg": "parameterUpdate",
         "paramIdx": this.props.index,
-        "value": this.props.value.map(this.props.min, this.props.max, 0, 1)
+        "value": (0,_utils_js__WEBPACK_IMPORTED_MODULE_0__.map)(this.props.value, this.props.min, this.props.max, 0, 1)
       };
       // IPlugSendMsg(message);
     }
@@ -714,18 +668,23 @@ class RotarySlider {
     }
 
     const w = (this.props.width > this.props.height ? this.props.height : this.props.width) * 0.75;
-    const trackerPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth * 0.5)), -130, 132);
-    const trackerArcPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth * 0.5)), -130, this.props.value.map(this.props.min, this.props.max, -130, 132));
+    const innerTrackerWidth = this.props.trackerWidth - this.props.trackerOutlineWidth;
+    const innerTrackerEndPoints = this.props.trackerOutlineWidth *.5;
+    const trackerOutlineColour = this.props.trackerOutlineWidth == 0 ? this.props.trackerBackgroundColour : this.props.trackerOutlineColour;
+    const outerTrackerPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width/2)), -(130), 132);
+    const trackerPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width/2)), -(130-innerTrackerEndPoints), 132-innerTrackerEndPoints);
+    const trackerArcPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width/2)), -(130-innerTrackerEndPoints), (0,_utils_js__WEBPACK_IMPORTED_MODULE_0__.map)(this.props.value, this.props.min, this.props.max, -(130-innerTrackerEndPoints), 132-innerTrackerEndPoints));
     const textY = this.props.height + (this.props.fontSize > 0 ? this.props.textOffsetY : 0);
-
+    
     // Calculate proportional font size if this.props.fontSize is 0
     const fontSize = this.props.fontSize > 0 ? this.props.fontSize : w * 0.3; // Example: 10% of w
 
     return `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
-      <path d='${trackerPath}' id="arc" fill="none" stroke=${this.props.trackerBackgroundColour} stroke-width=${this.props.trackerWidth * 0.5 * w} />
-      <path d='${trackerArcPath}' id="arc" fill="none" stroke=${this.props.trackerColour} stroke-width=${this.props.trackerWidth * 0.5 * w} /> 
-      <circle cx=${this.props.width / 2} cy=${this.props.height / 2} r=${(w / 2) - this.props.trackerWidth * 0.5 * w} stroke=${this.props.outlineColour} stroke-width=${this.props.outlineWidth} fill=${this.props.colour} />
+      <path d='${outerTrackerPath}' id="arc" fill="none" stroke=${trackerOutlineColour} stroke-width=${this.props.trackerWidth} />
+      <path d='${trackerPath}' id="arc" fill="none" stroke=${this.props.trackerBackgroundColour} stroke-width=${innerTrackerWidth} />
+      <path d='${trackerArcPath}' id="arc" fill="none" stroke=${this.props.trackerColour} stroke-width=${innerTrackerWidth} /> 
+      <circle cx=${this.props.width / 2} cy=${this.props.height / 2} r=${(w / 2) - this.props.trackerWidth*.65} stroke=${this.props.outlineColour} stroke-width=${this.props.outlineWidth} fill=${this.props.colour} />
       <text text-anchor="middle" x=${this.props.width / 2} y=${textY} font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">${this.props.text}</text>
       </svg>
     `;
@@ -5552,6 +5511,220 @@ function parse(header) {
 
 module.exports = { parse };
 
+
+/***/ }),
+/* 28 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   clamp: () => (/* binding */ clamp),
+/* harmony export */   getCabbageCodeAsJSON: () => (/* binding */ getCabbageCodeAsJSON),
+/* harmony export */   getDecimalPlaces: () => (/* binding */ getDecimalPlaces),
+/* harmony export */   getNumberOfPluginParameters: () => (/* binding */ getNumberOfPluginParameters),
+/* harmony export */   hideOverlay: () => (/* binding */ hideOverlay),
+/* harmony export */   map: () => (/* binding */ map),
+/* harmony export */   parseCabbageCode: () => (/* binding */ parseCabbageCode),
+/* harmony export */   showOverlay: () => (/* binding */ showOverlay)
+/* harmony export */ });
+// utils.js
+
+/**
+ * This uses a simple regex pattern to parse a line of Cabbage code such as 
+ * rslider bounds(22, 14, 60, 60) channel("clip") thumbRadius(5), text("Clip") range(0, 1, 0, 1, 0.001)
+ * and converts it to a JSON object
+ */
+function getCabbageCodeAsJSON(text) {
+    const regex = /(\w+)\(([^)]+)\)/g;
+    const jsonObj = {};
+
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+        const name = match[1];
+        let value = match[2].replace(/"/g, ''); // Remove double quotes
+
+        if (name === 'bounds') {
+            // Splitting the value into individual parts for top, left, width, and height
+            const [left, top, width, height] = value.split(',').map(v => parseInt(v.trim()));
+            jsonObj['left'] = left;
+            jsonObj['top'] = top;
+            jsonObj['width'] = width;
+            jsonObj['height'] = height;
+        }
+        else if (name === 'range') {
+            // Splitting the value into individual parts for top, left, width, and height
+            const [min, max, initValue, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
+            jsonObj['min'] = min;
+            jsonObj['max'] = max;
+            jsonObj['value'] = initValue;
+            jsonObj['skew'] = skew;
+            jsonObj['increment'] = increment;
+        }
+        else if (name === 'size') {
+            // Splitting the value into individual parts for width and height
+            const [width, height] = value.split(',').map(v => parseInt(v.trim()));
+            jsonObj['width'] = width;
+            jsonObj['height'] = height;
+        } else {
+            // Check if the value is a number
+            const numericValue = parseFloat(value);
+            if (!isNaN(numericValue)) {
+                // If it's a number, assign it as a number
+                jsonObj[name] = numericValue;
+            } else {
+                // If it's not a number, assign it as a string
+                jsonObj[name] = value;
+            }
+        }
+    }
+
+    console.log(jsonObj);
+    return jsonObj;
+}
+
+/**
+ * this function parses the Cabbage code and creates new widgets accordingly..
+ */
+function parseCabbageCode(text, widgets, form, insertWidget) {
+    // Leave main form in the widget array - there is only one..
+    widgets.splice(1, widgets.length - 1);
+
+    let cabbageStart = 0;
+    let cabbageEnd = 0;
+    let lines = text.split(/\r?\n/);
+    let count = 0;
+
+    lines.forEach((line) => {
+        if (line.trimStart().startsWith("<Cabbage>"))
+            cabbageStart = count + 1;
+        else if (line.trimStart().startsWith("</Cabbage>"))
+            cabbageEnd = count;
+        count++;
+    })
+
+    const cabbageCode = lines.slice(cabbageStart, cabbageEnd);
+    cabbageCode.forEach(async (line) => {
+        const codeProps = getCabbageCodeAsJSON(line);
+        const type = `${line.trimStart().split(' ')[0]}`;
+        if (line.trim() != "") {
+            if (type != "form") {
+                await insertWidget(type, codeProps);
+            } else {
+                widgets.forEach((widget) => {
+                    if (widget.props.name == "MainForm") {
+                        const w = codeProps.width;
+                        const h = codeProps.height;
+                        form.style.width = w + "px";
+                        form.style.height = h + "px";
+                        widget.props.width = w;
+                        widget.props.width = h;
+                    }
+                });
+            }
+        }
+    });
+}
+
+/**
+* this function will return the number of plugin parameter in our widgets array
+*/
+function getNumberOfPluginParameters(widgets, ...types) {
+    // Create a set from the types for faster lookup
+    const typeSet = new Set(types);
+
+    // Initialize the counter
+    let count = 0;
+
+    // Iterate over each widget in the array
+    for (const widget of widgets) {
+        // Check if the widget's type is one of the specified types
+        if (typeSet.has(widget.props.type)) {
+            // Increment the counter if the type matches
+            count++;
+        }
+    }
+
+    // Return the final count
+    return count;
+}
+
+function showOverlay() {
+    document.getElementById('fullScreenOverlay').style.display = 'flex';
+    const leftPanel = document.getElementById('LeftPanel');
+    const rightPanel = document.getElementById('RightPanel');
+    leftPanel.style.display = 'none';
+    rightPanel.style.display = 'none';
+}
+
+function hideOverlay() {
+    document.getElementById('fullScreenOverlay').style.display = 'none';
+    const leftPanel = document.getElementById('LeftPanel');
+    const rightPanel = document.getElementById('RightPanel');
+    leftPanel.style.display = 'flex';
+    rightPanel.style.display = 'flex';
+}
+
+
+function clamp(num, min, max) {
+    return Math.max(min, Math.min(num, max));
+}
+
+function map(value, in_min, in_max, out_min, out_max) {
+    return ((value - in_min) * (out_max - out_min)) / (in_max - in_min) + out_min;
+};
+
+function getDecimalPlaces(num) {
+    const numString = num.toString();
+    if (numString.includes('.')) {
+        return numString.split('.')[1].length;
+    } else {
+        return 0;
+    }
+}
+
+/***/ }),
+/* 29 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Form: () => (/* binding */ Form)
+/* harmony export */ });
+/**
+ * Form class
+ */
+class Form {
+    constructor() {
+      this.props = {
+        "top": 0,
+        "left": 0,
+        "width": 600,
+        "height": 300,
+        "caption": "",
+        "name": "MainForm",
+        "type": "form",
+        "colour": "#0295CF",
+        "channel": "MainForm"
+      }
+  
+      this.panelSections = {
+        "Info": ["type"],
+        "Bounds": ["width", "height"],
+        "Text": ["caption"],
+        "Colours": ["colour"]
+      };
+    }
+  
+  
+    getSVG() {
+  
+      return `
+        <svg xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
+        <rect width="${this.props.width} " height="${this.props.height}" x="0" y="0" rx="2" ry="2" fill="${this.props.colour}" />
+        </svg>
+        `;
+    }
+  }
 
 /***/ })
 /******/ 	]);
