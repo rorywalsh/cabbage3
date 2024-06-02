@@ -36,6 +36,7 @@ exports.activate = void 0;
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 const vscode = __importStar(__webpack_require__(1));
+// @ts-ignore
 const widgets_js_1 = __webpack_require__(2);
 const cp = __importStar(__webpack_require__(3));
 let textEditor;

@@ -2,6 +2,7 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 
+// @ts-ignore
 import { Form, RotarySlider } from "./widgets.js";
 import * as cp from "child_process";
 
