@@ -447,6 +447,7 @@ function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri, cabbageStyles
     </div>
     <!-- new draggables go here -->
   </div>
+  <span class="popup" id="popupValue">50</span>
   <div id="RightPanel" class="full-height-div">
     <div class="property-panel full-height-div">
       <!-- Properties will be dynamically added here -->

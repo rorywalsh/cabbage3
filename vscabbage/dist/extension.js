@@ -405,6 +405,7 @@ function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetSVGs
     </div>
     <!-- new draggables go here -->
   </div>
+  <span class="popup" id="popupValue">50</span>
   <div id="RightPanel" class="full-height-div">
     <div class="property-panel full-height-div">
       <!-- Properties will be dynamically added here -->
@@ -462,7 +463,14 @@ function clamp(num, min, max) {
   return Math.max(min, Math.min(num, max));
 }
 
-let selectedElements = new Set();
+function getDecimalPlaces(num) {
+  const numString = num.toString();
+  if (numString.includes('.')) {
+    return numString.split('.')[1].length;
+  } else {
+    return 0;
+  }
+}
 
 class Form {
   constructor() {
@@ -562,28 +570,66 @@ class RotarySlider {
     this.startY = 0;
     this.startValue = 0;
     this.vscode = null;
+    this.isMouseDown = false;
+    this.decimalPlaces = 0;
   }
 
   pointerUp() {
+    const popup = document.getElementById('popupValue');
+    popup.classList.add('hide');
+    popup.classList.remove('show');
     window.removeEventListener("pointermove", this.moveListener);
     window.removeEventListener("pointerup", this.upListener);
+    this.isMouseDown = false;
   }
 
   pointerDown(evt) {
-    console.log('slider on down');
+    this.isMouseDown = true;
     this.startY = evt.clientY;
     this.startValue = this.props.value;
     window.addEventListener("pointermove", this.moveListener);
     window.addEventListener("pointerup", this.upListener);
   }
 
+  mouseEnter(evt) {
+    const popup = document.getElementById('popupValue');
+    const form = document.getElementById('MainForm');
+    const rect = form.getBoundingClientRect();
+    this.decimalPlaces = getDecimalPlaces(this.props.increment);
+
+    if (popup) {
+      
+      popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
+      const left = rect.left + this.props.left + this.props.width + 20;
+      const top = rect.top + this.props.top + this.props.height/2;
+      popup.style.left = `${left}px`;
+      popup.style.top = `${top}px`;
+      popup.style.display = 'block';
+      popup.classList.add('show');
+      popup.classList.remove('hide');
+    }
+  }
+
+  mouseLeave(evt) {
+    if (!this.isMouseDown) {
+      const popup = document.getElementById('popupValue');
+      popup.classList.add('hide');
+      popup.classList.remove('show');
+    }
+
+  }
+
   addEventListeners(widgetDiv, vs) {
     this.vscode = vs;
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
   }
 
   addEventListeners(widgetDiv) {
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
   }
 
   pointerMove({ clientY }) {
@@ -609,7 +655,6 @@ class RotarySlider {
         "paramIdx": this.props.index,
         "value": this.props.value.map(this.props.min, this.props.max, 0, 1)
       };
-
       // IPlugSendMsg(message);
     }
   }
@@ -640,6 +685,11 @@ class RotarySlider {
   }
 
   getSVG() {
+    const popup = document.getElementById('popupValue');
+    if (popup) {
+      popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
+    }
+
     const w = (this.props.width > this.props.height ? this.props.height : this.props.width) * 0.75;
     const trackerPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth * 0.5)), -130, 132);
     const trackerArcPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth * 0.5)), -130, this.props.value.map(this.props.min, this.props.max, -130, 132));
