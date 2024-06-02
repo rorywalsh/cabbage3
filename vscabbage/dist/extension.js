@@ -598,15 +598,37 @@ class RotarySlider {
     this.decimalPlaces = getDecimalPlaces(this.props.increment);
 
     if (popup) {
-      
-      popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
-      const left = rect.left + this.props.left + this.props.width + 20;
-      const top = rect.top + this.props.top + this.props.height/2;
-      popup.style.left = `${left}px`;
-      popup.style.top = `${top}px`;
-      popup.style.display = 'block';
-      popup.classList.add('show');
-      popup.classList.remove('hide');
+        popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
+
+        // Calculate the position for the popup
+        const sliderLeft = this.props.left;
+        const sliderWidth = this.props.width;
+        const formLeft = rect.left;
+        const formWidth = rect.width;
+
+        // Determine if the popup should be on the right or left side of the slider
+        const sliderCenter = formLeft + (formWidth / 2);
+        let popupLeft;
+        if (sliderLeft + (sliderWidth / 2) > sliderCenter) {
+            // Place popup on the left of the slider thumb
+            popupLeft = sliderLeft;
+            console.log("Pointer on the left");
+            popup.classList.add('right');
+        } else {
+            // Place popup on the right of the slider thumb
+            popupLeft = sliderLeft + sliderWidth + 60;
+            console.log("Pointer on the right");
+            popup.classList.remove('right');
+        }
+
+        const popupTop = this.props.top + this.props.height;
+
+        // Set the calculated position
+        popup.style.left = `${popupLeft}px`;
+        popup.style.top = `${popupTop}px`;
+        popup.style.display = 'block';
+        popup.classList.add('show');
+        popup.classList.remove('hide');
     }
   }
 

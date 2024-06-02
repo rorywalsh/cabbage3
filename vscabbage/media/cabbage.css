@@ -300,13 +300,10 @@
 .popup {
 	position: absolute;
 	top: -30px;
-	left: 50%;
-	transform: translateX(-50%);
 	background-color: #333;
 	color: white;
 	padding: 5px;
 	border-radius: 5px;
-	stroke-width: 0px;
 	display: none;
 	z-index: 1000000;
 	opacity: 0;
@@ -315,14 +312,28 @@
 }
 
 .popup::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: -20px; /* Position the arrow */
-    margin-top: -10px; /* Adjusted to match half of the border-width */
-    border-width: 10px;
-    border-style: solid;
-    border-color: transparent #333 transparent transparent; /* Arrow pointing left */
+	content: '';
+	position: absolute;
+	top: 50%;
+	left: -20px;
+	margin-top: -10px;
+	border-width: 10px;
+	border-style: solid;
+	border-color: transparent #333 transparent transparent; /* Arrow pointing left */
+}
+
+.popup.right::after {
+	left: auto;
+	right: -20px; /* Position the arrow */
+	border-color: transparent transparent transparent #333; /* Arrow pointing right */
+}
+
+.popup.show {
+	opacity: 1;
+}
+
+.popup.hide {
+	opacity: 0;
 }
 
 .popup.show {

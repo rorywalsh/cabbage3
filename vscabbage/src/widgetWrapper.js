@@ -1,5 +1,6 @@
+
 export class WidgetWrapper {
-    constructor(updatePanelCallback, selectedSet) {
+    constructor(updatePanelCallback, selectedSet, widgets, vscode) {
         const restrictions = {
             restriction: 'parent',
             endOnly: true
@@ -9,7 +10,8 @@ export class WidgetWrapper {
         this.updatePanelCallback = updatePanelCallback;
         this.dragMoveListener = this.dragMoveListener.bind(this);
         this.dragEndListener = this.dragEndListener.bind(this);
-
+        this.widgets = widgets;
+        this.vscode = vscode;
         this.applyInteractConfig(restrictions);
     }
 
@@ -40,7 +42,7 @@ export class WidgetWrapper {
             element.style.transform = `translate(${x}px, ${y}px)`;
             element.setAttribute('data-x', x);
             element.setAttribute('data-y', y);
-            this.updatePanelCallback({ eventType: "move", name: element.id, bounds: { x: x, y: y, w: element.offsetWidth, h: element.offsetHeight } });
+            this.updatePanelCallback(this.vscode, { eventType: "move", name: element.id, bounds: { x: x, y: y, w: element.offsetWidth, h: element.offsetHeight } },this.widgets);
 
 
             // console.log(`Drag ended for element ${element.id}: x=${x}, y=${y}`); // Logging drag end details
@@ -54,10 +56,10 @@ export class WidgetWrapper {
 
             if (this.selectedElements.size <= 1) {
                 if (event.target.id) {
-                    this.updatePanelCallback({eventType:"click", name:event.target.id, bounds:{}});
+                    this.updatePanelCallback(this.vscode, {eventType:"click", name:event.target.id, bounds:{}},this.widgets);
                 } else {
                     const widgetId = event.target.parentElement.parentElement.id.replace(/(<([^>]+)>)/ig, '');
-                    this.updatePanelCallback({eventType:"click", name:widgetId, bounds:{}});
+                    this.updatePanelCallback(this.vscode, {eventType:"click", name:widgetId, bounds:{}},this.widgets);
                 }
             }
         }).resizable({
@@ -78,7 +80,7 @@ export class WidgetWrapper {
                     x += event.deltaRect.left;
                     y += event.deltaRect.top;
 
-                    this.updatePanelCallback({ eventType: "resize", name: event.target.id, bounds: { x: x, y: y, w: event.rect.width, h: event.rect.height } });
+                    this.updatePanelCallback(this.vscode, { eventType: "resize", name: event.target.id, bounds: { x: x, y: y, w: event.rect.width, h: event.rect.height } },this.widgets);
 
                     target.style.transform = 'translate(' + x + 'px,' + y + 'px)';
 
@@ -121,10 +123,10 @@ export class WidgetWrapper {
         //main form only..........
         interact('.resizeOnly').on('down', (event) => {
             if (event.target.id) {
-                this.updatePanelCallback({eventType:"click", name:event.target.id, bounds:{}});
+                this.updatePanelCallback(this.vscode, {eventType:"click", name:event.target.id, bounds:{}},this.widgets);
             } else {
                 const widgetId = event.target.parentElement.parentElement.id.replace(/(<([^>]+)>)/ig, '');
-                this.updatePanelCallback({eventType:"click", name:widgetId, bounds:{}});
+                this.updatePanelCallback(this.vscode, {eventType:"click", name:widgetId, bounds:{}},this.widgets);
             }
         }).draggable(false).resizable({
             edges: { left: true, right: true, bottom: true, top: true }, // Enable resizing from all edges
@@ -144,7 +146,7 @@ export class WidgetWrapper {
                     x += event.deltaRect.left;
                     y += event.deltaRect.top;
 
-                    this.updatePanelCallback({ eventType: "resize", name: event.target.id, bounds: { x: x, y: y, w: event.rect.width, h: event.rect.height } });
+                    this.updatePanelCallback(this.vscode, { eventType: "resize", name: event.target.id, bounds: { x: x, y: y, w: event.rect.width, h: event.rect.height } },this.widgets);
 
                     target.style.transform = 'translate(' + x + 'px,' + y + 'px)';
 
