@@ -39,6 +39,10 @@ const vscode = __importStar(__webpack_require__(1));
 // @ts-ignore
 const rotarySlider_js_1 = __webpack_require__(2);
 // @ts-ignore
+const horizontalSlider_js_1 = __webpack_require__(30);
+// @ts-ignore
+const verticalSlider_js_1 = __webpack_require__(31);
+// @ts-ignore
 const form_js_1 = __webpack_require__(29);
 const cp = __importStar(__webpack_require__(3));
 let textEditor;
@@ -47,6 +51,7 @@ let panel = undefined;
 const ws_1 = __importDefault(__webpack_require__(4));
 const wss = new ws_1.default.Server({ port: 9991 });
 let websocket;
+let cabbageMode = "play";
 wss.on('connection', (ws) => {
     console.log('Client connected');
     websocket = ws;
@@ -133,6 +138,7 @@ function activate(context) {
         //notify webview when various updates take place in editor
         vscode.workspace.onDidSaveTextDocument(async (editor) => {
             sendTextToWebView(editor, 'onFileChanged');
+            cabbageMode = "play";
             const command = config.get("pathToCabbageExecutable") + '/CabbageApp.app/Contents/MacOS/CabbageApp';
             const path = vscode.Uri.file(command);
             try {
@@ -169,7 +175,8 @@ function activate(context) {
         panel.webview.onDidReceiveMessage(message => {
             switch (message.command) {
                 case 'widgetUpdate':
-                    updateText(message.text);
+                    if (cabbageMode != "play")
+                        updateText(message.text);
                     return;
                 case 'channelUpdate':
                     websocket.send(JSON.stringify(message.text));
@@ -194,6 +201,7 @@ function activate(context) {
             p?.kill("SIGKILL");
         });
         sendTextToWebView(textEditor?.document, 'onEnterEditMode');
+        cabbageMode = "draggable";
     }));
 }
 exports.activate = activate;
@@ -220,8 +228,8 @@ function getIdentifierFromJson(json, name) {
     const obj = JSON.parse(json);
     let syntax = '';
     if (name === 'range' && obj['type'].indexOf('slider') > -1) {
-        const { min, max, value, skew, increment } = obj;
-        syntax = `range(${min}, ${max}, ${value}, ${skew}, ${increment})`;
+        const { min, max, defaultValue, skew, increment } = obj;
+        syntax = `range(${min}, ${max}, ${defaultValue}, ${skew}, ${increment})`;
         return syntax;
     }
     for (const key in obj) {
@@ -280,6 +288,8 @@ function findUpdatedIdentifiers(initial, current) {
  * This function will update the text associated with a widget
  */
 async function updateText(jsonText) {
+    if (cabbageMode === "play")
+        return;
     const props = JSON.parse(jsonText);
     // console.log(JSON.stringify(props, null, 2));
     if (textEditor) {
@@ -290,6 +300,12 @@ async function updateText(jsonText) {
         switch (props.type) {
             case 'rslider':
                 defaultProps = new rotarySlider_js_1.RotarySlider().props;
+                break;
+            case 'hslider':
+                defaultProps = new horizontalSlider_js_1.HorizontalSlider().props;
+                break;
+            case 'vslider':
+                defaultProps = new verticalSlider_js_1.VerticalSlider().props;
                 break;
             case 'form':
                 defaultProps = new form_js_1.Form().props;
@@ -336,7 +352,8 @@ async function updateText(jsonText) {
                             });
                             if (props.type.indexOf('slider') > -1) {
                                 const rangeIndex = tokens.findIndex(({ token }) => token === 'range');
-                                tokens[rangeIndex].values = [props.min, props.max, props.value, props.skew, props.increment];
+                                if (rangeIndex != -1)
+                                    tokens[rangeIndex].values = [props.min, props.max, props.defaultValue, props.skew, props.increment];
                             }
                             const boundsIndex = tokens.findIndex(({ token }) => token === 'bounds');
                             tokens[boundsIndex].values = [props.left, props.top, props.width, props.height];
@@ -417,17 +434,11 @@ function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrap
 </div>
 <div id="fullScreenOverlay" class="full-screen-div" style="display: none;">
   <!-- Insert your SVG code here -->
-  <svg width="420" height="400" viewBox="0 0 420 400" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_543_2)">
-<path d="M250.474 31.0422C317.909 43.973 362.949 90.9013 387.59 150.201L400.749 188.562L410.806 202.947C417.963 214.552 418.248 220.338 418.098 233.317C417.746 260.601 394.597 280.708 366.134 279.606C324.514 278.007 305.84 230.232 328.905 199.751C339.885 185.221 354.92 180.618 372.839 180.57L357.234 139.012C340.136 103.417 314.272 76.6758 278.97 56.8559C262.04 47.3616 241.188 41.016 221.978 37.3557C212.944 35.6295 198.679 36.3648 193.482 28.7245C216.078 26.9823 227.761 26.6786 250.474 31.0422ZM77.8728 91.0612C68.1004 100.955 59.6689 112.447 53.2992 124.627C45.1192 140.259 37.9785 164.73 36.2017 182.169L34.5422 204.546C34.3746 210.236 36.2184 213.257 34.5422 218.931C23.0935 192.206 18.7521 166.728 34.5422 140.611C41.6997 129.838 46.9295 125.314 56.0315 116.635C45.9573 119.848 39.42 122.006 30.9551 128.655C8.19183 146.525 1.53718 180.602 12.1645 206.144C20.6798 226.683 30.8042 227.626 37.5929 241.309C0.112389 220.434 -6.13996 165.577 20.026 134.217C25.2894 127.904 31.7764 122.965 39.2692 119.241C44.432 116.667 51.0531 115.372 54.9755 111.361L68.1674 92.6596C79.3143 78.7377 81.9963 78.1143 94.5848 67.0855C94.1322 76.0205 84.0078 84.8595 77.8728 91.0612ZM399.592 293.863C368.716 318.11 322.469 312.005 298.968 281.268C285.457 263.622 281.585 239.982 286.53 218.931C291.659 197.129 305.941 177.102 327.581 167.623C333.163 165.178 351.283 158.992 356.513 162.972C359.077 164.922 359.077 168.183 359.429 170.98C349.69 171.811 342.533 174.305 334.286 179.371C316.015 190.576 302.572 210.588 302.572 231.718C302.572 263.67 335.359 296.117 369.487 293.767C394.681 292.025 401.184 282.706 419.774 270.079C414.192 279.973 408.761 286.67 399.592 293.863Z" fill="#FCFFFF"/>
-<path d="M234.675 370.909H231.077L222.081 371.481L217.283 370.962C181.915 368.548 143.153 357.834 114.124 337.074C73.8325 308.272 53.2549 263.867 51.1257 215.3L50.55 208.742C50.334 190.183 53.2549 166.15 59.1565 148.526C64.5783 132.351 71.7634 117.381 82.2711 103.811C92.6409 90.4144 100.726 85.919 109.176 69.2314L126.833 35.2479C128.195 33.0301 132.441 24.7667 134.114 23.7592C135.817 22.7277 137.389 24.1348 138.714 25.1245C140.849 26.7103 143.776 29.3634 146.511 29.6198C149.672 29.9119 151.981 27.396 153.684 25.1125C154.728 23.7234 155.819 21.4697 157.931 22.2329C159.256 22.7098 161.637 25.2437 162.705 26.3049C165.919 29.4946 172.978 37.5195 177.099 38.4853C180.367 39.2544 183.234 37.2273 185.489 36.8338C188.854 36.2496 191.091 40.0712 192.776 42.4023L200.147 53.1339L208.082 63.8656L219.879 81.7516C230.615 97.7596 240.409 111.21 245.813 130.044C249.04 141.288 249.202 148.973 249.07 160.45C248.992 166.758 246.551 179.66 245.123 186.087C240.625 206.34 233.752 226.098 232.222 246.899L231.677 252.861V261.208C231.713 283.697 242.262 310.406 254.282 329.175L269.989 351.234L278.458 361.966C268.55 366.288 245.549 370.778 234.675 370.909ZM172.9 25.1125L172.301 25.7087V25.1125H172.9ZM294.051 33.4593L293.452 34.0555V33.4593H294.051ZM295.251 34.0555L294.651 34.6517V34.0555H295.251ZM296.45 34.6517L295.851 35.2479V34.6517H296.45ZM297.65 35.2479L297.05 35.8441V35.2479H297.65ZM298.85 35.8441L298.25 36.4403V35.8441H298.85ZM300.049 36.4403L299.449 37.0365V36.4403H300.049ZM301.249 37.0365L300.649 37.6327V37.0365H301.249ZM302.448 37.6327L301.848 38.2289V37.6327H302.448ZM303.648 38.2289L303.048 38.8251V38.2289H303.648ZM337.234 59.4894L349.481 69.7143C350.453 69.9766 351.79 69.8216 352.828 69.7143C362.184 70.0124 369.111 77.1072 374.161 84.1364C384.699 98.7969 390.091 115.753 394.433 133.025C396.646 141.825 398.139 150.839 399.105 159.854C399.399 162.578 400.478 168.219 399.609 170.585C399.027 163.699 393.815 148.824 391.242 141.968C380.53 113.404 361.788 85.0307 339.033 64.5631C332.37 58.5713 325.449 52.8597 318.042 47.7801C314.779 45.5443 307.798 41.7584 305.447 39.4213C316.069 43.9704 328.136 52.3768 337.234 59.4894ZM225.679 48.9605C227.808 49.7654 230.261 50.1231 231.677 51.9356H219.682C216.767 51.9773 210.781 53.277 208.394 51.9356C206.637 50.934 204.502 47.1839 203.488 45.3833C209.066 45.6397 220.605 47.0467 225.679 48.9605ZM235.275 48.9605L234.675 49.5567V48.9605H235.275ZM234.675 54.9226C243.852 54.9344 250.065 58.5475 258.066 62.5241C272.43 69.6666 286.165 78.4427 298.25 88.9954C304.985 94.8859 308.745 98.7314 314.491 105.6C315.811 107.18 319.049 110.733 319.127 112.754C319.181 114.394 317.226 117.321 316.326 118.716C313.262 123.444 309.909 128.106 306.293 132.429C293.41 147.852 282.65 155.358 268.262 168.302C264.555 171.635 256.093 181.532 253.268 183.106C254.569 176.017 256.255 168.236 256.267 161.046V149.122C256.249 136.107 250.887 119.378 244.685 107.984L221.073 71.02C218.848 67.5143 213.102 59.2748 211.885 56.115L234.675 54.9226ZM279.657 70.4238L279.058 71.02V70.4238H279.657ZM281.457 71.6162L280.857 72.2124V71.6162H281.457ZM324.039 118.12C331.548 129.316 338.787 142.349 343.232 155.084C334.283 157.439 329.761 157.94 321.041 162.394C301.656 172.291 286.836 191.226 280.275 211.723C267.488 251.675 287.532 298.655 328.837 312.171C337.378 314.967 342.776 315.462 351.628 315.462C348.623 320.572 340.749 327.255 336.034 331.208C324.555 340.836 313.652 347.591 300.049 353.804C295.407 355.92 290.657 358.418 285.655 359.581L276.311 348.253C268.568 338.386 260.609 327.148 254.755 316.058C238.712 285.634 235.473 255.735 243.594 222.455C245.897 213.023 247.384 201.272 252.872 193.241C271.986 165.273 305.195 150.899 322.84 118.12H324.039Z" fill="#93D200"/>
-</g>
-<defs>
-<clipPath id="clip0_543_2">
-<rect width="420" height="400" fill="white"/>
-</clipPath>
-</defs>
+  <svg width="416" height="350" viewBox="0 0 416 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M246.474 9.04216C313.909 21.973 358.949 68.9013 383.59 128.201L396.749 166.562L406.806 180.947C413.963 192.552 414.248 198.338 414.098 211.317C413.746 238.601 390.597 258.708 362.134 257.606C320.514 256.007 301.84 208.232 324.905 177.751C335.885 163.221 350.92 158.618 368.839 158.57L353.234 117.012C336.136 81.4166 310.272 54.6758 274.97 34.8559C258.04 25.3616 237.188 19.016 217.978 15.3557C208.944 13.6295 194.679 14.3648 189.482 6.72452C212.078 4.98229 223.761 4.6786 246.474 9.04216ZM73.8728 69.0612C64.1004 78.9551 55.6689 90.4475 49.2992 102.627C41.1192 118.259 33.9785 142.73 32.2017 160.169L30.5422 182.546C30.3746 188.236 32.2184 191.257 30.5422 196.931C19.0935 170.206 14.7521 144.728 30.5422 118.611C37.6997 107.838 42.9295 103.314 52.0315 94.6352C41.9573 97.8479 35.42 100.006 26.9551 106.655C4.19183 124.525 -2.46282 158.602 8.1645 184.144C16.6798 204.683 26.8042 205.626 33.5929 219.309C-3.88761 198.434 -10.14 143.577 16.026 112.217C21.2894 105.904 27.7764 100.965 35.2692 97.2405C40.432 94.6672 47.0531 93.3725 50.9755 89.3605L64.1674 70.6596C75.3143 56.7377 77.9963 56.1143 90.5848 45.0855C90.1322 54.0205 80.0078 62.8595 73.8728 69.0612ZM395.592 271.863C364.716 296.11 318.469 290.005 294.968 259.268C281.457 241.622 277.585 217.982 282.53 196.931C287.659 175.129 301.941 155.102 323.581 145.623C329.163 143.178 347.283 136.992 352.513 140.972C355.077 142.922 355.077 146.183 355.429 148.98C345.69 149.811 338.533 152.305 330.286 157.371C312.015 168.576 298.572 188.588 298.572 209.718C298.572 241.67 331.359 274.117 365.487 271.767C390.681 270.025 397.184 260.706 415.774 248.079C410.192 257.973 404.761 264.67 395.592 271.863Z" fill="#0295CF"/>
+<path d="M230.675 348.909H227.077L218.08 349.481L213.282 348.962C177.915 346.548 139.152 335.834 110.124 315.074C69.8324 286.272 49.2547 241.867 47.1256 193.3L46.5499 186.742C46.3339 168.183 49.2547 144.15 55.1563 126.526C60.5782 110.351 67.7632 95.3805 78.271 81.811C88.6408 68.4144 96.7255 63.919 105.176 47.2314L122.833 13.2479C124.194 11.0301 128.441 2.76674 130.114 1.75916C131.817 0.727738 133.389 2.13477 134.714 3.12446C136.849 4.71036 139.776 7.36345 142.511 7.61981C145.672 7.91195 147.981 5.39599 149.684 3.11254C150.728 1.72339 151.819 -0.530244 153.93 0.232892C155.256 0.709852 157.637 3.2437 158.704 4.30494C161.919 7.49461 168.978 15.5195 173.099 16.4853C176.367 17.2544 179.234 15.2273 181.489 14.8338C184.854 14.2496 187.091 18.0712 188.776 20.4023L196.147 31.134L204.082 41.8656L215.879 59.7516C226.615 75.7596 236.409 89.2098 241.813 108.044C245.04 119.288 245.201 126.973 245.07 138.45C244.992 144.758 242.551 157.66 241.123 164.087C236.625 184.34 229.752 204.098 228.222 224.899L227.677 230.861V239.208C227.713 261.697 238.262 288.406 250.281 307.175L265.989 329.234L274.458 339.966C264.55 344.288 241.549 348.778 230.675 348.909ZM168.9 3.11254L168.301 3.70874V3.11254H168.9ZM290.051 11.4593L289.452 12.0555V11.4593H290.051ZM291.251 12.0555L290.651 12.6517V12.0555H291.251ZM292.45 12.6517L291.851 13.2479V12.6517H292.45ZM293.65 13.2479L293.05 13.8441V13.2479H293.65ZM294.849 13.8441L294.25 14.4403V13.8441H294.849ZM296.049 14.4403L295.449 15.0365V14.4403H296.049ZM297.248 15.0365L296.649 15.6327V15.0365H297.248ZM298.448 15.6327L297.848 16.2289V15.6327H298.448ZM299.647 16.2289L299.048 16.8251V16.2289H299.647ZM333.234 37.4895L345.481 47.7143C346.452 47.9766 347.79 47.8216 348.828 47.7143C358.184 48.0124 365.111 55.1072 370.161 62.1364C380.699 76.7969 386.09 93.7529 390.433 111.025C392.646 119.825 394.139 128.839 395.105 137.854C395.399 140.578 396.478 146.219 395.609 148.585C395.027 141.699 389.815 126.824 387.242 119.968C376.53 91.4039 357.788 63.0307 335.033 42.5631C328.37 36.5713 321.449 30.8597 314.042 25.7801C310.779 23.5443 303.798 19.7585 301.447 17.4213C312.068 21.9704 324.136 30.3768 333.234 37.4895ZM221.679 26.9606C223.808 27.7654 226.261 28.1231 227.677 29.9356H215.681C212.767 29.9773 206.781 31.277 204.394 29.9356C202.637 28.934 200.502 25.1839 199.488 23.3834C205.066 23.6397 216.605 25.0468 221.679 26.9606ZM231.275 26.9606L230.675 27.5568V26.9606H231.275ZM230.675 32.9226C239.852 32.9344 246.065 36.5475 254.066 40.5241C268.43 47.6666 282.165 56.4427 294.25 66.9954C300.985 72.8859 304.745 76.7314 310.491 83.5996C311.811 85.1795 315.049 88.7329 315.127 90.754C315.181 92.3936 313.226 95.3209 312.326 96.716C309.262 101.444 305.909 106.106 302.292 110.429C289.41 125.852 278.65 133.358 264.262 146.302C260.555 149.635 252.093 159.532 249.268 161.106C250.569 154.017 252.255 146.236 252.267 139.046V127.122C252.249 114.107 246.887 97.3778 240.685 85.9844L217.073 49.02C214.848 45.5143 209.102 37.2748 207.885 34.115L230.675 32.9226ZM275.657 48.4238L275.057 49.02V48.4238H275.657ZM277.456 49.6162L276.857 50.2124V49.6162H277.456ZM320.039 96.1198C327.548 107.316 334.787 120.349 339.231 133.084C330.283 135.439 325.761 135.94 317.04 140.394C297.656 150.291 282.836 169.226 276.275 189.723C263.488 229.675 283.532 276.655 324.837 290.171C333.378 292.967 338.776 293.462 347.628 293.462C344.623 298.572 336.748 305.255 332.034 309.208C320.555 318.836 309.651 325.591 296.049 331.804C291.407 333.92 286.657 336.418 281.655 337.581L272.311 326.253C264.568 316.386 256.609 305.148 250.755 294.058C234.712 263.634 231.473 233.735 239.594 200.455C241.897 191.023 243.384 179.272 248.872 171.241C267.986 143.273 301.195 128.899 318.84 96.1198H320.039Z" fill="#93D200"/>
 </svg>
+
 
 </div>
   	<script>
@@ -468,11 +479,11 @@ class RotarySlider {
       "left": 10,
       "width": 60,
       "height": 60,
-      "channel": "rslider1",
+      "channel": "rslider",
       "min": 0,
       "max": 1,
       "value": 0,
-      "default": 0,
+      "defaultValue": 0,
       "skew": 1,
       "increment": 0.001,
       "index": 0,
@@ -482,18 +493,18 @@ class RotarySlider {
       "align": "centre",
       "textOffsetY": 0,
       "valueTextBox": 0,
-      "colour": "#93D200",
-      "trackerColour": "#dddddd",
-      "trackerBackgroundColour": "#222222",
-      "trackerOutlineColour": "#000000",
-      "fontColour": "#222222",
-      "textColour": "#222222",
-      "outlineColour": "#222222",
+      "colour": "#0295cf",
+      "trackerColour": "#93D200",
+      "trackerBackgroundColour": "#ffffff",
+      "trackerOutlineColour": "#525252",
+      "fontColour": "#999999",
+      "textColour": "#999999",
+      "outlineColour": "#525252",
       "textBoxOutlineColour": "#999999",
       "textBoxColour": "#555555",
       "markerColour": "#222222",
       "trackerOutlineWidth": 3,
-      "trackerWidth": 30,
+      "trackerWidth": 20,
       "outlineWidth": 2,
       "markerThickness": 0.2,
       "markerStart": 0.5,
@@ -513,9 +524,9 @@ class RotarySlider {
     }
 
     this.panelSections = {
-      "Info": ["type", "channel"],
+      "Properties": ["type", "channel"],
       "Bounds": ["left", "top", "width", "height"],
-      "Range": ["min", "max", "default", "skew", "increment"],
+      "Range": ["min", "max", "defaultValue", "skew", "increment"],
       "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
       "Colours": ["colour", "trackerColour", "trackerBackgroundColour", "trackerStrokeColour", "trackerColour", "outlineColour", "textBoxOutlineColour", "textBoxColour", "markerColour"]
     };
@@ -550,7 +561,7 @@ class RotarySlider {
     const popup = document.getElementById('popupValue');
     const form = document.getElementById('MainForm');
     const rect = form.getBoundingClientRect();
-    this.decimalPlaces = (0,_utils_js__WEBPACK_IMPORTED_MODULE_0__.getDecimalPlaces)(this.props.increment);
+    this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment);
 
     if (popup) {
         popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
@@ -613,13 +624,13 @@ class RotarySlider {
     // console.log('slider on move');
     const steps = 200;
     const valueDiff = ((this.props.max - this.props.min) * (clientY - this.startY)) / steps;
-    const value = (0,_utils_js__WEBPACK_IMPORTED_MODULE_0__.clamp)(this.startValue - valueDiff, this.props.min, this.props.max);
+    const value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(this.startValue - valueDiff, this.props.min, this.props.max);
 
     this.props.value = Math.round(value / this.props.increment) * this.props.increment;
     const widgetDiv = document.getElementById(this.props.name);
     widgetDiv.innerHTML = this.getSVG();
 
-    const msg = { channel: this.props.channel, value: (0,_utils_js__WEBPACK_IMPORTED_MODULE_0__.map)(this.props.value.map, this.props.min, this.props.max, 0, 1) }
+    const msg = { channel: this.props.channel, value: _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value.map, this.props.min, this.props.max, 0, 1) }
     if (this.vscode) {
       this.vscode.postMessage({
         command: 'channelUpdate',
@@ -630,7 +641,7 @@ class RotarySlider {
       var message = {
         "msg": "parameterUpdate",
         "paramIdx": this.props.index,
-        "value": (0,_utils_js__WEBPACK_IMPORTED_MODULE_0__.map)(this.props.value, this.props.min, this.props.max, 0, 1)
+        "value": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1)
       };
       // IPlugSendMsg(message);
     }
@@ -673,7 +684,7 @@ class RotarySlider {
     const trackerOutlineColour = this.props.trackerOutlineWidth == 0 ? this.props.trackerBackgroundColour : this.props.trackerOutlineColour;
     const outerTrackerPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width/2)), -(130), 132);
     const trackerPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width/2)), -(130-innerTrackerEndPoints), 132-innerTrackerEndPoints);
-    const trackerArcPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width/2)), -(130-innerTrackerEndPoints), (0,_utils_js__WEBPACK_IMPORTED_MODULE_0__.map)(this.props.value, this.props.min, this.props.max, -(130-innerTrackerEndPoints), 132-innerTrackerEndPoints));
+    const trackerArcPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width/2)), -(130-innerTrackerEndPoints), _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, -(130-innerTrackerEndPoints), 132-innerTrackerEndPoints));
     const textY = this.props.height + (this.props.fontSize > 0 ? this.props.textOffsetY : 0);
     
     // Calculate proportional font size if this.props.fontSize is 0
@@ -5518,169 +5529,234 @@ module.exports = { parse };
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   clamp: () => (/* binding */ clamp),
-/* harmony export */   getCabbageCodeAsJSON: () => (/* binding */ getCabbageCodeAsJSON),
-/* harmony export */   getDecimalPlaces: () => (/* binding */ getDecimalPlaces),
-/* harmony export */   getNumberOfPluginParameters: () => (/* binding */ getNumberOfPluginParameters),
-/* harmony export */   hideOverlay: () => (/* binding */ hideOverlay),
-/* harmony export */   map: () => (/* binding */ map),
-/* harmony export */   parseCabbageCode: () => (/* binding */ parseCabbageCode),
-/* harmony export */   showOverlay: () => (/* binding */ showOverlay)
+/* harmony export */   CabbageUtils: () => (/* binding */ CabbageUtils)
 /* harmony export */ });
-// utils.js
-
-/**
- * This uses a simple regex pattern to parse a line of Cabbage code such as 
- * rslider bounds(22, 14, 60, 60) channel("clip") thumbRadius(5), text("Clip") range(0, 1, 0, 1, 0.001)
- * and converts it to a JSON object
- */
-function getCabbageCodeAsJSON(text) {
-    const regex = /(\w+)\(([^)]+)\)/g;
-    const jsonObj = {};
-
-    let match;
-    while ((match = regex.exec(text)) !== null) {
+class CabbageUtils {
+    /**
+     * This uses a simple regex pattern to parse a line of Cabbage code such as 
+     * rslider bounds(22, 14, 60, 60) channel("clip") thumbRadius(5), text("Clip") range(0, 1, 0, 1, 0.001)
+     * and converts it to a JSON object
+     */
+    static getCabbageCodeAsJSON(text) {
+      const regex = /(\w+)\(([^)]+)\)/g;
+      const jsonObj = {};
+  
+      let match;
+      while ((match = regex.exec(text)) !== null) {
         const name = match[1];
         let value = match[2].replace(/"/g, ''); // Remove double quotes
-
+  
         if (name === 'bounds') {
-            // Splitting the value into individual parts for top, left, width, and height
-            const [left, top, width, height] = value.split(',').map(v => parseInt(v.trim()));
-            jsonObj['left'] = left;
-            jsonObj['top'] = top;
-            jsonObj['width'] = width;
-            jsonObj['height'] = height;
-        }
-        else if (name === 'range') {
-            // Splitting the value into individual parts for top, left, width, and height
-            const [min, max, initValue, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
-            jsonObj['min'] = min;
-            jsonObj['max'] = max;
-            jsonObj['value'] = initValue;
-            jsonObj['skew'] = skew;
-            jsonObj['increment'] = increment;
-        }
-        else if (name === 'size') {
-            // Splitting the value into individual parts for width and height
-            const [width, height] = value.split(',').map(v => parseInt(v.trim()));
-            jsonObj['width'] = width;
-            jsonObj['height'] = height;
+          // Splitting the value into individual parts for top, left, width, and height
+          const [left, top, width, height] = value.split(',').map(v => parseInt(v.trim()));
+          jsonObj['left'] = left;
+          jsonObj['top'] = top;
+          jsonObj['width'] = width;
+          jsonObj['height'] = height;
+        } else if (name === 'range') {
+          // Splitting the value into individual parts for top, left, width, and height
+          const [min, max, defaultValue, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
+          jsonObj['min'] = min;
+          jsonObj['max'] = max;
+          jsonObj['defaultValue'] = defaultValue;
+          jsonObj['skew'] = skew;
+          jsonObj['increment'] = increment;
+        } else if (name === 'size') {
+          // Splitting the value into individual parts for width and height
+          const [width, height] = value.split(',').map(v => parseInt(v.trim()));
+          jsonObj['width'] = width;
+          jsonObj['height'] = height;
         } else {
-            // Check if the value is a number
-            const numericValue = parseFloat(value);
-            if (!isNaN(numericValue)) {
-                // If it's a number, assign it as a number
-                jsonObj[name] = numericValue;
-            } else {
-                // If it's not a number, assign it as a string
-                jsonObj[name] = value;
-            }
+          // Check if the value is a number
+          const numericValue = parseFloat(value);
+          if (!isNaN(numericValue)) {
+            // If it's a number, assign it as a number
+            jsonObj[name] = numericValue;
+          } else {
+            // If it's not a number, assign it as a string
+            jsonObj[name] = value;
+          }
         }
+      }
+  
+      console.log(jsonObj);
+      return jsonObj;
     }
-
-    console.log(jsonObj);
-    return jsonObj;
-}
-
-/**
- * this function parses the Cabbage code and creates new widgets accordingly..
- */
-function parseCabbageCode(text, widgets, form, insertWidget) {
-    // Leave main form in the widget array - there is only one..
-    widgets.splice(1, widgets.length - 1);
-
-    let cabbageStart = 0;
-    let cabbageEnd = 0;
-    let lines = text.split(/\r?\n/);
-    let count = 0;
-
-    lines.forEach((line) => {
+  
+    /**
+     * this function parses the Cabbage code and creates new widgets accordingly..
+     */
+    static async parseCabbageCode(text, widgets, form, insertWidget) {
+      // Leave main form in the widget array - there is only one..
+      widgets.splice(1, widgets.length - 1);
+  
+      let cabbageStart = 0;
+      let cabbageEnd = 0;
+      let lines = text.split(/\r?\n/);
+      let count = 0;
+  
+      lines.forEach((line) => {
         if (line.trimStart().startsWith("<Cabbage>"))
-            cabbageStart = count + 1;
+          cabbageStart = count + 1;
         else if (line.trimStart().startsWith("</Cabbage>"))
-            cabbageEnd = count;
+          cabbageEnd = count;
         count++;
-    })
-
-    const cabbageCode = lines.slice(cabbageStart, cabbageEnd);
-    cabbageCode.forEach(async (line) => {
-        const codeProps = getCabbageCodeAsJSON(line);
+      })
+  
+      const cabbageCode = lines.slice(cabbageStart, cabbageEnd);
+      for (const line of cabbageCode) {
+        const codeProps = CabbageUtils.getCabbageCodeAsJSON(line);
         const type = `${line.trimStart().split(' ')[0]}`;
         if (line.trim() != "") {
-            if (type != "form") {
-                await insertWidget(type, codeProps);
-            } else {
-                widgets.forEach((widget) => {
-                    if (widget.props.name == "MainForm") {
-                        const w = codeProps.width;
-                        const h = codeProps.height;
-                        form.style.width = w + "px";
-                        form.style.height = h + "px";
-                        widget.props.width = w;
-                        widget.props.width = h;
-                    }
-                });
-            }
+          if (type != "form") {
+            await insertWidget(type, codeProps);
+          } else {
+            widgets.forEach((widget) => {
+              if (widget.props.name == "MainForm") {
+                const w = codeProps.width;
+                const h = codeProps.height;
+                form.style.width = w + "px";
+                form.style.height = h + "px";
+                widget.props.width = w;
+                widget.props.width = h;
+              }
+            });
+          }
         }
-    });
-}
-
-/**
-* this function will return the number of plugin parameter in our widgets array
-*/
-function getNumberOfPluginParameters(widgets, ...types) {
-    // Create a set from the types for faster lookup
-    const typeSet = new Set(types);
-
-    // Initialize the counter
-    let count = 0;
-
-    // Iterate over each widget in the array
-    for (const widget of widgets) {
+      }
+    }
+  
+    /**
+     * this function will return the number of plugin parameter in our widgets array
+     */
+    static getNumberOfPluginParameters(widgets, ...types) {
+      // Create a set from the types for faster lookup
+      const typeSet = new Set(types);
+  
+      // Initialize the counter
+      let count = 0;
+  
+      // Iterate over each widget in the array
+      for (const widget of widgets) {
         // Check if the widget's type is one of the specified types
         if (typeSet.has(widget.props.type)) {
-            // Increment the counter if the type matches
-            count++;
+          // Increment the counter if the type matches
+          count++;
         }
+      }
+  
+      // Return the final count
+      return count;
     }
-
-    // Return the final count
-    return count;
-}
-
-function showOverlay() {
-    document.getElementById('fullScreenOverlay').style.display = 'flex';
-    const leftPanel = document.getElementById('LeftPanel');
-    const rightPanel = document.getElementById('RightPanel');
-    leftPanel.style.display = 'none';
-    rightPanel.style.display = 'none';
-}
-
-function hideOverlay() {
-    document.getElementById('fullScreenOverlay').style.display = 'none';
-    const leftPanel = document.getElementById('LeftPanel');
-    const rightPanel = document.getElementById('RightPanel');
-    leftPanel.style.display = 'flex';
-    rightPanel.style.display = 'flex';
-}
-
-
-function clamp(num, min, max) {
-    return Math.max(min, Math.min(num, max));
-}
-
-function map(value, in_min, in_max, out_min, out_max) {
-    return ((value - in_min) * (out_max - out_min)) / (in_max - in_min) + out_min;
-};
-
-function getDecimalPlaces(num) {
-    const numString = num.toString();
-    if (numString.includes('.')) {
+  
+    /**
+     * show / hide Cabbage overlays
+     */
+    static showOverlay() {
+      document.getElementById('fullScreenOverlay').style.display = 'flex';
+      const leftPanel = document.getElementById('LeftPanel');
+      const rightPanel = document.getElementById('RightPanel');
+      leftPanel.style.display = 'none';
+      rightPanel.style.display = 'none';
+    }
+  
+    static hideOverlay() {
+      document.getElementById('fullScreenOverlay').style.display = 'none';
+      const leftPanel = document.getElementById('LeftPanel');
+      const rightPanel = document.getElementById('RightPanel');
+      leftPanel.style.display = 'flex';
+      rightPanel.style.display = 'flex';
+    }
+  
+    /**
+     * clamps a value
+     * @param {*} num 
+     * @param {*} min 
+     * @param {*} max 
+     * @returns clamped value
+     */
+    static clamp(num, min, max) {
+      return Math.max(min, Math.min(num, max));
+    }
+  
+    /**
+     * returns a remapped value
+     * @param {*} value 
+     * @param {*} in_min 
+     * @param {*} in_max 
+     * @param {*} out_min 
+     * @param {*} out_max 
+     * @returns mapped value
+     */
+    static map(value, in_min, in_max, out_min, out_max) {
+      return ((value - in_min) * (out_max - out_min)) / (in_max - in_min) + out_min;
+    };
+  
+    /**
+     * 
+     * @param {*} num 
+     * @returns number of decimal places in value
+     */
+    static getDecimalPlaces(num) {
+      const numString = num.toString();
+      if (numString.includes('.')) {
         return numString.split('.')[1].length;
-    } else {
+      } else {
         return 0;
+      }
     }
-}
+  
+    /**
+     * Returns a unique channel name based on the type and number
+     * @param {Array} widgets - Array of JSON objects with unique 'channel' values
+     * @returns {String} unique channel name
+     */
+    static getUniqueChannelName(type, widgets) {
+      // Extract all existing channel names
+      const existingChannels = widgets.map(widget => widget.channel);
+  
+      // Define a function to generate a channel name based on type and a number
+      function generateChannelName(type, number) {
+        return `${type}${number}`;
+      }
+  
+      // Start with a number based on the size of the array + 1
+      let number = widgets.length + 1;
+      let newChannelName = generateChannelName(type, number);
+  
+      // Increment the number until a unique channel name is found
+      while (existingChannels.includes(newChannelName)) {
+        number += 1;
+        newChannelName = generateChannelName(type, number);
+      }
+  
+      return newChannelName;
+    }
+
+    static findValidId(event) {
+        var target = event.target;
+        
+        while (target !== null) {
+            if (target.tagName === "DIV" && target.id) {
+                return target.id;
+            }
+            target = target.parentNode;
+        }
+        
+        return null; // If no valid ID is found
+    }
+
+    static getWidgetFromChannel(widgets, channel){
+        widgets.forEach((widget)=>{
+            if(widget["channel"] === channel)
+                return widget;
+        })
+        return null;
+    }
+
+  }
+  
+
 
 /***/ }),
 /* 29 */
@@ -5703,12 +5779,12 @@ class Form {
         "caption": "",
         "name": "MainForm",
         "type": "form",
-        "colour": "#0295CF",
+        "colour": "#888888",
         "channel": "MainForm"
       }
   
       this.panelSections = {
-        "Info": ["type"],
+        "Properties": ["type"],
         "Bounds": ["width", "height"],
         "Text": ["caption"],
         "Colours": ["colour"]
@@ -5725,6 +5801,466 @@ class Form {
         `;
     }
   }
+
+/***/ }),
+/* 30 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   HorizontalSlider: () => (/* binding */ HorizontalSlider)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(28);
+
+
+/**
+ * Horizontal Slider (hslider) class
+ */
+class HorizontalSlider {
+  constructor() {
+    this.props = {
+      "top": 10,
+      "left": 10,
+      "width": 120,
+      "height": 20,
+      "channel": "hslider",
+      "min": 0,
+      "max": 1,
+      "value": 0,
+      "defaultValue": 0,
+      "skew": 1,
+      "increment": 0.001,
+      "index": 0,
+      "text": "",
+      "fontFamily": "Verdana",
+      "fontSize": 0,
+      "align": "centre",
+      "textOffsetY": 0,
+      "valueTextBox": 0,
+      "colour": "#0295cf",
+      "trackerColour": "#93D200",
+      "trackerBackgroundColour": "#ffffff",
+      "trackerOutlineColour": "#525252",
+      "fontColour": "#222222",
+      "textColour": "#222222",
+      "outlineColour": "#999999",
+      "textBoxOutlineColour": "#999999",
+      "textBoxColour": "#555555",
+      "trackerOutlineWidth": 2,
+      "outlineWidth": 0.3,
+      "markerThickness": 0.2,
+      "markerStart": 0.1,
+      "markerEnd": 0.9,
+      "name": "",
+      "type": "hslider",
+      "kind": "horizontal",
+      "decimalPlaces": 1,
+      "velocity": 0,
+      "trackerStart": 0.1,
+      "trackerEnd": 0.9,
+      "visible": 1,
+      "automatable": 1,
+      "valuePrefix": "",
+      "valuePostfix": ""
+    }
+
+    this.panelSections = {
+      "Properties": ["type", "channel"],
+      "Bounds": ["left", "top", "width", "height"],
+      "Range": ["min", "max", "defaultValue", "skew", "increment"],
+      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
+      "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
+    };
+
+    this.moveListener = this.pointerMove.bind(this);
+    this.upListener = this.pointerUp.bind(this);
+    this.startX = 0;
+    this.startValue = 0;
+    this.vscode = null;
+    this.isMouseDown = false;
+    this.decimalPlaces = 0;
+  }
+
+  pointerUp() {
+    const popup = document.getElementById('popupValue');
+    popup.classList.add('hide');
+    popup.classList.remove('show');
+    window.removeEventListener("pointermove", this.moveListener);
+    window.removeEventListener("pointerup", this.upListener);
+    this.isMouseDown = false;
+  }
+
+  pointerDown(evt) {
+    this.isMouseDown = true;
+    this.startX = evt.offsetX;
+    this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.startX, 0, this.props.width, this.props.min, this.props.max)
+
+    window.addEventListener("pointermove", this.moveListener);
+    window.addEventListener("pointerup", this.upListener);
+
+    this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
+    this.startValue = this.props.value;
+    const widgetDiv = document.getElementById(this.props.name);
+    widgetDiv.innerHTML = this.getSVG();
+  }
+
+  mouseEnter(evt) {
+    const popup = document.getElementById('popupValue');
+    const form = document.getElementById('MainForm');
+    const rect = form.getBoundingClientRect();
+    this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment);
+
+    if (popup) {
+      popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
+
+      // Calculate the position for the popup
+      const sliderLeft = this.props.left;
+      const sliderWidth = this.props.width;
+      const formLeft = rect.left;
+      const formWidth = rect.width;
+
+      // Determine if the popup should be on the right or left side of the slider
+      const sliderCenter = formLeft + (formWidth / 2);
+      let popupLeft;
+      if (sliderLeft + (sliderWidth / 2) > sliderCenter) {
+        // Place popup on the left of the slider thumb
+        popupLeft = sliderLeft;
+        console.log("Pointer on the left");
+        popup.classList.add('right');
+      } else {
+        // Place popup on the right of the slider thumb
+        popupLeft = sliderLeft + sliderWidth + 60;
+        console.log("Pointer on the right");
+        popup.classList.remove('right');
+      }
+
+      const popupTop = this.props.top + this.props.height*2.75;
+
+      // Set the calculated position
+      popup.style.left = `${popupLeft}px`;
+      popup.style.top = `${popupTop}px`;
+      popup.style.display = 'block';
+      popup.classList.add('show');
+      popup.classList.remove('hide');
+    }
+  }
+
+  mouseLeave(evt) {
+    if (!this.isMouseDown) {
+      const popup = document.getElementById('popupValue');
+      popup.classList.add('hide');
+      popup.classList.remove('show');
+    }
+
+  }
+
+  addEventListeners(widgetDiv, vs) {
+    this.vscode = vs;
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+  }
+
+  addEventListeners(widgetDiv) {
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+  }
+
+  pointerMove({ clientX }) {
+    // Get the bounding rectangle of the slider
+    const sliderRect = document.getElementById(this.props.name).getBoundingClientRect();
+
+    // Calculate the relative position of the mouse pointer within the slider bounds
+    let offsetX = clientX - sliderRect.left;
+
+    // Clamp the mouse position to stay within the bounds of the slider
+    offsetX = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(offsetX, 0, sliderRect.width);
+
+    // Calculate the new value based on the mouse position
+    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(offsetX, 0, sliderRect.width, this.props.min, this.props.max);
+    newValue = Math.round(newValue / this.props.increment) * this.props.increment; // Round to the nearest increment
+
+    // Update the slider value
+    this.props.value = newValue;
+
+    // Update the slider appearance
+    const widgetDiv = document.getElementById(this.props.name);
+    widgetDiv.innerHTML = this.getSVG();
+
+    // Post message if vscode is available
+    const msg = { channel: this.props.channel, value: _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) }
+    if (this.vscode) {
+      this.vscode.postMessage({
+        command: 'channelUpdate',
+        text: JSON.stringify(msg)
+      })
+    } else {
+      var message = {
+        "msg": "parameterUpdate",
+        "paramIdx": this.props.index,
+        "value": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1)
+      };
+      // IPlugSendMsg(message);
+    }
+  }
+
+  getSVG() {
+    const popup = document.getElementById('popupValue');
+    if (popup) {
+      popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
+    }
+
+    return `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
+    <svg width="${this.props.width}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="${this.props.height * .2}" width="${this.props.width}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
+    <rect x="0" y="${this.props.height * .2}" width="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, this.props.width - this.props.width * .05)}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
+  
+    <rect x="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 1, this.props.width - this.props.width * .055)}" y="0" width="${this.props.width * .05}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="2" stroke="black"/>
+    </svg>
+
+    `;
+  }
+
+
+}
+
+
+
+
+
+/***/ }),
+/* 31 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   VerticalSlider: () => (/* binding */ VerticalSlider)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(28);
+
+
+/**
+ * Vertical Slider (vslider) class
+ */
+class VerticalSlider {
+  constructor() {
+    this.props = {
+      "top": 10,
+      "left": 10,
+      "width": 20,
+      "height": 160,
+      "channel": "vslider",
+      "min": 0,
+      "max": 1,
+      "value": 0,
+      "defaultValue": 0,
+      "skew": 1,
+      "increment": 0.001,
+      "index": 0,
+      "text": "",
+      "fontFamily": "Verdana",
+      "fontSize": 0,
+      "align": "centre",
+      "textOffsetY": 0,
+      "valueTextBox": 0,
+      "colour": "#0295cf",
+      "trackerColour": "#93D200",
+      "trackerBackgroundColour": "#ffffff",
+      "trackerOutlineColour": "#525252",
+      "fontColour": "#222222",
+      "textColour": "#222222",
+      "outlineColour": "#999999",
+      "textBoxOutlineColour": "#999999",
+      "textBoxColour": "#555555",
+      "trackerOutlineWidth": 2,
+      "outlineWidth": 0.3,
+      "markerThickness": 0.2,
+      "markerStart": 0.1,
+      "markerEnd": 0.9,
+      "name": "hslider",
+      "type": "vslider",
+      "kind": "vertical",
+      "decimalPlaces": 1,
+      "velocity": 0,
+      "trackerStart": 0.1,
+      "trackerEnd": 0.9,
+      "visible": 1,
+      "automatable": 1,
+      "valuePrefix": "",
+      "valuePostfix": ""
+    }
+
+    this.panelSections = {
+      "Properties": ["type", "channel"],
+      "Bounds": ["left", "top", "width", "height"],
+      "Range": ["min", "max", "defaultValue", "skew", "increment"],
+      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
+      "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
+    };
+
+    this.moveListener = this.pointerMove.bind(this);
+    this.upListener = this.pointerUp.bind(this);
+    this.startY = 0;
+    this.startValue = 0;
+    this.vscode = null;
+    this.isMouseDown = false;
+    this.decimalPlaces = 0;
+  }
+
+  pointerUp() {
+    const popup = document.getElementById('popupValue');
+    popup.classList.add('hide');
+    popup.classList.remove('show');
+    window.removeEventListener("pointermove", this.moveListener);
+    window.removeEventListener("pointerup", this.upListener);
+    this.isMouseDown = false;
+  }
+
+  pointerDown(evt) {
+    this.isMouseDown = true;
+    this.startY = evt.offsetY;
+    this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.startY, this.props.height, 0, this.props.min, this.props.max)
+
+    window.addEventListener("pointermove", this.moveListener);
+    window.addEventListener("pointerup", this.upListener);
+
+    this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
+    this.startValue = this.props.value;
+    const widgetDiv = document.getElementById(this.props.name);
+    console.log(this.props.name);
+    widgetDiv.innerHTML = this.getSVG();
+  }
+
+  mouseEnter(evt) {
+    const popup = document.getElementById('popupValue');
+    const form = document.getElementById('MainForm');
+    const rect = form.getBoundingClientRect();
+    this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment);
+
+    if (popup) {
+      popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
+
+      // Calculate the position for the popup
+      const sliderLeft = this.props.left;
+      const sliderWidth = this.props.width;
+      const formLeft = rect.left;
+      const formWidth = rect.width;
+
+      // Determine if the popup should be on the right or left side of the slider
+      const sliderCenter = formLeft + (formWidth / 2);
+      let popupLeft;
+      if (sliderLeft + (sliderWidth / 2) > sliderCenter) {
+        // Place popup on the left of the slider thumb
+        popupLeft = sliderLeft;
+        console.log("Pointer on the left");
+        popup.classList.add('right');
+      } else {
+        // Place popup on the right of the slider thumb
+        popupLeft = sliderLeft + sliderWidth + 60;
+        console.log("Pointer on the right");
+        popup.classList.remove('right');
+      }
+
+      const popupTop = this.props.top + this.props.height;
+
+      // Set the calculated position
+      popup.style.left = `${popupLeft}px`;
+      popup.style.top = `${popupTop}px`;
+      popup.style.display = 'block';
+      popup.classList.add('show');
+      popup.classList.remove('hide');
+    }
+  }
+
+  mouseLeave(evt) {
+    if (!this.isMouseDown) {
+      const popup = document.getElementById('popupValue');
+      popup.classList.add('hide');
+      popup.classList.remove('show');
+    }
+
+  }
+
+  addEventListeners(widgetDiv, vs) {
+    this.vscode = vs;
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+  }
+
+  addEventListeners(widgetDiv) {
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+  }
+
+pointerMove(evt) {
+    // Get the bounding rectangle of the slider
+    const sliderRect = document.getElementById(this.props.name).getBoundingClientRect();
+
+    // Calculate the relative position of the mouse pointer within the slider bounds
+    let offsetY = evt.clientY - sliderRect.top;
+
+    // Clamp the mouse position to stay within the bounds of the slider
+    offsetY = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(offsetY, 0, sliderRect.height);
+
+    // Calculate the new value based on the mouse position, invert the direction
+    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(offsetY, sliderRect.height, 0, this.props.min, this.props.max); // Note the inverted direction here
+    newValue = Math.round(newValue / this.props.increment) * this.props.increment; // Round to the nearest increment
+
+    // Update the slider value
+    this.props.value = newValue;
+
+    // Update the slider appearance
+    const widgetDiv = document.getElementById(this.props.name);
+    widgetDiv.innerHTML = this.getSVG();
+
+    // Post message if vscode is available
+    const msg = { channel: this.props.channel, value: _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) }
+    if (this.vscode) {
+      this.vscode.postMessage({
+        command: 'channelUpdate',
+        text: JSON.stringify(msg)
+      })
+    } else {
+      var message = {
+        "msg": "parameterUpdate",
+        "paramIdx": this.props.index,
+        "value": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1)
+      };
+      // IPlugSendMsg(message);
+    }
+}
+
+
+  getSVG() {
+    const popup = document.getElementById('popupValue');
+    if (popup) {
+      popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
+    }
+
+    const yPos = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.max, this.props.min, 0, this.props.height*.95);
+
+    return `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width+2} ${this.props.height+2}" width="100%" height="100%" preserveAspectRatio="none">
+    <svg width="${this.props.width}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="${this.props.width*.2}" y="0" width="${this.props.width*.6}" height="${this.props.height}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
+    <rect x="${this.props.width*.2}" y="${yPos}" width="${this.props.width*.6}" height="${this.props.height  - yPos}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
+  
+    <rect x="0" y="${yPos}" width="${this.props.width}" height="${this.props.height*.05}" rx="4" fill="${this.props.colour}" stroke-width="2" stroke="black"/>
+    </svg>
+
+    `;
+  }
+
+
+}
+
+
+
+
 
 /***/ })
 /******/ 	]);

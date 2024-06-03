@@ -1,10 +1,11 @@
 
-
+import { Form } from "./form.js";
 import { RotarySlider } from "./rotarySlider.js";
 import { HorizontalSlider } from "./horizontalSlider.js";
-import { Form } from "./form.js";
+import { VerticalSlider } from "./verticalSlider.js";
+
 import { PropertyPanel } from "./propertyPanel.js";
-import { getCabbageCodeAsJSON, parseCabbageCode, getNumberOfPluginParameters, showOverlay, hideOverlay } from "./utils.js";
+import { CabbageUtils } from "./utils.js";
 
 let vscode = null;
 let widgetWrappers = null;
@@ -32,23 +33,22 @@ let cabbageMode = 'draggable';
 //adding this messes up dragging of main form
 widgets.push(new Form());
 
-let numberOfWidgets = 1;
 const form = document.getElementById('MainForm');
-showOverlay();
+form.style.backgroundColor = widgets[0].props.colour;
+
+CabbageUtils.showOverlay();
 
 
 
 /**
  * called from the webview panel on startup, and when a user saves/updates or changes .csd file
  */
-
-
 window.addEventListener('message', event => {
   const message = event.data;
 
   switch (message.command) {
     case 'onFileChanged':
-      hideOverlay();
+      CabbageUtils.hideOverlay();
       const rightPanel = document.getElementById('RightPanel');
       cabbageMode = 'nonDraggable';
       form.className = "form nonDraggable";
@@ -56,7 +56,7 @@ window.addEventListener('message', event => {
       leftPanel.className = "full-height-div nonDraggable"
       rightPanel.style.visibility = "hidden";
       console.log("onFileChanged");
-      parseCabbageCode(message.text, widgets, form, insertWidget);
+      CabbageUtils.parseCabbageCode(message.text, widgets, form, insertWidget);
       break;
     case 'snapToSize':
       widgetWrappers.setSnapSize(parseInt(message.text));
@@ -66,11 +66,11 @@ window.addEventListener('message', event => {
       updateWidget(msg);
       break;
     case 'onEnterEditMode':
-      hideOverlay();
+      CabbageUtils.hideOverlay();
       console.log("onEnterEditMode");
       cabbageMode = 'draggable';
       //form.className = "form draggable";
-      parseCabbageCode(message.text, widgets, form, insertWidget);
+      CabbageUtils.parseCabbageCode(message.text, widgets, form, insertWidget);
       break;
     default:
       return;
@@ -91,7 +91,7 @@ function updateWidget(obj) {
         widget.props.value = obj['value'];
       }
       else if (obj.hasOwnProperty('data')) {
-        Object.entries(getCabbageCodeAsJSON(obj['data'])).forEach((entry) => {
+        Object.entries(CabbageUtils.getCabbageCodeAsJSON(obj['data'])).forEach((entry) => {
           const [key, value] = entry;
           widget.props[key] = value;
         });
@@ -104,14 +104,6 @@ function updateWidget(obj) {
   }
 }
 
-
-
-
-
-/**
- * PropertyPanel Class. Lightweight component that up updated its innerHTML when properties change.
- * Gets passed the widget type, and a JSON object containing all the widget properties 
- */
 
 const contextMenu = document.querySelector(".wrapper");
 
@@ -152,8 +144,9 @@ if (typeof acquireVsCodeApi === 'function') {
     if (menuItems[i].getAttribute('class') == 'menuItem') {
       menuItems[i].addEventListener("click", async (e) => {
         const type = e.target.innerHTML.replace(/(<([^>]+)>)/ig);
-        const channel = type + String(numberOfWidgets);
-        numberOfWidgets++;
+        
+        const channel = CabbageUtils.getUniqueChannelName(type, widgets);
+        console.log("channel", channel)
         const w = await insertWidget(type, { channel: channel, top: mouseDownPosition.y - 20, left: mouseDownPosition.x - 20 });
         if (widgets) {
           //update text editor with last added widget
@@ -182,6 +175,7 @@ if (form) {
   form.addEventListener('pointerdown', (event) => {
     const clickedElement = event.target;
     const formRect = form.getBoundingClientRect();
+    console.log("Click element", CabbageUtils.findValidId(event));
     offsetX = formRect.left;
     offsetY = formRect.top;
 
@@ -201,6 +195,7 @@ if (form) {
 
       form.appendChild(selectionBox);
     } else if (clickedElement.classList.contains('draggable') && event.target.id !== "MainForm") {
+      
       if (!event.shiftKey && !event.altKey) {
         // Deselect all elements if clicking on a non-selected element without Shift or Alt key
         if (!selectedElements.has(clickedElement)) {
@@ -225,6 +220,8 @@ if (form) {
       selectedElements.forEach(element => element.classList.remove('selected'));
       selectedElements.clear();
     }
+
+    PropertyPanel.updatePanel(vscode, {eventType:"click", name:CabbageUtils.findValidId(event), bounds:{}}, widgets);
   });
 
   document.addEventListener('pointermove', (event) => {
@@ -300,7 +297,6 @@ if (form) {
  * click and add widgets
  */
 async function insertWidget(type, props) {
-
   const widgetDiv = document.createElement('div');
   let widget = {};
 
@@ -310,6 +306,9 @@ async function insertWidget(type, props) {
       break;
     case "hslider":
       widget = new HorizontalSlider();
+      break;
+    case "vslider":
+      widget = new VerticalSlider();
       break;
     case "form":
       widget = new Form();
@@ -357,7 +356,7 @@ async function insertWidget(type, props) {
 
 
   widgets.push(widget); // Push the new widget object into the array
-  const index = getNumberOfPluginParameters(widgets, "rslider", "hslider", "button", "checkbox");
+  const index = CabbageUtils.getNumberOfPluginParameters(widgets, "rslider", "hslider", "vslider", "button", "checkbox");
   widget.props.index = index - 1;
 
 

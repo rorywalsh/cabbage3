@@ -58,12 +58,12 @@ export class WidgetWrapper {
         interact('.draggable').on('down', (event) => {
 
             if (this.selectedElements.size <= 1) {
-                if (event.target.id) {
-                    this.updatePanelCallback(this.vscode, {eventType:"click", name:event.target.id, bounds:{}},this.widgets);
-                } else {
-                    const widgetId = event.target.parentElement.parentElement.id.replace(/(<([^>]+)>)/ig, '');
-                    this.updatePanelCallback(this.vscode, {eventType:"click", name:widgetId, bounds:{}},this.widgets);
-                }
+            //     if (event.target.id) {
+            //         this.updatePanelCallback(this.vscode, {eventType:"click", name:event.target.id, bounds:{}},this.widgets);
+            //     } else {
+            //         const widgetId = event.target.parentElement.parentElement.id.replace(/(<([^>]+)>)/ig, '');
+            //         this.updatePanelCallback(this.vscode, {eventType:"click", name:widgetId, bounds:{}},this.widgets);
+            //     }
             }
         }).resizable({
             edges: { left: false, right: true, bottom: true, top: false },
@@ -126,12 +126,12 @@ export class WidgetWrapper {
 
         //main form only..........
         interact('.resizeOnly').on('down', (event) => {
-            if (event.target.id) {
-                this.updatePanelCallback(this.vscode, {eventType:"click", name:event.target.id, bounds:{}},this.widgets);
-            } else {
-                const widgetId = event.target.parentElement.parentElement.id.replace(/(<([^>]+)>)/ig, '');
-                this.updatePanelCallback(this.vscode, {eventType:"click", name:widgetId, bounds:{}},this.widgets);
-            }
+            // if (event.target.id) {
+            //     this.updatePanelCallback(this.vscode, {eventType:"click", name:event.target.id, bounds:{}},this.widgets);
+            // } else {
+            //     const widgetId = event.target.parentElement.parentElement.id.replace(/(<([^>]+)>)/ig, '');
+            //     this.updatePanelCallback(this.vscode, {eventType:"click", name:widgetId, bounds:{}},this.widgets);
+            // }
         }).draggable(false).resizable({
             edges: { left: true, right: true, bottom: true, top: true }, // Enable resizing from all edges
             listeners: {

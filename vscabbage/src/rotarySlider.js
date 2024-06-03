@@ -1,4 +1,4 @@
-import { getDecimalPlaces, map, clamp } from "./utils.js";
+import { CabbageUtils } from "./utils.js";
 
 /**
  * Rotary Slider (rslider) class
@@ -10,11 +10,11 @@ export class RotarySlider {
       "left": 10,
       "width": 60,
       "height": 60,
-      "channel": "rslider1",
+      "channel": "rslider",
       "min": 0,
       "max": 1,
       "value": 0,
-      "default": 0,
+      "defaultValue": 0,
       "skew": 1,
       "increment": 0.001,
       "index": 0,
@@ -24,18 +24,18 @@ export class RotarySlider {
       "align": "centre",
       "textOffsetY": 0,
       "valueTextBox": 0,
-      "colour": "#93D200",
-      "trackerColour": "#dddddd",
-      "trackerBackgroundColour": "#222222",
-      "trackerOutlineColour": "#000000",
-      "fontColour": "#222222",
-      "textColour": "#222222",
-      "outlineColour": "#222222",
+      "colour": "#0295cf",
+      "trackerColour": "#93D200",
+      "trackerBackgroundColour": "#ffffff",
+      "trackerOutlineColour": "#525252",
+      "fontColour": "#999999",
+      "textColour": "#999999",
+      "outlineColour": "#525252",
       "textBoxOutlineColour": "#999999",
       "textBoxColour": "#555555",
       "markerColour": "#222222",
       "trackerOutlineWidth": 3,
-      "trackerWidth": 30,
+      "trackerWidth": 20,
       "outlineWidth": 2,
       "markerThickness": 0.2,
       "markerStart": 0.5,
@@ -55,9 +55,9 @@ export class RotarySlider {
     }
 
     this.panelSections = {
-      "Info": ["type", "channel"],
+      "Properties": ["type", "channel"],
       "Bounds": ["left", "top", "width", "height"],
-      "Range": ["min", "max", "default", "skew", "increment"],
+      "Range": ["min", "max", "defaultValue", "skew", "increment"],
       "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
       "Colours": ["colour", "trackerColour", "trackerBackgroundColour", "trackerStrokeColour", "trackerColour", "outlineColour", "textBoxOutlineColour", "textBoxColour", "markerColour"]
     };
@@ -92,7 +92,7 @@ export class RotarySlider {
     const popup = document.getElementById('popupValue');
     const form = document.getElementById('MainForm');
     const rect = form.getBoundingClientRect();
-    this.decimalPlaces = getDecimalPlaces(this.props.increment);
+    this.decimalPlaces = CabbageUtils.getDecimalPlaces(this.props.increment);
 
     if (popup) {
         popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
@@ -155,13 +155,13 @@ export class RotarySlider {
     // console.log('slider on move');
     const steps = 200;
     const valueDiff = ((this.props.max - this.props.min) * (clientY - this.startY)) / steps;
-    const value = clamp(this.startValue - valueDiff, this.props.min, this.props.max);
+    const value = CabbageUtils.clamp(this.startValue - valueDiff, this.props.min, this.props.max);
 
     this.props.value = Math.round(value / this.props.increment) * this.props.increment;
     const widgetDiv = document.getElementById(this.props.name);
     widgetDiv.innerHTML = this.getSVG();
 
-    const msg = { channel: this.props.channel, value: map(this.props.value.map, this.props.min, this.props.max, 0, 1) }
+    const msg = { channel: this.props.channel, value: CabbageUtils.map(this.props.value.map, this.props.min, this.props.max, 0, 1) }
     if (this.vscode) {
       this.vscode.postMessage({
         command: 'channelUpdate',
@@ -172,7 +172,7 @@ export class RotarySlider {
       var message = {
         "msg": "parameterUpdate",
         "paramIdx": this.props.index,
-        "value": map(this.props.value, this.props.min, this.props.max, 0, 1)
+        "value": CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1)
       };
       // IPlugSendMsg(message);
     }
@@ -215,7 +215,7 @@ export class RotarySlider {
     const trackerOutlineColour = this.props.trackerOutlineWidth == 0 ? this.props.trackerBackgroundColour : this.props.trackerOutlineColour;
     const outerTrackerPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width/2)), -(130), 132);
     const trackerPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width/2)), -(130-innerTrackerEndPoints), 132-innerTrackerEndPoints);
-    const trackerArcPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width/2)), -(130-innerTrackerEndPoints), map(this.props.value, this.props.min, this.props.max, -(130-innerTrackerEndPoints), 132-innerTrackerEndPoints));
+    const trackerArcPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width/2)), -(130-innerTrackerEndPoints), CabbageUtils.map(this.props.value, this.props.min, this.props.max, -(130-innerTrackerEndPoints), 132-innerTrackerEndPoints));
     const textY = this.props.height + (this.props.fontSize > 0 ? this.props.textOffsetY : 0);
     
     // Calculate proportional font size if this.props.fontSize is 0

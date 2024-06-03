@@ -11,12 +11,12 @@ export class Form {
         "caption": "",
         "name": "MainForm",
         "type": "form",
-        "colour": "#0295CF",
+        "colour": "#888888",
         "channel": "MainForm"
       }
   
       this.panelSections = {
-        "Info": ["type"],
+        "Properties": ["type"],
         "Bounds": ["width", "height"],
         "Text": ["caption"],
         "Colours": ["colour"]

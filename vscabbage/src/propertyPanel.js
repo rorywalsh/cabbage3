@@ -1,9 +1,14 @@
+/**
+ * PropertyPanel Class. Lightweight component that up updated its innerHTML when properties change.
+ */
+
+
 export class PropertyPanel {
-  constructor(type, properties, panelSections) {
+  constructor(vscode, type, properties, panelSections, widgets) {
     this.type = type;
     this.panelSections = panelSections;
     var panel = document.querySelector('.property-panel');
-
+    this.vscode = vscode;
     // Helper function to create a section
     const createSection = (sectionName) => {
       const sectionDiv = document.createElement('div');
@@ -104,7 +109,8 @@ export class PropertyPanel {
 
           input.id = key;
           input.dataset.parent = properties.name;
-
+          const self = this;
+          
           input.addEventListener('input', function (evt) {
             widgets.forEach((widget) => {
               if (widget.props.name === evt.target.dataset.parent) {
@@ -120,10 +126,14 @@ export class PropertyPanel {
                 widget.props[evt.target.id] = parsedValue;
                 const widgetDiv = document.getElementById(widget.props.name);
                 widgetDiv.innerHTML = widget.getSVG();
-                vscode.postMessage({
-                  command: 'widgetUpdate',
-                  text: JSON.stringify(widget.props)
-                });
+                if (!self.vscode)
+                  console.error("vscode is not valid");
+                else {
+                  self.vscode.postMessage({
+                    command: 'widgetUpdate',
+                    text: JSON.stringify(widget.props)
+                  });
+                }
               }
             });
           });
@@ -155,6 +165,7 @@ export class PropertyPanel {
 */
   static async updatePanel(vscode, input, widgets) {
     // Ensure input is an array of objects
+    this.vscode = vscode;
     let events = Array.isArray(input) ? input : [input];
 
     const element = document.querySelector('.property-panel');
@@ -183,11 +194,12 @@ export class PropertyPanel {
             widget.props.channel = name;
           }
 
-          new PropertyPanel(widget.props.type, widget.props, widget.panelSections);
-
+          new PropertyPanel(vscode, widget.props.type, widget.props, widget.panelSections, widgets);
+          if (!this.vscode)
+            console.error("not valid");
           //firing these off in one go cause the vs-code editor to shit its pant
           setTimeout(() => {
-            vscode.postMessage({
+            this.vscode.postMessage({
               command: 'widgetUpdate',
               text: JSON.stringify(widget.props)
             });

@@ -1,16 +1,16 @@
 import { CabbageUtils } from "./utils.js";
 
 /**
- * Horizontal Slider (hslider) class
+ * Vertical Slider (vslider) class
  */
-export class HorizontalSlider {
+export class VerticalSlider {
   constructor() {
     this.props = {
       "top": 10,
       "left": 10,
-      "width": 120,
-      "height": 20,
-      "channel": "hslider",
+      "width": 20,
+      "height": 160,
+      "channel": "vslider",
       "min": 0,
       "max": 1,
       "value": 0,
@@ -38,9 +38,9 @@ export class HorizontalSlider {
       "markerThickness": 0.2,
       "markerStart": 0.1,
       "markerEnd": 0.9,
-      "name": "",
-      "type": "hslider",
-      "kind": "horizontal",
+      "name": "hslider",
+      "type": "vslider",
+      "kind": "vertical",
       "decimalPlaces": 1,
       "velocity": 0,
       "trackerStart": 0.1,
@@ -61,7 +61,7 @@ export class HorizontalSlider {
 
     this.moveListener = this.pointerMove.bind(this);
     this.upListener = this.pointerUp.bind(this);
-    this.startX = 0;
+    this.startY = 0;
     this.startValue = 0;
     this.vscode = null;
     this.isMouseDown = false;
@@ -79,8 +79,8 @@ export class HorizontalSlider {
 
   pointerDown(evt) {
     this.isMouseDown = true;
-    this.startX = evt.offsetX;
-    this.props.value = CabbageUtils.map(this.startX, 0, this.props.width, this.props.min, this.props.max)
+    this.startY = evt.offsetY;
+    this.props.value = CabbageUtils.map(this.startY, this.props.height, 0, this.props.min, this.props.max)
 
     window.addEventListener("pointermove", this.moveListener);
     window.addEventListener("pointerup", this.upListener);
@@ -88,6 +88,7 @@ export class HorizontalSlider {
     this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
     this.startValue = this.props.value;
     const widgetDiv = document.getElementById(this.props.name);
+    console.log(this.props.name);
     widgetDiv.innerHTML = this.getSVG();
   }
 
@@ -121,7 +122,7 @@ export class HorizontalSlider {
         popup.classList.remove('right');
       }
 
-      const popupTop = this.props.top + this.props.height*2.75;
+      const popupTop = this.props.top + this.props.height;
 
       // Set the calculated position
       popup.style.left = `${popupLeft}px`;
@@ -154,18 +155,18 @@ export class HorizontalSlider {
     widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
   }
 
-  pointerMove({ clientX }) {
+pointerMove(evt) {
     // Get the bounding rectangle of the slider
     const sliderRect = document.getElementById(this.props.name).getBoundingClientRect();
 
     // Calculate the relative position of the mouse pointer within the slider bounds
-    let offsetX = clientX - sliderRect.left;
+    let offsetY = evt.clientY - sliderRect.top;
 
     // Clamp the mouse position to stay within the bounds of the slider
-    offsetX = CabbageUtils.clamp(offsetX, 0, sliderRect.width);
+    offsetY = CabbageUtils.clamp(offsetY, 0, sliderRect.height);
 
-    // Calculate the new value based on the mouse position
-    let newValue = CabbageUtils.map(offsetX, 0, sliderRect.width, this.props.min, this.props.max);
+    // Calculate the new value based on the mouse position, invert the direction
+    let newValue = CabbageUtils.map(offsetY, sliderRect.height, 0, this.props.min, this.props.max); // Note the inverted direction here
     newValue = Math.round(newValue / this.props.increment) * this.props.increment; // Round to the nearest increment
 
     // Update the slider value
@@ -190,7 +191,8 @@ export class HorizontalSlider {
       };
       // IPlugSendMsg(message);
     }
-  }
+}
+
 
   getSVG() {
     const popup = document.getElementById('popupValue');
@@ -198,13 +200,15 @@ export class HorizontalSlider {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
     }
 
+    const yPos = CabbageUtils.map(this.props.value, this.props.max, this.props.min, 0, this.props.height*.95);
+
     return `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width+2} ${this.props.height+2}" width="100%" height="100%" preserveAspectRatio="none">
     <svg width="${this.props.width}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="0" y="${this.props.height * .2}" width="${this.props.width}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
-    <rect x="0" y="${this.props.height * .2}" width="${CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, this.props.width - this.props.width * .05)}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
+    <rect x="${this.props.width*.2}" y="0" width="${this.props.width*.6}" height="${this.props.height}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
+    <rect x="${this.props.width*.2}" y="${yPos}" width="${this.props.width*.6}" height="${this.props.height  - yPos}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
   
-    <rect x="${CabbageUtils.map(this.props.value, this.props.min, this.props.max, 1, this.props.width - this.props.width * .055)}" y="0" width="${this.props.width * .05}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="2" stroke="black"/>
+    <rect x="0" y="${yPos}" width="${this.props.width}" height="${this.props.height*.05}" rx="4" fill="${this.props.colour}" stroke-width="2" stroke="black"/>
     </svg>
 
     `;

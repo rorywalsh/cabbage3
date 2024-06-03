@@ -16,6 +16,8 @@
         "titleBar.activeForeground": "#FDF9FC"
     },
     "cSpell.words": [
-        "Colours"
+        "Colours",
+        "hslider",
+        "vslider"
     ]
 }
