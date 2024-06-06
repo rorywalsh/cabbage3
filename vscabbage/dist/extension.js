@@ -516,6 +516,7 @@ class RotarySlider {
       "trackerStart": 0.1,
       "trackerEnd": 0.9,
       "trackerCentre": 0.1,
+      "popup": 1,
       "visible": 1,
       "automatable": 1,
       "valuePrefix": "",
@@ -561,41 +562,42 @@ class RotarySlider {
     const form = document.getElementById('MainForm');
     const rect = form.getBoundingClientRect();
     this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment);
-
+  
     if (popup) {
-        popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
-
-        // Calculate the position for the popup
-        const sliderLeft = this.props.left;
-        const sliderWidth = this.props.width;
-        const formLeft = rect.left;
-        const formWidth = rect.width;
-
-        // Determine if the popup should be on the right or left side of the slider
-        const sliderCenter = formLeft + (formWidth / 2);
-        let popupLeft;
-        if (sliderLeft + (sliderWidth / 2) > sliderCenter) {
-            // Place popup on the left of the slider thumb
-            popupLeft = sliderLeft;
-            console.log("Pointer on the left");
-            popup.classList.add('right');
-        } else {
-            // Place popup on the right of the slider thumb
-            popupLeft = sliderLeft + sliderWidth + 60;
-            console.log("Pointer on the right");
-            popup.classList.remove('right');
-        }
-
-        const popupTop = this.props.top + this.props.height;
-
-        // Set the calculated position
-        popup.style.left = `${popupLeft}px`;
-        popup.style.top = `${popupTop}px`;
-        popup.style.display = 'block';
-        popup.classList.add('show');
-        popup.classList.remove('hide');
+      popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
+  
+      // Calculate the position for the popup
+      const sliderLeft = this.props.left;
+      const sliderWidth = this.props.width;
+      const formLeft = rect.left;
+      const formWidth = rect.width;
+  
+      // Determine if the popup should be on the right or left side of the slider
+      const sliderCenter = formLeft + (formWidth / 2);
+      let popupLeft;
+      if (sliderLeft + (sliderWidth) > sliderCenter) {
+        // Place popup on the left of the slider thumb
+        popupLeft = formLeft + sliderLeft - popup.offsetWidth - 10;
+        console.log("Pointer on the left");
+        popup.classList.add('right');
+      } else {
+        // Place popup on the right of the slider thumb
+        popupLeft = formLeft + sliderLeft + sliderWidth + 10;
+        console.log("Pointer on the right");
+        popup.classList.remove('right');
+      }
+  
+      const popupTop = rect.top + this.props.top + this.props.height*.5; // Adjust top position relative to the form's top
+  
+      // Set the calculated position
+      popup.style.left = `${popupLeft}px`;
+      popup.style.top = `${popupTop}px`;
+      popup.style.display = 'block';
+      popup.classList.add('show');
+      popup.classList.remove('hide');
     }
   }
+  
 
   mouseLeave(evt) {
     if (!this.isMouseDown) {
@@ -603,7 +605,6 @@ class RotarySlider {
       popup.classList.add('hide');
       popup.classList.remove('show');
     }
-
   }
 
   addEventListeners(widgetDiv, vs) {
@@ -611,16 +612,17 @@ class RotarySlider {
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
     widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
     widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.RotarySliderInstance = this;
   }
 
   addEventListeners(widgetDiv) {
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
     widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
     widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.RotarySliderInstance = this;
   }
 
   pointerMove({ clientY }) {
-    // console.log('slider on move');
     const steps = 200;
     const valueDiff = ((this.props.max - this.props.min) * (clientY - this.startY)) / steps;
     const value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(this.startValue - valueDiff, this.props.min, this.props.max);
@@ -671,7 +673,26 @@ class RotarySlider {
     return d;
   }
 
+  handleInputChange(evt) {
+    if (evt.key === 'Enter') {
+      const inputValue = parseFloat(evt.target.value);
+      if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
+        this.props.value = inputValue;
+        const widgetDiv = document.getElementById(this.props.name);
+        widgetDiv.innerHTML = this.getSVG();
+        widgetDiv.querySelector('input').focus();
+      }
+    }
+    else if (evt.key === 'Esc'){
+      const widgetDiv = document.getElementById(this.props.name);
+      widgetDiv.querySelector('input').blur();
+    }
+  }
+
   getSVG() {
+    if(this.props.visible === 0) {
+      return '';
+    }
     const popup = document.getElementById('popupValue');
     if (popup) {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
@@ -679,53 +700,57 @@ class RotarySlider {
 
     let w = (this.props.width > this.props.height ? this.props.height : this.props.width) * 0.75;
     const innerTrackerWidth = this.props.trackerWidth - this.props.trackerOutlineWidth;
-    const innerTrackerEndPoints = this.props.trackerOutlineWidth *.5;
+    const innerTrackerEndPoints = this.props.trackerOutlineWidth * 0.5;
     const trackerOutlineColour = this.props.trackerOutlineWidth == 0 ? this.props.trackerBackgroundColour : this.props.trackerOutlineColour;
-    const outerTrackerPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width/2)), -(130), 132);
-    const trackerPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width/2)), -(130-innerTrackerEndPoints), 132-innerTrackerEndPoints);
-    const trackerArcPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width/2)), -(130-innerTrackerEndPoints), _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, -(130-innerTrackerEndPoints), 132-innerTrackerEndPoints));
-    
-    
+    const outerTrackerPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width / 2)), -130, 132);
+    const trackerPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width / 2)), -(130 - innerTrackerEndPoints), 132 - innerTrackerEndPoints);
+    const trackerArcPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width / 2)), -(130 - innerTrackerEndPoints), _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, -(130 - innerTrackerEndPoints), 132 - innerTrackerEndPoints));
+
     // Calculate proportional font size if this.props.fontSize is 0
     let fontSize = this.props.fontSize > 0 ? this.props.fontSize : w * 0.24;
     const textY = this.props.height + (this.props.fontSize > 0 ? this.props.textOffsetY : 0);
     let scale = 100;
 
-//<text text-anchor="middle" x=${this.props.width / 2} y="0px" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">${this.props.text}</text>      
-      
-    if(this.props.valueTextBox == 1){
-      scale = .7;
+    if (this.props.valueTextBox == 1) {
+      scale = 0.7;
       const moveY = 5;
 
       const centerX = this.props.width / 2;
       const centerY = this.props.height / 2;
+      const inputWidth = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getNumberBoxWidth(this.props);
+      const inputX = this.props.width / 2 - inputWidth / 2;
+
       return `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
-      <text text-anchor="middle" x=${this.props.width / 2} y="${fontSize}px" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">${this.props.text}</text>      
-      <g transform="translate(${centerX}, ${centerY + moveY}) scale(${scale}) translate(${-centerX}, ${-centerY})">
-      <path d='${outerTrackerPath}' id="arc" fill="none" stroke=${trackerOutlineColour} stroke-width=${this.props.trackerWidth} />
-      <path d='${trackerPath}' id="arc" fill="none" stroke=${this.props.trackerBackgroundColour} stroke-width=${innerTrackerWidth} />
-      <path d='${trackerArcPath}' id="arc" fill="none" stroke=${this.props.trackerColour} stroke-width=${innerTrackerWidth} /> 
-      <circle cx=${this.props.width / 2} cy=${this.props.height / 2} r=${(w / 2) - this.props.trackerWidth*.65} stroke=${this.props.outlineColour} stroke-width=${this.props.outlineWidth} fill=${this.props.colour} />
-      </g>
-      <text text-anchor="middle" x=${this.props.width / 2} y=${textY} font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment))}</text>      
-      </svg>
-    `;
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
+        <text text-anchor="middle" x=${this.props.width / 2} y="${fontSize}px" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">${this.props.text}</text>
+        <g transform="translate(${centerX}, ${centerY + moveY}) scale(${scale}) translate(${-centerX}, ${-centerY})">
+        <path d='${outerTrackerPath}' id="arc" fill="none" stroke=${trackerOutlineColour} stroke-width=${this.props.trackerWidth} />
+        <path d='${trackerPath}' id="arc" fill="none" stroke=${this.props.trackerBackgroundColour} stroke-width=${innerTrackerWidth} />
+        <path d='${trackerArcPath}' id="arc" fill="none" stroke=${this.props.trackerColour} stroke-width=${innerTrackerWidth} />
+        <circle cx=${this.props.width / 2} cy=${this.props.height / 2} r=${(w / 2) - this.props.trackerWidth * 0.65} stroke=${this.props.outlineColour} stroke-width=${this.props.outlineWidth} fill=${this.props.colour} />
+        </g>
+        <foreignObject x="${inputX}" y="${textY - fontSize * 1.5}" width="${inputWidth}" height="${fontSize * 2}">
+          <input type="text" xmlns="http://www.w3.org/1999/xhtml" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
+          style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
+          onKeyDown="document.getElementById('${this.props.name}').RotarySliderInstance.handleInputChange(event)"/>
+          />
+        </foreignObject>
+        </svg>
+        `;
     }
+
     return `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${scale}%" height="${scale}%" preserveAspectRatio="none">
       <path d='${outerTrackerPath}' id="arc" fill="none" stroke=${trackerOutlineColour} stroke-width=${this.props.trackerWidth} />
       <path d='${trackerPath}' id="arc" fill="none" stroke=${this.props.trackerBackgroundColour} stroke-width=${innerTrackerWidth} />
-      <path d='${trackerArcPath}' id="arc" fill="none" stroke=${this.props.trackerColour} stroke-width=${innerTrackerWidth} /> 
-      <circle cx=${this.props.width / 2} cy=${this.props.height / 2} r=${(w / 2) - this.props.trackerWidth*.65} stroke=${this.props.outlineColour} stroke-width=${this.props.outlineWidth} fill=${this.props.colour} />
-      <text text-anchor="middle" x=${this.props.width / 2} y=${textY} font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">${this.props.text}</text>      
+      <path d='${trackerArcPath}' id="arc" fill="none" stroke=${this.props.trackerColour} stroke-width=${innerTrackerWidth} />
+      <circle cx=${this.props.width / 2} cy=${this.props.height / 2} r=${(w / 2) - this.props.trackerWidth * 0.65} stroke=${this.props.outlineColour} stroke-width=${this.props.outlineWidth} fill=${this.props.colour} />
+      <text text-anchor="middle" x=${this.props.width / 2} y=${textY} font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">${this.props.text}</text>
       </svg>
     `;
   }
+
 }
-
-
-
 
 
 /***/ }),
@@ -5777,10 +5802,20 @@ class CabbageUtils {
     static getStringWidth(text, props, padding=10) {
         var canvas = document.createElement('canvas');
         let fontSize = 0;
-        if(props.type === 'hslider')
-            fontSize = props.height*.8;
-        else
-            console.error('getStringWidth..');
+        switch(props.type){
+            case 'hslider':
+                fontSize = props.height*.8;
+                break;
+            case "rslider":
+                fontSize = props.width*.3;
+                break;
+            case "vslider":
+                fontSize = props.width*.3;
+                break;
+            default:
+                console.error('getStringWidth..');
+                break;
+        }
 
         var ctx = canvas.getContext("2d");
         ctx.font = `${fontSize}px ${props.fontFamily}`;
@@ -5891,8 +5926,8 @@ class HorizontalSlider {
       "textColour": "#222222",
       "outlineColour": "#999999",
       "textBoxColour": "#555555",
-      "trackerStrokeWidth": 1,
-      "outlineWidth": 0.3,
+      "trackerOutlineWidth": 1,
+      "outlineWidth": 1,
       "markerThickness": 0.2,
       "markerStart": 0.1,
       "markerEnd": 0.9,
@@ -5904,6 +5939,7 @@ class HorizontalSlider {
       "trackerStart": 0.1,
       "trackerEnd": 0.9,
       "visible": 1,
+      "popup": 1,
       "automatable": 1,
       "valuePrefix": "",
       "valuePostfix": ""
@@ -5941,7 +5977,8 @@ class HorizontalSlider {
     const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
     const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
   
-    if (evt.offsetX >= textWidth && evt.offsetX <= textWidth + sliderWidth) {
+    
+    if (evt.offsetX >= textWidth && evt.offsetX <= textWidth + sliderWidth && evt.target.tagName !== "INPUT") {
       this.isMouseDown = true;
       this.startX = evt.offsetX - textWidth;
       this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.startX, 0, sliderWidth, this.props.min, this.props.max);
@@ -5962,33 +5999,33 @@ class HorizontalSlider {
     const form = document.getElementById('MainForm');
     const rect = form.getBoundingClientRect();
     this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment);
-
-    if (popup) {
+  
+    if (popup && this.props.popup) {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
-
+  
       // Calculate the position for the popup
       const sliderLeft = this.props.left;
       const sliderWidth = this.props.width;
       const formLeft = rect.left;
       const formWidth = rect.width;
-
+  
       // Determine if the popup should be on the right or left side of the slider
       const sliderCenter = formLeft + (formWidth / 2);
       let popupLeft;
-      if (sliderLeft + (sliderWidth / 2) > sliderCenter) {
+      if (sliderLeft + (sliderWidth) > sliderCenter) {
         // Place popup on the left of the slider thumb
-        popupLeft = sliderLeft;
+        popupLeft = formLeft + sliderLeft - popup.offsetWidth - 10;
         console.log("Pointer on the left");
         popup.classList.add('right');
       } else {
         // Place popup on the right of the slider thumb
-        popupLeft = sliderLeft + sliderWidth + 60;
+        popupLeft = formLeft + sliderLeft + sliderWidth + 10;
         console.log("Pointer on the right");
         popup.classList.remove('right');
       }
-
-      const popupTop = this.props.top + this.props.height;
-
+  
+      const popupTop = rect.top + this.props.top; // Adjust top position relative to the form's top
+  
       // Set the calculated position
       popup.style.left = `${popupLeft}px`;
       popup.style.top = `${popupTop}px`;
@@ -5997,6 +6034,7 @@ class HorizontalSlider {
       popup.classList.remove('hide');
     }
   }
+  
 
   mouseLeave(evt) {
     if (!this.isMouseDown) {
@@ -6008,6 +6046,13 @@ class HorizontalSlider {
 
   addEventListeners(widgetDiv, vs) {
     this.vscode = vs;
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.HorizontalSliderInstance = this;
+  }
+
+  addEventListeners(widgetDiv) {
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
     widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
     widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
@@ -6058,15 +6103,21 @@ class HorizontalSlider {
   }
   
   handleInputChange(evt) {
-    const inputValue = parseFloat(evt.target.value);
-    if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
-      this.props.value = inputValue;
-      const widgetDiv = document.getElementById(this.props.name);
-      widgetDiv.innerHTML = this.getSVG();
+    if (evt.key === 'Enter') {
+      const inputValue = parseFloat(evt.target.value);
+      if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
+        this.props.value = inputValue;
+        const widgetDiv = document.getElementById(this.props.name);
+        widgetDiv.innerHTML = this.getSVG();
+        widgetDiv.querySelector('input').focus();
+      }
     }
   }
 
   getSVG() {
+    if(this.props.visible === 0) {
+      return '';
+    }
     const popup = document.getElementById('popupValue');
     if (popup) {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
@@ -6106,18 +6157,17 @@ class HorizontalSlider {
 
     const sliderElement = `
       <svg x="${textWidth}" width="${sliderWidth}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="1" y="${this.props.height * .2}" width="${sliderWidth - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="2" stroke="black"/>
-        <rect x="1" y="${this.props.height * .2}" width="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth) - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
-        <rect x="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="2" stroke="black"/>
+        <rect x="1" y="${this.props.height * .2}" width="${sliderWidth - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
+        <rect x="1" y="${this.props.height * .2}" width="${Math.max(0, _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth))}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
+        <rect x="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
       </svg>
     `;
 
     const valueTextElement = this.props.valueTextBox ? `
       <foreignObject x="${textWidth + sliderWidth}" y="0" width="${valueTextBoxWidth}" height="${this.props.height}">
-        <input type="text" 
-               style="width:100%; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
-               value="${parseFloat(this.props.value).toFixed(this.decimalPlaces)}"
-               oninput="document.getElementById('${this.props.name}').HorizontalSliderInstance.handleInputChange(event)"/>
+        <input type="text" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
+        style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
+        onKeyDown="document.getElementById('${this.props.name}').HorizontalSliderInstance.handleInputChange(event)"/>
       </foreignObject>
     ` : '';
 
@@ -6146,21 +6196,18 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(28);
 
 
-/**
- * Vertical Slider (vslider) class
- */
 class VerticalSlider {
   constructor() {
     this.props = {
       "top": 10,
       "left": 10,
-      "width": 20,
-      "height": 160,
-      "channel": "vslider",
+      "width": 60,
+      "height": 60,
+      "channel": "rslider",
       "min": 0,
       "max": 1,
       "value": 0,
-      "defaultValue": 0,
+      "default": 0,
       "skew": 1,
       "increment": 0.001,
       "index": 0,
@@ -6168,46 +6215,46 @@ class VerticalSlider {
       "fontFamily": "Verdana",
       "fontSize": 0,
       "align": "centre",
-      "textOffsetY": 0,
+      "sliderOffsetY": 0, // Changed from sliderOffsetX to sliderOffsetY for vertical slider
       "valueTextBox": 0,
       "colour": "#0295cf",
       "trackerColour": "#93D200",
       "trackerBackgroundColour": "#ffffff",
       "trackerOutlineColour": "#525252",
-      "fontColour": "#222222",
+      "fontColour": "#dddddd",
       "textColour": "#222222",
       "outlineColour": "#999999",
-      "textBoxOutlineColour": "#999999",
       "textBoxColour": "#555555",
-      "trackerOutlineWidth": 2,
-      "outlineWidth": 0.3,
+      "trackerOutlineWidth": 1,
+      "outlineWidth": 1,
       "markerThickness": 0.2,
       "markerStart": 0.1,
       "markerEnd": 0.9,
-      "name": "hslider",
-      "type": "vslider",
-      "kind": "vertical",
+      "name": "",
+      "type": "vslider", // Changed from hslider to vslider
+      "kind": "vertical", // Changed from horizontal to vertical
       "decimalPlaces": 1,
       "velocity": 0,
       "trackerStart": 0.1,
       "trackerEnd": 0.9,
       "visible": 1,
+      "popup": 1,
       "automatable": 1,
       "valuePrefix": "",
       "valuePostfix": ""
     }
 
     this.panelSections = {
-      "Properties": ["type", "channel"],
+      "Info": ["type", "channel"],
       "Bounds": ["left", "top", "width", "height"],
-      "Range": ["min", "max", "defaultValue", "skew", "increment"],
-      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
+      "Range": ["min", "max", "default", "skew", "increment"],
+      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetX", "align"], // Changed from textOffsetY to textOffsetX for vertical slider
       "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
     };
 
     this.moveListener = this.pointerMove.bind(this);
     this.upListener = this.pointerUp.bind(this);
-    this.startY = 0;
+    this.startY = 0; // Changed from startX to startY for vertical slider
     this.startValue = 0;
     this.vscode = null;
     this.isMouseDown = false;
@@ -6224,19 +6271,25 @@ class VerticalSlider {
   }
 
   pointerDown(evt) {
-    this.isMouseDown = true;
-    this.startY = evt.offsetY;
-    this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.startY, this.props.height, 0, this.props.min, this.props.max)
+    let textHeight = this.props.text ? this.props.height * 0.1 : 0;
+    const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
+    const sliderHeight = this.props.height - textHeight - valueTextBoxHeight;
 
-    window.addEventListener("pointermove", this.moveListener);
-    window.addEventListener("pointerup", this.upListener);
+    const sliderTop = this.props.valueTextBox ? textHeight : 0; // Adjust slider top position if valueTextBox is present
 
-    this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
-    this.startValue = this.props.value;
-    const widgetDiv = document.getElementById(this.props.name);
-    console.log(this.props.name);
-    widgetDiv.innerHTML = this.getSVG();
+    if (evt.offsetY >= sliderTop && evt.offsetY <= sliderTop + sliderHeight) {
+      this.isMouseDown = true;
+      this.startY = evt.offsetY - sliderTop;
+      this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.startY, 5, sliderHeight, this.props.max, this.props.min);
+      this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
+      this.startValue = this.props.value;
+      window.addEventListener("pointermove", this.moveListener);
+      window.addEventListener("pointerup", this.upListener);
+      const widgetDiv = document.getElementById(this.props.name);
+      widgetDiv.innerHTML = this.getSVG();
+    }
   }
+
 
   mouseEnter(evt) {
     const popup = document.getElementById('popupValue');
@@ -6256,19 +6309,19 @@ class VerticalSlider {
       // Determine if the popup should be on the right or left side of the slider
       const sliderCenter = formLeft + (formWidth / 2);
       let popupLeft;
-      if (sliderLeft + (sliderWidth / 2) > sliderCenter) {
+      if (sliderLeft + (sliderWidth) > sliderCenter) {
         // Place popup on the left of the slider thumb
-        popupLeft = sliderLeft;
+        popupLeft = formLeft + sliderLeft - popup.offsetWidth - 10;
         console.log("Pointer on the left");
         popup.classList.add('right');
       } else {
         // Place popup on the right of the slider thumb
-        popupLeft = sliderLeft + sliderWidth + 60;
+        popupLeft = formLeft + sliderLeft + sliderWidth + 10;
         console.log("Pointer on the right");
         popup.classList.remove('right');
       }
 
-      const popupTop = this.props.top + this.props.height;
+      const popupTop = rect.top + this.props.top + this.props.height * .45; // Adjust top position relative to the form's top
 
       // Set the calculated position
       popup.style.left = `${popupLeft}px`;
@@ -6279,13 +6332,13 @@ class VerticalSlider {
     }
   }
 
+
   mouseLeave(evt) {
     if (!this.isMouseDown) {
       const popup = document.getElementById('popupValue');
       popup.classList.add('hide');
       popup.classList.remove('show');
     }
-
   }
 
   addEventListeners(widgetDiv, vs) {
@@ -6293,27 +6346,39 @@ class VerticalSlider {
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
     widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
     widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.VerticalSliderInstance = this;
   }
 
-  addEventListeners(widgetDiv) {
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
-    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+
+  handleInputChange(evt) {
+    if (evt.key === 'Enter') {
+      const inputValue = parseFloat(evt.target.value);
+      if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
+        this.props.value = inputValue;
+        const widgetDiv = document.getElementById(this.props.name);
+        widgetDiv.innerHTML = this.getSVG();
+        widgetDiv.querySelector('input').focus();
+      }
+    }
   }
 
-pointerMove(evt) {
+  pointerMove({ clientY }) {
+    let textHeight = this.props.text ? this.props.height * 0.1 : 0;
+    const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
+    const sliderHeight = this.props.height - textHeight - valueTextBoxHeight;
+
     // Get the bounding rectangle of the slider
     const sliderRect = document.getElementById(this.props.name).getBoundingClientRect();
 
     // Calculate the relative position of the mouse pointer within the slider bounds
-    let offsetY = evt.clientY - sliderRect.top;
+    let offsetY = sliderRect.bottom - clientY - textHeight;
 
     // Clamp the mouse position to stay within the bounds of the slider
-    offsetY = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(offsetY, 0, sliderRect.height);
+    offsetY = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(offsetY, 0, sliderHeight);
 
-    // Calculate the new value based on the mouse position, invert the direction
-    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(offsetY, sliderRect.height, 0, this.props.min, this.props.max); // Note the inverted direction here
-    newValue = Math.round(newValue / this.props.increment) * this.props.increment; // Round to the nearest increment
+    // Calculate the new value based on the mouse position
+    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(offsetY, 0, sliderHeight, this.props.min, this.props.max);
+    newValue = Math.round(newValue / this.props.increment) * this.props.increment;
 
     // Update the slider value
     this.props.value = newValue;
@@ -6328,7 +6393,7 @@ pointerMove(evt) {
       this.vscode.postMessage({
         command: 'channelUpdate',
         text: JSON.stringify(msg)
-      })
+      });
     } else {
       var message = {
         "msg": "parameterUpdate",
@@ -6337,33 +6402,74 @@ pointerMove(evt) {
       };
       // IPlugSendMsg(message);
     }
-}
-
+  }
 
   getSVG() {
+    if(this.props.visible === 0) {
+      return '';
+    }
+    
     const popup = document.getElementById('popupValue');
     if (popup) {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
     }
 
-    const yPos = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.max, this.props.min, 0, this.props.height*.95);
+    const alignMap = {
+      'left': 'start',
+      'center': 'middle',
+      'centre': 'middle',
+      'right': 'end',
+    };
+
+    const svgAlign = alignMap[this.props.align] || this.props.align;
+
+    // Calculate text height
+    let textHeight = this.props.text ? this.props.height * 0.1 : 0;
+    const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
+    const sliderHeight = this.props.height - textHeight - valueTextBoxHeight * 1.1;
+
+    const textX = this.props.width / 2;
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.width * 0.3;
+
+    const thumbHeight = sliderHeight * 0.05;
+
+    const textElement = this.props.text ? `
+    <svg x="0" y="${this.props.valueTextBox ? 0 : this.props.height - textHeight}" width="${this.props.width}" height="${textHeight + 5}" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
+      <text text-anchor="${svgAlign}" x="${textX}" y="${textHeight}" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">
+        ${this.props.text}
+      </text>
+    </svg>
+  ` : '';
+
+    const sliderElement = `
+    <svg x="0" y="${this.props.valueTextBox ? textHeight + 2 : 0}" width="${this.props.width}" height="${sliderHeight}" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="${this.props.width * 0.4}" y="1" width="${this.props.width * 0.2}" height="${sliderHeight * 0.95}" rx="2" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
+      <rect x="${this.props.width * 0.4}" y="${sliderHeight - _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderHeight * 0.95) - 1}" height="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) * sliderHeight * 0.95}" width="${this.props.width * 0.2}" rx="2" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
+      <rect x="${this.props.width * 0.3}" y="${sliderHeight - _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, thumbHeight + 1, sliderHeight - 1)}" width="${this.props.width * 0.4}" height="${thumbHeight}" rx="2" fill="${this.props.colour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
+    </svg>
+  `;
+
+    const valueTextElement = this.props.valueTextBox ? `
+    <foreignObject x="0" y="${this.props.height - valueTextBoxHeight + 2}" width="${this.props.width}" height="${valueTextBoxHeight}">
+      <input type="text" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
+      style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
+      onKeyDown="document.getElementById('${this.props.name}').VerticalSliderInstance.handleInputChange(event)"/>
+    </foreignObject>
+  ` : '';
 
     return `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width+2} ${this.props.height+2}" width="100%" height="100%" preserveAspectRatio="none">
-    <svg width="${this.props.width}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="${this.props.width*.2}" y="0" width="${this.props.width*.6}" height="${this.props.height}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
-    <rect x="${this.props.width*.2}" y="${yPos}" width="${this.props.width*.6}" height="${this.props.height  - yPos}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
-    <rect x="0" y="${yPos}" width="${this.props.width}" height="${this.props.height*.05}" rx="4" fill="${this.props.colour}" stroke-width="2" stroke="black"/>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+      ${textElement}
+      ${sliderElement}
+      ${valueTextElement}
     </svg>
-
-    `;
+  `;
   }
 
 
+
+
 }
-
-
-
 
 
 /***/ })

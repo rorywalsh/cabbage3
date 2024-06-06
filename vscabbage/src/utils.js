@@ -224,10 +224,20 @@ export class CabbageUtils {
     static getStringWidth(text, props, padding=10) {
         var canvas = document.createElement('canvas');
         let fontSize = 0;
-        if(props.type === 'hslider')
-            fontSize = props.height*.8;
-        else
-            console.error('getStringWidth..');
+        switch(props.type){
+            case 'hslider':
+                fontSize = props.height*.8;
+                break;
+            case "rslider":
+                fontSize = props.width*.3;
+                break;
+            case "vslider":
+                fontSize = props.width*.3;
+                break;
+            default:
+                console.error('getStringWidth..');
+                break;
+        }
 
         var ctx = canvas.getContext("2d");
         ctx.font = `${fontSize}px ${props.fontFamily}`;

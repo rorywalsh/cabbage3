@@ -17,7 +17,7 @@ elseif(DEFINED CabbagePluginSynth)
 endif()
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION 0.0.37)
+	set(BUILD_VERSION 0.0.38)
 endif()
 
 

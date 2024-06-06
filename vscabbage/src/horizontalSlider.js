@@ -32,8 +32,8 @@ export class HorizontalSlider {
       "textColour": "#222222",
       "outlineColour": "#999999",
       "textBoxColour": "#555555",
-      "trackerStrokeWidth": 1,
-      "outlineWidth": 0.3,
+      "trackerOutlineWidth": 1,
+      "outlineWidth": 1,
       "markerThickness": 0.2,
       "markerStart": 0.1,
       "markerEnd": 0.9,
@@ -45,6 +45,7 @@ export class HorizontalSlider {
       "trackerStart": 0.1,
       "trackerEnd": 0.9,
       "visible": 1,
+      "popup": 1,
       "automatable": 1,
       "valuePrefix": "",
       "valuePostfix": ""
@@ -82,7 +83,8 @@ export class HorizontalSlider {
     const valueTextBoxWidth = this.props.valueTextBox ? CabbageUtils.getNumberBoxWidth(this.props) : 0;
     const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
   
-    if (evt.offsetX >= textWidth && evt.offsetX <= textWidth + sliderWidth) {
+    
+    if (evt.offsetX >= textWidth && evt.offsetX <= textWidth + sliderWidth && evt.target.tagName !== "INPUT") {
       this.isMouseDown = true;
       this.startX = evt.offsetX - textWidth;
       this.props.value = CabbageUtils.map(this.startX, 0, sliderWidth, this.props.min, this.props.max);
@@ -103,33 +105,33 @@ export class HorizontalSlider {
     const form = document.getElementById('MainForm');
     const rect = form.getBoundingClientRect();
     this.decimalPlaces = CabbageUtils.getDecimalPlaces(this.props.increment);
-
-    if (popup) {
+  
+    if (popup && this.props.popup) {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
-
+  
       // Calculate the position for the popup
       const sliderLeft = this.props.left;
       const sliderWidth = this.props.width;
       const formLeft = rect.left;
       const formWidth = rect.width;
-
+  
       // Determine if the popup should be on the right or left side of the slider
       const sliderCenter = formLeft + (formWidth / 2);
       let popupLeft;
-      if (sliderLeft + (sliderWidth / 2) > sliderCenter) {
+      if (sliderLeft + (sliderWidth) > sliderCenter) {
         // Place popup on the left of the slider thumb
-        popupLeft = sliderLeft;
+        popupLeft = formLeft + sliderLeft - popup.offsetWidth - 10;
         console.log("Pointer on the left");
         popup.classList.add('right');
       } else {
         // Place popup on the right of the slider thumb
-        popupLeft = sliderLeft + sliderWidth + 60;
+        popupLeft = formLeft + sliderLeft + sliderWidth + 10;
         console.log("Pointer on the right");
         popup.classList.remove('right');
       }
-
-      const popupTop = this.props.top + this.props.height;
-
+  
+      const popupTop = rect.top + this.props.top; // Adjust top position relative to the form's top
+  
       // Set the calculated position
       popup.style.left = `${popupLeft}px`;
       popup.style.top = `${popupTop}px`;
@@ -138,6 +140,7 @@ export class HorizontalSlider {
       popup.classList.remove('hide');
     }
   }
+  
 
   mouseLeave(evt) {
     if (!this.isMouseDown) {
@@ -149,6 +152,13 @@ export class HorizontalSlider {
 
   addEventListeners(widgetDiv, vs) {
     this.vscode = vs;
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.HorizontalSliderInstance = this;
+  }
+
+  addEventListeners(widgetDiv) {
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
     widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
     widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
@@ -199,15 +209,21 @@ export class HorizontalSlider {
   }
   
   handleInputChange(evt) {
-    const inputValue = parseFloat(evt.target.value);
-    if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
-      this.props.value = inputValue;
-      const widgetDiv = document.getElementById(this.props.name);
-      widgetDiv.innerHTML = this.getSVG();
+    if (evt.key === 'Enter') {
+      const inputValue = parseFloat(evt.target.value);
+      if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
+        this.props.value = inputValue;
+        const widgetDiv = document.getElementById(this.props.name);
+        widgetDiv.innerHTML = this.getSVG();
+        widgetDiv.querySelector('input').focus();
+      }
     }
   }
 
   getSVG() {
+    if(this.props.visible === 0) {
+      return '';
+    }
     const popup = document.getElementById('popupValue');
     if (popup) {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
@@ -247,18 +263,17 @@ export class HorizontalSlider {
 
     const sliderElement = `
       <svg x="${textWidth}" width="${sliderWidth}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="1" y="${this.props.height * .2}" width="${sliderWidth - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="2" stroke="black"/>
-        <rect x="1" y="${this.props.height * .2}" width="${CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth) - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
-        <rect x="${CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="2" stroke="black"/>
+        <rect x="1" y="${this.props.height * .2}" width="${sliderWidth - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
+        <rect x="1" y="${this.props.height * .2}" width="${Math.max(0, CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth))}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
+        <rect x="${CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
       </svg>
     `;
 
     const valueTextElement = this.props.valueTextBox ? `
       <foreignObject x="${textWidth + sliderWidth}" y="0" width="${valueTextBoxWidth}" height="${this.props.height}">
-        <input type="text" 
-               style="width:100%; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
-               value="${parseFloat(this.props.value).toFixed(this.decimalPlaces)}"
-               oninput="document.getElementById('${this.props.name}').HorizontalSliderInstance.handleInputChange(event)"/>
+        <input type="text" value="${this.props.value.toFixed(CabbageUtils.getDecimalPlaces(this.props.increment))}"
+        style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
+        onKeyDown="document.getElementById('${this.props.name}').HorizontalSliderInstance.handleInputChange(event)"/>
       </foreignObject>
     ` : '';
 
