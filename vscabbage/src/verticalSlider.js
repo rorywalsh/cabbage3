@@ -207,7 +207,6 @@ pointerMove(evt) {
     <svg width="${this.props.width}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="${this.props.width*.2}" y="0" width="${this.props.width*.6}" height="${this.props.height}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
     <rect x="${this.props.width*.2}" y="${yPos}" width="${this.props.width*.6}" height="${this.props.height  - yPos}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
-  
     <rect x="0" y="${yPos}" width="${this.props.width}" height="${this.props.height*.05}" rx="4" fill="${this.props.colour}" stroke-width="2" stroke="black"/>
     </svg>
 

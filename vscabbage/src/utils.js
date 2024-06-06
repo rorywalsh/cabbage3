@@ -221,5 +221,18 @@ export class CabbageUtils {
         return null;
     }
 
+    static getStringWidth(text, props, padding=10) {
+        var canvas = document.createElement('canvas');
+        let fontSize = 0;
+        if(props.type === 'hslider')
+            fontSize = props.height*.8;
+        else
+            console.error('getStringWidth..');
+
+        var ctx = canvas.getContext("2d");
+        ctx.font = `${fontSize}px ${props.fontFamily}`;
+        var width = ctx.measureText(text).width;
+        return width+padding;
+    }
   }
   

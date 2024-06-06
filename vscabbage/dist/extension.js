@@ -114,9 +114,7 @@ function activate(context) {
         onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'widgetWrapper.js');
         const widgetWrapper = panel.webview.asWebviewUri(onDiskPath);
         //add widget types to menu
-        const widgetTypes = ["button", "optionbutton", "checkbox", "combobox", "csoundoutput", "encoder", "fftdisplay", "filebutton", "presetbutton", "form",
-            "gentable", "groupbox", "hmeter", "hrange", "hslider", "image", "webview", "infobutton", "keyboard", "label", "listbox", "nslider",
-            "rslider", "signaldisplay", "soundfiler", "textbox", "texteditor", "vmeter", "vrange", "vslider", "xypad"];
+        const widgetTypes = ["hslider", "rslider", "vslider"];
         let menuItems = "";
         widgetTypes.forEach((widget) => {
             menuItems += `
@@ -179,7 +177,8 @@ function activate(context) {
                         updateText(message.text);
                     return;
                 case 'channelUpdate':
-                    websocket.send(JSON.stringify(message.text));
+                    if (websocket)
+                        websocket.send(JSON.stringify(message.text));
                 // console.log(message.text);
                 case 'ready': //trigger when webview is open
                     if (panel)
@@ -313,7 +312,7 @@ async function updateText(jsonText) {
             default:
                 break;
         }
-        const internalIdentifiers = ['top', 'left', 'width', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index'];
+        const internalIdentifiers = ['top', 'left', 'width', 'defaultValue', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index'];
         if (props.type.indexOf('slider') != -1)
             internalIdentifiers.push('value');
         await textEditor.edit(async (editBuilder) => {
@@ -497,8 +496,8 @@ class RotarySlider {
       "trackerColour": "#93D200",
       "trackerBackgroundColour": "#ffffff",
       "trackerOutlineColour": "#525252",
-      "fontColour": "#999999",
-      "textColour": "#999999",
+      "fontColour": "#dddddd",
+      "textColour": "#ffffff",
       "outlineColour": "#525252",
       "textBoxOutlineColour": "#999999",
       "textBoxColour": "#555555",
@@ -528,7 +527,7 @@ class RotarySlider {
       "Bounds": ["left", "top", "width", "height"],
       "Range": ["min", "max", "defaultValue", "skew", "increment"],
       "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
-      "Colours": ["colour", "trackerColour", "trackerBackgroundColour", "trackerStrokeColour", "trackerColour", "outlineColour", "textBoxOutlineColour", "textBoxColour", "markerColour"]
+      "Colours": ["colour", "trackerColour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour", "markerColour"]
     };
 
     this.moveListener = this.pointerMove.bind(this);
@@ -678,30 +677,51 @@ class RotarySlider {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
     }
 
-    const w = (this.props.width > this.props.height ? this.props.height : this.props.width) * 0.75;
+    let w = (this.props.width > this.props.height ? this.props.height : this.props.width) * 0.75;
     const innerTrackerWidth = this.props.trackerWidth - this.props.trackerOutlineWidth;
     const innerTrackerEndPoints = this.props.trackerOutlineWidth *.5;
     const trackerOutlineColour = this.props.trackerOutlineWidth == 0 ? this.props.trackerBackgroundColour : this.props.trackerOutlineColour;
     const outerTrackerPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width/2)), -(130), 132);
     const trackerPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width/2)), -(130-innerTrackerEndPoints), 132-innerTrackerEndPoints);
     const trackerArcPath = this.describeArc(this.props.width / 2, this.props.height / 2, (w / 2) * (1 - (this.props.trackerWidth / this.props.width/2)), -(130-innerTrackerEndPoints), _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, -(130-innerTrackerEndPoints), 132-innerTrackerEndPoints));
-    const textY = this.props.height + (this.props.fontSize > 0 ? this.props.textOffsetY : 0);
+    
     
     // Calculate proportional font size if this.props.fontSize is 0
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : w * 0.3; // Example: 10% of w
+    let fontSize = this.props.fontSize > 0 ? this.props.fontSize : w * 0.24;
+    const textY = this.props.height + (this.props.fontSize > 0 ? this.props.textOffsetY : 0);
+    let scale = 100;
 
-    return `
+//<text text-anchor="middle" x=${this.props.width / 2} y="0px" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">${this.props.text}</text>      
+      
+    if(this.props.valueTextBox == 1){
+      scale = .7;
+      const moveY = 5;
+
+      const centerX = this.props.width / 2;
+      const centerY = this.props.height / 2;
+      return `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
+      <text text-anchor="middle" x=${this.props.width / 2} y="${fontSize}px" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">${this.props.text}</text>      
+      <g transform="translate(${centerX}, ${centerY + moveY}) scale(${scale}) translate(${-centerX}, ${-centerY})">
       <path d='${outerTrackerPath}' id="arc" fill="none" stroke=${trackerOutlineColour} stroke-width=${this.props.trackerWidth} />
       <path d='${trackerPath}' id="arc" fill="none" stroke=${this.props.trackerBackgroundColour} stroke-width=${innerTrackerWidth} />
       <path d='${trackerArcPath}' id="arc" fill="none" stroke=${this.props.trackerColour} stroke-width=${innerTrackerWidth} /> 
       <circle cx=${this.props.width / 2} cy=${this.props.height / 2} r=${(w / 2) - this.props.trackerWidth*.65} stroke=${this.props.outlineColour} stroke-width=${this.props.outlineWidth} fill=${this.props.colour} />
-      <text text-anchor="middle" x=${this.props.width / 2} y=${textY} font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">${this.props.text}</text>
+      </g>
+      <text text-anchor="middle" x=${this.props.width / 2} y=${textY} font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment))}</text>      
+      </svg>
+    `;
+    }
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${scale}%" height="${scale}%" preserveAspectRatio="none">
+      <path d='${outerTrackerPath}' id="arc" fill="none" stroke=${trackerOutlineColour} stroke-width=${this.props.trackerWidth} />
+      <path d='${trackerPath}' id="arc" fill="none" stroke=${this.props.trackerBackgroundColour} stroke-width=${innerTrackerWidth} />
+      <path d='${trackerArcPath}' id="arc" fill="none" stroke=${this.props.trackerColour} stroke-width=${innerTrackerWidth} /> 
+      <circle cx=${this.props.width / 2} cy=${this.props.height / 2} r=${(w / 2) - this.props.trackerWidth*.65} stroke=${this.props.outlineColour} stroke-width=${this.props.outlineWidth} fill=${this.props.colour} />
+      <text text-anchor="middle" x=${this.props.width / 2} y=${textY} font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">${this.props.text}</text>      
       </svg>
     `;
   }
-
-
 }
 
 
@@ -5754,6 +5774,19 @@ class CabbageUtils {
         return null;
     }
 
+    static getStringWidth(text, props, padding=10) {
+        var canvas = document.createElement('canvas');
+        let fontSize = 0;
+        if(props.type === 'hslider')
+            fontSize = props.height*.8;
+        else
+            console.error('getStringWidth..');
+
+        var ctx = canvas.getContext("2d");
+        ctx.font = `${fontSize}px ${props.fontFamily}`;
+        var width = ctx.measureText(text).width;
+        return width+padding;
+    }
   }
   
 
@@ -5821,13 +5854,13 @@ class HorizontalSlider {
     this.props = {
       "top": 10,
       "left": 10,
-      "width": 120,
-      "height": 20,
-      "channel": "hslider",
+      "width": 60,
+      "height": 60,
+      "channel": "rslider",
       "min": 0,
       "max": 1,
       "value": 0,
-      "defaultValue": 0,
+      "default": 0,
       "skew": 1,
       "increment": 0.001,
       "index": 0,
@@ -5835,18 +5868,17 @@ class HorizontalSlider {
       "fontFamily": "Verdana",
       "fontSize": 0,
       "align": "centre",
-      "textOffsetY": 0,
+      "sliderOffsetX": 0,
       "valueTextBox": 0,
       "colour": "#0295cf",
       "trackerColour": "#93D200",
       "trackerBackgroundColour": "#ffffff",
       "trackerOutlineColour": "#525252",
-      "fontColour": "#222222",
+      "fontColour": "#dddddd",
       "textColour": "#222222",
       "outlineColour": "#999999",
-      "textBoxOutlineColour": "#999999",
       "textBoxColour": "#555555",
-      "trackerOutlineWidth": 2,
+      "trackerStrokeWidth": 1,
       "outlineWidth": 0.3,
       "markerThickness": 0.2,
       "markerStart": 0.1,
@@ -5865,9 +5897,9 @@ class HorizontalSlider {
     }
 
     this.panelSections = {
-      "Properties": ["type", "channel"],
+      "Info": ["type", "channel"],
       "Bounds": ["left", "top", "width", "height"],
-      "Range": ["min", "max", "defaultValue", "skew", "increment"],
+      "Range": ["min", "max", "default", "skew", "increment"],
       "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
       "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
     };
@@ -5891,17 +5923,24 @@ class HorizontalSlider {
   }
 
   pointerDown(evt) {
-    this.isMouseDown = true;
-    this.startX = evt.offsetX;
-    this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.startX, 0, this.props.width, this.props.min, this.props.max)
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
 
-    window.addEventListener("pointermove", this.moveListener);
-    window.addEventListener("pointerup", this.upListener);
+    const sliderWidth = this.props.width - textWidth;
 
-    this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
-    this.startValue = this.props.value;
-    const widgetDiv = document.getElementById(this.props.name);
-    widgetDiv.innerHTML = this.getSVG();
+    if (evt.offsetX >= textWidth) {
+      this.isMouseDown = true;
+      this.startX = evt.offsetX - textWidth;
+      this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.startX, 0, sliderWidth, this.props.min, this.props.max);
+
+      window.addEventListener("pointermove", this.moveListener);
+      window.addEventListener("pointerup", this.upListener);
+
+      this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
+      this.startValue = this.props.value;
+      const widgetDiv = document.getElementById(this.props.name);
+      widgetDiv.innerHTML = this.getSVG();
+    }
   }
 
   mouseEnter(evt) {
@@ -5934,7 +5973,7 @@ class HorizontalSlider {
         popup.classList.remove('right');
       }
 
-      const popupTop = this.props.top + this.props.height*2.75;
+      const popupTop = this.props.top + this.props.height;
 
       // Set the calculated position
       popup.style.left = `${popupLeft}px`;
@@ -5951,7 +5990,6 @@ class HorizontalSlider {
       popup.classList.add('hide');
       popup.classList.remove('show');
     }
-
   }
 
   addEventListeners(widgetDiv, vs) {
@@ -5961,24 +5999,22 @@ class HorizontalSlider {
     widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
   }
 
-  addEventListeners(widgetDiv) {
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
-    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
-  }
-
   pointerMove({ clientX }) {
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
+    const sliderWidth = this.props.width - textWidth;
+
     // Get the bounding rectangle of the slider
     const sliderRect = document.getElementById(this.props.name).getBoundingClientRect();
 
     // Calculate the relative position of the mouse pointer within the slider bounds
-    let offsetX = clientX - sliderRect.left;
+    let offsetX = clientX - sliderRect.left - textWidth;
 
     // Clamp the mouse position to stay within the bounds of the slider
-    offsetX = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(offsetX, 0, sliderRect.width);
+    offsetX = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(offsetX, 0, sliderWidth);
 
     // Calculate the new value based on the mouse position
-    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(offsetX, 0, sliderRect.width, this.props.min, this.props.max);
+    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(offsetX, 0, sliderWidth, this.props.min, this.props.max);
     newValue = Math.round(newValue / this.props.increment) * this.props.increment; // Round to the nearest increment
 
     // Update the slider value
@@ -5989,13 +6025,14 @@ class HorizontalSlider {
     widgetDiv.innerHTML = this.getSVG();
 
     // Post message if vscode is available
-    const msg = { channel: this.props.channel, value: _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) }
+    const msg = { channel: this.props.channel, value: _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value.map, this.props.min, this.props.max, 0, 1) }
     if (this.vscode) {
       this.vscode.postMessage({
         command: 'channelUpdate',
         text: JSON.stringify(msg)
       })
-    } else {
+    }
+    else {
       var message = {
         "msg": "parameterUpdate",
         "paramIdx": this.props.index,
@@ -6011,23 +6048,54 @@ class HorizontalSlider {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
     }
 
-    return `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
-    <svg width="${this.props.width}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="0" y="${this.props.height * .2}" width="${this.props.width}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
-    <rect x="0" y="${this.props.height * .2}" width="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, this.props.width - this.props.width * .05)}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
-  
-    <rect x="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 1, this.props.width - this.props.width * .055)}" y="0" width="${this.props.width * .05}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="2" stroke="black"/>
-    </svg>
+    const alignMap = {
+      'left': 'start',
+      'center': 'middle',
+      'centre': 'middle',
+      'right': 'end',
+    };
+    
+    const svgAlign = alignMap[this.props.align] || this.props.align;
+    
+    // Add padding if alignment is 'end' or 'centre'
+    const padding = (svgAlign === 'end' || svgAlign === 'middle') ? 5 : 0; // Adjust the padding value as needed
+    
+    // Calculate text width and update SVG width
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = (this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth) - padding;
+    const sliderWidth = this.props.width - textWidth - padding; // Subtract padding from sliderWidth
+    
+    const w = (sliderWidth > this.props.height ? this.props.height : sliderWidth) * 0.75;
+    const textY = this.props.height / 2 + (this.props.fontSize > 0 ? this.props.textOffsetY : 0) + (this.props.height * 0.25); // Adjusted for vertical centering
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.8;
+    
+    textWidth += padding;
+    
+    const textElement = this.props.text ? `
+      <svg x="0" y="0" width="${textWidth}" height="${this.props.height}" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <text text-anchor="${svgAlign}" x="${svgAlign === 'end' ? textWidth - padding : (svgAlign === 'middle' ? (textWidth - padding) / 2 : 0)}" y="${textY}" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">
+          ${this.props.text}
+        </text>
+      </svg>
+    ` : '';
+    
+    const sliderElement = `
+  <svg x="${textWidth}" width="${sliderWidth}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="1" y="${this.props.height * .2}" width="${sliderWidth - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="2" stroke="black"/>
+    <rect x="1" y="${this.props.height * .2}" width="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth) - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
+    <rect x="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="2" stroke="black"/>
+`;
 
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+        ${textElement}
+        ${sliderElement}
+      </svg>
     `;
   }
 
 
 }
-
-
-
 
 
 /***/ }),
@@ -6248,7 +6316,6 @@ pointerMove(evt) {
     <svg width="${this.props.width}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="${this.props.width*.2}" y="0" width="${this.props.width*.6}" height="${this.props.height}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
     <rect x="${this.props.width*.2}" y="${yPos}" width="${this.props.width*.6}" height="${this.props.height  - yPos}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
-  
     <rect x="0" y="${yPos}" width="${this.props.width}" height="${this.props.height*.05}" rx="4" fill="${this.props.colour}" stroke-width="2" stroke="black"/>
     </svg>
 

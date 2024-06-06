@@ -105,9 +105,7 @@ export function activate(context: vscode.ExtensionContext) {
 		const widgetWrapper = panel.webview.asWebviewUri(onDiskPath);
 
 		//add widget types to menu
-		const widgetTypes = ["button", "optionbutton", "checkbox", "combobox", "csoundoutput", "encoder", "fftdisplay", "filebutton", "presetbutton", "form",
-			"gentable", "groupbox", "hmeter", "hrange", "hslider", "image", "webview", "infobutton", "keyboard", "label", "listbox", "nslider",
-			"rslider", "signaldisplay", "soundfiler", "textbox", "texteditor", "vmeter", "vrange", "vslider", "xypad"];
+		const widgetTypes = ["hslider", "rslider", "vslider"];
 
 		let menuItems = "";
 		widgetTypes.forEach((widget) => {
@@ -184,7 +182,8 @@ export function activate(context: vscode.ExtensionContext) {
 							updateText(message.text);
 						return;
 					case 'channelUpdate':
-						websocket.send(JSON.stringify(message.text));
+						if(websocket)
+							websocket.send(JSON.stringify(message.text));
 					// console.log(message.text);
 					case 'ready': //trigger when webview is open
 						if (panel)
@@ -341,7 +340,7 @@ async function updateText(jsonText: string) {
 		}
 
 
-		const internalIdentifiers: string[] = ['top', 'left', 'width', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index'];
+		const internalIdentifiers: string[] = ['top', 'left', 'width', 'defaultValue', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index'];
 		if (props.type.indexOf('slider') != -1)
 			internalIdentifiers.push('value');
 

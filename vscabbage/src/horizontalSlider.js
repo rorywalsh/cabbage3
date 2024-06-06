@@ -8,13 +8,13 @@ export class HorizontalSlider {
     this.props = {
       "top": 10,
       "left": 10,
-      "width": 120,
-      "height": 20,
-      "channel": "hslider",
+      "width": 60,
+      "height": 60,
+      "channel": "rslider",
       "min": 0,
       "max": 1,
       "value": 0,
-      "defaultValue": 0,
+      "default": 0,
       "skew": 1,
       "increment": 0.001,
       "index": 0,
@@ -22,18 +22,17 @@ export class HorizontalSlider {
       "fontFamily": "Verdana",
       "fontSize": 0,
       "align": "centre",
-      "textOffsetY": 0,
+      "sliderOffsetX": 0,
       "valueTextBox": 0,
       "colour": "#0295cf",
       "trackerColour": "#93D200",
       "trackerBackgroundColour": "#ffffff",
       "trackerOutlineColour": "#525252",
-      "fontColour": "#222222",
+      "fontColour": "#dddddd",
       "textColour": "#222222",
       "outlineColour": "#999999",
-      "textBoxOutlineColour": "#999999",
       "textBoxColour": "#555555",
-      "trackerOutlineWidth": 2,
+      "trackerStrokeWidth": 1,
       "outlineWidth": 0.3,
       "markerThickness": 0.2,
       "markerStart": 0.1,
@@ -52,9 +51,9 @@ export class HorizontalSlider {
     }
 
     this.panelSections = {
-      "Properties": ["type", "channel"],
+      "Info": ["type", "channel"],
       "Bounds": ["left", "top", "width", "height"],
-      "Range": ["min", "max", "defaultValue", "skew", "increment"],
+      "Range": ["min", "max", "default", "skew", "increment"],
       "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
       "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
     };
@@ -78,17 +77,24 @@ export class HorizontalSlider {
   }
 
   pointerDown(evt) {
-    this.isMouseDown = true;
-    this.startX = evt.offsetX;
-    this.props.value = CabbageUtils.map(this.startX, 0, this.props.width, this.props.min, this.props.max)
+    let textWidth = this.props.text ? CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
 
-    window.addEventListener("pointermove", this.moveListener);
-    window.addEventListener("pointerup", this.upListener);
+    const sliderWidth = this.props.width - textWidth;
 
-    this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
-    this.startValue = this.props.value;
-    const widgetDiv = document.getElementById(this.props.name);
-    widgetDiv.innerHTML = this.getSVG();
+    if (evt.offsetX >= textWidth) {
+      this.isMouseDown = true;
+      this.startX = evt.offsetX - textWidth;
+      this.props.value = CabbageUtils.map(this.startX, 0, sliderWidth, this.props.min, this.props.max);
+
+      window.addEventListener("pointermove", this.moveListener);
+      window.addEventListener("pointerup", this.upListener);
+
+      this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
+      this.startValue = this.props.value;
+      const widgetDiv = document.getElementById(this.props.name);
+      widgetDiv.innerHTML = this.getSVG();
+    }
   }
 
   mouseEnter(evt) {
@@ -121,7 +127,7 @@ export class HorizontalSlider {
         popup.classList.remove('right');
       }
 
-      const popupTop = this.props.top + this.props.height*2.75;
+      const popupTop = this.props.top + this.props.height;
 
       // Set the calculated position
       popup.style.left = `${popupLeft}px`;
@@ -138,7 +144,6 @@ export class HorizontalSlider {
       popup.classList.add('hide');
       popup.classList.remove('show');
     }
-
   }
 
   addEventListeners(widgetDiv, vs) {
@@ -148,24 +153,22 @@ export class HorizontalSlider {
     widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
   }
 
-  addEventListeners(widgetDiv) {
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
-    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
-  }
-
   pointerMove({ clientX }) {
+    let textWidth = this.props.text ? CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
+    const sliderWidth = this.props.width - textWidth;
+
     // Get the bounding rectangle of the slider
     const sliderRect = document.getElementById(this.props.name).getBoundingClientRect();
 
     // Calculate the relative position of the mouse pointer within the slider bounds
-    let offsetX = clientX - sliderRect.left;
+    let offsetX = clientX - sliderRect.left - textWidth;
 
     // Clamp the mouse position to stay within the bounds of the slider
-    offsetX = CabbageUtils.clamp(offsetX, 0, sliderRect.width);
+    offsetX = CabbageUtils.clamp(offsetX, 0, sliderWidth);
 
     // Calculate the new value based on the mouse position
-    let newValue = CabbageUtils.map(offsetX, 0, sliderRect.width, this.props.min, this.props.max);
+    let newValue = CabbageUtils.map(offsetX, 0, sliderWidth, this.props.min, this.props.max);
     newValue = Math.round(newValue / this.props.increment) * this.props.increment; // Round to the nearest increment
 
     // Update the slider value
@@ -176,13 +179,14 @@ export class HorizontalSlider {
     widgetDiv.innerHTML = this.getSVG();
 
     // Post message if vscode is available
-    const msg = { channel: this.props.channel, value: CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) }
+    const msg = { channel: this.props.channel, value: CabbageUtils.map(this.props.value.map, this.props.min, this.props.max, 0, 1) }
     if (this.vscode) {
       this.vscode.postMessage({
         command: 'channelUpdate',
         text: JSON.stringify(msg)
       })
-    } else {
+    }
+    else {
       var message = {
         "msg": "parameterUpdate",
         "paramIdx": this.props.index,
@@ -198,20 +202,51 @@ export class HorizontalSlider {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
     }
 
-    return `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
-    <svg width="${this.props.width}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="0" y="${this.props.height * .2}" width="${this.props.width}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
-    <rect x="0" y="${this.props.height * .2}" width="${CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, this.props.width - this.props.width * .05)}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/>
-  
-    <rect x="${CabbageUtils.map(this.props.value, this.props.min, this.props.max, 1, this.props.width - this.props.width * .055)}" y="0" width="${this.props.width * .05}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="2" stroke="black"/>
-    </svg>
+    const alignMap = {
+      'left': 'start',
+      'center': 'middle',
+      'centre': 'middle',
+      'right': 'end',
+    };
+    
+    const svgAlign = alignMap[this.props.align] || this.props.align;
+    
+    // Add padding if alignment is 'end' or 'centre'
+    const padding = (svgAlign === 'end' || svgAlign === 'middle') ? 5 : 0; // Adjust the padding value as needed
+    
+    // Calculate text width and update SVG width
+    let textWidth = this.props.text ? CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = (this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth) - padding;
+    const sliderWidth = this.props.width - textWidth - padding; // Subtract padding from sliderWidth
+    
+    const w = (sliderWidth > this.props.height ? this.props.height : sliderWidth) * 0.75;
+    const textY = this.props.height / 2 + (this.props.fontSize > 0 ? this.props.textOffsetY : 0) + (this.props.height * 0.25); // Adjusted for vertical centering
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.8;
+    
+    textWidth += padding;
+    
+    const textElement = this.props.text ? `
+      <svg x="0" y="0" width="${textWidth}" height="${this.props.height}" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <text text-anchor="${svgAlign}" x="${svgAlign === 'end' ? textWidth - padding : (svgAlign === 'middle' ? (textWidth - padding) / 2 : 0)}" y="${textY}" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">
+          ${this.props.text}
+        </text>
+      </svg>
+    ` : '';
+    
+    const sliderElement = `
+  <svg x="${textWidth}" width="${sliderWidth}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="1" y="${this.props.height * .2}" width="${sliderWidth - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="2" stroke="black"/>
+    <rect x="1" y="${this.props.height * .2}" width="${CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth) - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
+    <rect x="${CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="2" stroke="black"/>
+`;
 
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+        ${textElement}
+        ${sliderElement}
+      </svg>
     `;
   }
 
 
 }
-
-
-
