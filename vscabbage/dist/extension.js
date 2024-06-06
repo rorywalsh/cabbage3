@@ -6011,6 +6011,7 @@ class HorizontalSlider {
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
     widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
     widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.HorizontalSliderInstance = this;
   }
 
   pointerMove({ clientX }) {
@@ -6056,37 +6057,45 @@ class HorizontalSlider {
     }
   }
   
+  handleInputChange(evt) {
+    const inputValue = parseFloat(evt.target.value);
+    if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
+      this.props.value = inputValue;
+      const widgetDiv = document.getElementById(this.props.name);
+      widgetDiv.innerHTML = this.getSVG();
+    }
+  }
 
   getSVG() {
     const popup = document.getElementById('popupValue');
     if (popup) {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
     }
-  
+
     const alignMap = {
       'left': 'start',
       'center': 'middle',
       'centre': 'middle',
       'right': 'end',
     };
-  
+
     const svgAlign = alignMap[this.props.align] || this.props.align;
-  
+
     // Add padding if alignment is 'end' or 'middle'
     const padding = (svgAlign === 'end' || svgAlign === 'middle') ? 5 : 0; // Adjust the padding value as needed
-  
+
     // Calculate text width and update SVG width
     let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
     textWidth = (this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth) - padding;
     const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
     const sliderWidth = this.props.width - textWidth - valueTextBoxWidth - padding; // Subtract padding from sliderWidth
-  
+
     const w = (sliderWidth > this.props.height ? this.props.height : sliderWidth) * 0.75;
     const textY = this.props.height / 2 + (this.props.fontSize > 0 ? this.props.textOffsetY : 0) + (this.props.height * 0.25); // Adjusted for vertical centering
     const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.8;
-  
+
     textWidth += padding;
-  
+
     const textElement = this.props.text ? `
       <svg x="0" y="0" width="${textWidth}" height="${this.props.height}" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
         <text text-anchor="${svgAlign}" x="${svgAlign === 'end' ? textWidth - padding : (svgAlign === 'middle' ? (textWidth - padding) / 2 : 0)}" y="${textY}" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">
@@ -6094,7 +6103,7 @@ class HorizontalSlider {
         </text>
       </svg>
     ` : '';
-  
+
     const sliderElement = `
       <svg x="${textWidth}" width="${sliderWidth}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="1" y="${this.props.height * .2}" width="${sliderWidth - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="2" stroke="black"/>
@@ -6102,15 +6111,16 @@ class HorizontalSlider {
         <rect x="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="2" stroke="black"/>
       </svg>
     `;
-  
+
     const valueTextElement = this.props.valueTextBox ? `
-      <svg x="${textWidth + sliderWidth}" y="1" width="${valueTextBoxWidth}" height="${this.props.height}" fill="none" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
-        <text x="50%" y="${textY}" text-anchor="middle" font-size="${fontSize}px" font-family="${this.props.fontFamily}" fill="${this.props.fontColour}">
-          ${parseFloat(this.props.value).toFixed(this.decimalPlaces)}
-        </text>
-      </svg>
+      <foreignObject x="${textWidth + sliderWidth}" y="0" width="${valueTextBoxWidth}" height="${this.props.height}">
+        <input type="text" 
+               style="width:100%; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
+               value="${parseFloat(this.props.value).toFixed(this.decimalPlaces)}"
+               oninput="document.getElementById('${this.props.name}').HorizontalSliderInstance.handleInputChange(event)"/>
+      </foreignObject>
     ` : '';
-  
+
     return `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
         ${textElement}
@@ -6119,6 +6129,7 @@ class HorizontalSlider {
       </svg>
     `;
   }
+
   
   
 }
