@@ -66,6 +66,9 @@ export class VerticalSlider {
   }
 
   pointerUp() {
+    if(this.props.active === 0) {
+      return '';
+    }
     const popup = document.getElementById('popupValue');
     popup.classList.add('hide');
     popup.classList.remove('show');
@@ -75,6 +78,9 @@ export class VerticalSlider {
   }
 
   pointerDown(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
     let textHeight = this.props.text ? this.props.height * 0.1 : 0;
     const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
     const sliderHeight = this.props.height - textHeight - valueTextBoxHeight;
@@ -96,6 +102,10 @@ export class VerticalSlider {
 
 
   mouseEnter(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+
     const popup = document.getElementById('popupValue');
     const form = document.getElementById('MainForm');
     const rect = form.getBoundingClientRect();
@@ -167,6 +177,10 @@ export class VerticalSlider {
   }
 
   pointerMove({ clientY }) {
+    if(this.props.active === 0) {
+      return '';
+    }
+
     let textHeight = this.props.text ? this.props.height * 0.1 : 0;
     const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
     const sliderHeight = this.props.height - textHeight - valueTextBoxHeight;
@@ -212,7 +226,7 @@ export class VerticalSlider {
     if(this.props.visible === 0) {
       return '';
     }
-    
+
     const popup = document.getElementById('popupValue');
     if (popup) {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);

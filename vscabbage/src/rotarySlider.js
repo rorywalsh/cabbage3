@@ -73,6 +73,9 @@ export class RotarySlider {
   }
 
   pointerUp() {
+    if(this.props.active === 0) {
+      return '';
+    }
     const popup = document.getElementById('popupValue');
     popup.classList.add('hide');
     popup.classList.remove('show');
@@ -82,6 +85,10 @@ export class RotarySlider {
   }
 
   pointerDown(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+
     this.isMouseDown = true;
     this.startY = evt.clientY;
     this.startValue = this.props.value;
@@ -90,6 +97,10 @@ export class RotarySlider {
   }
 
   mouseEnter(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+
     const popup = document.getElementById('popupValue');
     const form = document.getElementById('MainForm');
     const rect = form.getBoundingClientRect();
@@ -155,6 +166,10 @@ export class RotarySlider {
   }
 
   pointerMove({ clientY }) {
+    if(this.props.active === 0) {
+      return '';
+    }
+  
     const steps = 200;
     const valueDiff = ((this.props.max - this.props.min) * (clientY - this.startY)) / steps;
     const value = CabbageUtils.clamp(this.startValue - valueDiff, this.props.min, this.props.max);
@@ -225,6 +240,7 @@ export class RotarySlider {
     if(this.props.visible === 0) {
       return '';
     }
+  
     const popup = document.getElementById('popupValue');
     if (popup) {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);

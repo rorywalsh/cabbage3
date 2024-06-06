@@ -78,6 +78,10 @@ export class HorizontalSlider {
   }
 
   pointerDown(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+
     let textWidth = this.props.text ? CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
     textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
     const valueTextBoxWidth = this.props.valueTextBox ? CabbageUtils.getNumberBoxWidth(this.props) : 0;
@@ -101,6 +105,9 @@ export class HorizontalSlider {
   
 
   mouseEnter(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
     const popup = document.getElementById('popupValue');
     const form = document.getElementById('MainForm');
     const rect = form.getBoundingClientRect();
@@ -143,6 +150,9 @@ export class HorizontalSlider {
   
 
   mouseLeave(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
     if (!this.isMouseDown) {
       const popup = document.getElementById('popupValue');
       popup.classList.add('hide');
@@ -166,6 +176,9 @@ export class HorizontalSlider {
   }
 
   pointerMove({ clientX }) {
+    if(this.props.active === 0) {
+      return '';
+    }
     let textWidth = this.props.text ? CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
     textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
     const valueTextBoxWidth = this.props.valueTextBox ? CabbageUtils.getNumberBoxWidth(this.props) : 0;

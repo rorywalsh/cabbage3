@@ -541,6 +541,9 @@ class RotarySlider {
   }
 
   pointerUp() {
+    if(this.props.active === 0) {
+      return '';
+    }
     const popup = document.getElementById('popupValue');
     popup.classList.add('hide');
     popup.classList.remove('show');
@@ -550,6 +553,10 @@ class RotarySlider {
   }
 
   pointerDown(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+
     this.isMouseDown = true;
     this.startY = evt.clientY;
     this.startValue = this.props.value;
@@ -558,6 +565,10 @@ class RotarySlider {
   }
 
   mouseEnter(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+
     const popup = document.getElementById('popupValue');
     const form = document.getElementById('MainForm');
     const rect = form.getBoundingClientRect();
@@ -623,6 +634,10 @@ class RotarySlider {
   }
 
   pointerMove({ clientY }) {
+    if(this.props.active === 0) {
+      return '';
+    }
+  
     const steps = 200;
     const valueDiff = ((this.props.max - this.props.min) * (clientY - this.startY)) / steps;
     const value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(this.startValue - valueDiff, this.props.min, this.props.max);
@@ -693,6 +708,7 @@ class RotarySlider {
     if(this.props.visible === 0) {
       return '';
     }
+  
     const popup = document.getElementById('popupValue');
     if (popup) {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
@@ -5972,6 +5988,10 @@ class HorizontalSlider {
   }
 
   pointerDown(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+
     let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
     textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
     const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
@@ -5995,6 +6015,9 @@ class HorizontalSlider {
   
 
   mouseEnter(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
     const popup = document.getElementById('popupValue');
     const form = document.getElementById('MainForm');
     const rect = form.getBoundingClientRect();
@@ -6037,6 +6060,9 @@ class HorizontalSlider {
   
 
   mouseLeave(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
     if (!this.isMouseDown) {
       const popup = document.getElementById('popupValue');
       popup.classList.add('hide');
@@ -6060,6 +6086,9 @@ class HorizontalSlider {
   }
 
   pointerMove({ clientX }) {
+    if(this.props.active === 0) {
+      return '';
+    }
     let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
     textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
     const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
@@ -6262,6 +6291,9 @@ class VerticalSlider {
   }
 
   pointerUp() {
+    if(this.props.active === 0) {
+      return '';
+    }
     const popup = document.getElementById('popupValue');
     popup.classList.add('hide');
     popup.classList.remove('show');
@@ -6271,6 +6303,9 @@ class VerticalSlider {
   }
 
   pointerDown(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
     let textHeight = this.props.text ? this.props.height * 0.1 : 0;
     const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
     const sliderHeight = this.props.height - textHeight - valueTextBoxHeight;
@@ -6292,6 +6327,10 @@ class VerticalSlider {
 
 
   mouseEnter(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+
     const popup = document.getElementById('popupValue');
     const form = document.getElementById('MainForm');
     const rect = form.getBoundingClientRect();
@@ -6363,6 +6402,10 @@ class VerticalSlider {
   }
 
   pointerMove({ clientY }) {
+    if(this.props.active === 0) {
+      return '';
+    }
+
     let textHeight = this.props.text ? this.props.height * 0.1 : 0;
     const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
     const sliderHeight = this.props.height - textHeight - valueTextBoxHeight;
@@ -6408,7 +6451,7 @@ class VerticalSlider {
     if(this.props.visible === 0) {
       return '';
     }
-    
+
     const popup = document.getElementById('popupValue');
     if (popup) {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
