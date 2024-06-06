@@ -234,5 +234,18 @@ export class CabbageUtils {
         var width = ctx.measureText(text).width;
         return width+padding;
     }
+
+    static getNumberBoxWidth(props) {
+        // Get the number of decimal places in props.increment
+        const decimalPlaces = CabbageUtils.getDecimalPlaces(props.increment);
+      
+        // Format props.max with the correct number of decimal places
+        const maxNumber = props.max.toFixed(decimalPlaces);
+      
+        // Calculate the width of the string representation of maxNumber
+        const maxNumberWidth = CabbageUtils.getStringWidth(maxNumber, props);
+      
+        return maxNumberWidth;
+      }
   }
   

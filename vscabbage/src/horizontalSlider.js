@@ -79,23 +79,24 @@ export class HorizontalSlider {
   pointerDown(evt) {
     let textWidth = this.props.text ? CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
     textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
-
-    const sliderWidth = this.props.width - textWidth;
-
-    if (evt.offsetX >= textWidth) {
+    const valueTextBoxWidth = this.props.valueTextBox ? CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
+  
+    if (evt.offsetX >= textWidth && evt.offsetX <= textWidth + sliderWidth) {
       this.isMouseDown = true;
       this.startX = evt.offsetX - textWidth;
       this.props.value = CabbageUtils.map(this.startX, 0, sliderWidth, this.props.min, this.props.max);
-
+  
       window.addEventListener("pointermove", this.moveListener);
       window.addEventListener("pointerup", this.upListener);
-
+  
       this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
       this.startValue = this.props.value;
       const widgetDiv = document.getElementById(this.props.name);
       widgetDiv.innerHTML = this.getSVG();
     }
   }
+  
 
   mouseEnter(evt) {
     const popup = document.getElementById('popupValue');
@@ -156,37 +157,37 @@ export class HorizontalSlider {
   pointerMove({ clientX }) {
     let textWidth = this.props.text ? CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
     textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
-    const sliderWidth = this.props.width - textWidth;
-
+    const valueTextBoxWidth = this.props.valueTextBox ? CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
+  
     // Get the bounding rectangle of the slider
     const sliderRect = document.getElementById(this.props.name).getBoundingClientRect();
-
+  
     // Calculate the relative position of the mouse pointer within the slider bounds
     let offsetX = clientX - sliderRect.left - textWidth;
-
+  
     // Clamp the mouse position to stay within the bounds of the slider
     offsetX = CabbageUtils.clamp(offsetX, 0, sliderWidth);
-
+  
     // Calculate the new value based on the mouse position
     let newValue = CabbageUtils.map(offsetX, 0, sliderWidth, this.props.min, this.props.max);
     newValue = Math.round(newValue / this.props.increment) * this.props.increment; // Round to the nearest increment
-
+  
     // Update the slider value
     this.props.value = newValue;
-
+  
     // Update the slider appearance
     const widgetDiv = document.getElementById(this.props.name);
     widgetDiv.innerHTML = this.getSVG();
-
+  
     // Post message if vscode is available
-    const msg = { channel: this.props.channel, value: CabbageUtils.map(this.props.value.map, this.props.min, this.props.max, 0, 1) }
+    const msg = { channel: this.props.channel, value: CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) }
     if (this.vscode) {
       this.vscode.postMessage({
         command: 'channelUpdate',
         text: JSON.stringify(msg)
-      })
-    }
-    else {
+      });
+    } else {
       var message = {
         "msg": "parameterUpdate",
         "paramIdx": this.props.index,
@@ -195,36 +196,38 @@ export class HorizontalSlider {
       // IPlugSendMsg(message);
     }
   }
+  
 
   getSVG() {
     const popup = document.getElementById('popupValue');
     if (popup) {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
     }
-
+  
     const alignMap = {
       'left': 'start',
       'center': 'middle',
       'centre': 'middle',
       'right': 'end',
     };
-    
+  
     const svgAlign = alignMap[this.props.align] || this.props.align;
-    
-    // Add padding if alignment is 'end' or 'centre'
+  
+    // Add padding if alignment is 'end' or 'middle'
     const padding = (svgAlign === 'end' || svgAlign === 'middle') ? 5 : 0; // Adjust the padding value as needed
-    
+  
     // Calculate text width and update SVG width
     let textWidth = this.props.text ? CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
     textWidth = (this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth) - padding;
-    const sliderWidth = this.props.width - textWidth - padding; // Subtract padding from sliderWidth
-    
+    const valueTextBoxWidth = this.props.valueTextBox ? CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth - padding; // Subtract padding from sliderWidth
+  
     const w = (sliderWidth > this.props.height ? this.props.height : sliderWidth) * 0.75;
     const textY = this.props.height / 2 + (this.props.fontSize > 0 ? this.props.textOffsetY : 0) + (this.props.height * 0.25); // Adjusted for vertical centering
     const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.8;
-    
+  
     textWidth += padding;
-    
+  
     const textElement = this.props.text ? `
       <svg x="0" y="0" width="${textWidth}" height="${this.props.height}" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
         <text text-anchor="${svgAlign}" x="${svgAlign === 'end' ? textWidth - padding : (svgAlign === 'middle' ? (textWidth - padding) / 2 : 0)}" y="${textY}" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">
@@ -232,21 +235,31 @@ export class HorizontalSlider {
         </text>
       </svg>
     ` : '';
-    
+  
     const sliderElement = `
-  <svg x="${textWidth}" width="${sliderWidth}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="1" y="${this.props.height * .2}" width="${sliderWidth - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="2" stroke="black"/>
-    <rect x="1" y="${this.props.height * .2}" width="${CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth) - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
-    <rect x="${CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="2" stroke="black"/>
-`;
-
+      <svg x="${textWidth}" width="${sliderWidth}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="${this.props.height * .2}" width="${sliderWidth - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="2" stroke="black"/>
+        <rect x="1" y="${this.props.height * .2}" width="${CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth) - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
+        <rect x="${CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="2" stroke="black"/>
+      </svg>
+    `;
+  
+    const valueTextElement = this.props.valueTextBox ? `
+      <svg x="${textWidth + sliderWidth}" y="1" width="${valueTextBoxWidth}" height="${this.props.height}" fill="none" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <text x="50%" y="${textY}" text-anchor="middle" font-size="${fontSize}px" font-family="${this.props.fontFamily}" fill="${this.props.fontColour}">
+          ${parseFloat(this.props.value).toFixed(this.decimalPlaces)}
+        </text>
+      </svg>
+    ` : '';
+  
     return `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
         ${textElement}
         ${sliderElement}
+        ${valueTextElement}
       </svg>
     `;
   }
-
-
+  
+  
 }
