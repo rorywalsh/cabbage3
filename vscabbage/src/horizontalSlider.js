@@ -22,14 +22,12 @@ export class HorizontalSlider {
       "fontFamily": "Verdana",
       "fontSize": 0,
       "align": "centre",
-      "sliderOffsetX": 0,
       "valueTextBox": 0,
       "colour": "#0295cf",
       "trackerColour": "#93D200",
       "trackerBackgroundColour": "#ffffff",
       "trackerOutlineColour": "#525252",
       "fontColour": "#dddddd",
-      "textColour": "#222222",
       "outlineColour": "#999999",
       "textBoxColour": "#555555",
       "trackerOutlineWidth": 1,
@@ -42,13 +40,12 @@ export class HorizontalSlider {
       "kind": "horizontal",
       "decimalPlaces": 1,
       "velocity": 0,
-      "trackerStart": 0.1,
-      "trackerEnd": 0.9,
       "visible": 1,
       "popup": 1,
       "automatable": 1,
       "valuePrefix": "",
-      "valuePostfix": ""
+      "valuePostfix": "",
+      "presetIgnore": 0
     }
 
     this.panelSections = {
@@ -114,7 +111,7 @@ export class HorizontalSlider {
     this.decimalPlaces = CabbageUtils.getDecimalPlaces(this.props.increment);
   
     if (popup && this.props.popup) {
-      popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
   
       // Calculate the position for the popup
       const sliderLeft = this.props.left;
@@ -239,7 +236,7 @@ export class HorizontalSlider {
     }
     const popup = document.getElementById('popupValue');
     if (popup) {
-      popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
     }
 
     const alignMap = {

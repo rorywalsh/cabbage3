@@ -497,7 +497,6 @@ class RotarySlider {
       "trackerBackgroundColour": "#ffffff",
       "trackerOutlineColour": "#525252",
       "fontColour": "#dddddd",
-      "textColour": "#ffffff",
       "outlineColour": "#525252",
       "textBoxOutlineColour": "#999999",
       "textBoxColour": "#555555",
@@ -520,7 +519,8 @@ class RotarySlider {
       "visible": 1,
       "automatable": 1,
       "valuePrefix": "",
-      "valuePostfix": ""
+      "valuePostfix": "",
+      "presetIgnore": 0
     }
 
     this.panelSections = {
@@ -711,7 +711,7 @@ class RotarySlider {
   
     const popup = document.getElementById('popupValue');
     if (popup) {
-      popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
     }
 
     let w = (this.props.width > this.props.height ? this.props.height : this.props.width) * 0.75;
@@ -5932,14 +5932,12 @@ class HorizontalSlider {
       "fontFamily": "Verdana",
       "fontSize": 0,
       "align": "centre",
-      "sliderOffsetX": 0,
       "valueTextBox": 0,
       "colour": "#0295cf",
       "trackerColour": "#93D200",
       "trackerBackgroundColour": "#ffffff",
       "trackerOutlineColour": "#525252",
       "fontColour": "#dddddd",
-      "textColour": "#222222",
       "outlineColour": "#999999",
       "textBoxColour": "#555555",
       "trackerOutlineWidth": 1,
@@ -5952,13 +5950,12 @@ class HorizontalSlider {
       "kind": "horizontal",
       "decimalPlaces": 1,
       "velocity": 0,
-      "trackerStart": 0.1,
-      "trackerEnd": 0.9,
       "visible": 1,
       "popup": 1,
       "automatable": 1,
       "valuePrefix": "",
-      "valuePostfix": ""
+      "valuePostfix": "",
+      "presetIgnore": 0
     }
 
     this.panelSections = {
@@ -6024,7 +6021,7 @@ class HorizontalSlider {
     this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment);
   
     if (popup && this.props.popup) {
-      popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
   
       // Calculate the position for the popup
       const sliderLeft = this.props.left;
@@ -6149,7 +6146,7 @@ class HorizontalSlider {
     }
     const popup = document.getElementById('popupValue');
     if (popup) {
-      popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
     }
 
     const alignMap = {
@@ -6244,33 +6241,27 @@ class VerticalSlider {
       "fontFamily": "Verdana",
       "fontSize": 0,
       "align": "centre",
-      "sliderOffsetY": 0, // Changed from sliderOffsetX to sliderOffsetY for vertical slider
       "valueTextBox": 0,
       "colour": "#0295cf",
       "trackerColour": "#93D200",
       "trackerBackgroundColour": "#ffffff",
       "trackerOutlineColour": "#525252",
       "fontColour": "#dddddd",
-      "textColour": "#222222",
       "outlineColour": "#999999",
       "textBoxColour": "#555555",
       "trackerOutlineWidth": 1,
       "outlineWidth": 1,
-      "markerThickness": 0.2,
-      "markerStart": 0.1,
-      "markerEnd": 0.9,
       "name": "",
       "type": "vslider", // Changed from hslider to vslider
       "kind": "vertical", // Changed from horizontal to vertical
       "decimalPlaces": 1,
       "velocity": 0,
-      "trackerStart": 0.1,
-      "trackerEnd": 0.9,
       "visible": 1,
       "popup": 1,
       "automatable": 1,
       "valuePrefix": "",
-      "valuePostfix": ""
+      "valuePostfix": "",
+      "presetIgnore": 0
     }
 
     this.panelSections = {
@@ -6337,7 +6328,7 @@ class VerticalSlider {
     this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment);
 
     if (popup) {
-      popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
 
       // Calculate the position for the popup
       const sliderLeft = this.props.left;
@@ -6454,7 +6445,8 @@ class VerticalSlider {
 
     const popup = document.getElementById('popupValue');
     if (popup) {
-      popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
+      console.log(this.props.valuePrefix)
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
     }
 
     const alignMap = {

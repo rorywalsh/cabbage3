@@ -29,7 +29,6 @@ export class RotarySlider {
       "trackerBackgroundColour": "#ffffff",
       "trackerOutlineColour": "#525252",
       "fontColour": "#dddddd",
-      "textColour": "#ffffff",
       "outlineColour": "#525252",
       "textBoxOutlineColour": "#999999",
       "textBoxColour": "#555555",
@@ -52,7 +51,8 @@ export class RotarySlider {
       "visible": 1,
       "automatable": 1,
       "valuePrefix": "",
-      "valuePostfix": ""
+      "valuePostfix": "",
+      "presetIgnore": 0
     }
 
     this.panelSections = {
@@ -243,7 +243,7 @@ export class RotarySlider {
   
     const popup = document.getElementById('popupValue');
     if (popup) {
-      popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
     }
 
     let w = (this.props.width > this.props.height ? this.props.height : this.props.width) * 0.75;
