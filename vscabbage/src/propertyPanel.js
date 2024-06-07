@@ -9,6 +9,7 @@ export class PropertyPanel {
     this.panelSections = panelSections;
     var panel = document.querySelector('.property-panel');
     this.vscode = vscode;
+
     // Helper function to create a section
     const createSection = (sectionName) => {
       const sectionDiv = document.createElement('div');
@@ -24,8 +25,7 @@ export class PropertyPanel {
     // Create sections based on the panelSections object
     const sections = {};
 
-    if (panelSections === undefined)
-      return;
+    if (panelSections === undefined) return;
 
     Object.entries(panelSections).forEach(([sectionName, keys]) => {
       sections[sectionName] = createSection(sectionName);
@@ -90,7 +90,10 @@ export class PropertyPanel {
       return input;
     };
 
-    // Iterate over panelSections and properties to assign them to their respective sections in order
+    // Track properties that have been assigned to sections
+    const assignedProperties = new Set();
+
+    // Iterate over panelSections and properties to assign them to their respective sections
     Object.entries(panelSections).forEach(([sectionName, keys]) => {
       keys.forEach((key) => {
         if (properties.hasOwnProperty(key)) {
@@ -110,7 +113,7 @@ export class PropertyPanel {
           input.id = key;
           input.dataset.parent = properties.name;
           const self = this;
-          
+
           input.addEventListener('input', function (evt) {
             widgets.forEach((widget) => {
               if (widget.props.name === evt.target.dataset.parent) {
@@ -140,8 +143,61 @@ export class PropertyPanel {
 
           propertyDiv.appendChild(input);
           sections[sectionName].appendChild(propertyDiv);
+          assignedProperties.add(key);
         }
       });
+    });
+
+    // Add properties that haven't been assigned to any section to the Misc section
+    Object.keys(properties).forEach((key) => {
+      if (!assignedProperties.has(key)) {
+        var propertyDiv = document.createElement('div');
+        propertyDiv.classList.add('property');
+
+        var label = document.createElement('label');
+        let text = `${key}`;
+
+        let result = text.replace(/([A-Z])/g, " $1");
+        const separatedName = result.charAt(0).toUpperCase() + result.slice(1);
+        label.textContent = separatedName;
+        propertyDiv.appendChild(label);
+
+        var input = createInputElement(key, properties[key]);
+
+        input.id = key;
+        input.dataset.parent = properties.name;
+        const self = this;
+
+        input.addEventListener('input', function (evt) {
+          widgets.forEach((widget) => {
+            if (widget.props.name === evt.target.dataset.parent) {
+              const inputValue = evt.target.value;
+              let parsedValue;
+
+              // Check if the input value can be parsed to a number
+              if (!isNaN(inputValue) && inputValue.trim() !== "") {
+                parsedValue = Number(inputValue);
+              } else {
+                parsedValue = inputValue;
+              }
+              widget.props[evt.target.id] = parsedValue;
+              const widgetDiv = document.getElementById(widget.props.name);
+              widgetDiv.innerHTML = widget.getSVG();
+              if (!self.vscode)
+                console.error("vscode is not valid");
+              else {
+                self.vscode.postMessage({
+                  command: 'widgetUpdate',
+                  text: JSON.stringify(widget.props)
+                });
+              }
+            }
+          });
+        });
+
+        propertyDiv.appendChild(input);
+        miscSection.appendChild(propertyDiv);
+      }
     });
 
     // Append sections to the panel in the specified order
@@ -157,6 +213,8 @@ export class PropertyPanel {
     }
   }
 
+
+
   /**
 * this callback is triggered whenever a user move/drags a widget in edit mode
 * The innerHTML is constantly updated. When this is called, the editor is also
@@ -164,48 +222,48 @@ export class PropertyPanel {
 * type, name and bounds updates 
 */
   static async updatePanel(vscode, input, widgets) {
-    // Ensure input is an array of objects
-    this.vscode = vscode;
-    let events = Array.isArray(input) ? input : [input];
+  // Ensure input is an array of objects
+  this.vscode = vscode;
+  let events = Array.isArray(input) ? input : [input];
 
-    const element = document.querySelector('.property-panel');
-    if (element) {
-      element.style.visibility = "visible";
-      element.innerHTML = '';
-    }
-
-    // Iterate over the array of event objects
-    events.forEach(eventObj => {
-      const { eventType, name, bounds } = eventObj;
-      widgets.forEach((widget, index) => {
-        if (widget.props.name === name) {
-          if (eventType !== 'click') {
-            widget.props.left = Math.floor(bounds.x);
-            widget.props.top = Math.floor(bounds.y);
-            widget.props.width = Math.floor(bounds.w);
-            widget.props.height = Math.floor(bounds.h);
-
-            if (widget.props.type !== 'form') {
-              document.getElementById(widget.props.name).innerHTML = widget.getSVG();
-            }
-          }
-
-          if (widget.props.hasOwnProperty('channel')) {
-            widget.props.channel = name;
-          }
-
-          new PropertyPanel(vscode, widget.props.type, widget.props, widget.panelSections, widgets);
-          if (!this.vscode)
-            console.error("not valid");
-          //firing these off in one go cause the vs-code editor to shit its pant
-          setTimeout(() => {
-            this.vscode.postMessage({
-              command: 'widgetUpdate',
-              text: JSON.stringify(widget.props)
-            });
-          }, (index + 1) * 50);
-        }
-      });
-    });
+  const element = document.querySelector('.property-panel');
+  if (element) {
+    element.style.visibility = "visible";
+    element.innerHTML = '';
   }
+
+  // Iterate over the array of event objects
+  events.forEach(eventObj => {
+    const { eventType, name, bounds } = eventObj;
+    widgets.forEach((widget, index) => {
+      if (widget.props.name === name) {
+        if (eventType !== 'click') {
+          widget.props.left = Math.floor(bounds.x);
+          widget.props.top = Math.floor(bounds.y);
+          widget.props.width = Math.floor(bounds.w);
+          widget.props.height = Math.floor(bounds.h);
+
+          if (widget.props.type !== 'form') {
+            document.getElementById(widget.props.name).innerHTML = widget.getSVG();
+          }
+        }
+
+        if (widget.props.hasOwnProperty('channel')) {
+          widget.props.channel = name;
+        }
+
+        new PropertyPanel(vscode, widget.props.type, widget.props, widget.panelSections, widgets);
+        if (!this.vscode)
+          console.error("not valid");
+        //firing these off in one go cause the vs-code editor to shit its pant
+        setTimeout(() => {
+          this.vscode.postMessage({
+            command: 'widgetUpdate',
+            text: JSON.stringify(widget.props)
+          });
+        }, (index + 1) * 50);
+      }
+    });
+  });
+}
 }

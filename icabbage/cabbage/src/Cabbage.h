@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-
+#include "IPlug_include_in_plug_hdr.h"
 #include "CabbageWidgetDescriptors.h"
 #include "CabbageUtils.h"
 #include "csound.hpp"
@@ -165,9 +165,7 @@ public:
     //===============================================================================
 //    static std::vector<nlohmann::json> parseCsdForWidgets(std::string csdFile);
     static int getNumberOfParameters(const std::string& csdFile);
-//    static std::string getWidgetType(const std::string& line);
-//    static void updateJsonFromSyntax(nlohmann::json& jsonObj, const std::string& syntax);
-//    static std::vector<Identifier> tokeniseLine(const std::string& syntax);
+    std::vector<iplug::IMidiMsg> &getMidiQueue(){    return midiQueue;   };
     
 private:
     void addOpcodes();
@@ -184,7 +182,7 @@ private:
     MYFLT *csSpin = nullptr;
     MYFLT *csSpout = nullptr;
     int samplingRate = 44100;
-    
+    std::vector<iplug::IMidiMsg> midiQueue;
     std::string csdFile = {};
     std::unique_ptr<Csound> csound;
     CabbageProcessor& processor;

@@ -209,8 +209,31 @@ export class CabbageUtils {
             }
             target = target.parentNode;
         }
-        
-        return null; // If no valid ID is found
+
+        return null
+    }
+
+    static getElementByIdInChildren(parentElement, targetId) {
+        const queue = [parentElement];
+    
+        while (queue.length > 0) {
+            const currentElement = queue.shift();
+    
+            // Check if the current element has the target ID
+            if (currentElement.id === targetId) {
+                return currentElement;
+            }
+    
+            // Check if the current element has children
+            if (currentElement.children && currentElement.children.length > 0) {
+                // Convert HTMLCollection to an array and add the children of the current element to the queue
+                const childrenArray = Array.from(currentElement.children);
+                queue.push(...childrenArray);
+            }
+        }
+    
+        // If no element with the target ID is found, return null
+        return null;
     }
 
     static getWidgetFromChannel(widgets, channel){

@@ -36,17 +36,11 @@ export class RotarySlider {
       "trackerOutlineWidth": 3,
       "trackerWidth": 20,
       "outlineWidth": 2,
-      "markerThickness": 0.2,
-      "markerStart": 0.5,
-      "markerEnd": 0.9,
       "name": "",
       "type": "rslider",
       "kind": "rotary",
       "decimalPlaces": 1,
       "velocity": 0,
-      "trackerStart": 0.1,
-      "trackerEnd": 0.9,
-      "trackerCentre": 0.1,
       "popup": 1,
       "visible": 1,
       "automatable": 1,
@@ -60,7 +54,7 @@ export class RotarySlider {
       "Bounds": ["left", "top", "width", "height"],
       "Range": ["min", "max", "defaultValue", "skew", "increment"],
       "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
-      "Colours": ["colour", "trackerColour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour", "markerColour"]
+      "Colours": ["colour", "trackerColour", "trackerBackgroundColour", "trackerOutlineColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour", "markerColour"]
     };
 
     this.moveListener = this.pointerMove.bind(this);
@@ -150,7 +144,7 @@ export class RotarySlider {
     }
   }
 
-  addEventListeners(widgetDiv, vs) {
+  addVsCodeEventListeners(widgetDiv, vs) {
     this.vscode = vs;
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
     widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));

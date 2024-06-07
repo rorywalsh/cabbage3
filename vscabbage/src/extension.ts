@@ -9,6 +9,8 @@ import { HorizontalSlider } from "./horizontalSlider.js";
 // @ts-ignore
 import { VerticalSlider } from "./verticalSlider.js";
 // @ts-ignore
+import { MidiKeyboard } from "./midiKeyboard.js";
+// @ts-ignore
 import { Form } from "./form.js";
 import * as cp from "child_process";
 
@@ -105,7 +107,7 @@ export function activate(context: vscode.ExtensionContext) {
 		const widgetWrapper = panel.webview.asWebviewUri(onDiskPath);
 
 		//add widget types to menu
-		const widgetTypes = ["hslider", "rslider", "vslider"];
+		const widgetTypes = ["hslider", "rslider", "vslider", "keyboard"];
 
 		let menuItems = "";
 		widgetTypes.forEach((widget) => {
@@ -160,7 +162,7 @@ export function activate(context: vscode.ExtensionContext) {
 				output.append(data.toString().replace(/\x1b\[m/g, ""));
 			});
 
-			
+
 
 		});
 
@@ -178,11 +180,11 @@ export function activate(context: vscode.ExtensionContext) {
 			message => {
 				switch (message.command) {
 					case 'widgetUpdate':
-						if(cabbageMode != "play")
+						if (cabbageMode != "play")
 							updateText(message.text);
 						return;
 					case 'channelUpdate':
-						if(websocket)
+						if (websocket)
 							websocket.send(JSON.stringify(message.text));
 					// console.log(message.text);
 					case 'ready': //trigger when webview is open
@@ -311,7 +313,7 @@ function findUpdatedIdentifiers(initial: string, current: string) {
  * This function will update the text associated with a widget
  */
 async function updateText(jsonText: string) {
-	if(cabbageMode === "play")
+	if (cabbageMode === "play")
 		return;
 
 	const props = JSON.parse(jsonText);
@@ -331,6 +333,9 @@ async function updateText(jsonText: string) {
 				break;
 			case 'vslider':
 				defaultProps = new VerticalSlider().props;
+				break;
+			case 'keyboard':
+				defaultProps = new MidiKeyboard().props;
 				break;
 			case 'form':
 				defaultProps = new Form().props;
@@ -385,7 +390,7 @@ async function updateText(jsonText: string) {
 
 							if (props.type.indexOf('slider') > -1) {
 								const rangeIndex = tokens.findIndex(({ token }) => token === 'range');
-								if(rangeIndex != -1)
+								if (rangeIndex != -1)
 									tokens[rangeIndex].values = [props.min, props.max, props.defaultValue, props.skew, props.increment];
 							}
 

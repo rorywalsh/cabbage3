@@ -57,9 +57,14 @@ public:
     {
         OnUIOpen();
         std::string result = StringFormatter::format(R"(
-                                                     window.postMessage({ command: "onFileChanged", text: `{}` });
+ const cabbageCode = `<>`;
+setTimeout(function(){
+ window.postMessage({ command: "onFileChanged", text: cabbageCode });
+}, 100);
                                                      )", CabbageFile::getFileAsString());
+        std::cout << result << std::endl;;
         EvaluateJavaScript(result.c_str());
+        Resize(500,400);
     }
     
     void SetMaxJSStringLength(int length)

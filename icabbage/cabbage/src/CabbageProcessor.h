@@ -110,7 +110,6 @@ private:
     TimerThread timer;
     void timerCallback();
     std::string host = {"127.0.0.1"};
-
     Cabbage cabbage;
     
     int csndIndex = 0;

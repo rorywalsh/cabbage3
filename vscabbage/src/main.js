@@ -3,6 +3,7 @@ import { Form } from "./form.js";
 import { RotarySlider } from "./rotarySlider.js";
 import { HorizontalSlider } from "./horizontalSlider.js";
 import { VerticalSlider } from "./verticalSlider.js";
+import { MidiKeyboard } from "./midiKeyboard.js";
 
 import { PropertyPanel } from "./propertyPanel.js";
 import { CabbageUtils } from "./utils.js";
@@ -144,7 +145,7 @@ if (typeof acquireVsCodeApi === 'function') {
     if (menuItems[i].getAttribute('class') == 'menuItem') {
       menuItems[i].addEventListener("click", async (e) => {
         const type = e.target.innerHTML.replace(/(<([^>]+)>)/ig);
-        
+
         const channel = CabbageUtils.getUniqueChannelName(type, widgets);
         console.log("channel", channel)
         const w = await insertWidget(type, { channel: channel, top: mouseDownPosition.y - 20, left: mouseDownPosition.x - 20 });
@@ -175,7 +176,6 @@ if (form) {
   form.addEventListener('pointerdown', (event) => {
     const clickedElement = event.target;
     const formRect = form.getBoundingClientRect();
-    console.log("Click element", CabbageUtils.findValidId(event));
     offsetX = formRect.left;
     offsetY = formRect.top;
 
@@ -195,7 +195,7 @@ if (form) {
 
       form.appendChild(selectionBox);
     } else if (clickedElement.classList.contains('draggable') && event.target.id !== "MainForm") {
-      
+
       if (!event.shiftKey && !event.altKey) {
         // Deselect all elements if clicking on a non-selected element without Shift or Alt key
         if (!selectedElements.has(clickedElement)) {
@@ -221,7 +221,7 @@ if (form) {
       selectedElements.clear();
     }
 
-    PropertyPanel.updatePanel(vscode, {eventType:"click", name:CabbageUtils.findValidId(event), bounds:{}}, widgets);
+    PropertyPanel.updatePanel(vscode, { eventType: "click", name: CabbageUtils.findValidId(event), bounds: {} }, widgets);
   });
 
   document.addEventListener('pointermove', (event) => {
@@ -310,6 +310,9 @@ async function insertWidget(type, props) {
     case "vslider":
       widget = new VerticalSlider();
       break;
+    case "keyboard":
+      widget = new MidiKeyboard();
+      break;
     case "form":
       widget = new Form();
       break;
@@ -366,7 +369,7 @@ async function insertWidget(type, props) {
         vscode = acquireVsCodeApi();
 
       console.log('adding listeners');
-      widget.addEventListeners(widgetDiv, vscode);
+      widget.addVsCodeEventListeners(widgetDiv, vscode);
     }
 
   }

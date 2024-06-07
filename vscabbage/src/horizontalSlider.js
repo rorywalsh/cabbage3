@@ -157,7 +157,7 @@ export class HorizontalSlider {
     }
   }
 
-  addEventListeners(widgetDiv, vs) {
+  addVsCodeEventListeners(widgetDiv, vs) {
     this.vscode = vs;
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
     widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));

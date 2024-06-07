@@ -1,6 +1,6 @@
 #pragma once
 
-#define cabassert(exp, msg) assert(((void)msg, exp))
+#define cabAssert(exp, msg) assert(((void)msg, exp))
 
 #include <thread>
 #include <iostream>
@@ -231,7 +231,7 @@ private:
 
         size_t argIndex = 0;
         for (size_t i = 0; i < templateStr.size(); ++i) {
-            if (templateStr[i] == '{' && i + 1 < templateStr.size() && templateStr[i + 1] == '}' && argIndex < args.size()) {
+            if (templateStr[i] == '<' && i + 1 < templateStr.size() && templateStr[i + 1] == '>' && argIndex < args.size()) {
                 result += args[argIndex++];
                 ++i;  // Skip the '}'
             } else {

@@ -35,7 +35,7 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
     cabbageProcessor = dynamic_cast<CabbageProcessor*>(mIPlug.get());
     
     parameters = cabbageProcessor->getCabbage().getWidgets();
-    parameterChannels =  cabbageProcessor->getCabbage().getParameterChannel();
+
     
     webSocket.setUrl("ws://localhost:9991");
     
@@ -68,14 +68,11 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                         }
                         else if(j.count("channel") > 0)
                         {
-                            for(const auto& channel : parameterChannels)
+                            for(int i = 0 ; i < cabbageProcessor->getCabbage().getNumberOfParameter() ; i++)
                             {
-                                if(channel == j["channel"].get<std::string>())
+                                if(cabbageProcessor->getCabbage().getParameterChannel(i).name == j["channel"].get<std::string>())
                                 {
-                                    auto position = std::distance(parameterChannels.begin(),
-                                                                  std::find(parameterChannels.begin(),parameterChannels.end(), channel));
-                                    mIPlug->SetParameterValue (static_cast<int>(position), j["value"].get<double>());
-                                
+                                    mIPlug->SetParameterValue (i, j["value"].get<double>());
 //                                    std::cout << "Host: " << channel << " Value:" << j["value"].get<double>() << std::endl;
                                 }
                             }

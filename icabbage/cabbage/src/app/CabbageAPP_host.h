@@ -245,7 +245,6 @@ public:
 private:
     void updateHost(CabbageOpcodeData data);
     std::vector<nlohmann::json> parameters;
-    std::vector<std::string> parameterChannels;
     std::unique_ptr<IPlugAPP> mIPlug = nullptr;
     std::unique_ptr<RtAudio> mDAC = nullptr;
     std::unique_ptr<RtMidiIn> mMidiIn = nullptr;

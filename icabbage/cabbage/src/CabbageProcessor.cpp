@@ -9,7 +9,7 @@ cabbage(*this, csdFile)
 {
     
     if(!cabbage.setupCsound())
-        assertm(false, "couldn't set up Csound");
+        cabAssert(false, "couldn't set up Csound");
 
     timer.Start(this, &CabbageProcessor::timerCallback, 1);
 }
@@ -19,10 +19,10 @@ CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info)
 cabbage(*this, "")
 {
     
-
+    cabbage.getMidiQueue().clear();
     
     if(!cabbage.setupCsound())
-        cabassert(false, "couldn't set up Csound");
+        cabAssert(false, "couldn't set up Csound");
 
 #ifdef DEBUG
     SetEnableDevTools(true);
@@ -34,7 +34,7 @@ cabbage(*this, "")
         LoadFile(R"(C:\Users\oli\Dev\iPlug2\Examples\CabbageProcessor\resources\web\index.html)", nullptr);
 #else
         if(!server.isThreadRunning())
-            server.start("/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/");
+            server.start("/Users/rwalsh/Library/CabbageAudio/CabbagePluginSynth/");
         
         const std::string mntPoint = "http://127.0.0.1:" + std::to_string(server.getCurrentPort()) + "/index.html";
         LoadURL(mntPoint.c_str());
@@ -110,8 +110,8 @@ void CabbageProcessor::timerCallback()
                                                      window.postMessage({
                                                        command: "widgetUpdate",
                                                        text: JSON.stringify({
-                                                           channel: "{}",
-                                                           value: {}
+                                                           channel: "<>",
+                                                           value: <>
                                                        })
                                                      });
                                                      )",
@@ -124,15 +124,14 @@ void CabbageProcessor::timerCallback()
                                                      window.postMessage({
                                                        command: "widgetUpdate",
                                                        text: JSON.stringify({
-                                                           channel: "{}",
-                                                           data: "{}"
+                                                           channel: "<>",
+                                                           data: "<>"
                                                        })
                                                      });
                                                      )",
                                                    data.channel,
                                                    data.identifier);
             }
-                
             EvaluateJavaScript(message.c_str());
             
 #endif
@@ -157,8 +156,8 @@ void CabbageProcessor::OnParamChange(int paramIdx)
                                                          window.postMessage({
                                                            command: "widgetUpdate",
                                                            text: JSON.stringify({
-                                                               channel: "{}",
-                                                               value: {}
+                                                               channel: "<>",
+                                                               value: <>
                                                            })
                                                          });
                                                          )", p.name.c_str(),
@@ -172,6 +171,7 @@ void CabbageProcessor::OnParamChange(int paramIdx)
 void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outputs, int nFrames)
 {
     //const double gain = GetParam(kGain)->DBToAmp();
+
     
     if (cabbage.csdCompiledWithoutError())
     {
@@ -198,6 +198,8 @@ void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
                 outputs[channel][i] = 0;
     }
     
+    
+    
 }
 
 //===============================================================================
@@ -223,6 +225,8 @@ void CabbageProcessor::ProcessMidiMsg(const iplug::IMidiMsg& msg)
     TRACE;
     msg.PrintMsg();
     SendMidiMsg(msg);
+    cabbage.getMidiQueue().push_back(msg);
+    std::cout << "MidiQueueSize:" << cabbage.getMidiQueue().size() << std::endl;
 }
 
 //======================== CSOUND MIDI FUNCTIONS ================================
@@ -238,16 +242,51 @@ int CabbageProcessor::OpenMidiInputDevice (CSOUND* csound, void** userData, cons
 int CabbageProcessor::ReadMidiData (CSOUND* /*csound*/, void* userData,
                             unsigned char* mbuf, int nbytes)
 {
-    auto* midiData = static_cast<CabbageProcessor*>(userData);
+    auto* pluginData = static_cast<Cabbage*>(userData);
     
     if (!userData)
     {
-        cabassert(false, "\nInvalid");
+        cabAssert(false, "\nInvalid");
         return 0;
+    }
+    else{
+        
     }
     
     int cnt = 0;
     
+    if(pluginData->getMidiQueue().size()>0)
+    {
+        for(const auto msg : pluginData->getMidiQueue())
+        {
+            // Handle the MIDI message
+            if(msg.StatusMsg() != iplug::IMidiMsg::kProgramChange)
+            {
+                    std::cout << msg.mStatus << std::endl;
+                    *mbuf++ = msg.mStatus;
+                    std::cout << msg.mData1 << std::endl;
+                    *mbuf++ = msg.mData1;
+                    std::cout << msg.mData2 << std::endl;
+                    *mbuf++ = msg.mData2;
+                    
+//                case iplug::IMidiMsg::kNoteOn:
+//                    std::cout << "Note on\n";
+//                    break;
+//                    
+//                case iplug::IMidiMsg::kNoteOff:
+//                    std::cout << "Note off\n";
+//                    break;
+//                    
+//                case iplug::IMidiMsg::kControlChange:
+//                    std::cout << "Control change on\n";
+//                    break;
+//                    
+//                    // Handle other MIDI messages
+                    cnt+=3;
+            }
+        }
+        pluginData->getMidiQueue().clear();
+    }
     
     //    if (!midiData->midiBuffer.isEmpty() && cnt <= (nbytes - 3))
     //    {
@@ -304,7 +343,7 @@ int CabbageProcessor::WriteMidiData (CSOUND* /*csound*/, void* _userData,
     
     if (!userData)
     {
-        cabassert(false, "\n\nInvalid");
+        cabAssert(false, "\n\nInvalid");
         return 0;
     }
     
