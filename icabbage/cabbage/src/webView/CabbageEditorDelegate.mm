@@ -93,8 +93,8 @@ void* CabbageEditorDelegate::OpenWindow(void* pParent)
     
     if (editorInitFunc)
         editorInitFunc();
- 
-        
+    
+    
     return mHelperView;
     
 }
@@ -127,7 +127,7 @@ void CabbageEditorDelegate::SendControlMsgFromDelegate(int ctrlTag, int msgTag, 
 }
 
 void CabbageEditorDelegate::SendParameterValueFromDelegate(int paramIdx, double value, bool normalized)
-{   
+{
     WDL_String str;
     str.SetFormatted(mMaxJSStringLength, "if (typeof sendParameterValueFromEditor !== \"undefined\") sendParameterValueFromEditor(%i, %f);", paramIdx, value);
     EvaluateJavaScript(str.Get());
@@ -146,11 +146,34 @@ void CabbageEditorDelegate::SendArbitraryMsgFromDelegate(int msgTag, int dataSiz
     //  EvaluateJavaScript(str.Get());
 }
 
+void CabbageEditorDelegate::OnMidiMsgUI(const iplug::IMidiMsg& msg)
+{
+    cabAssert("false", false);
+}
+
 void CabbageEditorDelegate::SendMidiMsgFromDelegate(const iplug::IMidiMsg& msg)
 {
-      WDL_String str;
-      str.SetFormatted(mMaxJSStringLength, "SMMFD(%i, %i, %i)", msg.mStatus, msg.mData1, msg.mData2);
-      EvaluateJavaScript(str.Get());
+    std::string message =  StringFormatter::format(R"(
+    (function() {
+      
+
+      // Create a custom event with the MIDI message details
+      let customEvent = new CustomEvent('midiEvent', {
+        detail: {
+          data: JSON.stringify({
+            status: <>,
+            data1: <>,
+            data2: <>
+          })
+        }
+      });
+
+      // Dispatch the custom event
+      document.dispatchEvent(customEvent);
+    })();
+    )", std::to_string(msg.mStatus), std::to_string(msg.mData1), std::to_string(msg.mData1));
+
+    EvaluateJavaScript(message.c_str());
 }
 
 void CabbageEditorDelegate::OnMessageFromWebView(const char* jsonStr)
@@ -196,8 +219,8 @@ void CabbageEditorDelegate::OnMessageFromWebView(const char* jsonStr)
     else if(json["msg"] == "SMMFUI")
     {
         iplug::IMidiMsg msg {0, json["statusByte"].get<uint8_t>(),
-            json["dataByte1"].get<uint8_t>(),
-            json["dataByte2"].get<uint8_t>()};
+        json["dataByte1"].get<uint8_t>(),
+        json["dataByte2"].get<uint8_t>()};
         SendMidiMsgFromUI(msg);
     }
 }

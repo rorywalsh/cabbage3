@@ -222,11 +222,10 @@ void CabbageProcessor::OnIdle()
 
 void CabbageProcessor::ProcessMidiMsg(const iplug::IMidiMsg& msg)
 {
-    TRACE;
     msg.PrintMsg();
     SendMidiMsg(msg);
     cabbage.getMidiQueue().push_back(msg);
-    std::cout << "MidiQueueSize:" << cabbage.getMidiQueue().size() << std::endl;
+   /* */SendMidiMsgFromDelegate(msg);
 }
 
 //======================== CSOUND MIDI FUNCTIONS ================================
@@ -249,9 +248,6 @@ int CabbageProcessor::ReadMidiData (CSOUND* /*csound*/, void* userData,
         cabAssert(false, "\nInvalid");
         return 0;
     }
-    else{
-        
-    }
     
     int cnt = 0;
     
@@ -259,64 +255,16 @@ int CabbageProcessor::ReadMidiData (CSOUND* /*csound*/, void* userData,
     {
         for(const auto msg : pluginData->getMidiQueue())
         {
-            // Handle the MIDI message
             if(msg.StatusMsg() != iplug::IMidiMsg::kProgramChange)
             {
-                    std::cout << msg.mStatus << std::endl;
                     *mbuf++ = msg.mStatus;
-                    std::cout << msg.mData1 << std::endl;
                     *mbuf++ = msg.mData1;
-                    std::cout << msg.mData2 << std::endl;
                     *mbuf++ = msg.mData2;
-                    
-//                case iplug::IMidiMsg::kNoteOn:
-//                    std::cout << "Note on\n";
-//                    break;
-//                    
-//                case iplug::IMidiMsg::kNoteOff:
-//                    std::cout << "Note off\n";
-//                    break;
-//                    
-//                case iplug::IMidiMsg::kControlChange:
-//                    std::cout << "Control change on\n";
-//                    break;
-//                    
-//                    // Handle other MIDI messages
                     cnt+=3;
             }
         }
         pluginData->getMidiQueue().clear();
     }
-    
-    //    if (!midiData->midiBuffer.isEmpty() && cnt <= (nbytes - 3))
-    //    {
-    //        juce::MidiMessage message (0xf4, 0, 0, 0);
-    //        juce::MidiBuffer::Iterator i (midiData->midiBuffer);
-    //        int messageFrameRelativeTothisProcess;
-    //
-    //        while (i.getNextEvent (message, messageFrameRelativeTothisProcess))
-    //        {
-    //
-    //            const juce::uint8* data = message.getRawData();
-    //            *mbuf++ = *data++;
-    //
-    //            if(message.isChannelPressure() || message.isProgramChange())
-    //            {
-    //                *mbuf++ = *data++;
-    //                cnt += 2;
-    //            }
-    //            else
-    //            {
-    //                *mbuf++ = *data++;
-    //                *mbuf++ = *data++;
-    //                cnt  += 3;
-    //            }
-    //        }
-    //
-    //        midiData->midiBuffer.clear();
-    //
-    //    }
-    
     
     return cnt;
     
