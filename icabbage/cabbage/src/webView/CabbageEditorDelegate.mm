@@ -146,11 +146,6 @@ void CabbageEditorDelegate::SendArbitraryMsgFromDelegate(int msgTag, int dataSiz
     //  EvaluateJavaScript(str.Get());
 }
 
-void CabbageEditorDelegate::OnMidiMsgUI(const iplug::IMidiMsg& msg)
-{
-    cabAssert("false", false);
-}
-
 void CabbageEditorDelegate::SendMidiMsgFromDelegate(const iplug::IMidiMsg& msg)
 {
     std::string message =  StringFormatter::format(R"(

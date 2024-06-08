@@ -39,18 +39,20 @@ const vscode = __importStar(__webpack_require__(1));
 // @ts-ignore
 const rotarySlider_js_1 = __webpack_require__(2);
 // @ts-ignore
-const horizontalSlider_js_1 = __webpack_require__(30);
+const horizontalSlider_js_1 = __webpack_require__(4);
 // @ts-ignore
-const verticalSlider_js_1 = __webpack_require__(31);
+const verticalSlider_js_1 = __webpack_require__(5);
 // @ts-ignore
-const midiKeyboard_js_1 = __webpack_require__(32);
+const button_js_1 = __webpack_require__(34);
 // @ts-ignore
-const form_js_1 = __webpack_require__(29);
-const cp = __importStar(__webpack_require__(3));
+const midiKeyboard_js_1 = __webpack_require__(6);
+// @ts-ignore
+const form_js_1 = __webpack_require__(8);
+const cp = __importStar(__webpack_require__(9));
 let textEditor;
 let output;
 let panel = undefined;
-const ws_1 = __importDefault(__webpack_require__(4));
+const ws_1 = __importDefault(__webpack_require__(10));
 const wss = new ws_1.default.Server({ port: 9991 });
 let websocket;
 let cabbageMode = "play";
@@ -116,7 +118,7 @@ function activate(context) {
         onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'widgetWrapper.js');
         const widgetWrapper = panel.webview.asWebviewUri(onDiskPath);
         //add widget types to menu
-        const widgetTypes = ["hslider", "rslider", "vslider", "keyboard"];
+        const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button"];
         let menuItems = "";
         widgetTypes.forEach((widget) => {
             menuItems += `
@@ -311,6 +313,9 @@ async function updateText(jsonText) {
             case 'keyboard':
                 defaultProps = new midiKeyboard_js_1.MidiKeyboard().props;
                 break;
+            case 'button':
+                defaultProps = new button_js_1.Button().props;
+                break;
             case 'form':
                 defaultProps = new form_js_1.Form().props;
                 break;
@@ -470,7 +475,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   RotarySlider: () => (/* binding */ RotarySlider)
 /* harmony export */ });
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(28);
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
 
 
 /**
@@ -770,22 +775,1331 @@ class RotarySlider {
 
 /***/ }),
 /* 3 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   CabbageUtils: () => (/* binding */ CabbageUtils)
+/* harmony export */ });
+class CabbageUtils {
+  /**
+   * This uses a simple regex pattern to parse a line of Cabbage code such as 
+   * rslider bounds(22, 14, 60, 60) channel("clip") thumbRadius(5), text("Clip") range(0, 1, 0, 1, 0.001)
+   * and converts it to a JSON object
+   */
+  static getCabbageCodeAsJSON(text) {
+    const regex = /(\w+)\(([^)]+)\)/g;
+    const jsonObj = {};
+
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const name = match[1];
+      let value = match[2].replace(/"/g, ''); // Remove double quotes
+
+      if (name === 'bounds') {
+        // Splitting the value into individual parts for top, left, width, and height
+        const [left, top, width, height] = value.split(',').map(v => parseInt(v.trim()));
+        jsonObj['left'] = left;
+        jsonObj['top'] = top;
+        jsonObj['width'] = width;
+        jsonObj['height'] = height;
+      } else if (name === 'range') {
+        // Splitting the value into individual parts for top, left, width, and height
+        const [min, max, defaultValue, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
+        jsonObj['min'] = min;
+        jsonObj['max'] = max;
+        jsonObj['defaultValue'] = defaultValue;
+        jsonObj['skew'] = skew;
+        jsonObj['increment'] = increment;
+      } else if (name === 'size') {
+        // Splitting the value into individual parts for width and height
+        const [width, height] = value.split(',').map(v => parseInt(v.trim()));
+        jsonObj['width'] = width;
+        jsonObj['height'] = height;
+      } else {
+        // Check if the value is a number
+        const numericValue = parseFloat(value);
+        if (!isNaN(numericValue)) {
+          // If it's a number, assign it as a number
+          jsonObj[name] = numericValue;
+        } else {
+          // If it's not a number, assign it as a string
+          jsonObj[name] = value;
+        }
+      }
+    }
+
+    console.log(jsonObj);
+    return jsonObj;
+  }
+
+  /**
+   * this function parses the Cabbage code and creates new widgets accordingly..
+   */
+  static async parseCabbageCode(text, widgets, form, insertWidget) {
+    // Leave main form in the widget array - there is only one..
+    widgets.splice(1, widgets.length - 1);
+
+    let cabbageStart = 0;
+    let cabbageEnd = 0;
+    let lines = text.split(/\r?\n/);
+    let count = 0;
+
+    lines.forEach((line) => {
+      if (line.trimStart().startsWith("<Cabbage>"))
+        cabbageStart = count + 1;
+      else if (line.trimStart().startsWith("</Cabbage>"))
+        cabbageEnd = count;
+      count++;
+    })
+
+    const cabbageCode = lines.slice(cabbageStart, cabbageEnd);
+    for (const line of cabbageCode) {
+      const codeProps = CabbageUtils.getCabbageCodeAsJSON(line);
+      const type = `${line.trimStart().split(' ')[0]}`;
+      if (line.trim() != "") {
+        if (type != "form") {
+          await insertWidget(type, codeProps);
+        } else {
+          widgets.forEach((widget) => {
+            if (widget.props.name == "MainForm") {
+              const w = codeProps.width;
+              const h = codeProps.height;
+              form.style.width = w + "px";
+              form.style.height = h + "px";
+              widget.props.width = w;
+              widget.props.width = h;
+            }
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * this function will return the number of plugin parameter in our widgets array
+   */
+  static getNumberOfPluginParameters(widgets, ...types) {
+    // Create a set from the types for faster lookup
+    const typeSet = new Set(types);
+
+    // Initialize the counter
+    let count = 0;
+
+    // Iterate over each widget in the array
+    for (const widget of widgets) {
+      // Check if the widget's type is one of the specified types
+      if (typeSet.has(widget.props.type)) {
+        // Increment the counter if the type matches
+        count++;
+      }
+    }
+
+    // Return the final count
+    return count;
+  }
+
+  /**
+   * show / hide Cabbage overlays
+   */
+  static showOverlay() {
+    const overlay = document.getElementById('fullScreenOverlay')
+    if (overlay) {
+      overlay.style.display = 'flex';
+      const leftPanel = document.getElementById('LeftPanel');
+      const rightPanel = document.getElementById('RightPanel');
+      leftPanel.style.display = 'none';
+      rightPanel.style.display = 'none';
+    }
+  }
+
+  static hideOverlay() {
+    const overlay = document.getElementById('fullScreenOverlay')
+    if (overlay) {
+      overlay.style.display = 'none';
+      const leftPanel = document.getElementById('LeftPanel');
+      const rightPanel = document.getElementById('RightPanel');
+      leftPanel.style.display = 'flex';
+      rightPanel.style.display = 'flex';
+    }
+  }
+
+  /**
+   * clamps a value
+   * @param {*} num 
+   * @param {*} min 
+   * @param {*} max 
+   * @returns clamped value
+   */
+  static clamp(num, min, max) {
+    return Math.max(min, Math.min(num, max));
+  }
+
+  /**
+   * returns a remapped value
+   * @param {*} value 
+   * @param {*} in_min 
+   * @param {*} in_max 
+   * @param {*} out_min 
+   * @param {*} out_max 
+   * @returns mapped value
+   */
+  static map(value, in_min, in_max, out_min, out_max) {
+    return ((value - in_min) * (out_max - out_min)) / (in_max - in_min) + out_min;
+  };
+
+  /**
+   * 
+   * @param {*} num 
+   * @returns number of decimal places in value
+   */
+  static getDecimalPlaces(num) {
+    const numString = num.toString();
+    if (numString.includes('.')) {
+      return numString.split('.')[1].length;
+    } else {
+      return 0;
+    }
+  }
+
+  /**
+   * Returns a unique channel name based on the type and number
+   * @param {Array} widgets - Array of JSON objects with unique 'channel' values
+   * @returns {String} unique channel name
+   */
+  static getUniqueChannelName(type, widgets) {
+    // Extract all existing channel names
+    const existingChannels = widgets.map(widget => widget.channel);
+
+    // Define a function to generate a channel name based on type and a number
+    function generateChannelName(type, number) {
+      return `${type}${number}`;
+    }
+
+    // Start with a number based on the size of the array + 1
+    let number = widgets.length + 1;
+    let newChannelName = generateChannelName(type, number);
+
+    // Increment the number until a unique channel name is found
+    while (existingChannels.includes(newChannelName)) {
+      number += 1;
+      newChannelName = generateChannelName(type, number);
+    }
+
+    return newChannelName;
+  }
+
+  static findValidId(event) {
+    var target = event.target;
+
+    while (target !== null) {
+      if (target.tagName === "DIV" && target.id) {
+        return target.id;
+      }
+      target = target.parentNode;
+    }
+
+    return null
+  }
+
+  static getElementByIdInChildren(parentElement, targetId) {
+    const queue = [parentElement];
+
+    while (queue.length > 0) {
+      const currentElement = queue.shift();
+
+      // Check if the current element has the target ID
+      if (currentElement.id === targetId) {
+        return currentElement;
+      }
+
+      // Check if the current element has children
+      if (currentElement.children && currentElement.children.length > 0) {
+        // Convert HTMLCollection to an array and add the children of the current element to the queue
+        const childrenArray = Array.from(currentElement.children);
+        queue.push(...childrenArray);
+      }
+    }
+
+    // If no element with the target ID is found, return null
+    return null;
+  }
+
+  static getWidgetFromChannel(widgets, channel) {
+    widgets.forEach((widget) => {
+      if (widget["channel"] === channel)
+        return widget;
+    })
+    return null;
+  }
+
+  static getStringWidth(text, props, padding = 10) {
+    var canvas = document.createElement('canvas');
+    let fontSize = 0;
+    switch (props.type) {
+      case 'hslider':
+        fontSize = props.height * .8;
+        break;
+      case "rslider":
+        fontSize = props.width * .3;
+        break;
+      case "vslider":
+        fontSize = props.width * .3;
+        break;
+      default:
+        console.error('getStringWidth..');
+        break;
+    }
+
+    var ctx = canvas.getContext("2d");
+    ctx.font = `${fontSize}px ${props.fontFamily}`;
+    var width = ctx.measureText(text).width;
+    return width + padding;
+  }
+
+  static getNumberBoxWidth(props) {
+    // Get the number of decimal places in props.increment
+    const decimalPlaces = CabbageUtils.getDecimalPlaces(props.increment);
+
+    // Format props.max with the correct number of decimal places
+    const maxNumber = props.max.toFixed(decimalPlaces);
+
+    // Calculate the width of the string representation of maxNumber
+    const maxNumberWidth = CabbageUtils.getStringWidth(maxNumber, props);
+
+    return maxNumberWidth;
+  }
+}
+
+
+
+/***/ }),
+/* 4 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   HorizontalSlider: () => (/* binding */ HorizontalSlider)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+
+
+/**
+ * Horizontal Slider (hslider) class
+ */
+class HorizontalSlider {
+  constructor() {
+    this.props = {
+      "top": 10,
+      "left": 10,
+      "width": 60,
+      "height": 60,
+      "channel": "rslider",
+      "min": 0,
+      "max": 1,
+      "value": 0,
+      "default": 0,
+      "skew": 1,
+      "increment": 0.001,
+      "index": 0,
+      "text": "",
+      "fontFamily": "Verdana",
+      "fontSize": 0,
+      "align": "centre",
+      "valueTextBox": 0,
+      "colour": "#0295cf",
+      "trackerColour": "#93D200",
+      "trackerBackgroundColour": "#ffffff",
+      "trackerOutlineColour": "#525252",
+      "fontColour": "#dddddd",
+      "outlineColour": "#999999",
+      "textBoxColour": "#555555",
+      "trackerOutlineWidth": 1,
+      "outlineWidth": 1,
+      "markerThickness": 0.2,
+      "markerStart": 0.1,
+      "markerEnd": 0.9,
+      "name": "",
+      "type": "hslider",
+      "kind": "horizontal",
+      "decimalPlaces": 1,
+      "velocity": 0,
+      "visible": 1,
+      "popup": 1,
+      "automatable": 1,
+      "valuePrefix": "",
+      "valuePostfix": "",
+      "presetIgnore": 0
+    }
+
+    this.panelSections = {
+      "Info": ["type", "channel"],
+      "Bounds": ["left", "top", "width", "height"],
+      "Range": ["min", "max", "default", "skew", "increment"],
+      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
+      "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
+    };
+
+    this.moveListener = this.pointerMove.bind(this);
+    this.upListener = this.pointerUp.bind(this);
+    this.startX = 0;
+    this.startValue = 0;
+    this.vscode = null;
+    this.isMouseDown = false;
+    this.decimalPlaces = 0;
+  }
+
+  pointerUp() {
+    const popup = document.getElementById('popupValue');
+    popup.classList.add('hide');
+    popup.classList.remove('show');
+    window.removeEventListener("pointermove", this.moveListener);
+    window.removeEventListener("pointerup", this.upListener);
+    this.isMouseDown = false;
+  }
+
+  pointerDown(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
+    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
+  
+    
+    if (evt.offsetX >= textWidth && evt.offsetX <= textWidth + sliderWidth && evt.target.tagName !== "INPUT") {
+      this.isMouseDown = true;
+      this.startX = evt.offsetX - textWidth;
+      this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.startX, 0, sliderWidth, this.props.min, this.props.max);
+  
+      window.addEventListener("pointermove", this.moveListener);
+      window.addEventListener("pointerup", this.upListener);
+  
+      this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
+      this.startValue = this.props.value;
+      const widgetDiv = document.getElementById(this.props.name);
+      widgetDiv.innerHTML = this.getSVG();
+    }
+  }
+  
+
+  mouseEnter(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+    const popup = document.getElementById('popupValue');
+    const form = document.getElementById('MainForm');
+    const rect = form.getBoundingClientRect();
+    this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment);
+  
+    if (popup && this.props.popup) {
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
+  
+      // Calculate the position for the popup
+      const sliderLeft = this.props.left;
+      const sliderWidth = this.props.width;
+      const formLeft = rect.left;
+      const formWidth = rect.width;
+  
+      // Determine if the popup should be on the right or left side of the slider
+      const sliderCenter = formLeft + (formWidth / 2);
+      let popupLeft;
+      if (sliderLeft + (sliderWidth) > sliderCenter) {
+        // Place popup on the left of the slider thumb
+        popupLeft = formLeft + sliderLeft - popup.offsetWidth - 10;
+        console.log("Pointer on the left");
+        popup.classList.add('right');
+      } else {
+        // Place popup on the right of the slider thumb
+        popupLeft = formLeft + sliderLeft + sliderWidth + 10;
+        console.log("Pointer on the right");
+        popup.classList.remove('right');
+      }
+  
+      const popupTop = rect.top + this.props.top; // Adjust top position relative to the form's top
+  
+      // Set the calculated position
+      popup.style.left = `${popupLeft}px`;
+      popup.style.top = `${popupTop}px`;
+      popup.style.display = 'block';
+      popup.classList.add('show');
+      popup.classList.remove('hide');
+    }
+  }
+  
+
+  mouseLeave(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+    if (!this.isMouseDown) {
+      const popup = document.getElementById('popupValue');
+      popup.classList.add('hide');
+      popup.classList.remove('show');
+    }
+  }
+
+  addVsCodeEventListeners(widgetDiv, vs) {
+    this.vscode = vs;
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.HorizontalSliderInstance = this;
+  }
+
+  addEventListeners(widgetDiv) {
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.HorizontalSliderInstance = this;
+  }
+
+  pointerMove({ clientX }) {
+    if(this.props.active === 0) {
+      return '';
+    }
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
+    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
+  
+    // Get the bounding rectangle of the slider
+    const sliderRect = document.getElementById(this.props.name).getBoundingClientRect();
+  
+    // Calculate the relative position of the mouse pointer within the slider bounds
+    let offsetX = clientX - sliderRect.left - textWidth;
+  
+    // Clamp the mouse position to stay within the bounds of the slider
+    offsetX = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(offsetX, 0, sliderWidth);
+  
+    // Calculate the new value based on the mouse position
+    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(offsetX, 0, sliderWidth, this.props.min, this.props.max);
+    newValue = Math.round(newValue / this.props.increment) * this.props.increment; // Round to the nearest increment
+  
+    // Update the slider value
+    this.props.value = newValue;
+  
+    // Update the slider appearance
+    const widgetDiv = document.getElementById(this.props.name);
+    widgetDiv.innerHTML = this.getSVG();
+  
+    // Post message if vscode is available
+    const msg = { channel: this.props.channel, value: _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) }
+    if (this.vscode) {
+      this.vscode.postMessage({
+        command: 'channelUpdate',
+        text: JSON.stringify(msg)
+      });
+    } else {
+      var message = {
+        "msg": "parameterUpdate",
+        "paramIdx": this.props.index,
+        "value": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1)
+      };
+      // IPlugSendMsg(message);
+    }
+  }
+  
+  handleInputChange(evt) {
+    if (evt.key === 'Enter') {
+      const inputValue = parseFloat(evt.target.value);
+      if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
+        this.props.value = inputValue;
+        const widgetDiv = document.getElementById(this.props.name);
+        widgetDiv.innerHTML = this.getSVG();
+        widgetDiv.querySelector('input').focus();
+      }
+    }
+  }
+
+  getSVG() {
+    if(this.props.visible === 0) {
+      return '';
+    }
+    const popup = document.getElementById('popupValue');
+    if (popup) {
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
+    }
+
+    const alignMap = {
+      'left': 'start',
+      'center': 'middle',
+      'centre': 'middle',
+      'right': 'end',
+    };
+
+    const svgAlign = alignMap[this.props.align] || this.props.align;
+
+    // Add padding if alignment is 'end' or 'middle'
+    const padding = (svgAlign === 'end' || svgAlign === 'middle') ? 5 : 0; // Adjust the padding value as needed
+
+    // Calculate text width and update SVG width
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = (this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth) - padding;
+    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth - padding; // Subtract padding from sliderWidth
+
+    const w = (sliderWidth > this.props.height ? this.props.height : sliderWidth) * 0.75;
+    const textY = this.props.height / 2 + (this.props.fontSize > 0 ? this.props.textOffsetY : 0) + (this.props.height * 0.25); // Adjusted for vertical centering
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.8;
+
+    textWidth += padding;
+
+    const textElement = this.props.text ? `
+      <svg x="0" y="0" width="${textWidth}" height="${this.props.height}" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <text text-anchor="${svgAlign}" x="${svgAlign === 'end' ? textWidth - padding : (svgAlign === 'middle' ? (textWidth - padding) / 2 : 0)}" y="${textY}" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">
+          ${this.props.text}
+        </text>
+      </svg>
+    ` : '';
+
+    const sliderElement = `
+      <svg x="${textWidth}" width="${sliderWidth}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="${this.props.height * .2}" width="${sliderWidth - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
+        <rect x="1" y="${this.props.height * .2}" width="${Math.max(0, _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth))}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
+        <rect x="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
+      </svg>
+    `;
+
+    const valueTextElement = this.props.valueTextBox ? `
+      <foreignObject x="${textWidth + sliderWidth}" y="0" width="${valueTextBoxWidth}" height="${this.props.height}">
+        <input type="text" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
+        style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
+        onKeyDown="document.getElementById('${this.props.name}').HorizontalSliderInstance.handleInputChange(event)"/>
+      </foreignObject>
+    ` : '';
+
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+        ${textElement}
+        ${sliderElement}
+        ${valueTextElement}
+      </svg>
+    `;
+  }
+
+  
+  
+}
+
+
+/***/ }),
+/* 5 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   VerticalSlider: () => (/* binding */ VerticalSlider)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+
+
+class VerticalSlider {
+  constructor() {
+    this.props = {
+      "top": 10,
+      "left": 10,
+      "width": 60,
+      "height": 60,
+      "channel": "rslider",
+      "min": 0,
+      "max": 1,
+      "value": 0,
+      "default": 0,
+      "skew": 1,
+      "increment": 0.001,
+      "index": 0,
+      "text": "",
+      "fontFamily": "Verdana",
+      "fontSize": 0,
+      "align": "centre",
+      "valueTextBox": 0,
+      "colour": "#0295cf",
+      "trackerColour": "#93D200",
+      "trackerBackgroundColour": "#ffffff",
+      "trackerOutlineColour": "#525252",
+      "fontColour": "#dddddd",
+      "outlineColour": "#999999",
+      "textBoxColour": "#555555",
+      "trackerOutlineWidth": 1,
+      "outlineWidth": 1,
+      "name": "",
+      "type": "vslider", // Changed from hslider to vslider
+      "kind": "vertical", // Changed from horizontal to vertical
+      "decimalPlaces": 1,
+      "velocity": 0,
+      "visible": 1,
+      "popup": 1,
+      "automatable": 1,
+      "valuePrefix": "",
+      "valuePostfix": "",
+      "presetIgnore": 0
+    }
+
+    this.panelSections = {
+      "Info": ["type", "channel"],
+      "Bounds": ["left", "top", "width", "height"],
+      "Range": ["min", "max", "default", "skew", "increment"],
+      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetX", "align"], // Changed from textOffsetY to textOffsetX for vertical slider
+      "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
+    };
+
+    this.moveListener = this.pointerMove.bind(this);
+    this.upListener = this.pointerUp.bind(this);
+    this.startY = 0; // Changed from startX to startY for vertical slider
+    this.startValue = 0;
+    this.vscode = null;
+    this.isMouseDown = false;
+    this.decimalPlaces = 0;
+  }
+
+  pointerUp() {
+    if(this.props.active === 0) {
+      return '';
+    }
+    const popup = document.getElementById('popupValue');
+    popup.classList.add('hide');
+    popup.classList.remove('show');
+    window.removeEventListener("pointermove", this.moveListener);
+    window.removeEventListener("pointerup", this.upListener);
+    this.isMouseDown = false;
+  }
+
+  pointerDown(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+    let textHeight = this.props.text ? this.props.height * 0.1 : 0;
+    const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
+    const sliderHeight = this.props.height - textHeight - valueTextBoxHeight;
+
+    const sliderTop = this.props.valueTextBox ? textHeight : 0; // Adjust slider top position if valueTextBox is present
+
+    if (evt.offsetY >= sliderTop && evt.offsetY <= sliderTop + sliderHeight) {
+      this.isMouseDown = true;
+      this.startY = evt.offsetY - sliderTop;
+      this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.startY, 5, sliderHeight, this.props.max, this.props.min);
+      this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
+      this.startValue = this.props.value;
+      window.addEventListener("pointermove", this.moveListener);
+      window.addEventListener("pointerup", this.upListener);
+      const widgetDiv = document.getElementById(this.props.name);
+      widgetDiv.innerHTML = this.getSVG();
+    }
+  }
+
+
+  mouseEnter(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+
+    const popup = document.getElementById('popupValue');
+    const form = document.getElementById('MainForm');
+    const rect = form.getBoundingClientRect();
+    this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment);
+
+    if (popup) {
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
+
+      // Calculate the position for the popup
+      const sliderLeft = this.props.left;
+      const sliderWidth = this.props.width;
+      const formLeft = rect.left;
+      const formWidth = rect.width;
+
+      // Determine if the popup should be on the right or left side of the slider
+      const sliderCenter = formLeft + (formWidth / 2);
+      let popupLeft;
+      if (sliderLeft + (sliderWidth) > sliderCenter) {
+        // Place popup on the left of the slider thumb
+        popupLeft = formLeft + sliderLeft - popup.offsetWidth - 10;
+        console.log("Pointer on the left");
+        popup.classList.add('right');
+      } else {
+        // Place popup on the right of the slider thumb
+        popupLeft = formLeft + sliderLeft + sliderWidth + 10;
+        console.log("Pointer on the right");
+        popup.classList.remove('right');
+      }
+
+      const popupTop = rect.top + this.props.top + this.props.height * .45; // Adjust top position relative to the form's top
+
+      // Set the calculated position
+      popup.style.left = `${popupLeft}px`;
+      popup.style.top = `${popupTop}px`;
+      popup.style.display = 'block';
+      popup.classList.add('show');
+      popup.classList.remove('hide');
+    }
+  }
+
+
+  mouseLeave(evt) {
+    if (!this.isMouseDown) {
+      const popup = document.getElementById('popupValue');
+      popup.classList.add('hide');
+      popup.classList.remove('show');
+    }
+  }
+
+  addVsCodeEventListeners(widgetDiv, vs) {
+    this.vscode = vs;
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.VerticalSliderInstance = this;
+  }
+
+  addEventListeners(widgetDiv) {
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.VerticalSliderInstance = this;
+  }
+
+  handleInputChange(evt) {
+    if (evt.key === 'Enter') {
+      const inputValue = parseFloat(evt.target.value);
+      if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
+        this.props.value = inputValue;
+        const widgetDiv = document.getElementById(this.props.name);
+        widgetDiv.innerHTML = this.getSVG();
+        widgetDiv.querySelector('input').focus();
+      }
+    }
+  }
+
+  pointerMove({ clientY }) {
+    if(this.props.active === 0) {
+      return '';
+    }
+
+    let textHeight = this.props.text ? this.props.height * 0.1 : 0;
+    const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
+    const sliderHeight = this.props.height - textHeight - valueTextBoxHeight;
+
+    // Get the bounding rectangle of the slider
+    const sliderRect = document.getElementById(this.props.name).getBoundingClientRect();
+
+    // Calculate the relative position of the mouse pointer within the slider bounds
+    let offsetY = sliderRect.bottom - clientY - textHeight;
+
+    // Clamp the mouse position to stay within the bounds of the slider
+    offsetY = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(offsetY, 0, sliderHeight);
+
+    // Calculate the new value based on the mouse position
+    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(offsetY, 0, sliderHeight, this.props.min, this.props.max);
+    newValue = Math.round(newValue / this.props.increment) * this.props.increment;
+
+    // Update the slider value
+    this.props.value = newValue;
+
+    // Update the slider appearance
+    const widgetDiv = document.getElementById(this.props.name);
+    widgetDiv.innerHTML = this.getSVG();
+
+    // Post message if vscode is available
+    const msg = { channel: this.props.channel, value: _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) }
+    if (this.vscode) {
+      this.vscode.postMessage({
+        command: 'channelUpdate',
+        text: JSON.stringify(msg)
+      });
+    } else {
+      var message = {
+        "msg": "parameterUpdate",
+        "paramIdx": this.props.index,
+        "value": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1)
+      };
+      // IPlugSendMsg(message);
+    }
+  }
+
+  getSVG() {
+    if(this.props.visible === 0) {
+      return '';
+    }
+
+    const popup = document.getElementById('popupValue');
+    if (popup) {
+      console.log(this.props.valuePrefix)
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
+    }
+
+    const alignMap = {
+      'left': 'start',
+      'center': 'middle',
+      'centre': 'middle',
+      'right': 'end',
+    };
+
+    const svgAlign = alignMap[this.props.align] || this.props.align;
+
+    // Calculate text height
+    let textHeight = this.props.text ? this.props.height * 0.1 : 0;
+    const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
+    const sliderHeight = this.props.height - textHeight - valueTextBoxHeight * 1.1;
+
+    const textX = this.props.width / 2;
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.width * 0.3;
+
+    const thumbHeight = sliderHeight * 0.05;
+
+    const textElement = this.props.text ? `
+    <svg x="0" y="${this.props.valueTextBox ? 0 : this.props.height - textHeight}" width="${this.props.width}" height="${textHeight + 5}" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
+      <text text-anchor="${svgAlign}" x="${textX}" y="${textHeight}" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">
+        ${this.props.text}
+      </text>
+    </svg>
+  ` : '';
+
+    const sliderElement = `
+    <svg x="0" y="${this.props.valueTextBox ? textHeight + 2 : 0}" width="${this.props.width}" height="${sliderHeight}" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="${this.props.width * 0.4}" y="1" width="${this.props.width * 0.2}" height="${sliderHeight * 0.95}" rx="2" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
+      <rect x="${this.props.width * 0.4}" y="${sliderHeight - _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderHeight * 0.95) - 1}" height="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) * sliderHeight * 0.95}" width="${this.props.width * 0.2}" rx="2" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
+      <rect x="${this.props.width * 0.3}" y="${sliderHeight - _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, thumbHeight + 1, sliderHeight - 1)}" width="${this.props.width * 0.4}" height="${thumbHeight}" rx="2" fill="${this.props.colour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
+    </svg>
+  `;
+
+    const valueTextElement = this.props.valueTextBox ? `
+    <foreignObject x="0" y="${this.props.height - valueTextBoxHeight + 2}" width="${this.props.width}" height="${valueTextBoxHeight}">
+      <input type="text" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
+      style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
+      onKeyDown="document.getElementById('${this.props.name}').VerticalSliderInstance.handleInputChange(event)"/>
+    </foreignObject>
+  ` : '';
+
+    return `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+      ${textElement}
+      ${sliderElement}
+      ${valueTextElement}
+    </svg>
+  `;
+  }
+
+
+
+
+}
+
+
+/***/ }),
+/* 6 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   MidiKeyboard: () => (/* binding */ MidiKeyboard)
+/* harmony export */ });
+/* harmony import */ var _cabbagePluginMethods_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(7);
+
+
+/**
+ * Form class
+ */
+class MidiKeyboard {
+  constructor() {
+    this.props = {
+      "top": 0,
+      "left": 0,
+      "width": 600,
+      "height": 300,
+      "caption": "",
+      "name": "MidiKeyboard",
+      "type": "keyboard",
+      "colour": "#888888",
+      "channel": "keyboard",
+      "blackNoteColour": "#000",
+      "keySeparatorColour": "#f00",
+      "arrowBackgroundColour": "#0295cf",
+      "mouseoverKeyColour": "#93D200",
+      "keydownColour": "#93D200",
+      "arrowColour": "#00f",
+    };
+
+    this.panelSections = {
+      "Properties": ["type"],
+      "Bounds": ["width", "height"],
+      "Colours": ["colour"]
+    };
+
+    this.isMouseDown = false; // Track the state of the mouse button
+    this.octaveOffset = 3;
+    this.noteMap = {};
+    const octaveCount = 6; // Adjust this value as needed
+
+    // Define an array of note names
+    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+    // Loop through octaves and note names to populate the map
+    for (let octave = -2; octave <= octaveCount; octave++) {
+      for (let i = 0; i < noteNames.length; i++) {
+        const noteName = noteNames[i] + octave;
+        const midiNote = (octave + 2) * 12 + i; // Calculate MIDI note number
+        console.log(noteName, midiNote);
+        this.noteMap[noteName] = midiNote;
+      }
+    }
+  }
+
+  pointerDown(e) {
+    if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
+      this.isMouseDown = true;
+      e.target.setAttribute('fill', this.props.keydownColour);
+      console.log(`Key down: ${this.noteMap[e.target.dataset.note]}`);
+      console.log(`Key down: ${e.target.dataset.note}`);
+      _cabbagePluginMethods_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendMidiMessageFromUI(0x90, this.noteMap[e.target.dataset.note], 127);
+    }
+  }
+
+
+  pointerUp(e) {
+    if (this.isMouseDown) {
+      this.isMouseDown = false;
+      if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
+        e.target.setAttribute('fill', e.target.classList.contains('white-key') ? 'white' : 'black');
+        console.log(`Key up: ${this.noteMap[e.target.dataset.note]}`);
+        _cabbagePluginMethods_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendMidiMessageFromUI(0x80, this.noteMap[e.target.dataset.note], 127);
+      }
+    }
+  }
+
+  pointerMove(e) {
+    if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
+      e.target.setAttribute('fill', this.props.mouseoverKeyColour);
+      console.log(`Key move: ${this.noteMap[e.target.dataset.note]}`);
+    }
+  }
+
+  pointerEnter(e) {
+    if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
+      e.target.setAttribute('fill', this.props.mouseoverKeyColour);
+      console.log(`Key enter: ${this.noteMap[e.target.dataset.note]}`);
+    }
+  }
+
+  pointerLeave(e) {
+    if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
+      e.target.setAttribute('fill', e.target.classList.contains('white-key') ? 'white' : 'black');
+    }
+  }
+
+  octaveUpPointerDown(e) {
+    console.log('octaveUpPointerDown');
+  }
+
+  octaveDownPointerDown(e) {
+    console.log('octaveDownPointerDown');
+  }
+
+  changeOctave(offset) {
+    this.octaveOffset += offset;
+    if (this.octaveOffset < 1) this.octaveOffset = 1; // Limit lower octave bound
+    if (this.octaveOffset > 7) this.octaveOffset = 7; // Limit upper octave bound
+    document.getElementById(this.props.name).innerHTML = this.getSVG(); // Update the SVG with new octave
+  }
+
+  addVsCodeEventListeners(widgetDiv, vscode) {
+    this.vscode = vscode;
+    this.addListeners(widgetDiv)
+    widgetDiv.innerHTML = this.getSVG();
+  }
+
+  addEventListeners(widgetDiv) {
+    this.addListeners(widgetDiv)
+    widgetDiv.innerHTML = this.getSVG();
+  }
+
+  midiMessageListener(event) {
+    console.log("Midi message listener");
+    const detail = event.detail;
+    const midiData = JSON.parse(detail.data);
+    console.log("Midi message listener", midiData.status);
+    if(midiData.status == 144) {
+      const note = midiData.data1;
+      // const velocity = midiData.data2;
+      const noteName = Object.keys(this.noteMap).find(key => this.noteMap[key] === note);
+      const key = document.querySelector(`[data-note="${noteName}"]`);
+      key.setAttribute('fill', this.props.keydownColour);
+      console.log(`Key down: ${note} ${noteName}`);
+    }
+    else if(midiData.status == 128) {
+      const note = midiData.data1;
+      const noteName = Object.keys(this.noteMap).find(key => this.noteMap[key] === note);
+      const key = document.querySelector(`[data-note="${noteName}"]`);
+      key.setAttribute('fill', key.classList.contains('white-key') ? 'white' : 'black');
+      console.log(`Key up: ${note} ${noteName}`);
+    }
+  }
+
+  addListeners(widgetDiv){
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("pointerup", this.pointerUp.bind(this));
+    widgetDiv.addEventListener("pointermove", this.pointerMove.bind(this));
+    widgetDiv.addEventListener("pointerenter", this.pointerEnter.bind(this), true);
+    widgetDiv.addEventListener("pointerleave", this.pointerLeave.bind(this), true);
+    document.addEventListener("midiEvent", this.midiMessageListener.bind(this));
+    widgetDiv.OctaveButton = this;
+  }
+
+  handleClickEvent(e) {
+    if (e.target.id == "octave-up") {
+      this.changeOctave(1);
+    }
+    else {
+      this.changeOctave(-1);
+    }
+  }
+
+  getSVG() {
+    const whiteKeyWidth = this.props.width / 21; // 21 white keys in 3 octaves
+    const whiteKeyHeight = this.props.height;
+    const blackKeyWidth = whiteKeyWidth * 0.4;
+    const blackKeyHeight = this.props.height * 0.6;
+    const strokeWidth = .5;
+
+    const whiteKeys = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+    const blackKeys = { 'C': 'C#', 'D': 'D#', 'F': 'F#', 'G': 'G#', 'A': 'A#' };
+
+    let whiteSvgKeys = '';
+    let blackSvgKeys = '';
+
+    for (let octave = 0; octave < 3; octave++) {
+      for (let i = 0; i < whiteKeys.length; i++) {
+        const key = whiteKeys[i];
+        const note = key + (octave + this.octaveOffset);
+        const width = whiteKeyWidth - strokeWidth;
+        const height = whiteKeyHeight - strokeWidth;
+        const xOffset = octave * whiteKeys.length * whiteKeyWidth + i * whiteKeyWidth;
+
+        whiteSvgKeys += `<rect x="${xOffset}" y="0" width="${width}" height="${height}" fill="white" stroke="black" stroke-width="${strokeWidth}" data-note="${note}" class="white-key" style="height: ${whiteKeyHeight}px;" />`;
+
+        if (blackKeys[key]) {
+          const note = blackKeys[key] + (octave + this.octaveOffset);
+          blackSvgKeys += `<rect x="${xOffset + whiteKeyWidth * 0.75 - strokeWidth / 2}" y="${strokeWidth / 2}" width="${blackKeyWidth}" height="${blackKeyHeight + strokeWidth}" fill="black" stroke="black" stroke-width="${strokeWidth}" data-note="${note}" class="black-key" />`;
+      }
+
+        if (i === 0) { // First white key of the octave
+          const textX = xOffset + whiteKeyWidth / 2; // Position text in the middle of the white key
+          const textY = whiteKeyHeight * .8; // Position text in the middle vertically
+          whiteSvgKeys += `<text x="${textX}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${whiteKeyHeight / 5}" fill="black" style="pointer-events: none;">${note}</text>`;
+        }
+      }
+    }
+
+
+    // Calculate button width and height relative to keyboard width
+    const buttonWidth = this.props.width / 20;
+    const buttonHeight = this.props.height;
+
+    return `
+        <div id="${this.props.channel}" style="display: flex; align-items: center; height: ${this.props.height}px;">
+        <button id="octave-down" style="width: ${buttonWidth}px; height: ${buttonHeight}px; background-color: ${this.props.arrowBackgroundColour};" onclick="document.getElementById('${this.props.name}').OctaveButton.handleClickEvent(event)">-</button>
+            <div id="keyboard" style="flex-grow: 1; height: 100%;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
+                    ${whiteSvgKeys}
+                    ${blackSvgKeys}
+                </svg>
+            </div>
+            <button id="octave-up" style="width: ${buttonWidth}px; height: ${buttonHeight}px; background-color: ${this.props.arrowBackgroundColour};" onclick="document.getElementById('${this.props.name}').OctaveButton.handleClickEvent(event)">+</button>
+
+        </div>
+    `;
+  }
+
+
+
+}
+
+
+/***/ }),
+/* 7 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Cabbage: () => (/* binding */ Cabbage)
+/* harmony export */ });
+
+
+
+class Cabbage {
+  static sendMidiMessageFromUI(statusByte, dataByte1, dataByte2) {
+    var message = {
+      "msg": "SMMFUI",
+      "statusByte": statusByte,
+      "dataByte1": dataByte1,
+      "dataByte2": dataByte2
+    };
+    
+    console.log("sending midi message from UI", message);
+    if (typeof IPlugSendMsg === 'function')
+      IPlugSendMsg(message);
+  }
+
+  static MidiMessageFromHost(statusByte, dataByte1, dataByte2) {
+    console.log("Got MIDI Message" + status + ":" + dataByte1 + ":" + dataByte2);
+  }
+}
+
+
+function SPVFD(paramIdx, val) {
+//  console.log("paramIdx: " + paramIdx + " value:" + val);
+  OnParamChange(paramIdx, val);
+}
+
+function SCVFD(ctrlTag, val) {
+  OnControlChange(ctrlTag, val);
+//  console.log("SCVFD ctrlTag: " + ctrlTag + " value:" + val);
+}
+
+function SCMFD(ctrlTag, msgTag, msg) {
+//  var decodedData = window.atob(msg);
+  console.log("SCMFD ctrlTag: " + ctrlTag + " msgTag:" + msgTag + "msg:" + msg);
+}
+
+function SAMFD(msgTag, dataSize, msg) {
+  //  var decodedData = window.atob(msg);
+  console.log("SAMFD msgTag:" + msgTag + " msg:" + msg);
+}
+
+function SMMFD(statusByte, dataByte1, dataByte2) {
+  console.log("Got MIDI Message" + status + ":" + dataByte1 + ":" + dataByte2);
+}
+
+function SSMFD(offset, size, msg) {
+  console.log("Got Sysex Message");
+}
+
+// FROM UI
+// data should be a base64 encoded string
+function SAMFUI(msgTag, ctrlTag = -1, data = 0) {
+  var message = {
+    "msg": "SAMFUI",
+    "msgTag": msgTag,
+    "ctrlTag": ctrlTag,
+    "data": data
+  };
+  
+  IPlugSendMsg(message);
+}
+
+function SMMFUI(statusByte, dataByte1, dataByte2) {
+  var message = {
+    "msg": "SMMFUI",
+    "statusByte": statusByte,
+    "dataByte1": dataByte1,
+    "dataByte2": dataByte2
+  };
+  
+  IPlugSendMsg(message);
+}
+
+// data should be a base64 encoded string
+function SSMFUI(data = 0) {
+  var message = {
+    "msg": "SSMFUI",
+    "data": data
+  };
+  
+  IPlugSendMsg(message);
+}
+
+function EPCFUI(paramIdx) {
+  var message = {
+    "msg": "EPCFUI",
+    "paramIdx": paramIdx,
+  };
+  
+  IPlugSendMsg(message);
+}
+
+function BPCFUI(paramIdx) {
+  var message = {
+    "msg": "BPCFUI",
+    "paramIdx": paramIdx,
+  };
+  
+  IPlugSendMsg(message);
+}
+
+function SPVFUI(paramIdx, value) {
+  var message = {
+    "msg": "SPVFUI",
+    "paramIdx": paramIdx,
+    "value": value
+  };
+
+  IPlugSendMsg(message);
+}
+
+
+/***/ }),
+/* 8 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Form: () => (/* binding */ Form)
+/* harmony export */ });
+/**
+ * Form class
+ */
+class Form {
+    constructor() {
+      this.props = {
+        "top": 0,
+        "left": 0,
+        "width": 600,
+        "height": 300,
+        "caption": "",
+        "name": "MainForm",
+        "type": "form",
+        "colour": "#888888",
+        "channel": "MainForm"
+      }
+  
+      this.panelSections = {
+        "Properties": ["type"],
+        "Bounds": ["width", "height"],
+        "Text": ["caption"],
+        "Colours": ["colour"]
+      };
+    }
+  
+  
+    getSVG() {
+  
+      return `
+        <svg xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
+        <rect width="${this.props.width} " height="${this.props.height}" x="0" y="0" rx="2" ry="2" fill="${this.props.colour}" />
+        </svg>
+        `;
+    }
+  }
+
+/***/ }),
+/* 9 */
 /***/ ((module) => {
 
 module.exports = require("child_process");
 
 /***/ }),
-/* 4 */
+/* 10 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const WebSocket = __webpack_require__(5);
+const WebSocket = __webpack_require__(11);
 
-WebSocket.createWebSocketStream = __webpack_require__(25);
-WebSocket.Server = __webpack_require__(26);
-WebSocket.Receiver = __webpack_require__(19);
-WebSocket.Sender = __webpack_require__(22);
+WebSocket.createWebSocketStream = __webpack_require__(31);
+WebSocket.Server = __webpack_require__(32);
+WebSocket.Receiver = __webpack_require__(25);
+WebSocket.Sender = __webpack_require__(28);
 
 WebSocket.WebSocket = WebSocket;
 WebSocket.WebSocketServer = WebSocket.Server;
@@ -794,25 +2108,25 @@ module.exports = WebSocket;
 
 
 /***/ }),
-/* 5 */
+/* 11 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex|Readable$" }] */
 
 
 
-const EventEmitter = __webpack_require__(6);
-const https = __webpack_require__(7);
-const http = __webpack_require__(8);
-const net = __webpack_require__(9);
-const tls = __webpack_require__(10);
-const { randomBytes, createHash } = __webpack_require__(11);
-const { Duplex, Readable } = __webpack_require__(12);
-const { URL } = __webpack_require__(13);
+const EventEmitter = __webpack_require__(12);
+const https = __webpack_require__(13);
+const http = __webpack_require__(14);
+const net = __webpack_require__(15);
+const tls = __webpack_require__(16);
+const { randomBytes, createHash } = __webpack_require__(17);
+const { Duplex, Readable } = __webpack_require__(18);
+const { URL } = __webpack_require__(19);
 
-const PerMessageDeflate = __webpack_require__(14);
-const Receiver = __webpack_require__(19);
-const Sender = __webpack_require__(22);
+const PerMessageDeflate = __webpack_require__(20);
+const Receiver = __webpack_require__(25);
+const Sender = __webpack_require__(28);
 const {
   BINARY_TYPES,
   EMPTY_BUFFER,
@@ -822,12 +2136,12 @@ const {
   kStatusCode,
   kWebSocket,
   NOOP
-} = __webpack_require__(17);
+} = __webpack_require__(23);
 const {
   EventTarget: { addEventListener, removeEventListener }
-} = __webpack_require__(23);
-const { format, parse } = __webpack_require__(24);
-const { toBuffer } = __webpack_require__(16);
+} = __webpack_require__(29);
+const { format, parse } = __webpack_require__(30);
+const { toBuffer } = __webpack_require__(22);
 
 const closeTimeout = 30 * 1000;
 const kAborted = Symbol('kAborted');
@@ -2136,64 +3450,64 @@ function socketOnError() {
 
 
 /***/ }),
-/* 6 */
+/* 12 */
 /***/ ((module) => {
 
 module.exports = require("events");
 
 /***/ }),
-/* 7 */
+/* 13 */
 /***/ ((module) => {
 
 module.exports = require("https");
 
 /***/ }),
-/* 8 */
+/* 14 */
 /***/ ((module) => {
 
 module.exports = require("http");
 
 /***/ }),
-/* 9 */
+/* 15 */
 /***/ ((module) => {
 
 module.exports = require("net");
 
 /***/ }),
-/* 10 */
+/* 16 */
 /***/ ((module) => {
 
 module.exports = require("tls");
 
 /***/ }),
-/* 11 */
+/* 17 */
 /***/ ((module) => {
 
 module.exports = require("crypto");
 
 /***/ }),
-/* 12 */
+/* 18 */
 /***/ ((module) => {
 
 module.exports = require("stream");
 
 /***/ }),
-/* 13 */
+/* 19 */
 /***/ ((module) => {
 
 module.exports = require("url");
 
 /***/ }),
-/* 14 */
+/* 20 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const zlib = __webpack_require__(15);
+const zlib = __webpack_require__(21);
 
-const bufferUtil = __webpack_require__(16);
-const Limiter = __webpack_require__(18);
-const { kStatusCode } = __webpack_require__(17);
+const bufferUtil = __webpack_require__(22);
+const Limiter = __webpack_require__(24);
+const { kStatusCode } = __webpack_require__(23);
 
 const FastBuffer = Buffer[Symbol.species];
 const TRAILER = Buffer.from([0x00, 0x00, 0xff, 0xff]);
@@ -2704,18 +4018,18 @@ function inflateOnError(err) {
 
 
 /***/ }),
-/* 15 */
+/* 21 */
 /***/ ((module) => {
 
 module.exports = require("zlib");
 
 /***/ }),
-/* 16 */
+/* 22 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { EMPTY_BUFFER } = __webpack_require__(17);
+const { EMPTY_BUFFER } = __webpack_require__(23);
 
 const FastBuffer = Buffer[Symbol.species];
 
@@ -2847,7 +4161,7 @@ if (!process.env.WS_NO_BUFFER_UTIL) {
 
 
 /***/ }),
-/* 17 */
+/* 23 */
 /***/ ((module) => {
 
 
@@ -2865,7 +4179,7 @@ module.exports = {
 
 
 /***/ }),
-/* 18 */
+/* 24 */
 /***/ ((module) => {
 
 
@@ -2926,22 +4240,22 @@ module.exports = Limiter;
 
 
 /***/ }),
-/* 19 */
+/* 25 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { Writable } = __webpack_require__(12);
+const { Writable } = __webpack_require__(18);
 
-const PerMessageDeflate = __webpack_require__(14);
+const PerMessageDeflate = __webpack_require__(20);
 const {
   BINARY_TYPES,
   EMPTY_BUFFER,
   kStatusCode,
   kWebSocket
-} = __webpack_require__(17);
-const { concat, toArrayBuffer, unmask } = __webpack_require__(16);
-const { isValidStatusCode, isValidUTF8 } = __webpack_require__(20);
+} = __webpack_require__(23);
+const { concat, toArrayBuffer, unmask } = __webpack_require__(22);
+const { isValidStatusCode, isValidUTF8 } = __webpack_require__(26);
 
 const FastBuffer = Buffer[Symbol.species];
 const promise = Promise.resolve();
@@ -3674,12 +4988,12 @@ function throwErrorNextTick(err) {
 
 
 /***/ }),
-/* 20 */
+/* 26 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { isUtf8 } = __webpack_require__(21);
+const { isUtf8 } = __webpack_require__(27);
 
 //
 // Allowed token characters:
@@ -3810,26 +5124,26 @@ if (isUtf8) {
 
 
 /***/ }),
-/* 21 */
+/* 27 */
 /***/ ((module) => {
 
 module.exports = require("buffer");
 
 /***/ }),
-/* 22 */
+/* 28 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex" }] */
 
 
 
-const { Duplex } = __webpack_require__(12);
-const { randomFillSync } = __webpack_require__(11);
+const { Duplex } = __webpack_require__(18);
+const { randomFillSync } = __webpack_require__(17);
 
-const PerMessageDeflate = __webpack_require__(14);
-const { EMPTY_BUFFER } = __webpack_require__(17);
-const { isValidStatusCode } = __webpack_require__(20);
-const { mask: applyMask, toBuffer } = __webpack_require__(16);
+const PerMessageDeflate = __webpack_require__(20);
+const { EMPTY_BUFFER } = __webpack_require__(23);
+const { isValidStatusCode } = __webpack_require__(26);
+const { mask: applyMask, toBuffer } = __webpack_require__(22);
 
 const kByteLength = Symbol('kByteLength');
 const maskBuffer = Buffer.alloc(4);
@@ -4299,12 +5613,12 @@ module.exports = Sender;
 
 
 /***/ }),
-/* 23 */
+/* 29 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { kForOnEventAttribute, kListener } = __webpack_require__(17);
+const { kForOnEventAttribute, kListener } = __webpack_require__(23);
 
 const kCode = Symbol('kCode');
 const kData = Symbol('kData');
@@ -4597,12 +5911,12 @@ function callListener(listener, thisArg, event) {
 
 
 /***/ }),
-/* 24 */
+/* 30 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { tokenChars } = __webpack_require__(20);
+const { tokenChars } = __webpack_require__(26);
 
 /**
  * Adds an offer to the map of extension offers or a parameter to the map of
@@ -4806,12 +6120,12 @@ module.exports = { format, parse };
 
 
 /***/ }),
-/* 25 */
+/* 31 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { Duplex } = __webpack_require__(12);
+const { Duplex } = __webpack_require__(18);
 
 /**
  * Emits the `'close'` event on a stream.
@@ -4971,23 +6285,23 @@ module.exports = createWebSocketStream;
 
 
 /***/ }),
-/* 26 */
+/* 32 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex$" }] */
 
 
 
-const EventEmitter = __webpack_require__(6);
-const http = __webpack_require__(8);
-const { Duplex } = __webpack_require__(12);
-const { createHash } = __webpack_require__(11);
+const EventEmitter = __webpack_require__(12);
+const http = __webpack_require__(14);
+const { Duplex } = __webpack_require__(18);
+const { createHash } = __webpack_require__(17);
 
-const extension = __webpack_require__(24);
-const PerMessageDeflate = __webpack_require__(14);
-const subprotocol = __webpack_require__(27);
-const WebSocket = __webpack_require__(5);
-const { GUID, kWebSocket } = __webpack_require__(17);
+const extension = __webpack_require__(30);
+const PerMessageDeflate = __webpack_require__(20);
+const subprotocol = __webpack_require__(33);
+const WebSocket = __webpack_require__(11);
+const { GUID, kWebSocket } = __webpack_require__(23);
 
 const keyRegex = /^[+/0-9A-Za-z]{22}==$/;
 
@@ -5516,12 +6830,12 @@ function abortHandshakeOrEmitwsClientError(server, req, socket, code, message) {
 
 
 /***/ }),
-/* 27 */
+/* 33 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { tokenChars } = __webpack_require__(20);
+const { tokenChars } = __webpack_require__(26);
 
 /**
  * Parses the `Sec-WebSocket-Protocol` header into a set of subprotocol names.
@@ -5584,358 +6898,17 @@ module.exports = { parse };
 
 
 /***/ }),
-/* 28 */
+/* 34 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   CabbageUtils: () => (/* binding */ CabbageUtils)
+/* harmony export */   Button: () => (/* binding */ Button)
 /* harmony export */ });
-class CabbageUtils {
-    /**
-     * This uses a simple regex pattern to parse a line of Cabbage code such as 
-     * rslider bounds(22, 14, 60, 60) channel("clip") thumbRadius(5), text("Clip") range(0, 1, 0, 1, 0.001)
-     * and converts it to a JSON object
-     */
-    static getCabbageCodeAsJSON(text) {
-      const regex = /(\w+)\(([^)]+)\)/g;
-      const jsonObj = {};
-  
-      let match;
-      while ((match = regex.exec(text)) !== null) {
-        const name = match[1];
-        let value = match[2].replace(/"/g, ''); // Remove double quotes
-  
-        if (name === 'bounds') {
-          // Splitting the value into individual parts for top, left, width, and height
-          const [left, top, width, height] = value.split(',').map(v => parseInt(v.trim()));
-          jsonObj['left'] = left;
-          jsonObj['top'] = top;
-          jsonObj['width'] = width;
-          jsonObj['height'] = height;
-        } else if (name === 'range') {
-          // Splitting the value into individual parts for top, left, width, and height
-          const [min, max, defaultValue, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
-          jsonObj['min'] = min;
-          jsonObj['max'] = max;
-          jsonObj['defaultValue'] = defaultValue;
-          jsonObj['skew'] = skew;
-          jsonObj['increment'] = increment;
-        } else if (name === 'size') {
-          // Splitting the value into individual parts for width and height
-          const [width, height] = value.split(',').map(v => parseInt(v.trim()));
-          jsonObj['width'] = width;
-          jsonObj['height'] = height;
-        } else {
-          // Check if the value is a number
-          const numericValue = parseFloat(value);
-          if (!isNaN(numericValue)) {
-            // If it's a number, assign it as a number
-            jsonObj[name] = numericValue;
-          } else {
-            // If it's not a number, assign it as a string
-            jsonObj[name] = value;
-          }
-        }
-      }
-  
-      console.log(jsonObj);
-      return jsonObj;
-    }
-  
-    /**
-     * this function parses the Cabbage code and creates new widgets accordingly..
-     */
-    static async parseCabbageCode(text, widgets, form, insertWidget) {
-      // Leave main form in the widget array - there is only one..
-      widgets.splice(1, widgets.length - 1);
-  
-      let cabbageStart = 0;
-      let cabbageEnd = 0;
-      let lines = text.split(/\r?\n/);
-      let count = 0;
-  
-      lines.forEach((line) => {
-        if (line.trimStart().startsWith("<Cabbage>"))
-          cabbageStart = count + 1;
-        else if (line.trimStart().startsWith("</Cabbage>"))
-          cabbageEnd = count;
-        count++;
-      })
-  
-      const cabbageCode = lines.slice(cabbageStart, cabbageEnd);
-      for (const line of cabbageCode) {
-        const codeProps = CabbageUtils.getCabbageCodeAsJSON(line);
-        const type = `${line.trimStart().split(' ')[0]}`;
-        if (line.trim() != "") {
-          if (type != "form") {
-            await insertWidget(type, codeProps);
-          } else {
-            widgets.forEach((widget) => {
-              if (widget.props.name == "MainForm") {
-                const w = codeProps.width;
-                const h = codeProps.height;
-                form.style.width = w + "px";
-                form.style.height = h + "px";
-                widget.props.width = w;
-                widget.props.width = h;
-              }
-            });
-          }
-        }
-      }
-    }
-  
-    /**
-     * this function will return the number of plugin parameter in our widgets array
-     */
-    static getNumberOfPluginParameters(widgets, ...types) {
-      // Create a set from the types for faster lookup
-      const typeSet = new Set(types);
-  
-      // Initialize the counter
-      let count = 0;
-  
-      // Iterate over each widget in the array
-      for (const widget of widgets) {
-        // Check if the widget's type is one of the specified types
-        if (typeSet.has(widget.props.type)) {
-          // Increment the counter if the type matches
-          count++;
-        }
-      }
-  
-      // Return the final count
-      return count;
-    }
-  
-    /**
-     * show / hide Cabbage overlays
-     */
-    static showOverlay() {
-      document.getElementById('fullScreenOverlay').style.display = 'flex';
-      const leftPanel = document.getElementById('LeftPanel');
-      const rightPanel = document.getElementById('RightPanel');
-      leftPanel.style.display = 'none';
-      rightPanel.style.display = 'none';
-    }
-  
-    static hideOverlay() {
-      document.getElementById('fullScreenOverlay').style.display = 'none';
-      const leftPanel = document.getElementById('LeftPanel');
-      const rightPanel = document.getElementById('RightPanel');
-      leftPanel.style.display = 'flex';
-      rightPanel.style.display = 'flex';
-    }
-  
-    /**
-     * clamps a value
-     * @param {*} num 
-     * @param {*} min 
-     * @param {*} max 
-     * @returns clamped value
-     */
-    static clamp(num, min, max) {
-      return Math.max(min, Math.min(num, max));
-    }
-  
-    /**
-     * returns a remapped value
-     * @param {*} value 
-     * @param {*} in_min 
-     * @param {*} in_max 
-     * @param {*} out_min 
-     * @param {*} out_max 
-     * @returns mapped value
-     */
-    static map(value, in_min, in_max, out_min, out_max) {
-      return ((value - in_min) * (out_max - out_min)) / (in_max - in_min) + out_min;
-    };
-  
-    /**
-     * 
-     * @param {*} num 
-     * @returns number of decimal places in value
-     */
-    static getDecimalPlaces(num) {
-      const numString = num.toString();
-      if (numString.includes('.')) {
-        return numString.split('.')[1].length;
-      } else {
-        return 0;
-      }
-    }
-  
-    /**
-     * Returns a unique channel name based on the type and number
-     * @param {Array} widgets - Array of JSON objects with unique 'channel' values
-     * @returns {String} unique channel name
-     */
-    static getUniqueChannelName(type, widgets) {
-      // Extract all existing channel names
-      const existingChannels = widgets.map(widget => widget.channel);
-  
-      // Define a function to generate a channel name based on type and a number
-      function generateChannelName(type, number) {
-        return `${type}${number}`;
-      }
-  
-      // Start with a number based on the size of the array + 1
-      let number = widgets.length + 1;
-      let newChannelName = generateChannelName(type, number);
-  
-      // Increment the number until a unique channel name is found
-      while (existingChannels.includes(newChannelName)) {
-        number += 1;
-        newChannelName = generateChannelName(type, number);
-      }
-  
-      return newChannelName;
-    }
-
-    static findValidId(event) {
-        var target = event.target;
-        
-        while (target !== null) {
-            if (target.tagName === "DIV" && target.id) {
-                return target.id;
-            }
-            target = target.parentNode;
-        }
-
-        return null
-    }
-
-    static getElementByIdInChildren(parentElement, targetId) {
-        const queue = [parentElement];
-    
-        while (queue.length > 0) {
-            const currentElement = queue.shift();
-    
-            // Check if the current element has the target ID
-            if (currentElement.id === targetId) {
-                return currentElement;
-            }
-    
-            // Check if the current element has children
-            if (currentElement.children && currentElement.children.length > 0) {
-                // Convert HTMLCollection to an array and add the children of the current element to the queue
-                const childrenArray = Array.from(currentElement.children);
-                queue.push(...childrenArray);
-            }
-        }
-    
-        // If no element with the target ID is found, return null
-        return null;
-    }
-
-    static getWidgetFromChannel(widgets, channel){
-        widgets.forEach((widget)=>{
-            if(widget["channel"] === channel)
-                return widget;
-        })
-        return null;
-    }
-
-    static getStringWidth(text, props, padding=10) {
-        var canvas = document.createElement('canvas');
-        let fontSize = 0;
-        switch(props.type){
-            case 'hslider':
-                fontSize = props.height*.8;
-                break;
-            case "rslider":
-                fontSize = props.width*.3;
-                break;
-            case "vslider":
-                fontSize = props.width*.3;
-                break;
-            default:
-                console.error('getStringWidth..');
-                break;
-        }
-
-        var ctx = canvas.getContext("2d");
-        ctx.font = `${fontSize}px ${props.fontFamily}`;
-        var width = ctx.measureText(text).width;
-        return width+padding;
-    }
-
-    static getNumberBoxWidth(props) {
-        // Get the number of decimal places in props.increment
-        const decimalPlaces = CabbageUtils.getDecimalPlaces(props.increment);
-      
-        // Format props.max with the correct number of decimal places
-        const maxNumber = props.max.toFixed(decimalPlaces);
-      
-        // Calculate the width of the string representation of maxNumber
-        const maxNumberWidth = CabbageUtils.getStringWidth(maxNumber, props);
-      
-        return maxNumberWidth;
-      }
-  }
-  
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
 
 
-/***/ }),
-/* 29 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   Form: () => (/* binding */ Form)
-/* harmony export */ });
-/**
- * Form class
- */
-class Form {
-    constructor() {
-      this.props = {
-        "top": 0,
-        "left": 0,
-        "width": 600,
-        "height": 300,
-        "caption": "",
-        "name": "MainForm",
-        "type": "form",
-        "colour": "#888888",
-        "channel": "MainForm"
-      }
-  
-      this.panelSections = {
-        "Properties": ["type"],
-        "Bounds": ["width", "height"],
-        "Text": ["caption"],
-        "Colours": ["colour"]
-      };
-    }
-  
-  
-    getSVG() {
-  
-      return `
-        <svg xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
-        <rect width="${this.props.width} " height="${this.props.height}" x="0" y="0" rx="2" ry="2" fill="${this.props.colour}" />
-        </svg>
-        `;
-    }
-  }
-
-/***/ }),
-/* 30 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   HorizontalSlider: () => (/* binding */ HorizontalSlider)
-/* harmony export */ });
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(28);
-
-
-/**
- * Horizontal Slider (hslider) class
- */
-class HorizontalSlider {
+class Button {
   constructor() {
     this.props = {
       "top": 10,
@@ -5943,532 +6916,91 @@ class HorizontalSlider {
       "width": 60,
       "height": 60,
       "channel": "rslider",
+      "corners": 2,
       "min": 0,
       "max": 1,
       "value": 0,
       "default": 0,
-      "skew": 1,
-      "increment": 0.001,
       "index": 0,
-      "text": "",
+      "textOn": "",
+      "textOff": "",
       "fontFamily": "Verdana",
       "fontSize": 0,
       "align": "centre",
-      "valueTextBox": 0,
-      "colour": "#0295cf",
-      "trackerColour": "#93D200",
-      "trackerBackgroundColour": "#ffffff",
-      "trackerOutlineColour": "#525252",
-      "fontColour": "#dddddd",
-      "outlineColour": "#999999",
-      "textBoxColour": "#555555",
-      "trackerOutlineWidth": 1,
-      "outlineWidth": 1,
-      "markerThickness": 0.2,
-      "markerStart": 0.1,
-      "markerEnd": 0.9,
+      "colourOn": "#0295cf",
+      "colourOff": "#0295cf",
+      "fontColourOn": "#dddddd",
+      "fontColourOff": "#dddddd",
+      "outlineColour": "#dddddd",
+      "outlineWidth": 2,
       "name": "",
-      "type": "hslider",
-      "kind": "horizontal",
-      "decimalPlaces": 1,
-      "velocity": 0,
+      "type": "button",
       "visible": 1,
-      "popup": 1,
       "automatable": 1,
-      "valuePrefix": "",
-      "valuePostfix": "",
       "presetIgnore": 0
     }
 
     this.panelSections = {
       "Info": ["type", "channel"],
       "Bounds": ["left", "top", "width", "height"],
-      "Range": ["min", "max", "default", "skew", "increment"],
-      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
-      "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
+      "Text": ["text", "fontSize", "fontFamily", "fontColourOn", "fontColourOff", "align"], // Changed from textOffsetY to textOffsetX for vertical slider
+      "Colours": ["colourOn", "colourOff", "outlineColour"]
     };
 
-    this.moveListener = this.pointerMove.bind(this);
-    this.upListener = this.pointerUp.bind(this);
-    this.startX = 0;
-    this.startValue = 0;
     this.vscode = null;
     this.isMouseDown = false;
-    this.decimalPlaces = 0;
+    this.state = false;
   }
 
   pointerUp() {
-    const popup = document.getElementById('popupValue');
-    popup.classList.add('hide');
-    popup.classList.remove('show');
-    window.removeEventListener("pointermove", this.moveListener);
-    window.removeEventListener("pointerup", this.upListener);
+    if (this.props.active === 0) {
+      return '';
+    }
     this.isMouseDown = false;
   }
 
   pointerDown(evt) {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
     }
-
-    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
-    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
-    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
-    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
-  
-    
-    if (evt.offsetX >= textWidth && evt.offsetX <= textWidth + sliderWidth && evt.target.tagName !== "INPUT") {
-      this.isMouseDown = true;
-      this.startX = evt.offsetX - textWidth;
-      this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.startX, 0, sliderWidth, this.props.min, this.props.max);
-  
-      window.addEventListener("pointermove", this.moveListener);
-      window.addEventListener("pointerup", this.upListener);
-  
-      this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
-      this.startValue = this.props.value;
-      const widgetDiv = document.getElementById(this.props.name);
-      widgetDiv.innerHTML = this.getSVG();
-    }
+    console.log("mouse down")
+    this.isMouseDown = true;
+    this.state =! this.state;
+    document.getElementById(this.props.name).innerHTML = this.getSVG();
   }
-  
+
 
   mouseEnter(evt) {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
-    }
-    const popup = document.getElementById('popupValue');
-    const form = document.getElementById('MainForm');
-    const rect = form.getBoundingClientRect();
-    this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment);
-  
-    if (popup && this.props.popup) {
-      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
-  
-      // Calculate the position for the popup
-      const sliderLeft = this.props.left;
-      const sliderWidth = this.props.width;
-      const formLeft = rect.left;
-      const formWidth = rect.width;
-  
-      // Determine if the popup should be on the right or left side of the slider
-      const sliderCenter = formLeft + (formWidth / 2);
-      let popupLeft;
-      if (sliderLeft + (sliderWidth) > sliderCenter) {
-        // Place popup on the left of the slider thumb
-        popupLeft = formLeft + sliderLeft - popup.offsetWidth - 10;
-        console.log("Pointer on the left");
-        popup.classList.add('right');
-      } else {
-        // Place popup on the right of the slider thumb
-        popupLeft = formLeft + sliderLeft + sliderWidth + 10;
-        console.log("Pointer on the right");
-        popup.classList.remove('right');
-      }
-  
-      const popupTop = rect.top + this.props.top; // Adjust top position relative to the form's top
-  
-      // Set the calculated position
-      popup.style.left = `${popupLeft}px`;
-      popup.style.top = `${popupTop}px`;
-      popup.style.display = 'block';
-      popup.classList.add('show');
-      popup.classList.remove('hide');
     }
   }
-  
+
 
   mouseLeave(evt) {
-    if(this.props.active === 0) {
-      return '';
-    }
-    if (!this.isMouseDown) {
-      const popup = document.getElementById('popupValue');
-      popup.classList.add('hide');
-      popup.classList.remove('show');
-    }
+
   }
 
   addVsCodeEventListeners(widgetDiv, vs) {
     this.vscode = vs;
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("pointerdown", this.pointerUp.bind(this));
+    widgetDiv.addEventListener("pointerup", this.pointerDown.bind(this));
     widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
     widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
-    widgetDiv.HorizontalSliderInstance = this;
+    widgetDiv.VerticalSliderInstance = this;
   }
 
   addEventListeners(widgetDiv) {
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
-    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
-    widgetDiv.HorizontalSliderInstance = this;
-  }
-
-  pointerMove({ clientX }) {
-    if(this.props.active === 0) {
-      return '';
-    }
-    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
-    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
-    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
-    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
-  
-    // Get the bounding rectangle of the slider
-    const sliderRect = document.getElementById(this.props.name).getBoundingClientRect();
-  
-    // Calculate the relative position of the mouse pointer within the slider bounds
-    let offsetX = clientX - sliderRect.left - textWidth;
-  
-    // Clamp the mouse position to stay within the bounds of the slider
-    offsetX = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(offsetX, 0, sliderWidth);
-  
-    // Calculate the new value based on the mouse position
-    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(offsetX, 0, sliderWidth, this.props.min, this.props.max);
-    newValue = Math.round(newValue / this.props.increment) * this.props.increment; // Round to the nearest increment
-  
-    // Update the slider value
-    this.props.value = newValue;
-  
-    // Update the slider appearance
-    const widgetDiv = document.getElementById(this.props.name);
-    widgetDiv.innerHTML = this.getSVG();
-  
-    // Post message if vscode is available
-    const msg = { channel: this.props.channel, value: _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) }
-    if (this.vscode) {
-      this.vscode.postMessage({
-        command: 'channelUpdate',
-        text: JSON.stringify(msg)
-      });
-    } else {
-      var message = {
-        "msg": "parameterUpdate",
-        "paramIdx": this.props.index,
-        "value": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1)
-      };
-      // IPlugSendMsg(message);
-    }
-  }
-  
-  handleInputChange(evt) {
-    if (evt.key === 'Enter') {
-      const inputValue = parseFloat(evt.target.value);
-      if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
-        this.props.value = inputValue;
-        const widgetDiv = document.getElementById(this.props.name);
-        widgetDiv.innerHTML = this.getSVG();
-        widgetDiv.querySelector('input').focus();
-      }
-    }
-  }
-
-  getSVG() {
-    if(this.props.visible === 0) {
-      return '';
-    }
-    const popup = document.getElementById('popupValue');
-    if (popup) {
-      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
-    }
-
-    const alignMap = {
-      'left': 'start',
-      'center': 'middle',
-      'centre': 'middle',
-      'right': 'end',
-    };
-
-    const svgAlign = alignMap[this.props.align] || this.props.align;
-
-    // Add padding if alignment is 'end' or 'middle'
-    const padding = (svgAlign === 'end' || svgAlign === 'middle') ? 5 : 0; // Adjust the padding value as needed
-
-    // Calculate text width and update SVG width
-    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
-    textWidth = (this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth) - padding;
-    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
-    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth - padding; // Subtract padding from sliderWidth
-
-    const w = (sliderWidth > this.props.height ? this.props.height : sliderWidth) * 0.75;
-    const textY = this.props.height / 2 + (this.props.fontSize > 0 ? this.props.textOffsetY : 0) + (this.props.height * 0.25); // Adjusted for vertical centering
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.8;
-
-    textWidth += padding;
-
-    const textElement = this.props.text ? `
-      <svg x="0" y="0" width="${textWidth}" height="${this.props.height}" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
-        <text text-anchor="${svgAlign}" x="${svgAlign === 'end' ? textWidth - padding : (svgAlign === 'middle' ? (textWidth - padding) / 2 : 0)}" y="${textY}" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">
-          ${this.props.text}
-        </text>
-      </svg>
-    ` : '';
-
-    const sliderElement = `
-      <svg x="${textWidth}" width="${sliderWidth}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="1" y="${this.props.height * .2}" width="${sliderWidth - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
-        <rect x="1" y="${this.props.height * .2}" width="${Math.max(0, _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth))}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
-        <rect x="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
-      </svg>
-    `;
-
-    const valueTextElement = this.props.valueTextBox ? `
-      <foreignObject x="${textWidth + sliderWidth}" y="0" width="${valueTextBoxWidth}" height="${this.props.height}">
-        <input type="text" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
-        style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
-        onKeyDown="document.getElementById('${this.props.name}').HorizontalSliderInstance.handleInputChange(event)"/>
-      </foreignObject>
-    ` : '';
-
-    return `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-        ${textElement}
-        ${sliderElement}
-        ${valueTextElement}
-      </svg>
-    `;
-  }
-
-  
-  
-}
-
-
-/***/ }),
-/* 31 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   VerticalSlider: () => (/* binding */ VerticalSlider)
-/* harmony export */ });
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(28);
-
-
-class VerticalSlider {
-  constructor() {
-    this.props = {
-      "top": 10,
-      "left": 10,
-      "width": 60,
-      "height": 60,
-      "channel": "rslider",
-      "min": 0,
-      "max": 1,
-      "value": 0,
-      "default": 0,
-      "skew": 1,
-      "increment": 0.001,
-      "index": 0,
-      "text": "",
-      "fontFamily": "Verdana",
-      "fontSize": 0,
-      "align": "centre",
-      "valueTextBox": 0,
-      "colour": "#0295cf",
-      "trackerColour": "#93D200",
-      "trackerBackgroundColour": "#ffffff",
-      "trackerOutlineColour": "#525252",
-      "fontColour": "#dddddd",
-      "outlineColour": "#999999",
-      "textBoxColour": "#555555",
-      "trackerOutlineWidth": 1,
-      "outlineWidth": 1,
-      "name": "",
-      "type": "vslider", // Changed from hslider to vslider
-      "kind": "vertical", // Changed from horizontal to vertical
-      "decimalPlaces": 1,
-      "velocity": 0,
-      "visible": 1,
-      "popup": 1,
-      "automatable": 1,
-      "valuePrefix": "",
-      "valuePostfix": "",
-      "presetIgnore": 0
-    }
-
-    this.panelSections = {
-      "Info": ["type", "channel"],
-      "Bounds": ["left", "top", "width", "height"],
-      "Range": ["min", "max", "default", "skew", "increment"],
-      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetX", "align"], // Changed from textOffsetY to textOffsetX for vertical slider
-      "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
-    };
-
-    this.moveListener = this.pointerMove.bind(this);
-    this.upListener = this.pointerUp.bind(this);
-    this.startY = 0; // Changed from startX to startY for vertical slider
-    this.startValue = 0;
-    this.vscode = null;
-    this.isMouseDown = false;
-    this.decimalPlaces = 0;
-  }
-
-  pointerUp() {
-    if(this.props.active === 0) {
-      return '';
-    }
-    const popup = document.getElementById('popupValue');
-    popup.classList.add('hide');
-    popup.classList.remove('show');
-    window.removeEventListener("pointermove", this.moveListener);
-    window.removeEventListener("pointerup", this.upListener);
-    this.isMouseDown = false;
-  }
-
-  pointerDown(evt) {
-    if(this.props.active === 0) {
-      return '';
-    }
-    let textHeight = this.props.text ? this.props.height * 0.1 : 0;
-    const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
-    const sliderHeight = this.props.height - textHeight - valueTextBoxHeight;
-
-    const sliderTop = this.props.valueTextBox ? textHeight : 0; // Adjust slider top position if valueTextBox is present
-
-    if (evt.offsetY >= sliderTop && evt.offsetY <= sliderTop + sliderHeight) {
-      this.isMouseDown = true;
-      this.startY = evt.offsetY - sliderTop;
-      this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.startY, 5, sliderHeight, this.props.max, this.props.min);
-      this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
-      this.startValue = this.props.value;
-      window.addEventListener("pointermove", this.moveListener);
-      window.addEventListener("pointerup", this.upListener);
-      const widgetDiv = document.getElementById(this.props.name);
-      widgetDiv.innerHTML = this.getSVG();
-    }
-  }
-
-
-  mouseEnter(evt) {
-    if(this.props.active === 0) {
-      return '';
-    }
-
-    const popup = document.getElementById('popupValue');
-    const form = document.getElementById('MainForm');
-    const rect = form.getBoundingClientRect();
-    this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment);
-
-    if (popup) {
-      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
-
-      // Calculate the position for the popup
-      const sliderLeft = this.props.left;
-      const sliderWidth = this.props.width;
-      const formLeft = rect.left;
-      const formWidth = rect.width;
-
-      // Determine if the popup should be on the right or left side of the slider
-      const sliderCenter = formLeft + (formWidth / 2);
-      let popupLeft;
-      if (sliderLeft + (sliderWidth) > sliderCenter) {
-        // Place popup on the left of the slider thumb
-        popupLeft = formLeft + sliderLeft - popup.offsetWidth - 10;
-        console.log("Pointer on the left");
-        popup.classList.add('right');
-      } else {
-        // Place popup on the right of the slider thumb
-        popupLeft = formLeft + sliderLeft + sliderWidth + 10;
-        console.log("Pointer on the right");
-        popup.classList.remove('right');
-      }
-
-      const popupTop = rect.top + this.props.top + this.props.height * .45; // Adjust top position relative to the form's top
-
-      // Set the calculated position
-      popup.style.left = `${popupLeft}px`;
-      popup.style.top = `${popupTop}px`;
-      popup.style.display = 'block';
-      popup.classList.add('show');
-      popup.classList.remove('hide');
-    }
-  }
-
-
-  mouseLeave(evt) {
-    if (!this.isMouseDown) {
-      const popup = document.getElementById('popupValue');
-      popup.classList.add('hide');
-      popup.classList.remove('show');
-    }
-  }
-
-  addVsCodeEventListeners(widgetDiv, vs) {
-    this.vscode = vs;
+    widgetDiv.addEventListener("pointerup", this.pointerUp.bind(this));
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
     widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
     widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
     widgetDiv.VerticalSliderInstance = this;
   }
 
-
-  handleInputChange(evt) {
-    if (evt.key === 'Enter') {
-      const inputValue = parseFloat(evt.target.value);
-      if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
-        this.props.value = inputValue;
-        const widgetDiv = document.getElementById(this.props.name);
-        widgetDiv.innerHTML = this.getSVG();
-        widgetDiv.querySelector('input').focus();
-      }
-    }
-  }
-
-  pointerMove({ clientY }) {
-    if(this.props.active === 0) {
-      return '';
-    }
-
-    let textHeight = this.props.text ? this.props.height * 0.1 : 0;
-    const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
-    const sliderHeight = this.props.height - textHeight - valueTextBoxHeight;
-
-    // Get the bounding rectangle of the slider
-    const sliderRect = document.getElementById(this.props.name).getBoundingClientRect();
-
-    // Calculate the relative position of the mouse pointer within the slider bounds
-    let offsetY = sliderRect.bottom - clientY - textHeight;
-
-    // Clamp the mouse position to stay within the bounds of the slider
-    offsetY = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(offsetY, 0, sliderHeight);
-
-    // Calculate the new value based on the mouse position
-    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(offsetY, 0, sliderHeight, this.props.min, this.props.max);
-    newValue = Math.round(newValue / this.props.increment) * this.props.increment;
-
-    // Update the slider value
-    this.props.value = newValue;
-
-    // Update the slider appearance
-    const widgetDiv = document.getElementById(this.props.name);
-    widgetDiv.innerHTML = this.getSVG();
-
-    // Post message if vscode is available
-    const msg = { channel: this.props.channel, value: _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) }
-    if (this.vscode) {
-      this.vscode.postMessage({
-        command: 'channelUpdate',
-        text: JSON.stringify(msg)
-      });
-    } else {
-      var message = {
-        "msg": "parameterUpdate",
-        "paramIdx": this.props.index,
-        "value": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1)
-      };
-      // IPlugSendMsg(message);
-    }
-  }
-
   getSVG() {
-    if(this.props.visible === 0) {
+    if (this.props.visible === 0) {
       return '';
-    }
-
-    const popup = document.getElementById('popupValue');
-    if (popup) {
-      console.log(this.props.valuePrefix)
-      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
     }
 
     const alignMap = {
@@ -6479,245 +7011,16 @@ class VerticalSlider {
     };
 
     const svgAlign = alignMap[this.props.align] || this.props.align;
-
-    // Calculate text height
-    let textHeight = this.props.text ? this.props.height * 0.1 : 0;
-    const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
-    const sliderHeight = this.props.height - textHeight - valueTextBoxHeight * 1.1;
-
-    const textX = this.props.width / 2;
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.width * 0.3;
-
-    const thumbHeight = sliderHeight * 0.05;
-
-    const textElement = this.props.text ? `
-    <svg x="0" y="${this.props.valueTextBox ? 0 : this.props.height - textHeight}" width="${this.props.width}" height="${textHeight + 5}" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
-      <text text-anchor="${svgAlign}" x="${textX}" y="${textHeight}" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">
-        ${this.props.text}
-      </text>
-    </svg>
-  ` : '';
-
-    const sliderElement = `
-    <svg x="0" y="${this.props.valueTextBox ? textHeight + 2 : 0}" width="${this.props.width}" height="${sliderHeight}" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="${this.props.width * 0.4}" y="1" width="${this.props.width * 0.2}" height="${sliderHeight * 0.95}" rx="2" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
-      <rect x="${this.props.width * 0.4}" y="${sliderHeight - _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderHeight * 0.95) - 1}" height="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) * sliderHeight * 0.95}" width="${this.props.width * 0.2}" rx="2" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
-      <rect x="${this.props.width * 0.3}" y="${sliderHeight - _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, thumbHeight + 1, sliderHeight - 1)}" width="${this.props.width * 0.4}" height="${thumbHeight}" rx="2" fill="${this.props.colour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
-    </svg>
-  `;
-
-    const valueTextElement = this.props.valueTextBox ? `
-    <foreignObject x="0" y="${this.props.height - valueTextBoxHeight + 2}" width="${this.props.width}" height="${valueTextBoxHeight}">
-      <input type="text" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
-      style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
-      onKeyDown="document.getElementById('${this.props.name}').VerticalSliderInstance.handleInputChange(event)"/>
-    </foreignObject>
-  ` : '';
-
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.6;
     return `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-      ${textElement}
-      ${sliderElement}
-      ${valueTextElement}
-    </svg>
-  `;
-  }
-
-
-
-
-}
-
-
-/***/ }),
-/* 32 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   MidiKeyboard: () => (/* binding */ MidiKeyboard)
-/* harmony export */ });
-/**
- * Form class
- */
-class MidiKeyboard {
-  constructor() {
-    this.props = {
-      "top": 0,
-      "left": 0,
-      "width": 600,
-      "height": 300,
-      "caption": "",
-      "name": "MidiKeyboard",
-      "type": "keyboard",
-      "colour": "#888888",
-      "channel": "keyboard",
-      "blackNoteColour": "#000",
-      "keySeparatorColour": "#f00",
-      "arrowBackgroundColour": "#0295cf",
-      "mouseoverKeyColour": "#93D200",
-      "keydownColour": "#93D200",
-      "arrowColour": "#00f",
-    };
-
-    this.panelSections = {
-      "Properties": ["type"],
-      "Bounds": ["width", "height"],
-      "Colours": ["colour"]
-    };
-
-    this.isMouseDown = false; // Track the state of the mouse button
-    this.octaveOffset = 3;
-    this.noteMap = {};
-    const octaveCount = 6; // Adjust this value as needed
-
-    // Define an array of note names
-    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-
-    // Loop through octaves and note names to populate the map
-    for (let octave = -2; octave <= octaveCount; octave++) {
-      for (let i = 0; i < noteNames.length; i++) {
-        const noteName = noteNames[i] + octave;
-        const midiNote = (octave + 2) * 12 + i; // Calculate MIDI note number
-        console.log(noteName, midiNote);
-        this.noteMap[noteName] = midiNote;
-      }
-    }
-  }
-
-  pointerDown(e) {
-    if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
-      this.isMouseDown = true;
-      e.target.setAttribute('fill', this.props.keydownColour);
-      console.log(`Key down: ${this.noteMap[e.target.dataset.note]}`);
-      console.log(`Key down: ${e.target.dataset.note}`);
-    }
-  }
-
-
-  pointerUp(e) {
-    if (this.isMouseDown) {
-      this.isMouseDown = false;
-      if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
-        e.target.setAttribute('fill', e.target.classList.contains('white-key') ? 'white' : 'black');
-        console.log(`Key up: ${this.noteMap[e.target.dataset.note]}`);
-      }
-    }
-  }
-
-  pointerMove(e) {
-    if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
-      e.target.setAttribute('fill', this.props.mouseoverKeyColour);
-      console.log(`Key move: ${this.noteMap[e.target.dataset.note]}`);
-    }
-  }
-
-  pointerEnter(e) {
-    if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
-      e.target.setAttribute('fill', this.props.mouseoverKeyColour);
-      console.log(`Key enter: ${this.noteMap[e.target.dataset.note]}`);
-    }
-  }
-
-  pointerLeave(e) {
-    if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
-      e.target.setAttribute('fill', e.target.classList.contains('white-key') ? 'white' : 'black');
-    }
-  }
-
-  octaveUpPointerDown(e) {
-    console.log('octaveUpPointerDown');
-  }
-
-  octaveDownPointerDown(e) {
-    console.log('octaveDownPointerDown');
-  }
-
-  changeOctave(offset) {
-    this.octaveOffset += offset;
-    if (this.octaveOffset < 1) this.octaveOffset = 1; // Limit lower octave bound
-    if (this.octaveOffset > 7) this.octaveOffset = 7; // Limit upper octave bound
-    document.getElementById(this.props.name).innerHTML = this.getSVG(); // Update the SVG with new octave
-  }
-
-  addVsCodeEventListeners(widgetDiv, vscode) {
-    this.vscode = vscode;
-    widgetDiv.innerHTML = this.getSVG();
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.addEventListener("pointerup", this.pointerUp.bind(this));
-    widgetDiv.addEventListener("pointermove", this.pointerMove.bind(this));
-    widgetDiv.addEventListener("pointerenter", this.pointerEnter.bind(this), true);
-    widgetDiv.addEventListener("pointerleave", this.pointerLeave.bind(this), true);
-    widgetDiv.OctaveButton = this;
-  }
-
-  handleClickEvent(e) {
-    if (e.target.id == "octave-up") {
-      this.changeOctave(1);
-    }
-    else {
-      this.changeOctave(-1);
-    }
-  }
-
-  getSVG() {
-    const whiteKeyWidth = this.props.width / 21; // 21 white keys in 3 octaves
-    const whiteKeyHeight = this.props.height;
-    const blackKeyWidth = whiteKeyWidth * 0.4;
-    const blackKeyHeight = this.props.height * 0.6;
-    const strokeWidth = .5;
-
-    const whiteKeys = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-    const blackKeys = { 'C': 'C#', 'D': 'D#', 'F': 'F#', 'G': 'G#', 'A': 'A#' };
-
-    let whiteSvgKeys = '';
-    let blackSvgKeys = '';
-
-    for (let octave = 0; octave < 3; octave++) {
-      for (let i = 0; i < whiteKeys.length; i++) {
-        const key = whiteKeys[i];
-        const note = key + (octave + this.octaveOffset);
-        const width = whiteKeyWidth - strokeWidth;
-        const height = whiteKeyHeight - strokeWidth;
-        const xOffset = octave * whiteKeys.length * whiteKeyWidth + i * whiteKeyWidth;
-
-        whiteSvgKeys += `<rect x="${xOffset}" y="0" width="${width}" height="${height}" fill="white" stroke="black" stroke-width="${strokeWidth}" data-note="${note}" class="white-key" style="height: ${whiteKeyHeight}px;" />`;
-
-        if (blackKeys[key]) {
-          const note = blackKeys[key] + (octave + this.octaveOffset);
-          blackSvgKeys += `<rect x="${xOffset + whiteKeyWidth * 0.75 - strokeWidth / 2}" y="${strokeWidth / 2}" width="${blackKeyWidth}" height="${blackKeyHeight + strokeWidth}" fill="black" stroke="black" stroke-width="${strokeWidth}" data-note="${note}" class="black-key" />`;
-      }
-
-        if (i === 0) { // First white key of the octave
-          const textX = xOffset + whiteKeyWidth / 2; // Position text in the middle of the white key
-          const textY = whiteKeyHeight * .8; // Position text in the middle vertically
-          whiteSvgKeys += `<text x="${textX}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${whiteKeyHeight / 5}" fill="black" style="pointer-events: none;">${note}</text>`;
-        }
-      }
-    }
-
-
-    // Calculate button width and height relative to keyboard width
-    const buttonWidth = this.props.width / 20;
-    const buttonHeight = this.props.height;
-
-    return `
-        <div id="${this.props.channel}" style="display: flex; align-items: center; height: ${this.props.height}px;">
-        <button id="octave-down" style="width: ${buttonWidth}px; height: ${buttonHeight}px; background-color: ${this.props.arrowBackgroundColour};" onclick="document.getElementById('${this.props.name}').OctaveButton.handleClickEvent(event)">-</button>
-            <div id="keyboard" style="flex-grow: 1; height: 100%;">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
-                    ${whiteSvgKeys}
-                    ${blackSvgKeys}
-                </svg>
-            </div>
-            <button id="octave-up" style="width: ${buttonWidth}px; height: ${buttonHeight}px; background-color: ${this.props.arrowBackgroundColour};" onclick="document.getElementById('${this.props.name}').OctaveButton.handleClickEvent(event)">+</button>
-
-        </div>
+      <svg width="${this.props.width}" height="${this.props.height}" xmlns="http://www.w3.org/2000/svg">
+        <rect x="${this.props.corners}" y="${this.props.corners}" width="${this.props.width-this.props.corners*2}" height="${this.props.height-this.props.corners*2}" fill="${this.props.colourOff}" stroke="${this.props.outlineColour}"
+          stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
+        <text x="${this.props.width / 2}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+          fill="${this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${this.state ? this.props.textOn : this.props.textOff}</text>
+      </svg>
     `;
   }
-
-
-
 }
 
 

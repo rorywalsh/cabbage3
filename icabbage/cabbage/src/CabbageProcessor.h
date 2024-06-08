@@ -86,6 +86,8 @@ public:
     static int ReadMidiData (CSOUND* csound, void* userData, unsigned char* mbuf, int nbytes);
     static int WriteMidiData (CSOUND* csound, void* userData, const unsigned char* mbuf, int nbytes);
     
+
+    
     void updateUI()
     {
         

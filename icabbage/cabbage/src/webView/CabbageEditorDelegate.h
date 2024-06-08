@@ -44,7 +44,11 @@ public:
     
     void SendMidiMsgFromDelegate(const iplug::IMidiMsg& msg) override;
     void OnMessageFromWebView(const char* jsonStr) override;
-    void OnMidiMsgUI(const iplug::IMidiMsg& msg) override;
+
+    void OnMidiMsgUI(const iplug::IMidiMsg& msg) override
+    {
+        cabAssert(false, "false");
+    }
     
     void Resize(int width, int height);
     

@@ -9,6 +9,8 @@ import { HorizontalSlider } from "./horizontalSlider.js";
 // @ts-ignore
 import { VerticalSlider } from "./verticalSlider.js";
 // @ts-ignore
+import { Button } from "./button.js";
+// @ts-ignore
 import { MidiKeyboard } from "./midiKeyboard.js";
 // @ts-ignore
 import { Form } from "./form.js";
@@ -107,7 +109,7 @@ export function activate(context: vscode.ExtensionContext) {
 		const widgetWrapper = panel.webview.asWebviewUri(onDiskPath);
 
 		//add widget types to menu
-		const widgetTypes = ["hslider", "rslider", "vslider", "keyboard"];
+		const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button"];
 
 		let menuItems = "";
 		widgetTypes.forEach((widget) => {
@@ -336,6 +338,9 @@ async function updateText(jsonText: string) {
 				break;
 			case 'keyboard':
 				defaultProps = new MidiKeyboard().props;
+				break;
+			case 'button':
+				defaultProps = new Button().props;
 				break;
 			case 'form':
 				defaultProps = new Form().props;

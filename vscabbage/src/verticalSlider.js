@@ -157,6 +157,12 @@ export class VerticalSlider {
     widgetDiv.VerticalSliderInstance = this;
   }
 
+  addEventListeners(widgetDiv) {
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.VerticalSliderInstance = this;
+  }
 
   handleInputChange(evt) {
     if (evt.key === 'Enter') {

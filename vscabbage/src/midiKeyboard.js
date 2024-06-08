@@ -1,3 +1,5 @@
+import { Cabbage } from "./cabbagePluginMethods.js";
+
 /**
  * Form class
  */
@@ -52,6 +54,7 @@ export class MidiKeyboard {
       e.target.setAttribute('fill', this.props.keydownColour);
       console.log(`Key down: ${this.noteMap[e.target.dataset.note]}`);
       console.log(`Key down: ${e.target.dataset.note}`);
+      Cabbage.sendMidiMessageFromUI(0x90, this.noteMap[e.target.dataset.note], 127);
     }
   }
 
@@ -62,6 +65,7 @@ export class MidiKeyboard {
       if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
         e.target.setAttribute('fill', e.target.classList.contains('white-key') ? 'white' : 'black');
         console.log(`Key up: ${this.noteMap[e.target.dataset.note]}`);
+        Cabbage.sendMidiMessageFromUI(0x80, this.noteMap[e.target.dataset.note], 127);
       }
     }
   }
@@ -103,12 +107,44 @@ export class MidiKeyboard {
 
   addVsCodeEventListeners(widgetDiv, vscode) {
     this.vscode = vscode;
+    this.addListeners(widgetDiv)
     widgetDiv.innerHTML = this.getSVG();
+  }
+
+  addEventListeners(widgetDiv) {
+    this.addListeners(widgetDiv)
+    widgetDiv.innerHTML = this.getSVG();
+  }
+
+  midiMessageListener(event) {
+    console.log("Midi message listener");
+    const detail = event.detail;
+    const midiData = JSON.parse(detail.data);
+    console.log("Midi message listener", midiData.status);
+    if(midiData.status == 144) {
+      const note = midiData.data1;
+      // const velocity = midiData.data2;
+      const noteName = Object.keys(this.noteMap).find(key => this.noteMap[key] === note);
+      const key = document.querySelector(`[data-note="${noteName}"]`);
+      key.setAttribute('fill', this.props.keydownColour);
+      console.log(`Key down: ${note} ${noteName}`);
+    }
+    else if(midiData.status == 128) {
+      const note = midiData.data1;
+      const noteName = Object.keys(this.noteMap).find(key => this.noteMap[key] === note);
+      const key = document.querySelector(`[data-note="${noteName}"]`);
+      key.setAttribute('fill', key.classList.contains('white-key') ? 'white' : 'black');
+      console.log(`Key up: ${note} ${noteName}`);
+    }
+  }
+
+  addListeners(widgetDiv){
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
     widgetDiv.addEventListener("pointerup", this.pointerUp.bind(this));
     widgetDiv.addEventListener("pointermove", this.pointerMove.bind(this));
     widgetDiv.addEventListener("pointerenter", this.pointerEnter.bind(this), true);
     widgetDiv.addEventListener("pointerleave", this.pointerLeave.bind(this), true);
+    document.addEventListener("midiEvent", this.midiMessageListener.bind(this));
     widgetDiv.OctaveButton = this;
   }
 

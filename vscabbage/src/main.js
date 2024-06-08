@@ -3,10 +3,13 @@ import { Form } from "./form.js";
 import { RotarySlider } from "./rotarySlider.js";
 import { HorizontalSlider } from "./horizontalSlider.js";
 import { VerticalSlider } from "./verticalSlider.js";
+import { Button } from "./button.js";
 import { MidiKeyboard } from "./midiKeyboard.js";
 
 import { PropertyPanel } from "./propertyPanel.js";
 import { CabbageUtils } from "./utils.js";
+
+console.log("main.js")
 
 let vscode = null;
 let widgetWrappers = null;
@@ -30,6 +33,7 @@ if (typeof acquireVsCodeApi === 'function') {
 
 
 
+
 let cabbageMode = 'draggable';
 //adding this messes up dragging of main form
 widgets.push(new Form());
@@ -40,23 +44,28 @@ form.style.backgroundColor = widgets[0].props.colour;
 CabbageUtils.showOverlay();
 
 
-
 /**
  * called from the webview panel on startup, and when a user saves/updates or changes .csd file
  */
 window.addEventListener('message', event => {
   const message = event.data;
-
+  console.log("event listener");
   switch (message.command) {
     case 'onFileChanged':
       CabbageUtils.hideOverlay();
-      const rightPanel = document.getElementById('RightPanel');
+
+
       cabbageMode = 'nonDraggable';
       form.className = "form nonDraggable";
+
       const leftPanel = document.getElementById('LeftPanel');
-      leftPanel.className = "full-height-div nonDraggable"
-      rightPanel.style.visibility = "hidden";
-      console.log("onFileChanged");
+      if (leftPanel)
+        leftPanel.className = "full-height-div nonDraggable"
+
+      const rightPanel = document.getElementById('RightPanel');
+      if (rightPanel)
+        rightPanel.style.visibility = "hidden";
+
       CabbageUtils.parseCabbageCode(message.text, widgets, form, insertWidget);
       break;
     case 'snapToSize':
@@ -221,7 +230,8 @@ if (form) {
       selectedElements.clear();
     }
 
-    PropertyPanel.updatePanel(vscode, { eventType: "click", name: CabbageUtils.findValidId(event), bounds: {} }, widgets);
+    if (cabbageMode === 'draggable')
+      PropertyPanel.updatePanel(vscode, { eventType: "click", name: CabbageUtils.findValidId(event), bounds: {} }, widgets);
   });
 
   document.addEventListener('pointermove', (event) => {
@@ -316,6 +326,9 @@ async function insertWidget(type, props) {
     case "form":
       widget = new Form();
       break;
+    case "button":
+      widget = new Button();
+      break;
     default:
       return;
   }
@@ -371,7 +384,8 @@ async function insertWidget(type, props) {
       console.log('adding listeners');
       widget.addVsCodeEventListeners(widgetDiv, vscode);
     }
-
+    else
+      widget.addEventListeners(widgetDiv, vscode);
   }
 
   widgetDiv.id = widget.props.name;
