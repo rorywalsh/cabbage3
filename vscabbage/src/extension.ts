@@ -11,6 +11,12 @@ import { VerticalSlider } from "./verticalSlider.js";
 // @ts-ignore
 import { Button } from "./button.js";
 // @ts-ignore
+import { Checkbox } from "./checkbox.js";
+// @ts-ignore
+import { ComboBox } from "./comboBox.js";
+// @ts-ignore
+import { Label } from "./label.js";
+// @ts-ignore
 import { MidiKeyboard } from "./midiKeyboard.js";
 // @ts-ignore
 import { Form } from "./form.js";
@@ -109,7 +115,7 @@ export function activate(context: vscode.ExtensionContext) {
 		const widgetWrapper = panel.webview.asWebviewUri(onDiskPath);
 
 		//add widget types to menu
-		const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button"];
+		const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button", "combobox", "checkbox", "keyboard"];
 
 		let menuItems = "";
 		widgetTypes.forEach((widget) => {
@@ -341,6 +347,12 @@ async function updateText(jsonText: string) {
 				break;
 			case 'button':
 				defaultProps = new Button().props;
+				break;
+			case 'checkbox':
+				defaultProps = new Checkbox().props;
+				break;
+			case 'combobox':
+				defaultProps = new ComboBox().props;
 				break;
 			case 'form':
 				defaultProps = new Form().props;

@@ -1,4 +1,4 @@
-import { CabbageUtils } from "./utils.js";
+import { CabbageUtils, CabbageColours } from "./utils.js";
 
 /**
  * Rotary Slider (rslider) class
@@ -6,48 +6,48 @@ import { CabbageUtils } from "./utils.js";
 export class RotarySlider {
   constructor() {
     this.props = {
-      "top": 10,
-      "left": 10,
-      "width": 60,
-      "height": 60,
-      "channel": "rslider",
-      "min": 0,
-      "max": 1,
-      "value": 0,
-      "defaultValue": 0,
-      "skew": 1,
-      "increment": 0.001,
-      "index": 0,
-      "text": "",
-      "fontFamily": "Verdana",
-      "fontSize": 0,
-      "align": "centre",
-      "textOffsetY": 0,
-      "valueTextBox": 0,
-      "colour": "#0295cf",
-      "trackerColour": "#93D200",
-      "trackerBackgroundColour": "#ffffff",
-      "trackerOutlineColour": "#525252",
-      "fontColour": "#dddddd",
-      "outlineColour": "#525252",
-      "textBoxOutlineColour": "#999999",
-      "textBoxColour": "#555555",
-      "markerColour": "#222222",
-      "trackerOutlineWidth": 3,
-      "trackerWidth": 20,
-      "outlineWidth": 2,
-      "name": "",
-      "type": "rslider",
-      "kind": "rotary",
-      "decimalPlaces": 1,
-      "velocity": 0,
-      "popup": 1,
-      "visible": 1,
-      "automatable": 1,
-      "valuePrefix": "",
-      "valuePostfix": "",
-      "presetIgnore": 0
-    }
+      "top": 10, // Top position of the rotary slider widget
+      "left": 10, // Left position of the rotary slider widget
+      "width": 60, // Width of the rotary slider widget
+      "height": 60, // Height of the rotary slider widget
+      "channel": "rslider", // Unique identifier for the rotary slider widget
+      "min": 0, // Minimum value of the slider
+      "max": 1, // Maximum value of the slider
+      "value": 0, // Current value of the slider
+      "defaultValue": 0, // Default value of the slider
+      "skew": 1, // Skew factor for the slider
+      "increment": 0.001, // Incremental value change per step
+      "index": 0, // Index of the slider
+      "text": "", // Text displayed on the slider
+      "fontFamily": "Verdana", // Font family for the text displayed on the slider
+      "fontSize": 0, // Font size for the text displayed on the slider
+      "align": "centre", // Alignment of the text on the slider
+      "textOffsetY": 0, // Vertical offset for the text displayed on the slider
+      "valueTextBox": 0, // Display a textbox showing the current value
+      "colour": CabbageColours.getColour("blue"), // Background color of the slider
+      "trackerColour": CabbageColours.getColour('green'), // Color of the slider tracker
+      "trackerBackgroundColour": "#ffffff", // Background color of the slider tracker
+      "trackerOutlineColour": "#525252", // Outline color of the slider tracker
+      "fontColour": "#dddddd", // Font color for the text displayed on the slider
+      "outlineColour": "#525252", // Color of the slider outline
+      "textBoxOutlineColour": "#999999", // Outline color of the value textbox
+      "textBoxColour": "#555555", // Background color of the value textbox
+      "markerColour": "#222222", // Color of the marker on the slider
+      "trackerOutlineWidth": 3, // Outline width of the slider tracker
+      "trackerWidth": 20, // Width of the slider tracker
+      "outlineWidth": 2, // Width of the slider outline
+      "type": "rslider", // Type of the widget (rotary slider)
+      "kind": "rotary", // Kind of slider (rotary)
+      "decimalPlaces": 1, // Number of decimal places in the slider value
+      "velocity": 0, // Velocity value for the slider
+      "popup": 1, // Display a popup when the slider is clicked
+      "visible": 1, // Visibility of the slider
+      "automatable": 1, // Ability to automate the slider
+      "valuePrefix": "", // Prefix to be displayed before the slider value
+      "valuePostfix": "", // Postfix to be displayed after the slider value
+      "presetIgnore": 0, // Ignore preset value for the slider
+    };
+
 
     this.panelSections = {
       "Properties": ["type", "channel"],
@@ -67,7 +67,7 @@ export class RotarySlider {
   }
 
   pointerUp() {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
     }
     const popup = document.getElementById('popupValue');
@@ -79,7 +79,7 @@ export class RotarySlider {
   }
 
   pointerDown(evt) {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
     }
 
@@ -91,7 +91,7 @@ export class RotarySlider {
   }
 
   mouseEnter(evt) {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
     }
 
@@ -99,16 +99,16 @@ export class RotarySlider {
     const form = document.getElementById('MainForm');
     const rect = form.getBoundingClientRect();
     this.decimalPlaces = CabbageUtils.getDecimalPlaces(this.props.increment);
-  
+
     if (popup) {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
-  
+
       // Calculate the position for the popup
       const sliderLeft = this.props.left;
       const sliderWidth = this.props.width;
       const formLeft = rect.left;
       const formWidth = rect.width;
-  
+
       // Determine if the popup should be on the right or left side of the slider
       const sliderCenter = formLeft + (formWidth / 2);
       let popupLeft;
@@ -123,9 +123,9 @@ export class RotarySlider {
         console.log("Pointer on the right");
         popup.classList.remove('right');
       }
-  
-      const popupTop = rect.top + this.props.top + this.props.height*.5; // Adjust top position relative to the form's top
-  
+
+      const popupTop = rect.top + this.props.top + this.props.height * .5; // Adjust top position relative to the form's top
+
       // Set the calculated position
       popup.style.left = `${popupLeft}px`;
       popup.style.top = `${popupTop}px`;
@@ -134,7 +134,7 @@ export class RotarySlider {
       popup.classList.remove('hide');
     }
   }
-  
+
 
   mouseLeave(evt) {
     if (!this.isMouseDown) {
@@ -160,17 +160,17 @@ export class RotarySlider {
   }
 
   pointerMove({ clientY }) {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
     }
-  
+
     const steps = 200;
     const valueDiff = ((this.props.max - this.props.min) * (clientY - this.startY)) / steps;
     const value = CabbageUtils.clamp(this.startValue - valueDiff, this.props.min, this.props.max);
 
     this.props.value = Math.round(value / this.props.increment) * this.props.increment;
-    const widgetDiv = document.getElementById(this.props.name);
-    widgetDiv.innerHTML = this.getSVG();
+    const widgetDiv = document.getElementById(this.props.channel);
+    widgetDiv.innerHTML = this.getInnerHTML();
 
     const msg = { channel: this.props.channel, value: CabbageUtils.map(this.props.value.map, this.props.min, this.props.max, 0, 1) }
     if (this.vscode) {
@@ -219,22 +219,22 @@ export class RotarySlider {
       const inputValue = parseFloat(evt.target.value);
       if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
         this.props.value = inputValue;
-        const widgetDiv = document.getElementById(this.props.name);
-        widgetDiv.innerHTML = this.getSVG();
+        const widgetDiv = document.getElementById(this.props.channel);
+        widgetDiv.innerHTML = this.getInnerHTML();
         widgetDiv.querySelector('input').focus();
       }
     }
-    else if (evt.key === 'Esc'){
-      const widgetDiv = document.getElementById(this.props.name);
+    else if (evt.key === 'Esc') {
+      const widgetDiv = document.getElementById(this.props.channel);
       widgetDiv.querySelector('input').blur();
     }
   }
 
-  getSVG() {
-    if(this.props.visible === 0) {
+  getInnerHTML() {
+    if (this.props.visible === 0) {
       return '';
     }
-  
+
     const popup = document.getElementById('popupValue');
     if (popup) {
       popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
@@ -274,7 +274,7 @@ export class RotarySlider {
         <foreignObject x="${inputX}" y="${textY - fontSize * 1.5}" width="${inputWidth}" height="${fontSize * 2}">
           <input type="text" xmlns="http://www.w3.org/1999/xhtml" value="${this.props.value.toFixed(CabbageUtils.getDecimalPlaces(this.props.increment))}"
           style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
-          onKeyDown="document.getElementById('${this.props.name}').RotarySliderInstance.handleInputChange(event)"/>
+          onKeyDown="document.getElementById('${this.props.channel}').RotarySliderInstance.handleInputChange(event)"/>
           />
         </foreignObject>
         </svg>

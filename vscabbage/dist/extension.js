@@ -45,6 +45,10 @@ const verticalSlider_js_1 = __webpack_require__(5);
 // @ts-ignore
 const button_js_1 = __webpack_require__(34);
 // @ts-ignore
+const checkbox_js_1 = __webpack_require__(35);
+// @ts-ignore
+const comboBox_js_1 = __webpack_require__(37);
+// @ts-ignore
 const midiKeyboard_js_1 = __webpack_require__(6);
 // @ts-ignore
 const form_js_1 = __webpack_require__(8);
@@ -118,7 +122,7 @@ function activate(context) {
         onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'widgetWrapper.js');
         const widgetWrapper = panel.webview.asWebviewUri(onDiskPath);
         //add widget types to menu
-        const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button"];
+        const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button", "combobox", "checkbox", "keyboard"];
         let menuItems = "";
         widgetTypes.forEach((widget) => {
             menuItems += `
@@ -316,6 +320,12 @@ async function updateText(jsonText) {
             case 'button':
                 defaultProps = new button_js_1.Button().props;
                 break;
+            case 'checkbox':
+                defaultProps = new checkbox_js_1.Checkbox().props;
+                break;
+            case 'combobox':
+                defaultProps = new comboBox_js_1.ComboBox().props;
+                break;
             case 'form':
                 defaultProps = new form_js_1.Form().props;
                 break;
@@ -484,48 +494,48 @@ __webpack_require__.r(__webpack_exports__);
 class RotarySlider {
   constructor() {
     this.props = {
-      "top": 10,
-      "left": 10,
-      "width": 60,
-      "height": 60,
-      "channel": "rslider",
-      "min": 0,
-      "max": 1,
-      "value": 0,
-      "defaultValue": 0,
-      "skew": 1,
-      "increment": 0.001,
-      "index": 0,
-      "text": "",
-      "fontFamily": "Verdana",
-      "fontSize": 0,
-      "align": "centre",
-      "textOffsetY": 0,
-      "valueTextBox": 0,
-      "colour": "#0295cf",
-      "trackerColour": "#93D200",
-      "trackerBackgroundColour": "#ffffff",
-      "trackerOutlineColour": "#525252",
-      "fontColour": "#dddddd",
-      "outlineColour": "#525252",
-      "textBoxOutlineColour": "#999999",
-      "textBoxColour": "#555555",
-      "markerColour": "#222222",
-      "trackerOutlineWidth": 3,
-      "trackerWidth": 20,
-      "outlineWidth": 2,
-      "name": "",
-      "type": "rslider",
-      "kind": "rotary",
-      "decimalPlaces": 1,
-      "velocity": 0,
-      "popup": 1,
-      "visible": 1,
-      "automatable": 1,
-      "valuePrefix": "",
-      "valuePostfix": "",
-      "presetIgnore": 0
-    }
+      "top": 10, // Top position of the rotary slider widget
+      "left": 10, // Left position of the rotary slider widget
+      "width": 60, // Width of the rotary slider widget
+      "height": 60, // Height of the rotary slider widget
+      "channel": "rslider", // Unique identifier for the rotary slider widget
+      "min": 0, // Minimum value of the slider
+      "max": 1, // Maximum value of the slider
+      "value": 0, // Current value of the slider
+      "defaultValue": 0, // Default value of the slider
+      "skew": 1, // Skew factor for the slider
+      "increment": 0.001, // Incremental value change per step
+      "index": 0, // Index of the slider
+      "text": "", // Text displayed on the slider
+      "fontFamily": "Verdana", // Font family for the text displayed on the slider
+      "fontSize": 0, // Font size for the text displayed on the slider
+      "align": "centre", // Alignment of the text on the slider
+      "textOffsetY": 0, // Vertical offset for the text displayed on the slider
+      "valueTextBox": 0, // Display a textbox showing the current value
+      "colour": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the slider
+      "trackerColour": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour('green'), // Color of the slider tracker
+      "trackerBackgroundColour": "#ffffff", // Background color of the slider tracker
+      "trackerOutlineColour": "#525252", // Outline color of the slider tracker
+      "fontColour": "#dddddd", // Font color for the text displayed on the slider
+      "outlineColour": "#525252", // Color of the slider outline
+      "textBoxOutlineColour": "#999999", // Outline color of the value textbox
+      "textBoxColour": "#555555", // Background color of the value textbox
+      "markerColour": "#222222", // Color of the marker on the slider
+      "trackerOutlineWidth": 3, // Outline width of the slider tracker
+      "trackerWidth": 20, // Width of the slider tracker
+      "outlineWidth": 2, // Width of the slider outline
+      "type": "rslider", // Type of the widget (rotary slider)
+      "kind": "rotary", // Kind of slider (rotary)
+      "decimalPlaces": 1, // Number of decimal places in the slider value
+      "velocity": 0, // Velocity value for the slider
+      "popup": 1, // Display a popup when the slider is clicked
+      "visible": 1, // Visibility of the slider
+      "automatable": 1, // Ability to automate the slider
+      "valuePrefix": "", // Prefix to be displayed before the slider value
+      "valuePostfix": "", // Postfix to be displayed after the slider value
+      "presetIgnore": 0, // Ignore preset value for the slider
+    };
+
 
     this.panelSections = {
       "Properties": ["type", "channel"],
@@ -545,7 +555,7 @@ class RotarySlider {
   }
 
   pointerUp() {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
     }
     const popup = document.getElementById('popupValue');
@@ -557,7 +567,7 @@ class RotarySlider {
   }
 
   pointerDown(evt) {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
     }
 
@@ -569,7 +579,7 @@ class RotarySlider {
   }
 
   mouseEnter(evt) {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
     }
 
@@ -577,16 +587,16 @@ class RotarySlider {
     const form = document.getElementById('MainForm');
     const rect = form.getBoundingClientRect();
     this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment);
-  
+
     if (popup) {
       popup.textContent = parseFloat(this.props.value).toFixed(this.decimalPlaces);
-  
+
       // Calculate the position for the popup
       const sliderLeft = this.props.left;
       const sliderWidth = this.props.width;
       const formLeft = rect.left;
       const formWidth = rect.width;
-  
+
       // Determine if the popup should be on the right or left side of the slider
       const sliderCenter = formLeft + (formWidth / 2);
       let popupLeft;
@@ -601,9 +611,9 @@ class RotarySlider {
         console.log("Pointer on the right");
         popup.classList.remove('right');
       }
-  
-      const popupTop = rect.top + this.props.top + this.props.height*.5; // Adjust top position relative to the form's top
-  
+
+      const popupTop = rect.top + this.props.top + this.props.height * .5; // Adjust top position relative to the form's top
+
       // Set the calculated position
       popup.style.left = `${popupLeft}px`;
       popup.style.top = `${popupTop}px`;
@@ -612,7 +622,7 @@ class RotarySlider {
       popup.classList.remove('hide');
     }
   }
-  
+
 
   mouseLeave(evt) {
     if (!this.isMouseDown) {
@@ -638,17 +648,17 @@ class RotarySlider {
   }
 
   pointerMove({ clientY }) {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
     }
-  
+
     const steps = 200;
     const valueDiff = ((this.props.max - this.props.min) * (clientY - this.startY)) / steps;
     const value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(this.startValue - valueDiff, this.props.min, this.props.max);
 
     this.props.value = Math.round(value / this.props.increment) * this.props.increment;
-    const widgetDiv = document.getElementById(this.props.name);
-    widgetDiv.innerHTML = this.getSVG();
+    const widgetDiv = document.getElementById(this.props.channel);
+    widgetDiv.innerHTML = this.getInnerHTML();
 
     const msg = { channel: this.props.channel, value: _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value.map, this.props.min, this.props.max, 0, 1) }
     if (this.vscode) {
@@ -697,22 +707,22 @@ class RotarySlider {
       const inputValue = parseFloat(evt.target.value);
       if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
         this.props.value = inputValue;
-        const widgetDiv = document.getElementById(this.props.name);
-        widgetDiv.innerHTML = this.getSVG();
+        const widgetDiv = document.getElementById(this.props.channel);
+        widgetDiv.innerHTML = this.getInnerHTML();
         widgetDiv.querySelector('input').focus();
       }
     }
-    else if (evt.key === 'Esc'){
-      const widgetDiv = document.getElementById(this.props.name);
+    else if (evt.key === 'Esc') {
+      const widgetDiv = document.getElementById(this.props.channel);
       widgetDiv.querySelector('input').blur();
     }
   }
 
-  getSVG() {
-    if(this.props.visible === 0) {
+  getInnerHTML() {
+    if (this.props.visible === 0) {
       return '';
     }
-  
+
     const popup = document.getElementById('popupValue');
     if (popup) {
       popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
@@ -752,7 +762,7 @@ class RotarySlider {
         <foreignObject x="${inputX}" y="${textY - fontSize * 1.5}" width="${inputWidth}" height="${fontSize * 2}">
           <input type="text" xmlns="http://www.w3.org/1999/xhtml" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
           style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
-          onKeyDown="document.getElementById('${this.props.name}').RotarySliderInstance.handleInputChange(event)"/>
+          onKeyDown="document.getElementById('${this.props.channel}').RotarySliderInstance.handleInputChange(event)"/>
           />
         </foreignObject>
         </svg>
@@ -779,14 +789,15 @@ class RotarySlider {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   CabbageColours: () => (/* binding */ CabbageColours),
 /* harmony export */   CabbageUtils: () => (/* binding */ CabbageUtils)
 /* harmony export */ });
 class CabbageUtils {
   /**
-   * This uses a simple regex pattern to parse a line of Cabbage code such as 
-   * rslider bounds(22, 14, 60, 60) channel("clip") thumbRadius(5), text("Clip") range(0, 1, 0, 1, 0.001)
-   * and converts it to a JSON object
-   */
+ * This uses a simple regex pattern to parse a line of Cabbage code such as 
+ * rslider bounds(22, 14, 60, 60) channel("clip") thumbRadius(5), text("Clip") range(0, 1, 0, 1, 0.001)
+ * and converts it to a JSON object
+ */
   static getCabbageCodeAsJSON(text) {
     const regex = /(\w+)\(([^)]+)\)/g;
     const jsonObj = {};
@@ -804,7 +815,7 @@ class CabbageUtils {
         jsonObj['width'] = width;
         jsonObj['height'] = height;
       } else if (name === 'range') {
-        // Splitting the value into individual parts for top, left, width, and height
+        // Splitting the value into individual parts for min, max, defaultValue, skew, and increment
         const [min, max, defaultValue, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
         jsonObj['min'] = min;
         jsonObj['max'] = max;
@@ -816,6 +827,10 @@ class CabbageUtils {
         const [width, height] = value.split(',').map(v => parseInt(v.trim()));
         jsonObj['width'] = width;
         jsonObj['height'] = height;
+      } else if (name === 'items') {
+        // Handling the items attribute
+        const items = value.split(',').map(v => v.trim()).join(', ');
+        jsonObj['items'] = items;
       } else {
         // Check if the value is a number
         const numericValue = parseFloat(value);
@@ -829,9 +844,9 @@ class CabbageUtils {
       }
     }
 
-    console.log(jsonObj);
     return jsonObj;
   }
+
 
   /**
    * this function parses the Cabbage code and creates new widgets accordingly..
@@ -862,7 +877,7 @@ class CabbageUtils {
           await insertWidget(type, codeProps);
         } else {
           widgets.forEach((widget) => {
-            if (widget.props.name == "MainForm") {
+            if (widget.props.channel == "MainForm") {
               const w = codeProps.width;
               const h = codeProps.height;
               form.style.width = w + "px";
@@ -1036,7 +1051,9 @@ class CabbageUtils {
   static getStringWidth(text, props, padding = 10) {
     var canvas = document.createElement('canvas');
     let fontSize = 0;
+    console.log('props.type:', props.type);
     switch (props.type) {
+
       case 'hslider':
         fontSize = props.height * .8;
         break;
@@ -1045,6 +1062,9 @@ class CabbageUtils {
         break;
       case "vslider":
         fontSize = props.width * .3;
+        break;
+      case "combobox":
+        fontSize = props.height * .5;
         break;
       default:
         console.error('getStringWidth..');
@@ -1069,8 +1089,68 @@ class CabbageUtils {
 
     return maxNumberWidth;
   }
+
+
+  static updateInnerHTML(channel, instance) {
+    const element = document.getElementById(channel);
+    if (element) {
+      element.innerHTML = instance.getInnerHTML();
+    }
+  }
+
+  static getWidgetDiv(channel) {
+    const element = document.getElementById(channel);
+    return element || null;
+  }
 }
 
+class CabbageColours {
+  static getColour(colourName) {
+    const colourMap = {
+      "blue": "#0295cf",
+      "green": "#93D200",
+      "red": "#ff0000",
+      "yellow": "#f0e14c",
+      "purple": "#a020f0",
+      "orange": "#ff6600",
+      "grey": "#808080",
+      "white": "#ffffff",
+      "black": "#000000"
+    };
+
+    return colourMap[colourName] || colourMap["blue"];
+  }
+  static brighter(hex, amount) {
+    return this.adjustBrightness(hex, amount);
+  }
+
+  static darker(hex, amount) {
+    return this.adjustBrightness(hex, -amount);
+  }
+
+  static adjustBrightness(hex, factor) {
+    // Remove the hash at the start if it's there
+    hex = hex.replace(/^#/, '');
+
+    // Parse r, g, b values
+    let r = parseInt(hex.slice(0, 2), 16);
+    let g = parseInt(hex.slice(2, 4), 16);
+    let b = parseInt(hex.slice(4, 6), 16);
+
+    // Apply the factor to each color component
+    r = Math.round(Math.min(255, Math.max(0, r + (r * factor))));
+    g = Math.round(Math.min(255, Math.max(0, g + (g * factor))));
+    b = Math.round(Math.min(255, Math.max(0, b + (b * factor))));
+
+    // Convert back to hex and pad with zeroes if necessary
+    r = r.toString(16).padStart(2, '0');
+    g = g.toString(16).padStart(2, '0');
+    b = b.toString(16).padStart(2, '0');
+
+    return `#${r}${g}${b}`;
+  }
+
+}
 
 
 /***/ }),
@@ -1081,7 +1161,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   HorizontalSlider: () => (/* binding */ HorizontalSlider)
 /* harmony export */ });
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+/* harmony import */ var _cabbagePluginMethods_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(7);
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(3);
+
 
 
 /**
@@ -1090,47 +1172,47 @@ __webpack_require__.r(__webpack_exports__);
 class HorizontalSlider {
   constructor() {
     this.props = {
-      "top": 10,
-      "left": 10,
-      "width": 60,
-      "height": 60,
-      "channel": "rslider",
-      "min": 0,
-      "max": 1,
-      "value": 0,
-      "default": 0,
-      "skew": 1,
-      "increment": 0.001,
-      "index": 0,
-      "text": "",
-      "fontFamily": "Verdana",
-      "fontSize": 0,
-      "align": "centre",
-      "valueTextBox": 0,
-      "colour": "#0295cf",
-      "trackerColour": "#93D200",
-      "trackerBackgroundColour": "#ffffff",
-      "trackerOutlineColour": "#525252",
-      "fontColour": "#dddddd",
-      "outlineColour": "#999999",
-      "textBoxColour": "#555555",
-      "trackerOutlineWidth": 1,
-      "outlineWidth": 1,
-      "markerThickness": 0.2,
-      "markerStart": 0.1,
-      "markerEnd": 0.9,
-      "name": "",
-      "type": "hslider",
-      "kind": "horizontal",
-      "decimalPlaces": 1,
-      "velocity": 0,
-      "visible": 1,
-      "popup": 1,
-      "automatable": 1,
-      "valuePrefix": "",
-      "valuePostfix": "",
-      "presetIgnore": 0
-    }
+      "top": 10, // Top position of the horizontal slider
+      "left": 10, // Left position of the horizontal slider
+      "width": 60, // Width of the horizontal slider
+      "height": 60, // Height of the horizontal slider
+      "channel": "rslider", // Unique identifier for the horizontal slider
+      "min": 0, // Minimum value of the slider
+      "max": 1, // Maximum value of the slider
+      "value": 0, // Current value of the slider
+      "default": 0, // Default value of the slider
+      "skew": 1, // Skew factor for the slider (for non-linear scales)
+      "increment": 0.001, // Value increment/decrement when moving the slider
+      "index": 0, // Index of the slider
+      "text": "", // Text displayed next to the slider
+      "fontFamily": "Verdana", // Font family for the text
+      "fontSize": 0, // Font size for the text
+      "align": "centre", // Text alignment within the slider (center, left, right)
+      "valueTextBox": 0, // Whether to display a text box showing the current value
+      "colour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour("blue"), // Background color of the slider track
+      "trackerColour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of the slider thumb
+      "trackerBackgroundColour": "#ffffff", // Background color of the slider thumb
+      "trackerOutlineColour": "#525252", // Color of the outline around the slider thumb
+      "fontColour": "#dddddd", // Color of the text displayed next to the slider
+      "outlineColour": "#999999", // Color of the slider outline
+      "textBoxColour": "#555555", // Color of the value text box (if enabled)
+      "trackerOutlineWidth": 1, // Width of the outline around the slider thumb
+      "outlineWidth": 1, // Width of the slider outline
+      "markerThickness": 0.2, // Thickness of the slider markers
+      "markerStart": 0.1, // Start position of the slider markers
+      "markerEnd": 0.9, // End position of the slider markers
+      "type": "hslider", // Type of the slider (horizontal)
+      "kind": "horizontal", // Orientation of the slider (horizontal)
+      "decimalPlaces": 1, // Number of decimal places to display for the slider value
+      "velocity": 0, // Velocity of slider movement (for gesture-based interaction)
+      "visible": 1, // Visibility of the slider (0 for hidden, 1 for visible)
+      "popup": 1, // Whether to show a popup when interacting with the slider
+      "automatable": 1, // Whether the slider value can be automated (0 for no, 1 for yes)
+      "valuePrefix": "", // Prefix to display before the slider value
+      "valuePostfix": "", // Postfix to display after the slider value
+      "presetIgnore": 0 // Whether the slider should be ignored in presets (0 for no, 1 for yes)
+  };
+  
 
     this.panelSections = {
       "Info": ["type", "channel"],
@@ -1163,24 +1245,23 @@ class HorizontalSlider {
       return '';
     }
 
-    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
     textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
-    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
     const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
   
     
     if (evt.offsetX >= textWidth && evt.offsetX <= textWidth + sliderWidth && evt.target.tagName !== "INPUT") {
       this.isMouseDown = true;
       this.startX = evt.offsetX - textWidth;
-      this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.startX, 0, sliderWidth, this.props.min, this.props.max);
+      this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.startX, 0, sliderWidth, this.props.min, this.props.max);
   
       window.addEventListener("pointermove", this.moveListener);
       window.addEventListener("pointerup", this.upListener);
   
       this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
       this.startValue = this.props.value;
-      const widgetDiv = document.getElementById(this.props.name);
-      widgetDiv.innerHTML = this.getSVG();
+      _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this.getInnerHTML());
     }
   }
   
@@ -1192,7 +1273,7 @@ class HorizontalSlider {
     const popup = document.getElementById('popupValue');
     const form = document.getElementById('MainForm');
     const rect = form.getBoundingClientRect();
-    this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment);
+    this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getDecimalPlaces(this.props.increment);
   
     if (popup && this.props.popup) {
       popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
@@ -1260,33 +1341,32 @@ class HorizontalSlider {
     if(this.props.active === 0) {
       return '';
     }
-    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
     textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
-    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
     const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
   
     // Get the bounding rectangle of the slider
-    const sliderRect = document.getElementById(this.props.name).getBoundingClientRect();
+    const sliderRect = document.getElementById(this.props.channel).getBoundingClientRect();
   
     // Calculate the relative position of the mouse pointer within the slider bounds
     let offsetX = clientX - sliderRect.left - textWidth;
   
     // Clamp the mouse position to stay within the bounds of the slider
-    offsetX = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(offsetX, 0, sliderWidth);
+    offsetX = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.clamp(offsetX, 0, sliderWidth);
   
     // Calculate the new value based on the mouse position
-    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(offsetX, 0, sliderWidth, this.props.min, this.props.max);
+    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(offsetX, 0, sliderWidth, this.props.min, this.props.max);
     newValue = Math.round(newValue / this.props.increment) * this.props.increment; // Round to the nearest increment
   
     // Update the slider value
     this.props.value = newValue;
   
     // Update the slider appearance
-    const widgetDiv = document.getElementById(this.props.name);
-    widgetDiv.innerHTML = this.getSVG();
+    _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this.getInnerHTML());
   
     // Post message if vscode is available
-    const msg = { channel: this.props.channel, value: _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) }
+    const msg = { channel: this.props.channel, value: _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) }
     if (this.vscode) {
       this.vscode.postMessage({
         command: 'channelUpdate',
@@ -1296,7 +1376,7 @@ class HorizontalSlider {
       var message = {
         "msg": "parameterUpdate",
         "paramIdx": this.props.index,
-        "value": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1)
+        "value": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1)
       };
       // IPlugSendMsg(message);
     }
@@ -1307,14 +1387,13 @@ class HorizontalSlider {
       const inputValue = parseFloat(evt.target.value);
       if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
         this.props.value = inputValue;
-        const widgetDiv = document.getElementById(this.props.name);
-        widgetDiv.innerHTML = this.getSVG();
+        _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this.getInnerHTML());
         widgetDiv.querySelector('input').focus();
       }
     }
   }
 
-  getSVG() {
+  getInnerHTML() {
     if(this.props.visible === 0) {
       return '';
     }
@@ -1336,9 +1415,9 @@ class HorizontalSlider {
     const padding = (svgAlign === 'end' || svgAlign === 'middle') ? 5 : 0; // Adjust the padding value as needed
 
     // Calculate text width and update SVG width
-    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
     textWidth = (this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth) - padding;
-    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
     const sliderWidth = this.props.width - textWidth - valueTextBoxWidth - padding; // Subtract padding from sliderWidth
 
     const w = (sliderWidth > this.props.height ? this.props.height : sliderWidth) * 0.75;
@@ -1358,16 +1437,16 @@ class HorizontalSlider {
     const sliderElement = `
       <svg x="${textWidth}" width="${sliderWidth}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="1" y="${this.props.height * .2}" width="${sliderWidth - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
-        <rect x="1" y="${this.props.height * .2}" width="${Math.max(0, _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth))}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
-        <rect x="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
+        <rect x="1" y="${this.props.height * .2}" width="${Math.max(0, _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth))}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
+        <rect x="${_utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
       </svg>
     `;
 
     const valueTextElement = this.props.valueTextBox ? `
       <foreignObject x="${textWidth + sliderWidth}" y="0" width="${valueTextBoxWidth}" height="${this.props.height}">
-        <input type="text" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
+        <input type="text" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
         style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
-        onKeyDown="document.getElementById('${this.props.name}').HorizontalSliderInstance.handleInputChange(event)"/>
+        onKeyDown="document.getElementById('${this.props.channel}').HorizontalSliderInstance.handleInputChange(event)"/>
       </foreignObject>
     ` : '';
 
@@ -1399,50 +1478,50 @@ __webpack_require__.r(__webpack_exports__);
 class VerticalSlider {
   constructor() {
     this.props = {
-      "top": 10,
-      "left": 10,
-      "width": 60,
-      "height": 60,
-      "channel": "rslider",
-      "min": 0,
-      "max": 1,
-      "value": 0,
-      "default": 0,
-      "skew": 1,
-      "increment": 0.001,
-      "index": 0,
-      "text": "",
-      "fontFamily": "Verdana",
-      "fontSize": 0,
-      "align": "centre",
-      "valueTextBox": 0,
-      "colour": "#0295cf",
-      "trackerColour": "#93D200",
-      "trackerBackgroundColour": "#ffffff",
-      "trackerOutlineColour": "#525252",
-      "fontColour": "#dddddd",
-      "outlineColour": "#999999",
-      "textBoxColour": "#555555",
-      "trackerOutlineWidth": 1,
-      "outlineWidth": 1,
-      "name": "",
-      "type": "vslider", // Changed from hslider to vslider
-      "kind": "vertical", // Changed from horizontal to vertical
-      "decimalPlaces": 1,
-      "velocity": 0,
-      "visible": 1,
-      "popup": 1,
-      "automatable": 1,
-      "valuePrefix": "",
-      "valuePostfix": "",
-      "presetIgnore": 0
-    }
+      "top": 10, // Top position of the vertical slider widget
+      "left": 10, // Left position of the vertical slider widget
+      "width": 60, // Width of the vertical slider widget
+      "height": 60, // Height of the vertical slider widget
+      "channel": "rslider", // Unique identifier for the vertical slider widget
+      "min": 0, // Minimum value of the slider
+      "max": 1, // Maximum value of the slider
+      "value": 0, // Current value of the slider
+      "default": 0, // Default value of the slider
+      "skew": 1, // Skew factor for the slider
+      "increment": 0.001, // Incremental value change per step
+      "index": 0, // Index of the slider
+      "text": "", // Text displayed on the slider
+      "fontFamily": "Verdana", // Font family for the text displayed on the slider
+      "fontSize": 0, // Font size for the text displayed on the slider
+      "align": "centre", // Alignment of the text on the slider
+      "valueTextBox": 0, // Display a textbox showing the current value
+      "colour": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the slider
+      "trackerColour": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour('green'), // Color of the slider tracker
+      "trackerBackgroundColour": "#ffffff", // Background color of the slider tracker
+      "trackerOutlineColour": "#525252", // Outline color of the slider tracker
+      "fontColour": "#dddddd", // Font color for the text displayed on the slider
+      "outlineColour": "#999999", // Color of the slider outline
+      "textBoxColour": "#555555", // Background color of the value textbox
+      "trackerOutlineWidth": 1, // Outline width of the slider tracker
+      "outlineWidth": 1, // Width of the slider outline
+      "type": "vslider", // Type of the widget (vertical slider)
+      "kind": "vertical", // Kind of slider (vertical)
+      "decimalPlaces": 1, // Number of decimal places in the slider value
+      "velocity": 0, // Velocity value for the slider
+      "visible": 1, // Visibility of the slider
+      "popup": 1, // Display a popup when the slider is clicked
+      "automatable": 1, // Ability to automate the slider
+      "valuePrefix": "", // Prefix to be displayed before the slider value
+      "valuePostfix": "", // Postfix to be displayed after the slider value
+      "presetIgnore": 0, // Ignore preset value for the slider
+    };
+
 
     this.panelSections = {
       "Info": ["type", "channel"],
       "Bounds": ["left", "top", "width", "height"],
       "Range": ["min", "max", "default", "skew", "increment"],
-      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetX", "align"], // Changed from textOffsetY to textOffsetX for vertical slider
+      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetX", "align"],
       "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
     };
 
@@ -1456,7 +1535,7 @@ class VerticalSlider {
   }
 
   pointerUp() {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
     }
     const popup = document.getElementById('popupValue');
@@ -1468,7 +1547,7 @@ class VerticalSlider {
   }
 
   pointerDown(evt) {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
     }
     let textHeight = this.props.text ? this.props.height * 0.1 : 0;
@@ -1485,14 +1564,13 @@ class VerticalSlider {
       this.startValue = this.props.value;
       window.addEventListener("pointermove", this.moveListener);
       window.addEventListener("pointerup", this.upListener);
-      const widgetDiv = document.getElementById(this.props.name);
-      widgetDiv.innerHTML = this.getSVG();
+      Cabbage.updateInnerHTML(this.props.channel, this);
     }
   }
 
 
   mouseEnter(evt) {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
     }
 
@@ -1565,15 +1643,15 @@ class VerticalSlider {
       const inputValue = parseFloat(evt.target.value);
       if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
         this.props.value = inputValue;
-        const widgetDiv = document.getElementById(this.props.name);
-        widgetDiv.innerHTML = this.getSVG();
+        const widgetDiv = document.getElementById(this.props.channel);
+        widgetDiv.innerHTML = this.getInnerHTML();
         widgetDiv.querySelector('input').focus();
       }
     }
   }
 
   pointerMove({ clientY }) {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
     }
 
@@ -1582,7 +1660,7 @@ class VerticalSlider {
     const sliderHeight = this.props.height - textHeight - valueTextBoxHeight;
 
     // Get the bounding rectangle of the slider
-    const sliderRect = document.getElementById(this.props.name).getBoundingClientRect();
+    const sliderRect = document.getElementById(this.props.channel).getBoundingClientRect();
 
     // Calculate the relative position of the mouse pointer within the slider bounds
     let offsetY = sliderRect.bottom - clientY - textHeight;
@@ -1598,8 +1676,8 @@ class VerticalSlider {
     this.props.value = newValue;
 
     // Update the slider appearance
-    const widgetDiv = document.getElementById(this.props.name);
-    widgetDiv.innerHTML = this.getSVG();
+    const widgetDiv = document.getElementById(this.props.channel);
+    widgetDiv.innerHTML = this.getInnerHTML();
 
     // Post message if vscode is available
     const msg = { channel: this.props.channel, value: _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) }
@@ -1618,8 +1696,8 @@ class VerticalSlider {
     }
   }
 
-  getSVG() {
-    if(this.props.visible === 0) {
+  getInnerHTML() {
+    if (this.props.visible === 0) {
       return '';
     }
 
@@ -1668,7 +1746,7 @@ class VerticalSlider {
     <foreignObject x="0" y="${this.props.height - valueTextBoxHeight + 2}" width="${this.props.width}" height="${valueTextBoxHeight}">
       <input type="text" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
       style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
-      onKeyDown="document.getElementById('${this.props.name}').VerticalSliderInstance.handleInputChange(event)"/>
+      onKeyDown="document.getElementById('${this.props.channel}').VerticalSliderInstance.handleInputChange(event)"/>
     </foreignObject>
   ` : '';
 
@@ -1696,6 +1774,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   MidiKeyboard: () => (/* binding */ MidiKeyboard)
 /* harmony export */ });
 /* harmony import */ var _cabbagePluginMethods_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(7);
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(3);
+
 
 
 /**
@@ -1704,27 +1784,30 @@ __webpack_require__.r(__webpack_exports__);
 class MidiKeyboard {
   constructor() {
     this.props = {
-      "top": 0,
-      "left": 0,
-      "width": 600,
-      "height": 300,
-      "caption": "",
-      "name": "MidiKeyboard",
-      "type": "keyboard",
-      "colour": "#888888",
-      "channel": "keyboard",
-      "blackNoteColour": "#000",
-      "keySeparatorColour": "#f00",
-      "arrowBackgroundColour": "#0295cf",
-      "mouseoverKeyColour": "#93D200",
-      "keydownColour": "#93D200",
-      "arrowColour": "#00f",
-    };
+      "top": 0, // Top position of the keyboard widget
+      "left": 0, // Left position of the keyboard widget
+      "width": 600, // Width of the keyboard widget
+      "height": 300, // Height of the keyboard widget
+      "caption": "", // Caption or label for the keyboard widget
+      "type": "keyboard", // Type of the widget (keyboard)
+      "colour": "#888888", // Background color of the keyboard
+      "channel": "keyboard", // Unique identifier for the keyboard widget
+      "blackNoteColour": "#000", // Color of the black keys on the keyboard
+      "fontFamily": "Verdana", // Font family for the text displayed on the keyboard
+      "whiteNoteColour": "#fff", // Color of the white keys on the keyboard
+      "keySeparatorColour": "#000", // Color of the separators between keys
+      "arrowBackgroundColour": "#0295cf", // Background color of the arrow keys
+      "mouseoverKeyColour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of keys when hovered over
+      "keydownColour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of keys when pressed
+      "octaveButtonColour": "#00f", // Color of the octave change buttons
+  };
+  
 
     this.panelSections = {
       "Properties": ["type"],
-      "Bounds": ["width", "height"],
-      "Colours": ["colour"]
+      "Bounds": ["left", "top", "width", "height"],
+      "Text": ["fontFamily"],
+      "Colours": ["colour", "blackNoteColour", "whiteNoteColour", "keySeparatorColour", "arrowBackgroundColour", "keydownColour", "octaveButtonColour"]
     };
 
     this.isMouseDown = false; // Track the state of the mouse button
@@ -1740,7 +1823,6 @@ class MidiKeyboard {
       for (let i = 0; i < noteNames.length; i++) {
         const noteName = noteNames[i] + octave;
         const midiNote = (octave + 2) * 12 + i; // Calculate MIDI note number
-        console.log(noteName, midiNote);
         this.noteMap[noteName] = midiNote;
       }
     }
@@ -1761,7 +1843,7 @@ class MidiKeyboard {
     if (this.isMouseDown) {
       this.isMouseDown = false;
       if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
-        e.target.setAttribute('fill', e.target.classList.contains('white-key') ? 'white' : 'black');
+        e.target.setAttribute('fill', e.target.classList.contains('white-key') ? this.props.whiteNoteColour : this.props.blackNoteColour);
         console.log(`Key up: ${this.noteMap[e.target.dataset.note]}`);
         _cabbagePluginMethods_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendMidiMessageFromUI(0x80, this.noteMap[e.target.dataset.note], 127);
       }
@@ -1784,7 +1866,7 @@ class MidiKeyboard {
 
   pointerLeave(e) {
     if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
-      e.target.setAttribute('fill', e.target.classList.contains('white-key') ? 'white' : 'black');
+      e.target.setAttribute('fill', e.target.classList.contains('white-key') ? this.props.whiteNoteColour : this.props.blackNoteColour);
     }
   }
 
@@ -1800,18 +1882,18 @@ class MidiKeyboard {
     this.octaveOffset += offset;
     if (this.octaveOffset < 1) this.octaveOffset = 1; // Limit lower octave bound
     if (this.octaveOffset > 7) this.octaveOffset = 7; // Limit upper octave bound
-    document.getElementById(this.props.name).innerHTML = this.getSVG(); // Update the SVG with new octave
+    _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
   addVsCodeEventListeners(widgetDiv, vscode) {
     this.vscode = vscode;
     this.addListeners(widgetDiv)
-    widgetDiv.innerHTML = this.getSVG();
+    _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
   addEventListeners(widgetDiv) {
     this.addListeners(widgetDiv)
-    widgetDiv.innerHTML = this.getSVG();
+    _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
   midiMessageListener(event) {
@@ -1855,19 +1937,21 @@ class MidiKeyboard {
     }
   }
 
-  getSVG() {
-    const whiteKeyWidth = this.props.width / 21; // 21 white keys in 3 octaves
-    const whiteKeyHeight = this.props.height;
+  getInnerHTML() {
+    const scaleFactor = 0.9; // Adjusting this to fit the UI designer bounding rect
+  
+    const whiteKeyWidth = (this.props.width / 21) * scaleFactor; 
+    const whiteKeyHeight = this.props.height * scaleFactor;
     const blackKeyWidth = whiteKeyWidth * 0.4;
-    const blackKeyHeight = this.props.height * 0.6;
-    const strokeWidth = .5;
-
+    const blackKeyHeight = whiteKeyHeight * 0.6;
+    const strokeWidth = 0.5 * scaleFactor;
+  
     const whiteKeys = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
     const blackKeys = { 'C': 'C#', 'D': 'D#', 'F': 'F#', 'G': 'G#', 'A': 'A#' };
-
+  
     let whiteSvgKeys = '';
     let blackSvgKeys = '';
-
+  
     for (let octave = 0; octave < 3; octave++) {
       for (let i = 0; i < whiteKeys.length; i++) {
         const key = whiteKeys[i];
@@ -1875,41 +1959,40 @@ class MidiKeyboard {
         const width = whiteKeyWidth - strokeWidth;
         const height = whiteKeyHeight - strokeWidth;
         const xOffset = octave * whiteKeys.length * whiteKeyWidth + i * whiteKeyWidth;
-
-        whiteSvgKeys += `<rect x="${xOffset}" y="0" width="${width}" height="${height}" fill="white" stroke="black" stroke-width="${strokeWidth}" data-note="${note}" class="white-key" style="height: ${whiteKeyHeight}px;" />`;
-
+  
+        whiteSvgKeys += `<rect x="${xOffset}" y="0" width="${width}" height="${height}" fill="${this.props.whiteNoteColour}" stroke="${this.props.keySeparatorColour}" stroke-width="${strokeWidth}" data-note="${note}" class="white-key" style="height: ${whiteKeyHeight}px;" />`;
+  
         if (blackKeys[key]) {
           const note = blackKeys[key] + (octave + this.octaveOffset);
-          blackSvgKeys += `<rect x="${xOffset + whiteKeyWidth * 0.75 - strokeWidth / 2}" y="${strokeWidth / 2}" width="${blackKeyWidth}" height="${blackKeyHeight + strokeWidth}" fill="black" stroke="black" stroke-width="${strokeWidth}" data-note="${note}" class="black-key" />`;
-      }
-
+          blackSvgKeys += `<rect x="${xOffset + whiteKeyWidth * 0.75 - strokeWidth / 2}" y="${strokeWidth / 2}" width="${blackKeyWidth}" height="${blackKeyHeight + strokeWidth}" fill="${this.props.blackNoteColour}" stroke="${this.props.keySeparatorColour}"  stroke-width="${strokeWidth}" data-note="${note}" class="black-key" />`;
+        }
+  
         if (i === 0) { // First white key of the octave
           const textX = xOffset + whiteKeyWidth / 2; // Position text in the middle of the white key
-          const textY = whiteKeyHeight * .8; // Position text in the middle vertically
-          whiteSvgKeys += `<text x="${textX}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${whiteKeyHeight / 5}" fill="black" style="pointer-events: none;">${note}</text>`;
+          const textY = whiteKeyHeight * 0.8; // Position text in the middle vertically
+          whiteSvgKeys += `<text x="${textX}" y="${textY}" text-anchor="middle"  font-family="${this.props.fontFamily}" dominant-baseline="middle" font-size="${whiteKeyHeight / 5}" fill="${this.props.blackNoteColour}" style="pointer-events: none;">${note}</text>`;
         }
       }
     }
-
-
+  
     // Calculate button width and height relative to keyboard width
-    const buttonWidth = this.props.width / 20;
-    const buttonHeight = this.props.height;
-
+    const buttonWidth = (this.props.width / 20) * scaleFactor;
+    const buttonHeight = this.props.height * scaleFactor;
+  
     return `
-        <div id="${this.props.channel}" style="display: flex; align-items: center; height: ${this.props.height}px;">
-        <button id="octave-down" style="width: ${buttonWidth}px; height: ${buttonHeight}px; background-color: ${this.props.arrowBackgroundColour};" onclick="document.getElementById('${this.props.name}').OctaveButton.handleClickEvent(event)">-</button>
-            <div id="keyboard" style="flex-grow: 1; height: 100%;">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
-                    ${whiteSvgKeys}
-                    ${blackSvgKeys}
-                </svg>
-            </div>
-            <button id="octave-up" style="width: ${buttonWidth}px; height: ${buttonHeight}px; background-color: ${this.props.arrowBackgroundColour};" onclick="document.getElementById('${this.props.name}').OctaveButton.handleClickEvent(event)">+</button>
-
+      <div id="${this.props.channel}" style="display: flex; align-items: center; height: ${this.props.height * scaleFactor}px;">
+        <button id="octave-down" style="width: ${buttonWidth}px; height: ${buttonHeight}px; background-color: ${this.props.arrowBackgroundColour};" onclick="document.getElementById('${this.props.channel}').OctaveButton.handleClickEvent(event)">-</button>
+        <div id="${this.props.channel}" style="flex-grow: 1; height: 100%;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width * scaleFactor} ${this.props.height * scaleFactor}" width="100%" height="100%" preserveAspectRatio="none">
+            ${whiteSvgKeys}
+            ${blackSvgKeys}
+          </svg>
         </div>
+        <button id="octave-up" style="width: ${buttonWidth}px; height: ${buttonHeight}px; background-color: ${this.props.arrowBackgroundColour};" onclick="document.getElementById('${this.props.channel}').OctaveButton.handleClickEvent(event)">+</button>
+      </div>
     `;
   }
+  
 
 
 
@@ -2057,7 +2140,6 @@ class Form {
         "width": 600,
         "height": 300,
         "caption": "",
-        "name": "MainForm",
         "type": "form",
         "colour": "#888888",
         "channel": "MainForm"
@@ -2072,7 +2154,7 @@ class Form {
     }
   
   
-    getSVG() {
+    getInnerHTML() {
   
       return `
         <svg xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
@@ -6911,44 +6993,46 @@ __webpack_require__.r(__webpack_exports__);
 class Button {
   constructor() {
     this.props = {
-      "top": 10,
-      "left": 10,
-      "width": 60,
-      "height": 60,
-      "channel": "rslider",
-      "corners": 2,
-      "min": 0,
-      "max": 1,
-      "value": 0,
-      "default": 0,
-      "index": 0,
-      "textOn": "",
-      "textOff": "",
-      "fontFamily": "Verdana",
-      "fontSize": 0,
-      "align": "centre",
-      "colourOn": "#0295cf",
-      "colourOff": "#0295cf",
-      "fontColourOn": "#dddddd",
-      "fontColourOff": "#dddddd",
-      "outlineColour": "#dddddd",
-      "outlineWidth": 2,
-      "name": "",
-      "type": "button",
-      "visible": 1,
-      "automatable": 1,
-      "presetIgnore": 0
-    }
+      "top": 10, // Top position of the button
+      "left": 10, // Left position of the button
+      "width": 80, // Width of the button
+      "height": 20, // Height of the button
+      "channel": "button", // Unique identifier for the button
+      "corners": 2, // Radius of the corners of the button rectangle
+      "min": 0, // Minimum value for the button (for sliders)
+      "max": 1, // Maximum value for the button (for sliders)
+      "value": 0, // Current value of the button (for sliders)
+      "default": 0, // Default value of the button
+      "index": 0, // Index of the button
+      "textOn": "On", // Text displayed when button is in the 'On' state
+      "textOff": "Off", // Text displayed when button is in the 'Off' state
+      "fontFamily": "Verdana", // Font family for the text
+      "fontSize": 0, // Font size for the text (0 for automatic)
+      "align": "centre", // Text alignment within the button (left, center, right)
+      "colourOn": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the button in the 'On' state
+      "colourOff": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the button in the 'Off' state
+      "fontColourOn": "#dddddd", // Color of the text in the 'On' state
+      "fontColourOff": "#dddddd", // Color of the text in the 'Off' state
+      "outlineColour": "#dddddd", // Color of the outline
+      "outlineWidth": 2, // Width of the outline
+      "name": "", // Name of the button
+      "type": "button", // Type of the button (button)
+      "visible": 1, // Visibility of the button (0 for hidden, 1 for visible)
+      "automatable": 1, // Whether the button value can be automated (0 for no, 1 for yes)
+      "presetIgnore": 0 // Whether the button should be ignored in presets (0 for no, 1 for yes)
+  };
+  
 
     this.panelSections = {
       "Info": ["type", "channel"],
       "Bounds": ["left", "top", "width", "height"],
-      "Text": ["text", "fontSize", "fontFamily", "fontColourOn", "fontColourOff", "align"], // Changed from textOffsetY to textOffsetX for vertical slider
+      "Text": ["textOn", "textOff", "fontSize", "fontFamily", "fontColourOn", "fontColourOff", "align"], // Changed from textOffsetY to textOffsetX for vertical slider
       "Colours": ["colourOn", "colourOff", "outlineColour"]
     };
 
     this.vscode = null;
     this.isMouseDown = false;
+    this.isMouseInside = false;
     this.state = false;
   }
 
@@ -6963,30 +7047,54 @@ class Button {
     if (this.props.active === 0) {
       return '';
     }
-    console.log("mouse down")
     this.isMouseDown = true;
     this.state =! this.state;
-    document.getElementById(this.props.name).innerHTML = this.getSVG();
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
 
-  mouseEnter(evt) {
+  pointerEnter(evt) {
     if (this.props.active === 0) {
       return '';
     }
+    this.isMouseOver = true;
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
 
-  mouseLeave(evt) {
-
+  pointerLeave(evt) {
+    if (this.props.active === 0) {
+      return '';
+    }
+    this.isMouseOver = false;
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
+
+  //adding this at the window level to check if the mouse is inside the widget
+  handleMouseMove(evt) {
+    const rect = document.getElementById(this.props.channel).getBoundingClientRect();
+    const isInside = (
+      evt.clientX >= rect.left &&
+      evt.clientX <= rect.right &&
+      evt.clientY >= rect.top &&
+      evt.clientY <= rect.bottom
+    );
+
+    if (!isInside) {
+      this.isMouseInside = false;
+    } else {
+      this.isMouseInside = true;
+    }
+
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+  }
+
 
   addVsCodeEventListeners(widgetDiv, vs) {
     this.vscode = vs;
     widgetDiv.addEventListener("pointerdown", this.pointerUp.bind(this));
     widgetDiv.addEventListener("pointerup", this.pointerDown.bind(this));
-    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
-    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    window.addEventListener("mousemove", this.handleMouseMove.bind(this));
     widgetDiv.VerticalSliderInstance = this;
   }
 
@@ -6998,29 +7106,350 @@ class Button {
     widgetDiv.VerticalSliderInstance = this;
   }
 
-  getSVG() {
+  getInnerHTML() {
     if (this.props.visible === 0) {
       return '';
     }
-
+  
     const alignMap = {
       'left': 'start',
       'center': 'middle',
       'centre': 'middle',
       'right': 'end',
     };
-
+  
     const svgAlign = alignMap[this.props.align] || this.props.align;
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.6;
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
+    const padding = 5;
+  
+    let textX;
+    if (this.props.align === 'left') {
+      textX = this.props.corners; // Add padding for left alignment
+    } else if (this.props.align === 'right') {
+      textX = this.props.width - this.props.corners - padding; // Add padding for right alignment
+    } else {
+      textX = this.props.width / 2;
+    }
+  
+    const currentColour = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.state ? this.props.colourOn : this.props.colourOff, this.isMouseInside ? 0.2 : 0);
     return `
-      <svg width="${this.props.width}" height="${this.props.height}" xmlns="http://www.w3.org/2000/svg">
-        <rect x="${this.props.corners}" y="${this.props.corners}" width="${this.props.width-this.props.corners*2}" height="${this.props.height-this.props.corners*2}" fill="${this.props.colourOff}" stroke="${this.props.outlineColour}"
-          stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
-        <text x="${this.props.width / 2}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
-          fill="${this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${this.state ? this.props.textOn : this.props.textOff}</text>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+          <rect x="${this.props.corners/2}" y="${this.props.corners/2}" width="${this.props.width-this.props.corners*2}" height="${this.props.height-this.props.corners*2}" fill="${currentColour}" stroke="${this.props.outlineColour}"
+            stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
+          <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+            fill="${this.state ? this.props.fontColourOn : this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${this.state ? this.props.textOn : this.props.textOff}</text>
       </svg>
     `;
   }
+  
+  
+}
+
+
+/***/ }),
+/* 35 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Checkbox: () => (/* binding */ Checkbox)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+
+
+class Checkbox {
+  constructor() {
+    this.props = {
+        "top": 10, // Top position of the checkbox
+        "left": 10, // Left position of the checkbox
+        "width": 100, // Width of the checkbox
+        "height": 30, // Height of the checkbox
+        "channel": "checkbox", // Unique identifier for the checkbox
+        "corners": 2, // Radius of the corners of the checkbox rectangle
+        "min": 0, // Minimum value for the checkbox (for sliders)
+        "max": 1, // Maximum value for the checkbox (for sliders)
+        "value": 0, // Current value of the checkbox (for sliders)
+        "default": 0, // Default value of the checkbox
+        "index": 0, // Index of the checkbox
+        "text": "On/Off", // Text displayed next to the checkbox
+        "fontFamily": "Verdana", // Font family for the text
+        "fontColour": "#dddddd", // Color of the text
+        "fontSize": 14, // Font size for the text
+        "align": "left", // Text alignment within the checkbox (left, center, right)
+        "colourOn": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("green"), // Background color of the checkbox in the 'On' state
+        "colourOff": "#ffffff", // Background color of the checkbox in the 'Off' state
+        "fontColourOn": "#dddddd", // Color of the text in the 'On' state
+        "fontColourOff": "#000000", // Color of the text in the 'Off' state
+        "outlineColour": "#999999", // Color of the outline
+        "outlineWidth": 1, // Width of the outline
+        "type": "checkbox", // Type of the checkbox (checkbox)
+        "visible": 1, // Visibility of the checkbox (0 for hidden, 1 for visible)
+        "automatable": 1, // Whether the checkbox value can be automated (0 for no, 1 for yes)
+        "presetIgnore": 0 // Whether the checkbox should be ignored in presets (0 for no, 1 for yes)
+    };
+    
+    this.panelSections = {
+        "Info": ["type", "channel"],
+        "Bounds": ["left", "top", "width", "height"],
+        "Text": ["text", "fontSize", "fontFamily", "fontColour", "align"], // Changed from textOffsetY to textOffsetX for vertical slider
+        "Colours": ["colourOn", "colourOff", "outlineColour"]
+      };
+
+    this.vscode = null;
+    this.isChecked = false;
+  }
+
+  toggle() {
+    if (this.props.active === 0) {
+      return '';
+    }
+    this.isChecked = !this.isChecked;
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+  }
+
+
+
+  pointerDown(evt) {
+    this.toggle();
+  }
+
+  addVsCodeEventListeners(widgetDiv, vscode) {
+    this.vscode = vscode;
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.VerticalSliderInstance = this;
+  }
+
+  addEventListeners(widgetDiv) {
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.VerticalSliderInstance = this;
+  }
+
+  getInnerHTML() {
+    if (this.props.visible === 0) {
+      return '';
+    }
+  
+    const alignMap = {
+      'left': 'start',
+      'center': 'middle',
+      'centre': 'middle',
+      'right': 'end',
+    };
+  
+    const svgAlign = alignMap[this.props.align] || this.props.align;
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
+  
+    const checkboxSize = this.props.height * 0.8;
+    const checkboxX = this.props.align === 'right' ? this.props.width - checkboxSize - this.props.corners : this.props.corners;
+    const textX = this.props.align === 'right' ? checkboxX - 10 : checkboxX + checkboxSize + 10; // Add more padding to prevent overlap
+  
+    const adjustedTextAnchor = this.props.align === 'right' ? 'end' : 'start';
+  
+    return `
+      <svg id="${this.props.channel}-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+        <rect x="${checkboxX}" y="${(this.props.height - checkboxSize) / 2}" width="${checkboxSize}" height="${checkboxSize}" fill="${this.isChecked ? this.props.colourOn : this.props.colourOff}" stroke="${this.props.outlineColour}" stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
+        <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}" fill="${this.props.fontColour}" text-anchor="${adjustedTextAnchor}" alignment-baseline="middle">${this.props.text}</text>
+      </svg>
+    `;
+  }
+  
+}
+
+
+/***/ }),
+/* 36 */,
+/* 37 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   ComboBox: () => (/* binding */ ComboBox)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+
+
+class ComboBox {
+    constructor() {
+        this.props = {
+            "top": 10, // Top position of the widget
+            "left": 10, // Left position of the widget
+            "width": 150, // Width of the widget
+            "height": 30, // Height of the widget
+            "channel": "comboBox", // Unique identifier for the widget
+            "corners": 4, // Radius of the corners of the widget rectangle
+            "defaultValue": 0, // Default value index for the dropdown items
+            "fontFamily": "Verdana", // Font family for the text
+            "fontSize": 14, // Font size for the text
+            "align": "center", // Text alignment within the widget (left, center, right)
+            "colour": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the widget
+            "items": "One, Two, Three", // List of items for the dropdown
+            "text": "Select", // Default text displayed when no item is selected
+            "fontColour": "#dddddd", // Color of the text
+            "outlineColour": "#dddddd", // Color of the outline
+            "outlineWidth": 2, // Width of the outline
+            "visible": 1, // Visibility of the widget (0 for hidden, 1 for visible)
+            "type": "combobox" // Type of the widget (combobox)
+        };
+        
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Bounds": ["top", "left", "width", "height"],
+            "Text": ["text", "items", "fontFamily", "align", "fontSize", "fontColour"],
+            "Colours": ["colour", "outlineColour"]
+        };
+
+        this.isMouseInside = false;
+        this.isOpen = false;
+        this.selectedItem = this.props.value > 0 ? this.items[this.props.defaultValue] : this.props.text;
+
+        this.vscode = null;
+    }
+
+    pointerDown(evt) {
+        if (this.props.active === 0) {
+            return '';
+        }
+        console.log("Pointer down");
+        this.isOpen = !this.isOpen;
+        this.isMouseInside = true;
+        _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+
+        if (this.firstOpen) {
+            this.isOpen = true;
+            this.firstOpen = false; // Update the flag after the first open
+        } else {
+            // Check if the event target is a dropdown item
+            const selectedItem = evt.target.getAttribute("data-item");
+            if (selectedItem) {
+                console.log("Item clicked:", selectedItem);
+                this.selectedItem = selectedItem;
+                this.isOpen = false;
+                const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
+                widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
+                _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+            }
+        }
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+        document.body.addEventListener("click", this.handleClickOutside.bind(this));
+        widgetDiv.ComboBoxInstance = this;
+    }
+
+    handleClickOutside(event) {
+        // Get the widget div
+        const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
+    
+        // Check if the target of the click event is outside of the widget div
+        if (!widgetDiv.contains(event.target)) {
+            // Close the dropdown menu
+            this.isOpen = false;
+            // Update the HTML
+            const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
+                widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
+                _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+        }
+    }
+
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+    
+        const alignMap = {
+            'left': 'start',
+            'center': 'middle',
+            'centre': 'middle',
+            'right': 'end',
+        };
+    
+        const svgAlign = alignMap[this.props.align] || this.props.align;
+        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
+    
+        let totalHeight = this.props.height;
+        const itemHeight = this.props.height * 0.8; // Scale back item height to 80% of the original height
+        if (this.isOpen) {
+            const items = this.props.items.split(",");
+            totalHeight += items.length * itemHeight;
+    
+            // Check if the dropdown will be off the bottom of the screen
+            const mainForm = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv("MainForm");
+            const widgetDiv = mainForm.querySelector(`#${this.props.channel}`);
+            const widgetRect = widgetDiv.getBoundingClientRect();
+            const mainFormRect = mainForm.getBoundingClientRect();
+            const spaceBelow = mainFormRect.bottom - widgetRect.bottom;
+    
+            if (spaceBelow < totalHeight) {
+                const adjustment = totalHeight - this.props.height * 2; // Adding 10px for some padding
+                const currentTopValue = parseInt(widgetDiv.style.top, 10) || this.props.top; // Use props.top if style.top is not set
+                const newTopValue = currentTopValue - adjustment;
+                widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + newTopValue + 'px)';
+            }
+        }
+    
+        let dropdownItems = "";
+        if (this.isOpen) {
+            const items = this.props.items.split(",");
+            items.forEach((item, index) => {
+                dropdownItems += `
+                    <rect x="0" y="${index * itemHeight}" width="${this.props.width}" height="${itemHeight}"
+                        fill="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}" rx="0" ry="0"
+                        style="cursor: pointer;" pointer-events="all" data-item="${item}"
+                        onmouseover="this.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.brighter(this.props.colour, 0.2)}')"
+                        onmouseout="this.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}')"></rect>
+                    <text x="${(this.props.width - this.props.corners / 2) / 2}" y="${(index + 1) * itemHeight - itemHeight / 2}"
+                        font-family="${this.props.fontFamily}" font-size="${this.props.fontSize}" fill="${this.props.fontColour}"
+                        text-anchor="middle" alignment-baseline="middle" data-item="${item}"
+                        style="cursor: pointer;" pointer-events="all"
+                        onmouseover="this.previousElementSibling.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.brighter(this.props.colour, 0.2)}')"
+                        onmouseout="this.previousElementSibling.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}')"
+                        onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.handleItemClick('${item}')">${item}</text>
+                `;
+            });
+        }
+    
+        // Adjusting the position of the arrow
+        const arrowWidth = 10; // Width of the arrow
+        const arrowHeight = 6; // Height of the arrow
+        const arrowX = this.props.width - arrowWidth - this.props.corners / 2 - 10; // Decreasing arrowX value to move the arrow more to the left
+        const arrowY = (this.props.height - arrowHeight) / 2; // Y-coordinate of the arrow
+    
+        // Positioning the selected item text within the main rectangle
+        let selectedItemTextX;
+        if (svgAlign === 'middle') {
+            selectedItemTextX = (this.props.width - arrowWidth - this.props.corners / 2) / 2;
+        } else {
+            const selectedItemWidth = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.selectedItem, this.props);
+            const textPadding = svgAlign === 'start' ? - this.props.width * .1 : - this.props.width * .05;
+            selectedItemTextX = svgAlign === 'start' ? (this.props.width - this.props.corners / 2) / 2 - selectedItemWidth / 2 + textPadding : (this.props.width - this.props.corners / 2) / 2 + selectedItemWidth / 2 + textPadding;
+        }
+        const selectedItemTextY = this.props.height / 2;
+    
+        return `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${totalHeight}" width="${this.props.width}" height="${totalHeight}" preserveAspectRatio="none">
+                <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners * 2}" fill="${this.props.colour}" stroke="${this.props.outlineColour}"
+                    stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}" 
+                    style="cursor: pointer;" pointer-events="all" 
+                    onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.pointerDown()"></rect>
+                ${dropdownItems}
+                <polygon points="${arrowX},${arrowY} ${arrowX + arrowWidth},${arrowY} ${arrowX + arrowWidth / 2},${arrowY + arrowHeight}"
+                    fill="${this.props.outlineColour}" style="${this.isOpen ? 'display: none;' : ''} pointer-events: none;"/>
+                <text x="${selectedItemTextX}" y="${selectedItemTextY}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+                    fill="${this.props.fontColour}" text-anchor="${svgAlign}" alignment-baseline="middle" style="${this.isOpen ? 'display: none;' : ''}"
+                    style="pointer-events: none;">${this.selectedItem}</text>
+            </svg>
+        `;
+    }
+    
+
+
+
+
+
+
 }
 
 

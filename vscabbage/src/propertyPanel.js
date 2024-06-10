@@ -25,7 +25,8 @@ export class PropertyPanel {
     // Create sections based on the panelSections object
     const sections = {};
 
-    if (panelSections === undefined) return;
+    if (panelSections === undefined) 
+      console.error("panelSections is undefined");
 
     Object.entries(panelSections).forEach(([sectionName, keys]) => {
       sections[sectionName] = createSection(sectionName);
@@ -111,12 +112,12 @@ export class PropertyPanel {
           var input = createInputElement(key, properties[key]);
 
           input.id = key;
-          input.dataset.parent = properties.name;
+          input.dataset.parent = properties.channel;
           const self = this;
 
           input.addEventListener('input', function (evt) {
             widgets.forEach((widget) => {
-              if (widget.props.name === evt.target.dataset.parent) {
+              if (widget.props.channel === evt.target.dataset.parent) {
                 const inputValue = evt.target.value;
                 let parsedValue;
 
@@ -127,8 +128,8 @@ export class PropertyPanel {
                   parsedValue = inputValue;
                 }
                 widget.props[evt.target.id] = parsedValue;
-                const widgetDiv = document.getElementById(widget.props.name);
-                widgetDiv.innerHTML = widget.getSVG();
+                const widgetDiv = document.getElementById(widget.props.channel);
+                widgetDiv.innerHTML = widget.getInnerHTML();
                 if (!self.vscode)
                   console.error("vscode is not valid");
                 else {
@@ -165,12 +166,12 @@ export class PropertyPanel {
         var input = createInputElement(key, properties[key]);
 
         input.id = key;
-        input.dataset.parent = properties.name;
+        input.dataset.parent = properties.channel;
         const self = this;
 
         input.addEventListener('input', function (evt) {
           widgets.forEach((widget) => {
-            if (widget.props.name === evt.target.dataset.parent) {
+            if (widget.props.channel === evt.target.dataset.parent) {
               const inputValue = evt.target.value;
               let parsedValue;
 
@@ -181,8 +182,8 @@ export class PropertyPanel {
                 parsedValue = inputValue;
               }
               widget.props[evt.target.id] = parsedValue;
-              const widgetDiv = document.getElementById(widget.props.name);
-              widgetDiv.innerHTML = widget.getSVG();
+              const widgetDiv = document.getElementById(widget.props.channel);
+              widgetDiv.innerHTML = widget.getInnerHTML();
               if (!self.vscode)
                 console.error("vscode is not valid");
               else {
@@ -235,8 +236,10 @@ export class PropertyPanel {
   // Iterate over the array of event objects
   events.forEach(eventObj => {
     const { eventType, name, bounds } = eventObj;
+
     widgets.forEach((widget, index) => {
-      if (widget.props.name === name) {
+      console.log(widget.props.channel);
+      if (widget.props.channel == name) {
         if (eventType !== 'click') {
           widget.props.left = Math.floor(bounds.x);
           widget.props.top = Math.floor(bounds.y);
@@ -244,13 +247,13 @@ export class PropertyPanel {
           widget.props.height = Math.floor(bounds.h);
 
           if (widget.props.type !== 'form') {
-            document.getElementById(widget.props.name).innerHTML = widget.getSVG();
+            document.getElementById(widget.props.channel).innerHTML = widget.getInnerHTML();
           }
         }
 
-        if (widget.props.hasOwnProperty('channel')) {
-          widget.props.channel = name;
-        }
+        // if (widget.props.hasOwnProperty('channel')) {
+        //   widget.props.channel = name;
+        // }
 
         new PropertyPanel(vscode, widget.props.type, widget.props, widget.panelSections, widgets);
         if (!this.vscode)

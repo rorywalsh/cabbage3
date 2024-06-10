@@ -1,9 +1,9 @@
 export class CabbageUtils {
   /**
-   * This uses a simple regex pattern to parse a line of Cabbage code such as 
-   * rslider bounds(22, 14, 60, 60) channel("clip") thumbRadius(5), text("Clip") range(0, 1, 0, 1, 0.001)
-   * and converts it to a JSON object
-   */
+ * This uses a simple regex pattern to parse a line of Cabbage code such as 
+ * rslider bounds(22, 14, 60, 60) channel("clip") thumbRadius(5), text("Clip") range(0, 1, 0, 1, 0.001)
+ * and converts it to a JSON object
+ */
   static getCabbageCodeAsJSON(text) {
     const regex = /(\w+)\(([^)]+)\)/g;
     const jsonObj = {};
@@ -21,7 +21,7 @@ export class CabbageUtils {
         jsonObj['width'] = width;
         jsonObj['height'] = height;
       } else if (name === 'range') {
-        // Splitting the value into individual parts for top, left, width, and height
+        // Splitting the value into individual parts for min, max, defaultValue, skew, and increment
         const [min, max, defaultValue, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
         jsonObj['min'] = min;
         jsonObj['max'] = max;
@@ -33,6 +33,10 @@ export class CabbageUtils {
         const [width, height] = value.split(',').map(v => parseInt(v.trim()));
         jsonObj['width'] = width;
         jsonObj['height'] = height;
+      } else if (name === 'items') {
+        // Handling the items attribute
+        const items = value.split(',').map(v => v.trim()).join(', ');
+        jsonObj['items'] = items;
       } else {
         // Check if the value is a number
         const numericValue = parseFloat(value);
@@ -46,9 +50,9 @@ export class CabbageUtils {
       }
     }
 
-    console.log(jsonObj);
     return jsonObj;
   }
+
 
   /**
    * this function parses the Cabbage code and creates new widgets accordingly..
@@ -79,7 +83,7 @@ export class CabbageUtils {
           await insertWidget(type, codeProps);
         } else {
           widgets.forEach((widget) => {
-            if (widget.props.name == "MainForm") {
+            if (widget.props.channel == "MainForm") {
               const w = codeProps.width;
               const h = codeProps.height;
               form.style.width = w + "px";
@@ -253,7 +257,9 @@ export class CabbageUtils {
   static getStringWidth(text, props, padding = 10) {
     var canvas = document.createElement('canvas');
     let fontSize = 0;
+    console.log('props.type:', props.type);
     switch (props.type) {
+
       case 'hslider':
         fontSize = props.height * .8;
         break;
@@ -262,6 +268,9 @@ export class CabbageUtils {
         break;
       case "vslider":
         fontSize = props.width * .3;
+        break;
+      case "combobox":
+        fontSize = props.height * .5;
         break;
       default:
         console.error('getStringWidth..');
@@ -286,5 +295,65 @@ export class CabbageUtils {
 
     return maxNumberWidth;
   }
+
+
+  static updateInnerHTML(channel, instance) {
+    const element = document.getElementById(channel);
+    if (element) {
+      element.innerHTML = instance.getInnerHTML();
+    }
+  }
+
+  static getWidgetDiv(channel) {
+    const element = document.getElementById(channel);
+    return element || null;
+  }
 }
 
+export class CabbageColours {
+  static getColour(colourName) {
+    const colourMap = {
+      "blue": "#0295cf",
+      "green": "#93D200",
+      "red": "#ff0000",
+      "yellow": "#f0e14c",
+      "purple": "#a020f0",
+      "orange": "#ff6600",
+      "grey": "#808080",
+      "white": "#ffffff",
+      "black": "#000000"
+    };
+
+    return colourMap[colourName] || colourMap["blue"];
+  }
+  static brighter(hex, amount) {
+    return this.adjustBrightness(hex, amount);
+  }
+
+  static darker(hex, amount) {
+    return this.adjustBrightness(hex, -amount);
+  }
+
+  static adjustBrightness(hex, factor) {
+    // Remove the hash at the start if it's there
+    hex = hex.replace(/^#/, '');
+
+    // Parse r, g, b values
+    let r = parseInt(hex.slice(0, 2), 16);
+    let g = parseInt(hex.slice(2, 4), 16);
+    let b = parseInt(hex.slice(4, 6), 16);
+
+    // Apply the factor to each color component
+    r = Math.round(Math.min(255, Math.max(0, r + (r * factor))));
+    g = Math.round(Math.min(255, Math.max(0, g + (g * factor))));
+    b = Math.round(Math.min(255, Math.max(0, b + (b * factor))));
+
+    // Convert back to hex and pad with zeroes if necessary
+    r = r.toString(16).padStart(2, '0');
+    g = g.toString(16).padStart(2, '0');
+    b = b.toString(16).padStart(2, '0');
+
+    return `#${r}${g}${b}`;
+  }
+
+}

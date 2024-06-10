@@ -1,4 +1,5 @@
 import { Cabbage } from "./cabbagePluginMethods.js";
+import { CabbageUtils, CabbageColours } from "./utils.js";
 
 /**
  * Form class
@@ -6,27 +7,30 @@ import { Cabbage } from "./cabbagePluginMethods.js";
 export class MidiKeyboard {
   constructor() {
     this.props = {
-      "top": 0,
-      "left": 0,
-      "width": 600,
-      "height": 300,
-      "caption": "",
-      "name": "MidiKeyboard",
-      "type": "keyboard",
-      "colour": "#888888",
-      "channel": "keyboard",
-      "blackNoteColour": "#000",
-      "keySeparatorColour": "#f00",
-      "arrowBackgroundColour": "#0295cf",
-      "mouseoverKeyColour": "#93D200",
-      "keydownColour": "#93D200",
-      "arrowColour": "#00f",
-    };
+      "top": 0, // Top position of the keyboard widget
+      "left": 0, // Left position of the keyboard widget
+      "width": 600, // Width of the keyboard widget
+      "height": 300, // Height of the keyboard widget
+      "caption": "", // Caption or label for the keyboard widget
+      "type": "keyboard", // Type of the widget (keyboard)
+      "colour": "#888888", // Background color of the keyboard
+      "channel": "keyboard", // Unique identifier for the keyboard widget
+      "blackNoteColour": "#000", // Color of the black keys on the keyboard
+      "fontFamily": "Verdana", // Font family for the text displayed on the keyboard
+      "whiteNoteColour": "#fff", // Color of the white keys on the keyboard
+      "keySeparatorColour": "#000", // Color of the separators between keys
+      "arrowBackgroundColour": "#0295cf", // Background color of the arrow keys
+      "mouseoverKeyColour": CabbageColours.getColour('green'), // Color of keys when hovered over
+      "keydownColour": CabbageColours.getColour('green'), // Color of keys when pressed
+      "octaveButtonColour": "#00f", // Color of the octave change buttons
+  };
+  
 
     this.panelSections = {
       "Properties": ["type"],
-      "Bounds": ["width", "height"],
-      "Colours": ["colour"]
+      "Bounds": ["left", "top", "width", "height"],
+      "Text": ["fontFamily"],
+      "Colours": ["colour", "blackNoteColour", "whiteNoteColour", "keySeparatorColour", "arrowBackgroundColour", "keydownColour", "octaveButtonColour"]
     };
 
     this.isMouseDown = false; // Track the state of the mouse button
@@ -42,7 +46,6 @@ export class MidiKeyboard {
       for (let i = 0; i < noteNames.length; i++) {
         const noteName = noteNames[i] + octave;
         const midiNote = (octave + 2) * 12 + i; // Calculate MIDI note number
-        console.log(noteName, midiNote);
         this.noteMap[noteName] = midiNote;
       }
     }
@@ -63,7 +66,7 @@ export class MidiKeyboard {
     if (this.isMouseDown) {
       this.isMouseDown = false;
       if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
-        e.target.setAttribute('fill', e.target.classList.contains('white-key') ? 'white' : 'black');
+        e.target.setAttribute('fill', e.target.classList.contains('white-key') ? this.props.whiteNoteColour : this.props.blackNoteColour);
         console.log(`Key up: ${this.noteMap[e.target.dataset.note]}`);
         Cabbage.sendMidiMessageFromUI(0x80, this.noteMap[e.target.dataset.note], 127);
       }
@@ -86,7 +89,7 @@ export class MidiKeyboard {
 
   pointerLeave(e) {
     if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
-      e.target.setAttribute('fill', e.target.classList.contains('white-key') ? 'white' : 'black');
+      e.target.setAttribute('fill', e.target.classList.contains('white-key') ? this.props.whiteNoteColour : this.props.blackNoteColour);
     }
   }
 
@@ -102,18 +105,18 @@ export class MidiKeyboard {
     this.octaveOffset += offset;
     if (this.octaveOffset < 1) this.octaveOffset = 1; // Limit lower octave bound
     if (this.octaveOffset > 7) this.octaveOffset = 7; // Limit upper octave bound
-    document.getElementById(this.props.name).innerHTML = this.getSVG(); // Update the SVG with new octave
+    CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
   addVsCodeEventListeners(widgetDiv, vscode) {
     this.vscode = vscode;
     this.addListeners(widgetDiv)
-    widgetDiv.innerHTML = this.getSVG();
+    CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
   addEventListeners(widgetDiv) {
     this.addListeners(widgetDiv)
-    widgetDiv.innerHTML = this.getSVG();
+    CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
   midiMessageListener(event) {
@@ -157,19 +160,21 @@ export class MidiKeyboard {
     }
   }
 
-  getSVG() {
-    const whiteKeyWidth = this.props.width / 21; // 21 white keys in 3 octaves
-    const whiteKeyHeight = this.props.height;
+  getInnerHTML() {
+    const scaleFactor = 0.9; // Adjusting this to fit the UI designer bounding rect
+  
+    const whiteKeyWidth = (this.props.width / 21) * scaleFactor; 
+    const whiteKeyHeight = this.props.height * scaleFactor;
     const blackKeyWidth = whiteKeyWidth * 0.4;
-    const blackKeyHeight = this.props.height * 0.6;
-    const strokeWidth = .5;
-
+    const blackKeyHeight = whiteKeyHeight * 0.6;
+    const strokeWidth = 0.5 * scaleFactor;
+  
     const whiteKeys = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
     const blackKeys = { 'C': 'C#', 'D': 'D#', 'F': 'F#', 'G': 'G#', 'A': 'A#' };
-
+  
     let whiteSvgKeys = '';
     let blackSvgKeys = '';
-
+  
     for (let octave = 0; octave < 3; octave++) {
       for (let i = 0; i < whiteKeys.length; i++) {
         const key = whiteKeys[i];
@@ -177,41 +182,40 @@ export class MidiKeyboard {
         const width = whiteKeyWidth - strokeWidth;
         const height = whiteKeyHeight - strokeWidth;
         const xOffset = octave * whiteKeys.length * whiteKeyWidth + i * whiteKeyWidth;
-
-        whiteSvgKeys += `<rect x="${xOffset}" y="0" width="${width}" height="${height}" fill="white" stroke="black" stroke-width="${strokeWidth}" data-note="${note}" class="white-key" style="height: ${whiteKeyHeight}px;" />`;
-
+  
+        whiteSvgKeys += `<rect x="${xOffset}" y="0" width="${width}" height="${height}" fill="${this.props.whiteNoteColour}" stroke="${this.props.keySeparatorColour}" stroke-width="${strokeWidth}" data-note="${note}" class="white-key" style="height: ${whiteKeyHeight}px;" />`;
+  
         if (blackKeys[key]) {
           const note = blackKeys[key] + (octave + this.octaveOffset);
-          blackSvgKeys += `<rect x="${xOffset + whiteKeyWidth * 0.75 - strokeWidth / 2}" y="${strokeWidth / 2}" width="${blackKeyWidth}" height="${blackKeyHeight + strokeWidth}" fill="black" stroke="black" stroke-width="${strokeWidth}" data-note="${note}" class="black-key" />`;
-      }
-
+          blackSvgKeys += `<rect x="${xOffset + whiteKeyWidth * 0.75 - strokeWidth / 2}" y="${strokeWidth / 2}" width="${blackKeyWidth}" height="${blackKeyHeight + strokeWidth}" fill="${this.props.blackNoteColour}" stroke="${this.props.keySeparatorColour}"  stroke-width="${strokeWidth}" data-note="${note}" class="black-key" />`;
+        }
+  
         if (i === 0) { // First white key of the octave
           const textX = xOffset + whiteKeyWidth / 2; // Position text in the middle of the white key
-          const textY = whiteKeyHeight * .8; // Position text in the middle vertically
-          whiteSvgKeys += `<text x="${textX}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${whiteKeyHeight / 5}" fill="black" style="pointer-events: none;">${note}</text>`;
+          const textY = whiteKeyHeight * 0.8; // Position text in the middle vertically
+          whiteSvgKeys += `<text x="${textX}" y="${textY}" text-anchor="middle"  font-family="${this.props.fontFamily}" dominant-baseline="middle" font-size="${whiteKeyHeight / 5}" fill="${this.props.blackNoteColour}" style="pointer-events: none;">${note}</text>`;
         }
       }
     }
-
-
+  
     // Calculate button width and height relative to keyboard width
-    const buttonWidth = this.props.width / 20;
-    const buttonHeight = this.props.height;
-
+    const buttonWidth = (this.props.width / 20) * scaleFactor;
+    const buttonHeight = this.props.height * scaleFactor;
+  
     return `
-        <div id="${this.props.channel}" style="display: flex; align-items: center; height: ${this.props.height}px;">
-        <button id="octave-down" style="width: ${buttonWidth}px; height: ${buttonHeight}px; background-color: ${this.props.arrowBackgroundColour};" onclick="document.getElementById('${this.props.name}').OctaveButton.handleClickEvent(event)">-</button>
-            <div id="keyboard" style="flex-grow: 1; height: 100%;">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
-                    ${whiteSvgKeys}
-                    ${blackSvgKeys}
-                </svg>
-            </div>
-            <button id="octave-up" style="width: ${buttonWidth}px; height: ${buttonHeight}px; background-color: ${this.props.arrowBackgroundColour};" onclick="document.getElementById('${this.props.name}').OctaveButton.handleClickEvent(event)">+</button>
-
+      <div id="${this.props.channel}" style="display: flex; align-items: center; height: ${this.props.height * scaleFactor}px;">
+        <button id="octave-down" style="width: ${buttonWidth}px; height: ${buttonHeight}px; background-color: ${this.props.arrowBackgroundColour};" onclick="document.getElementById('${this.props.channel}').OctaveButton.handleClickEvent(event)">-</button>
+        <div id="${this.props.channel}" style="flex-grow: 1; height: 100%;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width * scaleFactor} ${this.props.height * scaleFactor}" width="100%" height="100%" preserveAspectRatio="none">
+            ${whiteSvgKeys}
+            ${blackSvgKeys}
+          </svg>
         </div>
+        <button id="octave-up" style="width: ${buttonWidth}px; height: ${buttonHeight}px; background-color: ${this.props.arrowBackgroundColour};" onclick="document.getElementById('${this.props.channel}').OctaveButton.handleClickEvent(event)">+</button>
+      </div>
     `;
   }
+  
 
 
 

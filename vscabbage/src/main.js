@@ -4,6 +4,9 @@ import { RotarySlider } from "./rotarySlider.js";
 import { HorizontalSlider } from "./horizontalSlider.js";
 import { VerticalSlider } from "./verticalSlider.js";
 import { Button } from "./button.js";
+import { Checkbox } from "./checkbox.js";
+import { ComboBox } from "./comboBox.js";
+import { Label } from "./label.js";
 import { MidiKeyboard } from "./midiKeyboard.js";
 
 import { PropertyPanel } from "./propertyPanel.js";
@@ -96,7 +99,7 @@ window.addEventListener('message', event => {
 function updateWidget(obj) {
   const channel = obj['channel'];
   for (const widget of widgets) {
-    if (widget.props.name == channel) {
+    if (widget.props.channel == channel) {
       if (obj.hasOwnProperty('value')) {
         widget.props.value = obj['value'];
       }
@@ -106,10 +109,12 @@ function updateWidget(obj) {
           widget.props[key] = value;
         });
       }
-      document.getElementById(widget.props.name).style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
-      document.getElementById(widget.props.name).setAttribute('data-x', widget.props.left);
-      document.getElementById(widget.props.name).setAttribute('data-y', widget.props.top);
-      document.getElementById(widget.props.name).innerHTML = widget.getSVG();
+      document.getElementById(widget.props.channel).style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
+      document.getElementById(widget.props.channel).setAttribute('data-x', widget.props.left);
+      document.getElementById(widget.props.channel).setAttribute('data-y', widget.props.top);
+      document.getElementById(widget.props.channel).style.top = widget.props.top + 'px';
+      document.getElementById(widget.props.channel).style.left = widget.props.left + 'px';
+      document.getElementById(widget.props.channel).innerHTML = widget.getInnerHTML();
     }
   }
 }
@@ -329,6 +334,15 @@ async function insertWidget(type, props) {
     case "button":
       widget = new Button();
       break;
+    case "label":
+      widget = new Label();
+      break;
+    case "combobox":
+      widget = new ComboBox();
+      break;
+    case "checkbox":
+      widget = new Checkbox();
+      break;
     default:
       return;
   }
@@ -337,6 +351,7 @@ async function insertWidget(type, props) {
     widgetDiv.className = "resizeOnly";
   else
     widgetDiv.className = cabbageMode;
+
   if (cabbageMode === 'draggable') {
     widgetDiv.addEventListener('pointerdown', (e) => {
       if (e.altKey || e.shiftKey) {  // Use Alt key for multi-selection
@@ -354,25 +369,20 @@ async function insertWidget(type, props) {
           selectedElements.add(widgetDiv);
         }
       }
-      console.log(selectedElements.size);
     });
   }
 
+  //iterate over the incoming props and assign them to the widget object
   Object.entries(props).forEach((entry) => {
     const [key, value] = entry;
-
     widget.props[key] = value;
-    if (key === 'channel') {
-      widget.props.name = value;
-      widget.props.channel = value;
-    }
   })
 
 
 
 
   widgets.push(widget); // Push the new widget object into the array
-  const index = CabbageUtils.getNumberOfPluginParameters(widgets, "rslider", "hslider", "vslider", "button", "checkbox");
+  const index = CabbageUtils.getNumberOfPluginParameters(widgets, "rslider", "hslider", "vslider", "button", "combobox", "checkbox");
   widget.props.index = index - 1;
 
 
@@ -388,8 +398,9 @@ async function insertWidget(type, props) {
       widget.addEventListeners(widgetDiv, vscode);
   }
 
-  widgetDiv.id = widget.props.name;
-  widgetDiv.innerHTML = widget.getSVG();
+  widgetDiv.id = widget.props.channel;
+  console.log("widgetDiv.id", widgetDiv.id)
+  widgetDiv.innerHTML = widget.getInnerHTML();
   if (form) {
     form.appendChild(widgetDiv);
   }

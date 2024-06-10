@@ -1,52 +1,52 @@
-import { CabbageUtils } from "./utils.js";
+import { CabbageUtils, CabbageColours } from "./utils.js";
 
 export class VerticalSlider {
   constructor() {
     this.props = {
-      "top": 10,
-      "left": 10,
-      "width": 60,
-      "height": 60,
-      "channel": "rslider",
-      "min": 0,
-      "max": 1,
-      "value": 0,
-      "default": 0,
-      "skew": 1,
-      "increment": 0.001,
-      "index": 0,
-      "text": "",
-      "fontFamily": "Verdana",
-      "fontSize": 0,
-      "align": "centre",
-      "valueTextBox": 0,
-      "colour": "#0295cf",
-      "trackerColour": "#93D200",
-      "trackerBackgroundColour": "#ffffff",
-      "trackerOutlineColour": "#525252",
-      "fontColour": "#dddddd",
-      "outlineColour": "#999999",
-      "textBoxColour": "#555555",
-      "trackerOutlineWidth": 1,
-      "outlineWidth": 1,
-      "name": "",
-      "type": "vslider", // Changed from hslider to vslider
-      "kind": "vertical", // Changed from horizontal to vertical
-      "decimalPlaces": 1,
-      "velocity": 0,
-      "visible": 1,
-      "popup": 1,
-      "automatable": 1,
-      "valuePrefix": "",
-      "valuePostfix": "",
-      "presetIgnore": 0
-    }
+      "top": 10, // Top position of the vertical slider widget
+      "left": 10, // Left position of the vertical slider widget
+      "width": 60, // Width of the vertical slider widget
+      "height": 60, // Height of the vertical slider widget
+      "channel": "rslider", // Unique identifier for the vertical slider widget
+      "min": 0, // Minimum value of the slider
+      "max": 1, // Maximum value of the slider
+      "value": 0, // Current value of the slider
+      "default": 0, // Default value of the slider
+      "skew": 1, // Skew factor for the slider
+      "increment": 0.001, // Incremental value change per step
+      "index": 0, // Index of the slider
+      "text": "", // Text displayed on the slider
+      "fontFamily": "Verdana", // Font family for the text displayed on the slider
+      "fontSize": 0, // Font size for the text displayed on the slider
+      "align": "centre", // Alignment of the text on the slider
+      "valueTextBox": 0, // Display a textbox showing the current value
+      "colour": CabbageColours.getColour("blue"), // Background color of the slider
+      "trackerColour": CabbageColours.getColour('green'), // Color of the slider tracker
+      "trackerBackgroundColour": "#ffffff", // Background color of the slider tracker
+      "trackerOutlineColour": "#525252", // Outline color of the slider tracker
+      "fontColour": "#dddddd", // Font color for the text displayed on the slider
+      "outlineColour": "#999999", // Color of the slider outline
+      "textBoxColour": "#555555", // Background color of the value textbox
+      "trackerOutlineWidth": 1, // Outline width of the slider tracker
+      "outlineWidth": 1, // Width of the slider outline
+      "type": "vslider", // Type of the widget (vertical slider)
+      "kind": "vertical", // Kind of slider (vertical)
+      "decimalPlaces": 1, // Number of decimal places in the slider value
+      "velocity": 0, // Velocity value for the slider
+      "visible": 1, // Visibility of the slider
+      "popup": 1, // Display a popup when the slider is clicked
+      "automatable": 1, // Ability to automate the slider
+      "valuePrefix": "", // Prefix to be displayed before the slider value
+      "valuePostfix": "", // Postfix to be displayed after the slider value
+      "presetIgnore": 0, // Ignore preset value for the slider
+    };
+
 
     this.panelSections = {
       "Info": ["type", "channel"],
       "Bounds": ["left", "top", "width", "height"],
       "Range": ["min", "max", "default", "skew", "increment"],
-      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetX", "align"], // Changed from textOffsetY to textOffsetX for vertical slider
+      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetX", "align"],
       "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
     };
 
@@ -60,7 +60,7 @@ export class VerticalSlider {
   }
 
   pointerUp() {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
     }
     const popup = document.getElementById('popupValue');
@@ -72,7 +72,7 @@ export class VerticalSlider {
   }
 
   pointerDown(evt) {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
     }
     let textHeight = this.props.text ? this.props.height * 0.1 : 0;
@@ -89,14 +89,13 @@ export class VerticalSlider {
       this.startValue = this.props.value;
       window.addEventListener("pointermove", this.moveListener);
       window.addEventListener("pointerup", this.upListener);
-      const widgetDiv = document.getElementById(this.props.name);
-      widgetDiv.innerHTML = this.getSVG();
+      Cabbage.updateInnerHTML(this.props.channel, this);
     }
   }
 
 
   mouseEnter(evt) {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
     }
 
@@ -169,15 +168,15 @@ export class VerticalSlider {
       const inputValue = parseFloat(evt.target.value);
       if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
         this.props.value = inputValue;
-        const widgetDiv = document.getElementById(this.props.name);
-        widgetDiv.innerHTML = this.getSVG();
+        const widgetDiv = document.getElementById(this.props.channel);
+        widgetDiv.innerHTML = this.getInnerHTML();
         widgetDiv.querySelector('input').focus();
       }
     }
   }
 
   pointerMove({ clientY }) {
-    if(this.props.active === 0) {
+    if (this.props.active === 0) {
       return '';
     }
 
@@ -186,7 +185,7 @@ export class VerticalSlider {
     const sliderHeight = this.props.height - textHeight - valueTextBoxHeight;
 
     // Get the bounding rectangle of the slider
-    const sliderRect = document.getElementById(this.props.name).getBoundingClientRect();
+    const sliderRect = document.getElementById(this.props.channel).getBoundingClientRect();
 
     // Calculate the relative position of the mouse pointer within the slider bounds
     let offsetY = sliderRect.bottom - clientY - textHeight;
@@ -202,8 +201,8 @@ export class VerticalSlider {
     this.props.value = newValue;
 
     // Update the slider appearance
-    const widgetDiv = document.getElementById(this.props.name);
-    widgetDiv.innerHTML = this.getSVG();
+    const widgetDiv = document.getElementById(this.props.channel);
+    widgetDiv.innerHTML = this.getInnerHTML();
 
     // Post message if vscode is available
     const msg = { channel: this.props.channel, value: CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) }
@@ -222,8 +221,8 @@ export class VerticalSlider {
     }
   }
 
-  getSVG() {
-    if(this.props.visible === 0) {
+  getInnerHTML() {
+    if (this.props.visible === 0) {
       return '';
     }
 
@@ -272,7 +271,7 @@ export class VerticalSlider {
     <foreignObject x="0" y="${this.props.height - valueTextBoxHeight + 2}" width="${this.props.width}" height="${valueTextBoxHeight}">
       <input type="text" value="${this.props.value.toFixed(CabbageUtils.getDecimalPlaces(this.props.increment))}"
       style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
-      onKeyDown="document.getElementById('${this.props.name}').VerticalSliderInstance.handleInputChange(event)"/>
+      onKeyDown="document.getElementById('${this.props.channel}').VerticalSliderInstance.handleInputChange(event)"/>
     </foreignObject>
   ` : '';
 
