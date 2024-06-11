@@ -5,7 +5,7 @@ export class ComboBox {
         this.props = {
             "top": 10, // Top position of the widget
             "left": 10, // Left position of the widget
-            "width": 150, // Width of the widget
+            "width": 100, // Width of the widget
             "height": 30, // Height of the widget
             "channel": "comboBox", // Unique identifier for the widget
             "corners": 4, // Radius of the corners of the widget rectangle

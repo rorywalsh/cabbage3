@@ -49,6 +49,8 @@ const checkbox_js_1 = __webpack_require__(8);
 // @ts-ignore
 const comboBox_js_1 = __webpack_require__(9);
 // @ts-ignore
+const label_js_1 = __webpack_require__(37);
+// @ts-ignore
 const midiKeyboard_js_1 = __webpack_require__(10);
 // @ts-ignore
 const form_js_1 = __webpack_require__(11);
@@ -117,8 +119,6 @@ function activate(context) {
         const cabbageStyles = panel.webview.asWebviewUri(onDiskPath);
         onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'interact.min.js');
         const interactJS = panel.webview.asWebviewUri(onDiskPath);
-        onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'widgets.js');
-        const widgetSVGs = panel.webview.asWebviewUri(onDiskPath);
         onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'widgetWrapper.js');
         const widgetWrapper = panel.webview.asWebviewUri(onDiskPath);
         onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'color-picker.js');
@@ -331,6 +331,9 @@ async function updateText(jsonText) {
             case 'combobox':
                 defaultProps = new comboBox_js_1.ComboBox().props;
                 break;
+            case 'label':
+                defaultProps = new label_js_1.Label().props;
+                break;
             case 'form':
                 defaultProps = new form_js_1.Form().props;
                 break;
@@ -414,7 +417,7 @@ async function updateText(jsonText) {
 /**
  * Returns html text to use in webview - various scripts get passed as vscode.Uri's
  */
-function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrapper, colourPicker, colourPickerStyles, menu) {
+function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrapper, colourPickerJS, colourPickerStyles, menu) {
     return `
 <!doctype html>
 <html lang="en">
@@ -424,7 +427,7 @@ function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrap
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script type="module" src="${interactJS}"></script>
-  <script type="module" src="${colourPicker}"></script>
+  <script type="module" src="${colourPickerJS}"></script>
   <link href="${styles}" rel="stylesheet">
   <link href="${cabbageStyles}" rel="stylesheet">  
   <link href="${colourPickerStyles}" rel="stylesheet">  
@@ -1110,13 +1113,33 @@ class CabbageUtils {
     const element = document.getElementById(channel);
     return element || null;
   }
+
+  static updateBounds(props, identifier) {
+    const element = document.getElementById(props.channel);
+    if(element){
+      switch(identifier){
+        case 'left':
+          element.style.left = props.left + "px";
+          break;
+        case 'top':
+          element.style.top = props.top + "px";
+          break;
+        case 'width':
+          element.style.width = props.width + "px";
+          break;
+        case 'height':
+          element.style.height = props.height + "px";
+          break;
+      }
+    }
+  }
 }
 
 class CabbageColours {
   static getColour(colourName) {
     const colourMap = {
       "blue": "#0295cf",
-      "green": "#93D200",
+      "green": "#93d200",
       "red": "#ff0000",
       "yellow": "#f0e14c",
       "purple": "#a020f0",
@@ -1912,7 +1935,7 @@ class Button {
       "top": 10, // Top position of the button
       "left": 10, // Left position of the button
       "width": 80, // Width of the button
-      "height": 20, // Height of the button
+      "height": 30, // Height of the button
       "channel": "button", // Unique identifier for the button
       "corners": 2, // Radius of the corners of the button rectangle
       "min": 0, // Minimum value for the button (for sliders)
@@ -2188,7 +2211,7 @@ class ComboBox {
         this.props = {
             "top": 10, // Top position of the widget
             "left": 10, // Left position of the widget
-            "width": 150, // Width of the widget
+            "width": 100, // Width of the widget
             "height": 30, // Height of the widget
             "channel": "comboBox", // Unique identifier for the widget
             "corners": 4, // Radius of the corners of the widget rectangle
@@ -7458,6 +7481,96 @@ function parse(header) {
 }
 
 module.exports = { parse };
+
+
+/***/ }),
+/* 37 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Label: () => (/* binding */ Label)
+/* harmony export */ });
+/**
+ * Label class
+ */
+class Label {
+    constructor() {
+        this.props = {
+            "top": 0,
+            "left": 0,
+            "width": 100,
+            "height": 30,
+            "type": "label",
+            "colour": "#888888",
+            "channel": "label",
+            "fontColour": "#dddddd",
+            "fontFamily": "Verdana",
+            "fontSize": 0,
+            "corners": 4,
+            "align": "centre",
+            "visible": 1,
+            "text": "Default Label"
+        }
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Text": ["text", "fontColour", "fontSize", "fontFamily", "align"],
+            "Colours": ["colour"]
+        };
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    addEventListeners(widgetDiv) {
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    pointerDown() {
+        console.log("Label clicked!");
+    }
+
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+        
+        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.8, 12); // Ensuring font size doesn't get too small
+        const alignMap = {
+            'left': 'end',
+            'center': 'middle',
+            'centre': 'middle',
+            'right': 'start',
+        };
+        const svgAlign = alignMap[this.props.align] || 'middle';
+    
+        return `
+            <div style="position: relative; width: 100%; height: 100%;">
+                <!-- Background SVG with preserveAspectRatio="none" -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none"
+                     style="position: absolute; top: 0; left: 0;">
+                    <rect width="${this.props.width}" height="${this.props.height}" x="0" y="0" rx="${this.props.corners}" ry="${this.props.corners}" fill="${this.props.colour}" 
+                        pointer-events="all"></rect>
+                </svg>
+    
+                <!-- Text SVG with proper alignment -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet"
+                     style="position: absolute; top: 0; left: 0;">
+                    <text x="${this.props.align === 'left' ? '10%' : this.props.align === 'right' ? '90%' : '50%'}" y="50%" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+                        fill="${this.props.fontColour}" text-anchor="${svgAlign}" dominant-baseline="middle" alignment-baseline="middle" 
+                        style="pointer-events: none;">${this.props.text}</text>
+                </svg>
+            </div>
+        `;
+    }
+    
+    
+    
+}
 
 
 /***/ })

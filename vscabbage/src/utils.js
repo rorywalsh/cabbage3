@@ -308,13 +308,33 @@ export class CabbageUtils {
     const element = document.getElementById(channel);
     return element || null;
   }
+
+  static updateBounds(props, identifier) {
+    const element = document.getElementById(props.channel);
+    if(element){
+      switch(identifier){
+        case 'left':
+          element.style.left = props.left + "px";
+          break;
+        case 'top':
+          element.style.top = props.top + "px";
+          break;
+        case 'width':
+          element.style.width = props.width + "px";
+          break;
+        case 'height':
+          element.style.height = props.height + "px";
+          break;
+      }
+    }
+  }
 }
 
 export class CabbageColours {
   static getColour(colourName) {
     const colourMap = {
       "blue": "#0295cf",
-      "green": "#93D200",
+      "green": "#93d200",
       "red": "#ff0000",
       "yellow": "#f0e14c",
       "purple": "#a020f0",

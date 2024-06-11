@@ -6,25 +6,24 @@ export class Label {
         this.props = {
             "top": 0,
             "left": 0,
-            "width": 600,
-            "height": 300,
-            "caption": "",
+            "width": 100,
+            "height": 30,
             "type": "label",
             "colour": "#888888",
             "channel": "label",
             "fontColour": "#dddddd",
             "fontFamily": "Verdana",
-            "fontSize": 14,
+            "fontSize": 0,
             "corners": 4,
             "align": "centre",
             "visible": 1,
-            "label": "Default Label"
+            "text": "Default Label"
         }
 
         this.panelSections = {
             "Properties": ["type"],
             "Bounds": ["left", "top", "width", "height"],
-            "Text": ["label", "fontColour", "fontSize", "fontFamily", "align"],
+            "Text": ["text", "fontColour", "fontSize", "fontFamily", "align"],
             "Colours": ["colour"]
         };
     }
@@ -43,23 +42,39 @@ export class Label {
     }
 
     getInnerHTML() {
-        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.8;
+        if (this.props.visible === 0) {
+            return '';
+        }
+        
+        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.8, 12); // Ensuring font size doesn't get too small
         const alignMap = {
             'left': 'end',
             'center': 'middle',
             'centre': 'middle',
             'right': 'start',
         };
-        const svgAlign = alignMap[this.props.align] || this.props.align;
-
+        const svgAlign = alignMap[this.props.align] || 'middle';
+    
         return `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
-                <rect width="${this.props.width}" height="${this.props.height}" x="0" y="0" rx="${this.props.corners}" ry="${this.props.corners}" fill="${this.props.colour}" 
-                    pointer-events="all"></rect>
-                <text x="${this.props.width / 2}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
-                    fill="${this.props.fontColour}" text-anchor="${svgAlign}" alignment-baseline="middle" 
-                    style="pointer-events: none;">${this.props.label}</text>
-            </svg>
+            <div style="position: relative; width: 100%; height: 100%;">
+                <!-- Background SVG with preserveAspectRatio="none" -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none"
+                     style="position: absolute; top: 0; left: 0;">
+                    <rect width="${this.props.width}" height="${this.props.height}" x="0" y="0" rx="${this.props.corners}" ry="${this.props.corners}" fill="${this.props.colour}" 
+                        pointer-events="all"></rect>
+                </svg>
+    
+                <!-- Text SVG with proper alignment -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet"
+                     style="position: absolute; top: 0; left: 0;">
+                    <text x="${this.props.align === 'left' ? '10%' : this.props.align === 'right' ? '90%' : '50%'}" y="50%" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+                        fill="${this.props.fontColour}" text-anchor="${svgAlign}" dominant-baseline="middle" alignment-baseline="middle" 
+                        style="pointer-events: none;">${this.props.text}</text>
+                </svg>
+            </div>
         `;
     }
+    
+    
+    
 }

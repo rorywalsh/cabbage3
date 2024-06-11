@@ -109,8 +109,6 @@ export function activate(context: vscode.ExtensionContext) {
 		const cabbageStyles = panel.webview.asWebviewUri(onDiskPath);
 		onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'interact.min.js');
 		const interactJS = panel.webview.asWebviewUri(onDiskPath);
-		onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'widgets.js');
-		const widgetSVGs = panel.webview.asWebviewUri(onDiskPath);
 		onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'widgetWrapper.js');
 		const widgetWrapper = panel.webview.asWebviewUri(onDiskPath);
 		onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'color-picker.js');
@@ -360,6 +358,9 @@ async function updateText(jsonText: string) {
 			case 'combobox':
 				defaultProps = new ComboBox().props;
 				break;
+			case 'label':
+				defaultProps = new Label().props;
+				break;
 			case 'form':
 				defaultProps = new Form().props;
 				break;
@@ -374,11 +375,11 @@ async function updateText(jsonText: string) {
 
 		await textEditor.edit(async editBuilder => {
 			if (textEditor) {
-
 				let foundChannel = false;
 				let lines = document.getText().split(/\r?\n/);
 				for (let i = 0; i < lines.length; i++) {
 					let tokens = getTokens(lines[i]);
+
 					const index = tokens.findIndex(({ token }) => token === 'channel');
 
 					if (index != -1) {
@@ -387,7 +388,6 @@ async function updateText(jsonText: string) {
 							foundChannel = true;
 							//found entry - now update bounds
 							const updatedIdentifiers = findUpdatedIdentifiers(JSON.stringify(defaultProps), jsonText);
-
 							updatedIdentifiers.forEach((ident) => {
 								// Only want to display user-accessible identifiers...
 								if (!internalIdentifiers.includes(ident)) {
@@ -465,7 +465,7 @@ async function updateText(jsonText: string) {
  */
 function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri,
 	cabbageStyles: vscode.Uri, interactJS: vscode.Uri, widgetWrapper: vscode.Uri,
-	colourPicker: vscode.Uri, colourPickerStyles: vscode.Uri, menu: string) {
+	colourPickerJS: vscode.Uri, colourPickerStyles: vscode.Uri, menu: string) {
 	return `
 <!doctype html>
 <html lang="en">
@@ -475,7 +475,7 @@ function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri,
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script type="module" src="${interactJS}"></script>
-  <script type="module" src="${colourPicker}"></script>
+  <script type="module" src="${colourPickerJS}"></script>
   <link href="${styles}" rel="stylesheet">
   <link href="${cabbageStyles}" rel="stylesheet">  
   <link href="${colourPickerStyles}" rel="stylesheet">  

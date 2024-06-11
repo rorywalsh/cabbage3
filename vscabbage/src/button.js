@@ -6,7 +6,7 @@ export class Button {
       "top": 10, // Top position of the button
       "left": 10, // Left position of the button
       "width": 80, // Width of the button
-      "height": 20, // Height of the button
+      "height": 30, // Height of the button
       "channel": "button", // Unique identifier for the button
       "corners": 2, // Radius of the corners of the button rectangle
       "min": 0, // Minimum value for the button (for sliders)

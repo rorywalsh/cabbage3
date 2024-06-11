@@ -1,7 +1,7 @@
 /**
  * PropertyPanel Class. Lightweight component that up updated its innerHTML when properties change.
  */
-
+import { CabbageUtils } from "./utils.js";
 
 export class PropertyPanel {
   
@@ -214,7 +214,9 @@ export class PropertyPanel {
           parsedValue = inputValue;
         }
         widget.props[input.id] = parsedValue;
-        const widgetDiv = document.getElementById(widget.props.channel);
+        console.log(input.id, parsedValue);
+        CabbageUtils.updateBounds(widget.props, input.id);
+        const widgetDiv = CabbageUtils.getWidgetDiv(widget.props.channel);
         widgetDiv.innerHTML = widget.getInnerHTML();
         if (!vscode) {
           console.error("vscode is not valid");
