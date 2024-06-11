@@ -4,11 +4,13 @@
 
 
 export class PropertyPanel {
+  
   constructor(vscode, type, properties, panelSections, widgets) {
     this.type = type;
     this.panelSections = panelSections;
     var panel = document.querySelector('.property-panel');
     this.vscode = vscode;
+    this.widgets = widgets;
 
     // Helper function to create a section
     const createSection = (sectionName) => {
@@ -50,8 +52,22 @@ export class PropertyPanel {
 
       if (key.toLowerCase().includes("colour")) {
         input = document.createElement('input');
-        input.type = 'color';
+        // input.type = 'color';
         input.value = value;
+        input.style.backgroundColor = value;
+        input.id = properties.channel;
+        input.dataset.parent = properties.channel;
+        const picker = new CP(input);
+        picker.on('change', (r,g,b,a) => {
+          console.log("changing colour");
+          if (1 === a) {
+             input.value = CP.HEX([r, g, b, a]);
+           } else {
+             input.value = CP.HEX([r, g, b, a]);
+           }
+
+          this.handleInputChange(input.parentElement);
+        });
       } else if (key.toLowerCase().includes("family")) {
         input = document.createElement('select');
         fontList.forEach((font) => {
@@ -94,6 +110,8 @@ export class PropertyPanel {
     // Track properties that have been assigned to sections
     const assignedProperties = new Set();
 
+  
+
     // Iterate over panelSections and properties to assign them to their respective sections
     Object.entries(panelSections).forEach(([sectionName, keys]) => {
       keys.forEach((key) => {
@@ -115,32 +133,7 @@ export class PropertyPanel {
           input.dataset.parent = properties.channel;
           const self = this;
 
-          input.addEventListener('input', function (evt) {
-            widgets.forEach((widget) => {
-              if (widget.props.channel === evt.target.dataset.parent) {
-                const inputValue = evt.target.value;
-                let parsedValue;
-
-                // Check if the input value can be parsed to a number
-                if (!isNaN(inputValue) && inputValue.trim() !== "") {
-                  parsedValue = Number(inputValue);
-                } else {
-                  parsedValue = inputValue;
-                }
-                widget.props[evt.target.id] = parsedValue;
-                const widgetDiv = document.getElementById(widget.props.channel);
-                widgetDiv.innerHTML = widget.getInnerHTML();
-                if (!self.vscode)
-                  console.error("vscode is not valid");
-                else {
-                  self.vscode.postMessage({
-                    command: 'widgetUpdate',
-                    text: JSON.stringify(widget.props)
-                  });
-                }
-              }
-            });
-          });
+          input.addEventListener('input', this.handleInputChange.bind(this));
 
           propertyDiv.appendChild(input);
           sections[sectionName].appendChild(propertyDiv);
@@ -169,32 +162,7 @@ export class PropertyPanel {
         input.dataset.parent = properties.channel;
         const self = this;
 
-        input.addEventListener('input', function (evt) {
-          widgets.forEach((widget) => {
-            if (widget.props.channel === evt.target.dataset.parent) {
-              const inputValue = evt.target.value;
-              let parsedValue;
-
-              // Check if the input value can be parsed to a number
-              if (!isNaN(inputValue) && inputValue.trim() !== "") {
-                parsedValue = Number(inputValue);
-              } else {
-                parsedValue = inputValue;
-              }
-              widget.props[evt.target.id] = parsedValue;
-              const widgetDiv = document.getElementById(widget.props.channel);
-              widgetDiv.innerHTML = widget.getInnerHTML();
-              if (!self.vscode)
-                console.error("vscode is not valid");
-              else {
-                self.vscode.postMessage({
-                  command: 'widgetUpdate',
-                  text: JSON.stringify(widget.props)
-                });
-              }
-            }
-          });
-        });
+        input.addEventListener('input', this.handleInputChange.bind(this));
 
         propertyDiv.appendChild(input);
         miscSection.appendChild(propertyDiv);
@@ -214,7 +182,51 @@ export class PropertyPanel {
     }
   }
 
+  handleInputChange(evt) {
+    if(evt === undefined){
+      console.error("evt is undefined");
+    }
 
+    let input;
+    if (evt instanceof Event){
+      input = evt.target;
+    }
+    else{
+      input = evt;
+      console.log(input);
+      const innerInput = evt.querySelector('input');
+      input = innerInput;
+    }
+
+    const widgets = this.widgets;
+    const vscode = this.vscode;
+
+    widgets.forEach((widget) => {
+      console.log("widget", widget.props.channel, input.dataset.parent);
+      if (widget.props.channel === input.dataset.parent) {
+        const inputValue = input.value;
+        console.log("inputValue", inputValue)
+        let parsedValue;
+
+        if (!isNaN(inputValue) && inputValue.trim() !== "") {
+          parsedValue = Number(inputValue);
+        } else {
+          parsedValue = inputValue;
+        }
+        widget.props[input.id] = parsedValue;
+        const widgetDiv = document.getElementById(widget.props.channel);
+        widgetDiv.innerHTML = widget.getInnerHTML();
+        if (!vscode) {
+          console.error("vscode is not valid");
+        } else {
+          vscode.postMessage({
+            command: 'widgetUpdate',
+            text: JSON.stringify(widget.props)
+          });
+        }
+      }
+    });
+  }
 
   /**
 * this callback is triggered whenever a user move/drags a widget in edit mode

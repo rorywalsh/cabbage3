@@ -113,6 +113,10 @@ export function activate(context: vscode.ExtensionContext) {
 		const widgetSVGs = panel.webview.asWebviewUri(onDiskPath);
 		onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'widgetWrapper.js');
 		const widgetWrapper = panel.webview.asWebviewUri(onDiskPath);
+		onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'color-picker.js');
+		const colourPickerJS = panel.webview.asWebviewUri(onDiskPath);
+		onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'color-picker.css');
+		const colourPickerStyles = panel.webview.asWebviewUri(onDiskPath);
 
 		//add widget types to menu
 		const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button", "combobox", "checkbox", "keyboard"];
@@ -128,7 +132,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 		// set webview HTML content and options
-		panel.webview.html = getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrapper, menuItems);
+		panel.webview.html = getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrapper, colourPickerJS, colourPickerStyles, menuItems);
 		panel.webview.options = { enableScripts: true };
 
 		//assign current textEditor so we can track it even if focus changes to the webview
@@ -198,6 +202,8 @@ export function activate(context: vscode.ExtensionContext) {
 					case 'ready': //trigger when webview is open
 						if (panel)
 							panel.webview.postMessage({ command: "snapToSize", text: config.get("snapToSize") });
+						break;
+
 				}
 			},
 			undefined,
@@ -457,7 +463,9 @@ async function updateText(jsonText: string) {
 /**
  * Returns html text to use in webview - various scripts get passed as vscode.Uri's
  */
-function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri, cabbageStyles: vscode.Uri, interactJS: vscode.Uri, widgetWrapper: vscode.Uri, menu: string) {
+function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri,
+	cabbageStyles: vscode.Uri, interactJS: vscode.Uri, widgetWrapper: vscode.Uri,
+	colourPicker: vscode.Uri, colourPickerStyles: vscode.Uri, menu: string) {
 	return `
 <!doctype html>
 <html lang="en">
@@ -467,8 +475,11 @@ function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri, cabbageStyles
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script type="module" src="${interactJS}"></script>
+  <script type="module" src="${colourPicker}"></script>
   <link href="${styles}" rel="stylesheet">
   <link href="${cabbageStyles}" rel="stylesheet">  
+  <link href="${colourPickerStyles}" rel="stylesheet">  
+
   <style>
   .full-height-div {
 	height: 100vh; /* Set the height to 100% of the viewport height */

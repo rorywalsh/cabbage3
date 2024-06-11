@@ -41,22 +41,22 @@ const rotarySlider_js_1 = __webpack_require__(2);
 // @ts-ignore
 const horizontalSlider_js_1 = __webpack_require__(4);
 // @ts-ignore
-const verticalSlider_js_1 = __webpack_require__(5);
+const verticalSlider_js_1 = __webpack_require__(6);
 // @ts-ignore
-const button_js_1 = __webpack_require__(34);
+const button_js_1 = __webpack_require__(7);
 // @ts-ignore
-const checkbox_js_1 = __webpack_require__(35);
+const checkbox_js_1 = __webpack_require__(8);
 // @ts-ignore
-const comboBox_js_1 = __webpack_require__(37);
+const comboBox_js_1 = __webpack_require__(9);
 // @ts-ignore
-const midiKeyboard_js_1 = __webpack_require__(6);
+const midiKeyboard_js_1 = __webpack_require__(10);
 // @ts-ignore
-const form_js_1 = __webpack_require__(8);
-const cp = __importStar(__webpack_require__(9));
+const form_js_1 = __webpack_require__(11);
+const cp = __importStar(__webpack_require__(12));
 let textEditor;
 let output;
 let panel = undefined;
-const ws_1 = __importDefault(__webpack_require__(10));
+const ws_1 = __importDefault(__webpack_require__(13));
 const wss = new ws_1.default.Server({ port: 9991 });
 let websocket;
 let cabbageMode = "play";
@@ -121,6 +121,10 @@ function activate(context) {
         const widgetSVGs = panel.webview.asWebviewUri(onDiskPath);
         onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'widgetWrapper.js');
         const widgetWrapper = panel.webview.asWebviewUri(onDiskPath);
+        onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'color-picker.js');
+        const colourPickerJS = panel.webview.asWebviewUri(onDiskPath);
+        onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'color-picker.css');
+        const colourPickerStyles = panel.webview.asWebviewUri(onDiskPath);
         //add widget types to menu
         const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button", "combobox", "checkbox", "keyboard"];
         let menuItems = "";
@@ -132,7 +136,7 @@ function activate(context) {
 			`;
         });
         // set webview HTML content and options
-        panel.webview.html = getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrapper, menuItems);
+        panel.webview.html = getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrapper, colourPickerJS, colourPickerStyles, menuItems);
         panel.webview.options = { enableScripts: true };
         //assign current textEditor so we can track it even if focus changes to the webview
         panel.onDidChangeViewState(() => {
@@ -191,6 +195,7 @@ function activate(context) {
                 case 'ready': //trigger when webview is open
                     if (panel)
                         panel.webview.postMessage({ command: "snapToSize", text: config.get("snapToSize") });
+                    break;
             }
         }, undefined, context.subscriptions);
     }));
@@ -409,7 +414,7 @@ async function updateText(jsonText) {
 /**
  * Returns html text to use in webview - various scripts get passed as vscode.Uri's
  */
-function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrapper, menu) {
+function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrapper, colourPicker, colourPickerStyles, menu) {
     return `
 <!doctype html>
 <html lang="en">
@@ -419,8 +424,11 @@ function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrap
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script type="module" src="${interactJS}"></script>
+  <script type="module" src="${colourPicker}"></script>
   <link href="${styles}" rel="stylesheet">
   <link href="${cabbageStyles}" rel="stylesheet">  
+  <link href="${colourPickerStyles}" rel="stylesheet">  
+
   <style>
   .full-height-div {
 	height: 100vh; /* Set the height to 100% of the viewport height */
@@ -1161,7 +1169,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   HorizontalSlider: () => (/* binding */ HorizontalSlider)
 /* harmony export */ });
-/* harmony import */ var _cabbagePluginMethods_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(7);
+/* harmony import */ var _cabbagePluginMethods_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5);
 /* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(3);
 
 
@@ -1470,6 +1478,128 @@ class HorizontalSlider {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Cabbage: () => (/* binding */ Cabbage)
+/* harmony export */ });
+
+
+
+class Cabbage {
+  static sendMidiMessageFromUI(statusByte, dataByte1, dataByte2) {
+    var message = {
+      "msg": "SMMFUI",
+      "statusByte": statusByte,
+      "dataByte1": dataByte1,
+      "dataByte2": dataByte2
+    };
+    
+    console.log("sending midi message from UI", message);
+    if (typeof IPlugSendMsg === 'function')
+      IPlugSendMsg(message);
+  }
+
+  static MidiMessageFromHost(statusByte, dataByte1, dataByte2) {
+    console.log("Got MIDI Message" + status + ":" + dataByte1 + ":" + dataByte2);
+  }
+}
+
+
+function SPVFD(paramIdx, val) {
+//  console.log("paramIdx: " + paramIdx + " value:" + val);
+  OnParamChange(paramIdx, val);
+}
+
+function SCVFD(ctrlTag, val) {
+  OnControlChange(ctrlTag, val);
+//  console.log("SCVFD ctrlTag: " + ctrlTag + " value:" + val);
+}
+
+function SCMFD(ctrlTag, msgTag, msg) {
+//  var decodedData = window.atob(msg);
+  console.log("SCMFD ctrlTag: " + ctrlTag + " msgTag:" + msgTag + "msg:" + msg);
+}
+
+function SAMFD(msgTag, dataSize, msg) {
+  //  var decodedData = window.atob(msg);
+  console.log("SAMFD msgTag:" + msgTag + " msg:" + msg);
+}
+
+function SMMFD(statusByte, dataByte1, dataByte2) {
+  console.log("Got MIDI Message" + status + ":" + dataByte1 + ":" + dataByte2);
+}
+
+function SSMFD(offset, size, msg) {
+  console.log("Got Sysex Message");
+}
+
+// FROM UI
+// data should be a base64 encoded string
+function SAMFUI(msgTag, ctrlTag = -1, data = 0) {
+  var message = {
+    "msg": "SAMFUI",
+    "msgTag": msgTag,
+    "ctrlTag": ctrlTag,
+    "data": data
+  };
+  
+  IPlugSendMsg(message);
+}
+
+function SMMFUI(statusByte, dataByte1, dataByte2) {
+  var message = {
+    "msg": "SMMFUI",
+    "statusByte": statusByte,
+    "dataByte1": dataByte1,
+    "dataByte2": dataByte2
+  };
+  
+  IPlugSendMsg(message);
+}
+
+// data should be a base64 encoded string
+function SSMFUI(data = 0) {
+  var message = {
+    "msg": "SSMFUI",
+    "data": data
+  };
+  
+  IPlugSendMsg(message);
+}
+
+function EPCFUI(paramIdx) {
+  var message = {
+    "msg": "EPCFUI",
+    "paramIdx": paramIdx,
+  };
+  
+  IPlugSendMsg(message);
+}
+
+function BPCFUI(paramIdx) {
+  var message = {
+    "msg": "BPCFUI",
+    "paramIdx": paramIdx,
+  };
+  
+  IPlugSendMsg(message);
+}
+
+function SPVFUI(paramIdx, value) {
+  var message = {
+    "msg": "SPVFUI",
+    "paramIdx": paramIdx,
+    "value": value
+  };
+
+  IPlugSendMsg(message);
+}
+
+
+/***/ }),
+/* 6 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   VerticalSlider: () => (/* binding */ VerticalSlider)
 /* harmony export */ });
 /* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
@@ -1766,14 +1896,487 @@ class VerticalSlider {
 
 
 /***/ }),
-/* 6 */
+/* 7 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Button: () => (/* binding */ Button)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+
+
+class Button {
+  constructor() {
+    this.props = {
+      "top": 10, // Top position of the button
+      "left": 10, // Left position of the button
+      "width": 80, // Width of the button
+      "height": 20, // Height of the button
+      "channel": "button", // Unique identifier for the button
+      "corners": 2, // Radius of the corners of the button rectangle
+      "min": 0, // Minimum value for the button (for sliders)
+      "max": 1, // Maximum value for the button (for sliders)
+      "value": 0, // Current value of the button (for sliders)
+      "default": 0, // Default value of the button
+      "index": 0, // Index of the button
+      "textOn": "On", // Text displayed when button is in the 'On' state
+      "textOff": "Off", // Text displayed when button is in the 'Off' state
+      "fontFamily": "Verdana", // Font family for the text
+      "fontSize": 0, // Font size for the text (0 for automatic)
+      "align": "centre", // Text alignment within the button (left, center, right)
+      "colourOn": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the button in the 'On' state
+      "colourOff": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the button in the 'Off' state
+      "fontColourOn": "#dddddd", // Color of the text in the 'On' state
+      "fontColourOff": "#dddddd", // Color of the text in the 'Off' state
+      "outlineColour": "#dddddd", // Color of the outline
+      "outlineWidth": 2, // Width of the outline
+      "name": "", // Name of the button
+      "type": "button", // Type of the button (button)
+      "visible": 1, // Visibility of the button (0 for hidden, 1 for visible)
+      "automatable": 1, // Whether the button value can be automated (0 for no, 1 for yes)
+      "presetIgnore": 0 // Whether the button should be ignored in presets (0 for no, 1 for yes)
+  };
+  
+
+    this.panelSections = {
+      "Info": ["type", "channel"],
+      "Bounds": ["left", "top", "width", "height"],
+      "Text": ["textOn", "textOff", "fontSize", "fontFamily", "fontColourOn", "fontColourOff", "align"], // Changed from textOffsetY to textOffsetX for vertical slider
+      "Colours": ["colourOn", "colourOff", "outlineColour"]
+    };
+
+    this.vscode = null;
+    this.isMouseDown = false;
+    this.isMouseInside = false;
+    this.state = false;
+  }
+
+  pointerUp() {
+    if (this.props.active === 0) {
+      return '';
+    }
+    this.isMouseDown = false;
+  }
+
+  pointerDown(evt) {
+    if (this.props.active === 0) {
+      return '';
+    }
+    this.isMouseDown = true;
+    this.state =! this.state;
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+  }
+
+
+  pointerEnter(evt) {
+    if (this.props.active === 0) {
+      return '';
+    }
+    this.isMouseOver = true;
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+  }
+
+
+  pointerLeave(evt) {
+    if (this.props.active === 0) {
+      return '';
+    }
+    this.isMouseOver = false;
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+  }
+
+  //adding this at the window level to check if the mouse is inside the widget
+  handleMouseMove(evt) {
+    const rect = document.getElementById(this.props.channel).getBoundingClientRect();
+    const isInside = (
+      evt.clientX >= rect.left &&
+      evt.clientX <= rect.right &&
+      evt.clientY >= rect.top &&
+      evt.clientY <= rect.bottom
+    );
+
+    if (!isInside) {
+      this.isMouseInside = false;
+    } else {
+      this.isMouseInside = true;
+    }
+
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+  }
+
+
+  addVsCodeEventListeners(widgetDiv, vs) {
+    this.vscode = vs;
+    widgetDiv.addEventListener("pointerdown", this.pointerUp.bind(this));
+    widgetDiv.addEventListener("pointerup", this.pointerDown.bind(this));
+    window.addEventListener("mousemove", this.handleMouseMove.bind(this));
+    widgetDiv.VerticalSliderInstance = this;
+  }
+
+  addEventListeners(widgetDiv) {
+    widgetDiv.addEventListener("pointerup", this.pointerUp.bind(this));
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.VerticalSliderInstance = this;
+  }
+
+  getInnerHTML() {
+    if (this.props.visible === 0) {
+      return '';
+    }
+  
+    const alignMap = {
+      'left': 'start',
+      'center': 'middle',
+      'centre': 'middle',
+      'right': 'end',
+    };
+  
+    const svgAlign = alignMap[this.props.align] || this.props.align;
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
+    const padding = 5;
+  
+    let textX;
+    if (this.props.align === 'left') {
+      textX = this.props.corners; // Add padding for left alignment
+    } else if (this.props.align === 'right') {
+      textX = this.props.width - this.props.corners - padding; // Add padding for right alignment
+    } else {
+      textX = this.props.width / 2;
+    }
+  
+    const currentColour = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.state ? this.props.colourOn : this.props.colourOff, this.isMouseInside ? 0.2 : 0);
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+          <rect x="${this.props.corners/2}" y="${this.props.corners/2}" width="${this.props.width-this.props.corners*2}" height="${this.props.height-this.props.corners*2}" fill="${currentColour}" stroke="${this.props.outlineColour}"
+            stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
+          <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+            fill="${this.state ? this.props.fontColourOn : this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${this.state ? this.props.textOn : this.props.textOff}</text>
+      </svg>
+    `;
+  }
+  
+  
+}
+
+
+/***/ }),
+/* 8 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Checkbox: () => (/* binding */ Checkbox)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+
+
+class Checkbox {
+  constructor() {
+    this.props = {
+        "top": 10, // Top position of the checkbox
+        "left": 10, // Left position of the checkbox
+        "width": 100, // Width of the checkbox
+        "height": 30, // Height of the checkbox
+        "channel": "checkbox", // Unique identifier for the checkbox
+        "corners": 2, // Radius of the corners of the checkbox rectangle
+        "min": 0, // Minimum value for the checkbox (for sliders)
+        "max": 1, // Maximum value for the checkbox (for sliders)
+        "value": 0, // Current value of the checkbox (for sliders)
+        "default": 0, // Default value of the checkbox
+        "index": 0, // Index of the checkbox
+        "text": "On/Off", // Text displayed next to the checkbox
+        "fontFamily": "Verdana", // Font family for the text
+        "fontColour": "#dddddd", // Color of the text
+        "fontSize": 14, // Font size for the text
+        "align": "left", // Text alignment within the checkbox (left, center, right)
+        "colourOn": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("green"), // Background color of the checkbox in the 'On' state
+        "colourOff": "#ffffff", // Background color of the checkbox in the 'Off' state
+        "fontColourOn": "#dddddd", // Color of the text in the 'On' state
+        "fontColourOff": "#000000", // Color of the text in the 'Off' state
+        "outlineColour": "#999999", // Color of the outline
+        "outlineWidth": 1, // Width of the outline
+        "type": "checkbox", // Type of the checkbox (checkbox)
+        "visible": 1, // Visibility of the checkbox (0 for hidden, 1 for visible)
+        "automatable": 1, // Whether the checkbox value can be automated (0 for no, 1 for yes)
+        "presetIgnore": 0 // Whether the checkbox should be ignored in presets (0 for no, 1 for yes)
+    };
+    
+    this.panelSections = {
+        "Info": ["type", "channel"],
+        "Bounds": ["left", "top", "width", "height"],
+        "Text": ["text", "fontSize", "fontFamily", "fontColour", "align"], // Changed from textOffsetY to textOffsetX for vertical slider
+        "Colours": ["colourOn", "colourOff", "outlineColour"]
+      };
+
+    this.vscode = null;
+    this.isChecked = false;
+  }
+
+  toggle() {
+    if (this.props.active === 0) {
+      return '';
+    }
+    this.isChecked = !this.isChecked;
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+  }
+
+
+
+  pointerDown(evt) {
+    this.toggle();
+  }
+
+  addVsCodeEventListeners(widgetDiv, vscode) {
+    this.vscode = vscode;
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.VerticalSliderInstance = this;
+  }
+
+  addEventListeners(widgetDiv) {
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.VerticalSliderInstance = this;
+  }
+
+  getInnerHTML() {
+    if (this.props.visible === 0) {
+      return '';
+    }
+  
+    const alignMap = {
+      'left': 'start',
+      'center': 'middle',
+      'centre': 'middle',
+      'right': 'end',
+    };
+  
+    const svgAlign = alignMap[this.props.align] || this.props.align;
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
+  
+    const checkboxSize = this.props.height * 0.8;
+    const checkboxX = this.props.align === 'right' ? this.props.width - checkboxSize - this.props.corners : this.props.corners;
+    const textX = this.props.align === 'right' ? checkboxX - 10 : checkboxX + checkboxSize + 10; // Add more padding to prevent overlap
+  
+    const adjustedTextAnchor = this.props.align === 'right' ? 'end' : 'start';
+  
+    return `
+      <svg id="${this.props.channel}-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+        <rect x="${checkboxX}" y="${(this.props.height - checkboxSize) / 2}" width="${checkboxSize}" height="${checkboxSize}" fill="${this.isChecked ? this.props.colourOn : this.props.colourOff}" stroke="${this.props.outlineColour}" stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
+        <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}" fill="${this.props.fontColour}" text-anchor="${adjustedTextAnchor}" alignment-baseline="middle">${this.props.text}</text>
+      </svg>
+    `;
+  }
+  
+}
+
+
+/***/ }),
+/* 9 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   ComboBox: () => (/* binding */ ComboBox)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+
+
+class ComboBox {
+    constructor() {
+        this.props = {
+            "top": 10, // Top position of the widget
+            "left": 10, // Left position of the widget
+            "width": 150, // Width of the widget
+            "height": 30, // Height of the widget
+            "channel": "comboBox", // Unique identifier for the widget
+            "corners": 4, // Radius of the corners of the widget rectangle
+            "defaultValue": 0, // Default value index for the dropdown items
+            "fontFamily": "Verdana", // Font family for the text
+            "fontSize": 14, // Font size for the text
+            "align": "center", // Text alignment within the widget (left, center, right)
+            "colour": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the widget
+            "items": "One, Two, Three", // List of items for the dropdown
+            "text": "Select", // Default text displayed when no item is selected
+            "fontColour": "#dddddd", // Color of the text
+            "outlineColour": "#dddddd", // Color of the outline
+            "outlineWidth": 2, // Width of the outline
+            "visible": 1, // Visibility of the widget (0 for hidden, 1 for visible)
+            "type": "combobox" // Type of the widget (combobox)
+        };
+        
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Bounds": ["top", "left", "width", "height"],
+            "Text": ["text", "items", "fontFamily", "align", "fontSize", "fontColour"],
+            "Colours": ["colour", "outlineColour"]
+        };
+
+        this.isMouseInside = false;
+        this.isOpen = false;
+        this.selectedItem = this.props.value > 0 ? this.items[this.props.defaultValue] : this.props.text;
+
+        this.vscode = null;
+    }
+
+    pointerDown(evt) {
+        if (this.props.active === 0) {
+            return '';
+        }
+        console.log("Pointer down");
+        this.isOpen = !this.isOpen;
+        this.isMouseInside = true;
+        _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+
+        if (this.firstOpen) {
+            this.isOpen = true;
+            this.firstOpen = false; // Update the flag after the first open
+        } else {
+            // Check if the event target is a dropdown item
+            const selectedItem = evt.target.getAttribute("data-item");
+            if (selectedItem) {
+                console.log("Item clicked:", selectedItem);
+                this.selectedItem = selectedItem;
+                this.isOpen = false;
+                const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
+                widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
+                _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+            }
+        }
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+        document.body.addEventListener("click", this.handleClickOutside.bind(this));
+        widgetDiv.ComboBoxInstance = this;
+    }
+
+    handleClickOutside(event) {
+        // Get the widget div
+        const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
+    
+        // Check if the target of the click event is outside of the widget div
+        if (!widgetDiv.contains(event.target)) {
+            // Close the dropdown menu
+            this.isOpen = false;
+            // Update the HTML
+            const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
+                widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
+                _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+        }
+    }
+
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+    
+        const alignMap = {
+            'left': 'start',
+            'center': 'middle',
+            'centre': 'middle',
+            'right': 'end',
+        };
+    
+        const svgAlign = alignMap[this.props.align] || this.props.align;
+        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
+    
+        let totalHeight = this.props.height;
+        const itemHeight = this.props.height * 0.8; // Scale back item height to 80% of the original height
+        if (this.isOpen) {
+            const items = this.props.items.split(",");
+            totalHeight += items.length * itemHeight;
+    
+            // Check if the dropdown will be off the bottom of the screen
+            const mainForm = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv("MainForm");
+            const widgetDiv = mainForm.querySelector(`#${this.props.channel}`);
+            const widgetRect = widgetDiv.getBoundingClientRect();
+            const mainFormRect = mainForm.getBoundingClientRect();
+            const spaceBelow = mainFormRect.bottom - widgetRect.bottom;
+    
+            if (spaceBelow < totalHeight) {
+                const adjustment = totalHeight - this.props.height * 2; // Adding 10px for some padding
+                const currentTopValue = parseInt(widgetDiv.style.top, 10) || this.props.top; // Use props.top if style.top is not set
+                const newTopValue = currentTopValue - adjustment;
+                widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + newTopValue + 'px)';
+            }
+        }
+    
+        let dropdownItems = "";
+        if (this.isOpen) {
+            const items = this.props.items.split(",");
+            items.forEach((item, index) => {
+                dropdownItems += `
+                    <rect x="0" y="${index * itemHeight}" width="${this.props.width}" height="${itemHeight}"
+                        fill="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}" rx="0" ry="0"
+                        style="cursor: pointer;" pointer-events="all" data-item="${item}"
+                        onmouseover="this.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.brighter(this.props.colour, 0.2)}')"
+                        onmouseout="this.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}')"></rect>
+                    <text x="${(this.props.width - this.props.corners / 2) / 2}" y="${(index + 1) * itemHeight - itemHeight / 2}"
+                        font-family="${this.props.fontFamily}" font-size="${this.props.fontSize}" fill="${this.props.fontColour}"
+                        text-anchor="middle" alignment-baseline="middle" data-item="${item}"
+                        style="cursor: pointer;" pointer-events="all"
+                        onmouseover="this.previousElementSibling.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.brighter(this.props.colour, 0.2)}')"
+                        onmouseout="this.previousElementSibling.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}')"
+                        onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.handleItemClick('${item}')">${item}</text>
+                `;
+            });
+        }
+    
+        // Adjusting the position of the arrow
+        const arrowWidth = 10; // Width of the arrow
+        const arrowHeight = 6; // Height of the arrow
+        const arrowX = this.props.width - arrowWidth - this.props.corners / 2 - 10; // Decreasing arrowX value to move the arrow more to the left
+        const arrowY = (this.props.height - arrowHeight) / 2; // Y-coordinate of the arrow
+    
+        // Positioning the selected item text within the main rectangle
+        let selectedItemTextX;
+        if (svgAlign === 'middle') {
+            selectedItemTextX = (this.props.width - arrowWidth - this.props.corners / 2) / 2;
+        } else {
+            const selectedItemWidth = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.selectedItem, this.props);
+            const textPadding = svgAlign === 'start' ? - this.props.width * .1 : - this.props.width * .05;
+            selectedItemTextX = svgAlign === 'start' ? (this.props.width - this.props.corners / 2) / 2 - selectedItemWidth / 2 + textPadding : (this.props.width - this.props.corners / 2) / 2 + selectedItemWidth / 2 + textPadding;
+        }
+        const selectedItemTextY = this.props.height / 2;
+    
+        return `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${totalHeight}" width="${this.props.width}" height="${totalHeight}" preserveAspectRatio="none">
+                <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners * 2}" fill="${this.props.colour}" stroke="${this.props.outlineColour}"
+                    stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}" 
+                    style="cursor: pointer;" pointer-events="all" 
+                    onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.pointerDown()"></rect>
+                ${dropdownItems}
+                <polygon points="${arrowX},${arrowY} ${arrowX + arrowWidth},${arrowY} ${arrowX + arrowWidth / 2},${arrowY + arrowHeight}"
+                    fill="${this.props.outlineColour}" style="${this.isOpen ? 'display: none;' : ''} pointer-events: none;"/>
+                <text x="${selectedItemTextX}" y="${selectedItemTextY}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+                    fill="${this.props.fontColour}" text-anchor="${svgAlign}" alignment-baseline="middle" style="${this.isOpen ? 'display: none;' : ''}"
+                    style="pointer-events: none;">${this.selectedItem}</text>
+            </svg>
+        `;
+    }
+    
+
+
+
+
+
+
+}
+
+
+/***/ }),
+/* 10 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   MidiKeyboard: () => (/* binding */ MidiKeyboard)
 /* harmony export */ });
-/* harmony import */ var _cabbagePluginMethods_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(7);
+/* harmony import */ var _cabbagePluginMethods_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5);
 /* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(3);
 
 
@@ -2000,129 +2603,7 @@ class MidiKeyboard {
 
 
 /***/ }),
-/* 7 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   Cabbage: () => (/* binding */ Cabbage)
-/* harmony export */ });
-
-
-
-class Cabbage {
-  static sendMidiMessageFromUI(statusByte, dataByte1, dataByte2) {
-    var message = {
-      "msg": "SMMFUI",
-      "statusByte": statusByte,
-      "dataByte1": dataByte1,
-      "dataByte2": dataByte2
-    };
-    
-    console.log("sending midi message from UI", message);
-    if (typeof IPlugSendMsg === 'function')
-      IPlugSendMsg(message);
-  }
-
-  static MidiMessageFromHost(statusByte, dataByte1, dataByte2) {
-    console.log("Got MIDI Message" + status + ":" + dataByte1 + ":" + dataByte2);
-  }
-}
-
-
-function SPVFD(paramIdx, val) {
-//  console.log("paramIdx: " + paramIdx + " value:" + val);
-  OnParamChange(paramIdx, val);
-}
-
-function SCVFD(ctrlTag, val) {
-  OnControlChange(ctrlTag, val);
-//  console.log("SCVFD ctrlTag: " + ctrlTag + " value:" + val);
-}
-
-function SCMFD(ctrlTag, msgTag, msg) {
-//  var decodedData = window.atob(msg);
-  console.log("SCMFD ctrlTag: " + ctrlTag + " msgTag:" + msgTag + "msg:" + msg);
-}
-
-function SAMFD(msgTag, dataSize, msg) {
-  //  var decodedData = window.atob(msg);
-  console.log("SAMFD msgTag:" + msgTag + " msg:" + msg);
-}
-
-function SMMFD(statusByte, dataByte1, dataByte2) {
-  console.log("Got MIDI Message" + status + ":" + dataByte1 + ":" + dataByte2);
-}
-
-function SSMFD(offset, size, msg) {
-  console.log("Got Sysex Message");
-}
-
-// FROM UI
-// data should be a base64 encoded string
-function SAMFUI(msgTag, ctrlTag = -1, data = 0) {
-  var message = {
-    "msg": "SAMFUI",
-    "msgTag": msgTag,
-    "ctrlTag": ctrlTag,
-    "data": data
-  };
-  
-  IPlugSendMsg(message);
-}
-
-function SMMFUI(statusByte, dataByte1, dataByte2) {
-  var message = {
-    "msg": "SMMFUI",
-    "statusByte": statusByte,
-    "dataByte1": dataByte1,
-    "dataByte2": dataByte2
-  };
-  
-  IPlugSendMsg(message);
-}
-
-// data should be a base64 encoded string
-function SSMFUI(data = 0) {
-  var message = {
-    "msg": "SSMFUI",
-    "data": data
-  };
-  
-  IPlugSendMsg(message);
-}
-
-function EPCFUI(paramIdx) {
-  var message = {
-    "msg": "EPCFUI",
-    "paramIdx": paramIdx,
-  };
-  
-  IPlugSendMsg(message);
-}
-
-function BPCFUI(paramIdx) {
-  var message = {
-    "msg": "BPCFUI",
-    "paramIdx": paramIdx,
-  };
-  
-  IPlugSendMsg(message);
-}
-
-function SPVFUI(paramIdx, value) {
-  var message = {
-    "msg": "SPVFUI",
-    "paramIdx": paramIdx,
-    "value": value
-  };
-
-  IPlugSendMsg(message);
-}
-
-
-/***/ }),
-/* 8 */
+/* 11 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -2165,23 +2646,23 @@ class Form {
   }
 
 /***/ }),
-/* 9 */
+/* 12 */
 /***/ ((module) => {
 
 module.exports = require("child_process");
 
 /***/ }),
-/* 10 */
+/* 13 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const WebSocket = __webpack_require__(11);
+const WebSocket = __webpack_require__(14);
 
-WebSocket.createWebSocketStream = __webpack_require__(31);
-WebSocket.Server = __webpack_require__(32);
-WebSocket.Receiver = __webpack_require__(25);
-WebSocket.Sender = __webpack_require__(28);
+WebSocket.createWebSocketStream = __webpack_require__(34);
+WebSocket.Server = __webpack_require__(35);
+WebSocket.Receiver = __webpack_require__(28);
+WebSocket.Sender = __webpack_require__(31);
 
 WebSocket.WebSocket = WebSocket;
 WebSocket.WebSocketServer = WebSocket.Server;
@@ -2190,25 +2671,25 @@ module.exports = WebSocket;
 
 
 /***/ }),
-/* 11 */
+/* 14 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex|Readable$" }] */
 
 
 
-const EventEmitter = __webpack_require__(12);
-const https = __webpack_require__(13);
-const http = __webpack_require__(14);
-const net = __webpack_require__(15);
-const tls = __webpack_require__(16);
-const { randomBytes, createHash } = __webpack_require__(17);
-const { Duplex, Readable } = __webpack_require__(18);
-const { URL } = __webpack_require__(19);
+const EventEmitter = __webpack_require__(15);
+const https = __webpack_require__(16);
+const http = __webpack_require__(17);
+const net = __webpack_require__(18);
+const tls = __webpack_require__(19);
+const { randomBytes, createHash } = __webpack_require__(20);
+const { Duplex, Readable } = __webpack_require__(21);
+const { URL } = __webpack_require__(22);
 
-const PerMessageDeflate = __webpack_require__(20);
-const Receiver = __webpack_require__(25);
-const Sender = __webpack_require__(28);
+const PerMessageDeflate = __webpack_require__(23);
+const Receiver = __webpack_require__(28);
+const Sender = __webpack_require__(31);
 const {
   BINARY_TYPES,
   EMPTY_BUFFER,
@@ -2218,12 +2699,12 @@ const {
   kStatusCode,
   kWebSocket,
   NOOP
-} = __webpack_require__(23);
+} = __webpack_require__(26);
 const {
   EventTarget: { addEventListener, removeEventListener }
-} = __webpack_require__(29);
-const { format, parse } = __webpack_require__(30);
-const { toBuffer } = __webpack_require__(22);
+} = __webpack_require__(32);
+const { format, parse } = __webpack_require__(33);
+const { toBuffer } = __webpack_require__(25);
 
 const closeTimeout = 30 * 1000;
 const kAborted = Symbol('kAborted');
@@ -3532,64 +4013,64 @@ function socketOnError() {
 
 
 /***/ }),
-/* 12 */
+/* 15 */
 /***/ ((module) => {
 
 module.exports = require("events");
 
 /***/ }),
-/* 13 */
+/* 16 */
 /***/ ((module) => {
 
 module.exports = require("https");
 
 /***/ }),
-/* 14 */
+/* 17 */
 /***/ ((module) => {
 
 module.exports = require("http");
 
 /***/ }),
-/* 15 */
+/* 18 */
 /***/ ((module) => {
 
 module.exports = require("net");
 
 /***/ }),
-/* 16 */
+/* 19 */
 /***/ ((module) => {
 
 module.exports = require("tls");
 
 /***/ }),
-/* 17 */
+/* 20 */
 /***/ ((module) => {
 
 module.exports = require("crypto");
 
 /***/ }),
-/* 18 */
+/* 21 */
 /***/ ((module) => {
 
 module.exports = require("stream");
 
 /***/ }),
-/* 19 */
+/* 22 */
 /***/ ((module) => {
 
 module.exports = require("url");
 
 /***/ }),
-/* 20 */
+/* 23 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const zlib = __webpack_require__(21);
+const zlib = __webpack_require__(24);
 
-const bufferUtil = __webpack_require__(22);
-const Limiter = __webpack_require__(24);
-const { kStatusCode } = __webpack_require__(23);
+const bufferUtil = __webpack_require__(25);
+const Limiter = __webpack_require__(27);
+const { kStatusCode } = __webpack_require__(26);
 
 const FastBuffer = Buffer[Symbol.species];
 const TRAILER = Buffer.from([0x00, 0x00, 0xff, 0xff]);
@@ -4100,18 +4581,18 @@ function inflateOnError(err) {
 
 
 /***/ }),
-/* 21 */
+/* 24 */
 /***/ ((module) => {
 
 module.exports = require("zlib");
 
 /***/ }),
-/* 22 */
+/* 25 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { EMPTY_BUFFER } = __webpack_require__(23);
+const { EMPTY_BUFFER } = __webpack_require__(26);
 
 const FastBuffer = Buffer[Symbol.species];
 
@@ -4243,7 +4724,7 @@ if (!process.env.WS_NO_BUFFER_UTIL) {
 
 
 /***/ }),
-/* 23 */
+/* 26 */
 /***/ ((module) => {
 
 
@@ -4261,7 +4742,7 @@ module.exports = {
 
 
 /***/ }),
-/* 24 */
+/* 27 */
 /***/ ((module) => {
 
 
@@ -4322,22 +4803,22 @@ module.exports = Limiter;
 
 
 /***/ }),
-/* 25 */
+/* 28 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { Writable } = __webpack_require__(18);
+const { Writable } = __webpack_require__(21);
 
-const PerMessageDeflate = __webpack_require__(20);
+const PerMessageDeflate = __webpack_require__(23);
 const {
   BINARY_TYPES,
   EMPTY_BUFFER,
   kStatusCode,
   kWebSocket
-} = __webpack_require__(23);
-const { concat, toArrayBuffer, unmask } = __webpack_require__(22);
-const { isValidStatusCode, isValidUTF8 } = __webpack_require__(26);
+} = __webpack_require__(26);
+const { concat, toArrayBuffer, unmask } = __webpack_require__(25);
+const { isValidStatusCode, isValidUTF8 } = __webpack_require__(29);
 
 const FastBuffer = Buffer[Symbol.species];
 const promise = Promise.resolve();
@@ -5070,12 +5551,12 @@ function throwErrorNextTick(err) {
 
 
 /***/ }),
-/* 26 */
+/* 29 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { isUtf8 } = __webpack_require__(27);
+const { isUtf8 } = __webpack_require__(30);
 
 //
 // Allowed token characters:
@@ -5206,26 +5687,26 @@ if (isUtf8) {
 
 
 /***/ }),
-/* 27 */
+/* 30 */
 /***/ ((module) => {
 
 module.exports = require("buffer");
 
 /***/ }),
-/* 28 */
+/* 31 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex" }] */
 
 
 
-const { Duplex } = __webpack_require__(18);
-const { randomFillSync } = __webpack_require__(17);
+const { Duplex } = __webpack_require__(21);
+const { randomFillSync } = __webpack_require__(20);
 
-const PerMessageDeflate = __webpack_require__(20);
-const { EMPTY_BUFFER } = __webpack_require__(23);
-const { isValidStatusCode } = __webpack_require__(26);
-const { mask: applyMask, toBuffer } = __webpack_require__(22);
+const PerMessageDeflate = __webpack_require__(23);
+const { EMPTY_BUFFER } = __webpack_require__(26);
+const { isValidStatusCode } = __webpack_require__(29);
+const { mask: applyMask, toBuffer } = __webpack_require__(25);
 
 const kByteLength = Symbol('kByteLength');
 const maskBuffer = Buffer.alloc(4);
@@ -5695,12 +6176,12 @@ module.exports = Sender;
 
 
 /***/ }),
-/* 29 */
+/* 32 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { kForOnEventAttribute, kListener } = __webpack_require__(23);
+const { kForOnEventAttribute, kListener } = __webpack_require__(26);
 
 const kCode = Symbol('kCode');
 const kData = Symbol('kData');
@@ -5993,12 +6474,12 @@ function callListener(listener, thisArg, event) {
 
 
 /***/ }),
-/* 30 */
+/* 33 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { tokenChars } = __webpack_require__(26);
+const { tokenChars } = __webpack_require__(29);
 
 /**
  * Adds an offer to the map of extension offers or a parameter to the map of
@@ -6202,12 +6683,12 @@ module.exports = { format, parse };
 
 
 /***/ }),
-/* 31 */
+/* 34 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { Duplex } = __webpack_require__(18);
+const { Duplex } = __webpack_require__(21);
 
 /**
  * Emits the `'close'` event on a stream.
@@ -6367,23 +6848,23 @@ module.exports = createWebSocketStream;
 
 
 /***/ }),
-/* 32 */
+/* 35 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex$" }] */
 
 
 
-const EventEmitter = __webpack_require__(12);
-const http = __webpack_require__(14);
-const { Duplex } = __webpack_require__(18);
-const { createHash } = __webpack_require__(17);
+const EventEmitter = __webpack_require__(15);
+const http = __webpack_require__(17);
+const { Duplex } = __webpack_require__(21);
+const { createHash } = __webpack_require__(20);
 
-const extension = __webpack_require__(30);
-const PerMessageDeflate = __webpack_require__(20);
-const subprotocol = __webpack_require__(33);
-const WebSocket = __webpack_require__(11);
-const { GUID, kWebSocket } = __webpack_require__(23);
+const extension = __webpack_require__(33);
+const PerMessageDeflate = __webpack_require__(23);
+const subprotocol = __webpack_require__(36);
+const WebSocket = __webpack_require__(14);
+const { GUID, kWebSocket } = __webpack_require__(26);
 
 const keyRegex = /^[+/0-9A-Za-z]{22}==$/;
 
@@ -6912,12 +7393,12 @@ function abortHandshakeOrEmitwsClientError(server, req, socket, code, message) {
 
 
 /***/ }),
-/* 33 */
+/* 36 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { tokenChars } = __webpack_require__(26);
+const { tokenChars } = __webpack_require__(29);
 
 /**
  * Parses the `Sec-WebSocket-Protocol` header into a set of subprotocol names.
@@ -6977,480 +7458,6 @@ function parse(header) {
 }
 
 module.exports = { parse };
-
-
-/***/ }),
-/* 34 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   Button: () => (/* binding */ Button)
-/* harmony export */ });
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
-
-
-class Button {
-  constructor() {
-    this.props = {
-      "top": 10, // Top position of the button
-      "left": 10, // Left position of the button
-      "width": 80, // Width of the button
-      "height": 20, // Height of the button
-      "channel": "button", // Unique identifier for the button
-      "corners": 2, // Radius of the corners of the button rectangle
-      "min": 0, // Minimum value for the button (for sliders)
-      "max": 1, // Maximum value for the button (for sliders)
-      "value": 0, // Current value of the button (for sliders)
-      "default": 0, // Default value of the button
-      "index": 0, // Index of the button
-      "textOn": "On", // Text displayed when button is in the 'On' state
-      "textOff": "Off", // Text displayed when button is in the 'Off' state
-      "fontFamily": "Verdana", // Font family for the text
-      "fontSize": 0, // Font size for the text (0 for automatic)
-      "align": "centre", // Text alignment within the button (left, center, right)
-      "colourOn": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the button in the 'On' state
-      "colourOff": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the button in the 'Off' state
-      "fontColourOn": "#dddddd", // Color of the text in the 'On' state
-      "fontColourOff": "#dddddd", // Color of the text in the 'Off' state
-      "outlineColour": "#dddddd", // Color of the outline
-      "outlineWidth": 2, // Width of the outline
-      "name": "", // Name of the button
-      "type": "button", // Type of the button (button)
-      "visible": 1, // Visibility of the button (0 for hidden, 1 for visible)
-      "automatable": 1, // Whether the button value can be automated (0 for no, 1 for yes)
-      "presetIgnore": 0 // Whether the button should be ignored in presets (0 for no, 1 for yes)
-  };
-  
-
-    this.panelSections = {
-      "Info": ["type", "channel"],
-      "Bounds": ["left", "top", "width", "height"],
-      "Text": ["textOn", "textOff", "fontSize", "fontFamily", "fontColourOn", "fontColourOff", "align"], // Changed from textOffsetY to textOffsetX for vertical slider
-      "Colours": ["colourOn", "colourOff", "outlineColour"]
-    };
-
-    this.vscode = null;
-    this.isMouseDown = false;
-    this.isMouseInside = false;
-    this.state = false;
-  }
-
-  pointerUp() {
-    if (this.props.active === 0) {
-      return '';
-    }
-    this.isMouseDown = false;
-  }
-
-  pointerDown(evt) {
-    if (this.props.active === 0) {
-      return '';
-    }
-    this.isMouseDown = true;
-    this.state =! this.state;
-    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-  }
-
-
-  pointerEnter(evt) {
-    if (this.props.active === 0) {
-      return '';
-    }
-    this.isMouseOver = true;
-    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-  }
-
-
-  pointerLeave(evt) {
-    if (this.props.active === 0) {
-      return '';
-    }
-    this.isMouseOver = false;
-    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-  }
-
-  //adding this at the window level to check if the mouse is inside the widget
-  handleMouseMove(evt) {
-    const rect = document.getElementById(this.props.channel).getBoundingClientRect();
-    const isInside = (
-      evt.clientX >= rect.left &&
-      evt.clientX <= rect.right &&
-      evt.clientY >= rect.top &&
-      evt.clientY <= rect.bottom
-    );
-
-    if (!isInside) {
-      this.isMouseInside = false;
-    } else {
-      this.isMouseInside = true;
-    }
-
-    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-  }
-
-
-  addVsCodeEventListeners(widgetDiv, vs) {
-    this.vscode = vs;
-    widgetDiv.addEventListener("pointerdown", this.pointerUp.bind(this));
-    widgetDiv.addEventListener("pointerup", this.pointerDown.bind(this));
-    window.addEventListener("mousemove", this.handleMouseMove.bind(this));
-    widgetDiv.VerticalSliderInstance = this;
-  }
-
-  addEventListeners(widgetDiv) {
-    widgetDiv.addEventListener("pointerup", this.pointerUp.bind(this));
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
-    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
-    widgetDiv.VerticalSliderInstance = this;
-  }
-
-  getInnerHTML() {
-    if (this.props.visible === 0) {
-      return '';
-    }
-  
-    const alignMap = {
-      'left': 'start',
-      'center': 'middle',
-      'centre': 'middle',
-      'right': 'end',
-    };
-  
-    const svgAlign = alignMap[this.props.align] || this.props.align;
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
-    const padding = 5;
-  
-    let textX;
-    if (this.props.align === 'left') {
-      textX = this.props.corners; // Add padding for left alignment
-    } else if (this.props.align === 'right') {
-      textX = this.props.width - this.props.corners - padding; // Add padding for right alignment
-    } else {
-      textX = this.props.width / 2;
-    }
-  
-    const currentColour = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.state ? this.props.colourOn : this.props.colourOff, this.isMouseInside ? 0.2 : 0);
-    return `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-          <rect x="${this.props.corners/2}" y="${this.props.corners/2}" width="${this.props.width-this.props.corners*2}" height="${this.props.height-this.props.corners*2}" fill="${currentColour}" stroke="${this.props.outlineColour}"
-            stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
-          <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
-            fill="${this.state ? this.props.fontColourOn : this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${this.state ? this.props.textOn : this.props.textOff}</text>
-      </svg>
-    `;
-  }
-  
-  
-}
-
-
-/***/ }),
-/* 35 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   Checkbox: () => (/* binding */ Checkbox)
-/* harmony export */ });
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
-
-
-class Checkbox {
-  constructor() {
-    this.props = {
-        "top": 10, // Top position of the checkbox
-        "left": 10, // Left position of the checkbox
-        "width": 100, // Width of the checkbox
-        "height": 30, // Height of the checkbox
-        "channel": "checkbox", // Unique identifier for the checkbox
-        "corners": 2, // Radius of the corners of the checkbox rectangle
-        "min": 0, // Minimum value for the checkbox (for sliders)
-        "max": 1, // Maximum value for the checkbox (for sliders)
-        "value": 0, // Current value of the checkbox (for sliders)
-        "default": 0, // Default value of the checkbox
-        "index": 0, // Index of the checkbox
-        "text": "On/Off", // Text displayed next to the checkbox
-        "fontFamily": "Verdana", // Font family for the text
-        "fontColour": "#dddddd", // Color of the text
-        "fontSize": 14, // Font size for the text
-        "align": "left", // Text alignment within the checkbox (left, center, right)
-        "colourOn": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("green"), // Background color of the checkbox in the 'On' state
-        "colourOff": "#ffffff", // Background color of the checkbox in the 'Off' state
-        "fontColourOn": "#dddddd", // Color of the text in the 'On' state
-        "fontColourOff": "#000000", // Color of the text in the 'Off' state
-        "outlineColour": "#999999", // Color of the outline
-        "outlineWidth": 1, // Width of the outline
-        "type": "checkbox", // Type of the checkbox (checkbox)
-        "visible": 1, // Visibility of the checkbox (0 for hidden, 1 for visible)
-        "automatable": 1, // Whether the checkbox value can be automated (0 for no, 1 for yes)
-        "presetIgnore": 0 // Whether the checkbox should be ignored in presets (0 for no, 1 for yes)
-    };
-    
-    this.panelSections = {
-        "Info": ["type", "channel"],
-        "Bounds": ["left", "top", "width", "height"],
-        "Text": ["text", "fontSize", "fontFamily", "fontColour", "align"], // Changed from textOffsetY to textOffsetX for vertical slider
-        "Colours": ["colourOn", "colourOff", "outlineColour"]
-      };
-
-    this.vscode = null;
-    this.isChecked = false;
-  }
-
-  toggle() {
-    if (this.props.active === 0) {
-      return '';
-    }
-    this.isChecked = !this.isChecked;
-    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-  }
-
-
-
-  pointerDown(evt) {
-    this.toggle();
-  }
-
-  addVsCodeEventListeners(widgetDiv, vscode) {
-    this.vscode = vscode;
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.VerticalSliderInstance = this;
-  }
-
-  addEventListeners(widgetDiv) {
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.VerticalSliderInstance = this;
-  }
-
-  getInnerHTML() {
-    if (this.props.visible === 0) {
-      return '';
-    }
-  
-    const alignMap = {
-      'left': 'start',
-      'center': 'middle',
-      'centre': 'middle',
-      'right': 'end',
-    };
-  
-    const svgAlign = alignMap[this.props.align] || this.props.align;
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
-  
-    const checkboxSize = this.props.height * 0.8;
-    const checkboxX = this.props.align === 'right' ? this.props.width - checkboxSize - this.props.corners : this.props.corners;
-    const textX = this.props.align === 'right' ? checkboxX - 10 : checkboxX + checkboxSize + 10; // Add more padding to prevent overlap
-  
-    const adjustedTextAnchor = this.props.align === 'right' ? 'end' : 'start';
-  
-    return `
-      <svg id="${this.props.channel}-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-        <rect x="${checkboxX}" y="${(this.props.height - checkboxSize) / 2}" width="${checkboxSize}" height="${checkboxSize}" fill="${this.isChecked ? this.props.colourOn : this.props.colourOff}" stroke="${this.props.outlineColour}" stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
-        <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}" fill="${this.props.fontColour}" text-anchor="${adjustedTextAnchor}" alignment-baseline="middle">${this.props.text}</text>
-      </svg>
-    `;
-  }
-  
-}
-
-
-/***/ }),
-/* 36 */,
-/* 37 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   ComboBox: () => (/* binding */ ComboBox)
-/* harmony export */ });
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
-
-
-class ComboBox {
-    constructor() {
-        this.props = {
-            "top": 10, // Top position of the widget
-            "left": 10, // Left position of the widget
-            "width": 150, // Width of the widget
-            "height": 30, // Height of the widget
-            "channel": "comboBox", // Unique identifier for the widget
-            "corners": 4, // Radius of the corners of the widget rectangle
-            "defaultValue": 0, // Default value index for the dropdown items
-            "fontFamily": "Verdana", // Font family for the text
-            "fontSize": 14, // Font size for the text
-            "align": "center", // Text alignment within the widget (left, center, right)
-            "colour": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the widget
-            "items": "One, Two, Three", // List of items for the dropdown
-            "text": "Select", // Default text displayed when no item is selected
-            "fontColour": "#dddddd", // Color of the text
-            "outlineColour": "#dddddd", // Color of the outline
-            "outlineWidth": 2, // Width of the outline
-            "visible": 1, // Visibility of the widget (0 for hidden, 1 for visible)
-            "type": "combobox" // Type of the widget (combobox)
-        };
-        
-
-        this.panelSections = {
-            "Properties": ["type"],
-            "Bounds": ["top", "left", "width", "height"],
-            "Text": ["text", "items", "fontFamily", "align", "fontSize", "fontColour"],
-            "Colours": ["colour", "outlineColour"]
-        };
-
-        this.isMouseInside = false;
-        this.isOpen = false;
-        this.selectedItem = this.props.value > 0 ? this.items[this.props.defaultValue] : this.props.text;
-
-        this.vscode = null;
-    }
-
-    pointerDown(evt) {
-        if (this.props.active === 0) {
-            return '';
-        }
-        console.log("Pointer down");
-        this.isOpen = !this.isOpen;
-        this.isMouseInside = true;
-        _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-
-        if (this.firstOpen) {
-            this.isOpen = true;
-            this.firstOpen = false; // Update the flag after the first open
-        } else {
-            // Check if the event target is a dropdown item
-            const selectedItem = evt.target.getAttribute("data-item");
-            if (selectedItem) {
-                console.log("Item clicked:", selectedItem);
-                this.selectedItem = selectedItem;
-                this.isOpen = false;
-                const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
-                widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
-                _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-            }
-        }
-    }
-
-    addVsCodeEventListeners(widgetDiv, vs) {
-        this.vscode = vs;
-        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-        document.body.addEventListener("click", this.handleClickOutside.bind(this));
-        widgetDiv.ComboBoxInstance = this;
-    }
-
-    handleClickOutside(event) {
-        // Get the widget div
-        const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
-    
-        // Check if the target of the click event is outside of the widget div
-        if (!widgetDiv.contains(event.target)) {
-            // Close the dropdown menu
-            this.isOpen = false;
-            // Update the HTML
-            const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
-                widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
-                _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-        }
-    }
-
-    getInnerHTML() {
-        if (this.props.visible === 0) {
-            return '';
-        }
-    
-        const alignMap = {
-            'left': 'start',
-            'center': 'middle',
-            'centre': 'middle',
-            'right': 'end',
-        };
-    
-        const svgAlign = alignMap[this.props.align] || this.props.align;
-        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
-    
-        let totalHeight = this.props.height;
-        const itemHeight = this.props.height * 0.8; // Scale back item height to 80% of the original height
-        if (this.isOpen) {
-            const items = this.props.items.split(",");
-            totalHeight += items.length * itemHeight;
-    
-            // Check if the dropdown will be off the bottom of the screen
-            const mainForm = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv("MainForm");
-            const widgetDiv = mainForm.querySelector(`#${this.props.channel}`);
-            const widgetRect = widgetDiv.getBoundingClientRect();
-            const mainFormRect = mainForm.getBoundingClientRect();
-            const spaceBelow = mainFormRect.bottom - widgetRect.bottom;
-    
-            if (spaceBelow < totalHeight) {
-                const adjustment = totalHeight - this.props.height * 2; // Adding 10px for some padding
-                const currentTopValue = parseInt(widgetDiv.style.top, 10) || this.props.top; // Use props.top if style.top is not set
-                const newTopValue = currentTopValue - adjustment;
-                widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + newTopValue + 'px)';
-            }
-        }
-    
-        let dropdownItems = "";
-        if (this.isOpen) {
-            const items = this.props.items.split(",");
-            items.forEach((item, index) => {
-                dropdownItems += `
-                    <rect x="0" y="${index * itemHeight}" width="${this.props.width}" height="${itemHeight}"
-                        fill="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}" rx="0" ry="0"
-                        style="cursor: pointer;" pointer-events="all" data-item="${item}"
-                        onmouseover="this.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.brighter(this.props.colour, 0.2)}')"
-                        onmouseout="this.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}')"></rect>
-                    <text x="${(this.props.width - this.props.corners / 2) / 2}" y="${(index + 1) * itemHeight - itemHeight / 2}"
-                        font-family="${this.props.fontFamily}" font-size="${this.props.fontSize}" fill="${this.props.fontColour}"
-                        text-anchor="middle" alignment-baseline="middle" data-item="${item}"
-                        style="cursor: pointer;" pointer-events="all"
-                        onmouseover="this.previousElementSibling.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.brighter(this.props.colour, 0.2)}')"
-                        onmouseout="this.previousElementSibling.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}')"
-                        onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.handleItemClick('${item}')">${item}</text>
-                `;
-            });
-        }
-    
-        // Adjusting the position of the arrow
-        const arrowWidth = 10; // Width of the arrow
-        const arrowHeight = 6; // Height of the arrow
-        const arrowX = this.props.width - arrowWidth - this.props.corners / 2 - 10; // Decreasing arrowX value to move the arrow more to the left
-        const arrowY = (this.props.height - arrowHeight) / 2; // Y-coordinate of the arrow
-    
-        // Positioning the selected item text within the main rectangle
-        let selectedItemTextX;
-        if (svgAlign === 'middle') {
-            selectedItemTextX = (this.props.width - arrowWidth - this.props.corners / 2) / 2;
-        } else {
-            const selectedItemWidth = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.selectedItem, this.props);
-            const textPadding = svgAlign === 'start' ? - this.props.width * .1 : - this.props.width * .05;
-            selectedItemTextX = svgAlign === 'start' ? (this.props.width - this.props.corners / 2) / 2 - selectedItemWidth / 2 + textPadding : (this.props.width - this.props.corners / 2) / 2 + selectedItemWidth / 2 + textPadding;
-        }
-        const selectedItemTextY = this.props.height / 2;
-    
-        return `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${totalHeight}" width="${this.props.width}" height="${totalHeight}" preserveAspectRatio="none">
-                <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners * 2}" fill="${this.props.colour}" stroke="${this.props.outlineColour}"
-                    stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}" 
-                    style="cursor: pointer;" pointer-events="all" 
-                    onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.pointerDown()"></rect>
-                ${dropdownItems}
-                <polygon points="${arrowX},${arrowY} ${arrowX + arrowWidth},${arrowY} ${arrowX + arrowWidth / 2},${arrowY + arrowHeight}"
-                    fill="${this.props.outlineColour}" style="${this.isOpen ? 'display: none;' : ''} pointer-events: none;"/>
-                <text x="${selectedItemTextX}" y="${selectedItemTextY}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
-                    fill="${this.props.fontColour}" text-anchor="${svgAlign}" alignment-baseline="middle" style="${this.isOpen ? 'display: none;' : ''}"
-                    style="pointer-events: none;">${this.selectedItem}</text>
-            </svg>
-        `;
-    }
-    
-
-
-
-
-
-
-}
 
 
 /***/ })
