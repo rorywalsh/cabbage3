@@ -11,7 +11,7 @@ export class VerticalSlider {
       "min": 0, // Minimum value of the slider
       "max": 1, // Maximum value of the slider
       "value": 0, // Current value of the slider
-      "default": 0, // Default value of the slider
+      "defaultValue": 0, // Default value of the slider
       "skew": 1, // Skew factor for the slider
       "increment": 0.001, // Incremental value change per step
       "index": 0, // Index of the slider

@@ -8,11 +8,16 @@ import { Checkbox } from "./checkbox.js";
 import { ComboBox } from "./comboBox.js";
 import { Label } from "./label.js";
 import { MidiKeyboard } from "./midiKeyboard.js";
-
 import { PropertyPanel } from "./propertyPanel.js";
-import { CabbageUtils } from "./utils.js";
+import { CabbageUtils, CabbageTestUtilities } from "./utils.js";
 
-console.log("main.js")
+
+CabbageTestUtilities.generateIdentifierTestCsd([new Form(), new RotarySlider(), new ComboBox(), new Button(), new Checkbox(), new Label(), 
+  new HorizontalSlider(), new VerticalSlider(), new MidiKeyboard()]); // This will generate a test CSD file with the widgets
+
+
+
+
 
 let vscode = null;
 let widgetWrappers = null;
@@ -52,7 +57,6 @@ CabbageUtils.showOverlay();
  */
 window.addEventListener('message', event => {
   const message = event.data;
-  console.log("event listener");
   switch (message.command) {
     case 'onFileChanged':
       CabbageUtils.hideOverlay();
@@ -129,6 +133,7 @@ const contextMenu = document.querySelector(".wrapper");
 if (typeof acquireVsCodeApi === 'function') {
   let mouseDownPosition = {};
   form.addEventListener("contextmenu", e => {
+    console.log("context menu");
     e.preventDefault();
     let x = e.offsetX, y = e.offsetY,
       winWidth = window.innerWidth,
@@ -144,6 +149,7 @@ if (typeof acquireVsCodeApi === 'function') {
     mouseDownPosition = { x: x, y: y };
     if (cabbageMode === 'draggable')
       contextMenu.style.visibility = "visible";
+
   });
   document.addEventListener("click", () => contextMenu.style.visibility = "hidden");
 
@@ -161,7 +167,6 @@ if (typeof acquireVsCodeApi === 'function') {
         const type = e.target.innerHTML.replace(/(<([^>]+)>)/ig);
 
         const channel = CabbageUtils.getUniqueChannelName(type, widgets);
-        console.log("channel", channel)
         const w = await insertWidget(type, { channel: channel, top: mouseDownPosition.y - 20, left: mouseDownPosition.x - 20 });
         if (widgets) {
           //update text editor with last added widget
@@ -391,7 +396,6 @@ async function insertWidget(type, props) {
       if (!vscode)
         vscode = acquireVsCodeApi();
 
-      console.log('adding listeners');
       widget.addVsCodeEventListeners(widgetDiv, vscode);
     }
     else
@@ -399,7 +403,7 @@ async function insertWidget(type, props) {
   }
 
   widgetDiv.id = widget.props.channel;
-  console.log("widgetDiv.id", widgetDiv.id)
+
   widgetDiv.innerHTML = widget.getInnerHTML();
   if (form) {
     form.appendChild(widgetDiv);

@@ -20,8 +20,25 @@
 #include <plugin.h>
 #include "CabbageSetOpcodes.h"
 
-struct CabbageGetValue : csnd::InPlug<2>
+struct CabbageGetValue : csnd::Plugin<1, 1>
 {
-    int init() { return 1;     };
-    int kperf() { return 1;    };
+    MYFLT* value;
+    int init() { return getValue(CabbageOpcodeData::PassType::Init);    };
+    int kperf() { return getValue(CabbageOpcodeData::PassType::Perf);   };
+    int getValue(int init);
+};
+
+
+struct CabbageGetMYFLT : csnd::Plugin<1, 1>
+{
+    int init() { return getIdentifier(CabbageOpcodeData::PassType::Init);    };
+    int kperf() { return getIdentifier(CabbageOpcodeData::PassType::Perf);   };
+    int getIdentifier(int init);
+};
+
+struct CabbageGetString : csnd::Plugin<1, 2>, CabbageOpcodes<2>
+{    
+    int init() { return getIdentifier(CabbageOpcodeData::PassType::Init);    };
+    int kperf() { return getIdentifier(CabbageOpcodeData::PassType::Perf);   };
+    int getIdentifier(int init);
 };

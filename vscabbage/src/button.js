@@ -12,7 +12,7 @@ export class Button {
       "min": 0, // Minimum value for the button (for sliders)
       "max": 1, // Maximum value for the button (for sliders)
       "value": 0, // Current value of the button (for sliders)
-      "default": 0, // Default value of the button
+      "defaultValue": 0, // Default value of the button
       "index": 0, // Index of the button
       "textOn": "On", // Text displayed when button is in the 'On' state
       "textOff": "Off", // Text displayed when button is in the 'Off' state

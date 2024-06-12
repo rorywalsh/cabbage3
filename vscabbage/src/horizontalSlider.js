@@ -15,7 +15,7 @@ export class HorizontalSlider {
       "min": 0, // Minimum value of the slider
       "max": 1, // Maximum value of the slider
       "value": 0, // Current value of the slider
-      "default": 0, // Default value of the slider
+      "defaultValue": 0, // Default value of the slider
       "skew": 1, // Skew factor for the slider (for non-linear scales)
       "increment": 0.001, // Value increment/decrement when moving the slider
       "index": 0, // Index of the slider

@@ -33,8 +33,13 @@ int Cabbage::getNumberOfParameters(const std::string& csdFile)
 void Cabbage::addOpcodes()
 {
     csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Sk", csnd::thread::k);
-    csnd::plugin<CabbageSetIdentifier>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSS", csnd::thread::ik);
-    
+    csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Si", csnd::thread::i);
+    csnd::plugin<CabbageSet>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSS", csnd::thread::ik);
+    csnd::plugin<CabbageSet>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "SS", csnd::thread::i);
+    csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
+    csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "i", "S", csnd::thread::i);
+    csnd::plugin<CabbageGetMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "k", "SS", csnd::thread::ik);
+    csnd::plugin<CabbageGetString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "S", "SS", csnd::thread::i);
 }
 
 bool Cabbage::setupCsound()
@@ -119,7 +124,14 @@ bool Cabbage::setupCsound()
                 }
             }
         }
-                
+               
+        auto** wd = reinterpret_cast<std::vector<nlohmann::json>**>(getCsound()->QueryGlobalVariable("cabbageWidgetData"));
+        if (wd == nullptr) {
+            getCsound()->CreateGlobalVariable("cabbageWidgetData", sizeof(std::vector<nlohmann::json>*));
+            wd = (std::vector<nlohmann::json>**)getCsound()->QueryGlobalVariable("cabbageWidgetData");
+            *wd = &widgets;
+        }
+
                 
         return true;
     }

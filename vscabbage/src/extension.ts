@@ -19,6 +19,8 @@ import { Label } from "./label.js";
 // @ts-ignore
 import { MidiKeyboard } from "./midiKeyboard.js";
 // @ts-ignore
+import { CabbageUtils } from "./utils.js";
+// @ts-ignore
 import { Form } from "./form.js";
 import * as cp from "child_process";
 
@@ -27,6 +29,11 @@ let output: vscode.OutputChannel;
 let panel: vscode.WebviewPanel | undefined = undefined;
 
 import WebSocket from 'ws';
+interface TokenObject {
+    token: string;
+	values: string[];
+    // Add other properties if necessary
+}
 
 const wss = new WebSocket.Server({ port: 9991 });
 let websocket: WebSocket;
@@ -231,95 +238,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 }
 
-/**
- * This uses a simple regex pattern to get tokens from a line of Cabbage code
- */
-function getTokens(text: string) {
-	const inputString = text
-	const regex = /(\w+)\(([^)]+)\)/g;
-	const tokens = [];
-	let match;
-	while ((match = regex.exec(inputString)) !== null) {
-		const token = match[1];
-		const values = match[2].split(',').map(value => value.trim()); // Split values into an array
-		tokens.push({ token, values });
-	}
-	return tokens;
-}
-
-/**
- * This function will return an identifier in the form of ident(param) from an incoming
- * JSON object of properties
- */
-function getIdentifierFromJson(json: string, name: string): string {
-	const obj = JSON.parse(json);
-	let syntax = '';
-
-	if (name === 'range' && obj['type'].indexOf('slider') > -1) {
-		const { min, max, defaultValue, skew, increment } = obj;
-		syntax = `range(${min}, ${max}, ${defaultValue}, ${skew}, ${increment})`;
-		return syntax;
-	}
-
-	for (const key in obj) {
-		if (obj.hasOwnProperty(key) && key === name) {
-			const value = obj[key];
-			// Check if value is string and if so, wrap it in single quotes
-			const formattedValue = typeof value === 'string' ? `"${value}"` : value;
-			syntax += `${key}(${formattedValue}), `;
-		}
-	}
-	// Remove the trailing comma and space
-	syntax = syntax.slice(0, -2);
-	return syntax;
-}
-
-/**
- * This function will check the current widget props against the default set, and return an 
- * array for any identifiers that are different to their default values - this only returns the identifiers
- * that need updating, not their parameters..
- */
-function findUpdatedIdentifiers(initial: string, current: string) {
-	const initialWidgetObj = JSON.parse(initial);
-	const currentWidgetObj = JSON.parse(current);
-
-	var updatedIdentifiers = [];
-
-	// Iterate over the keys of obj1
-	for (var key in initialWidgetObj) {
-		// Check if obj2 has the same key
-		if (currentWidgetObj.hasOwnProperty(key)) {
-			// Compare the values of the keys
-			if (initialWidgetObj[key] !== currentWidgetObj[key]) {
-				// If values are different, add the key to the differentKeys array
-				updatedIdentifiers.push(key);
-			}
-		} else {
-			// If obj2 doesn't have the key from obj1, add it to differentKeys array
-			updatedIdentifiers.push(key);
-		}
-	}
-
-	// Iterate over the keys of obj2 to find any keys not present in obj1
-	for (var key in currentWidgetObj) {
-		if (!initialWidgetObj.hasOwnProperty(key)) {
-			// Add the key to differentKeys array
-			updatedIdentifiers.push(key);
-		}
-	}
-
-
-	if (currentWidgetObj['type'].indexOf('slider') > -1) {
-		updatedIdentifiers.push('min');
-		updatedIdentifiers.push('max');
-		updatedIdentifiers.push('value');
-		updatedIdentifiers.push('skew');
-		updatedIdentifiers.push('increment');
-
-	}
-
-	return updatedIdentifiers;
-}
 
 /**
  * This function will update the text associated with a widget
@@ -378,7 +296,7 @@ async function updateText(jsonText: string) {
 				let foundChannel = false;
 				let lines = document.getText().split(/\r?\n/);
 				for (let i = 0; i < lines.length; i++) {
-					let tokens = getTokens(lines[i]);
+					const tokens: TokenObject[] = CabbageUtils.getTokens(lines[i]);
 
 					const index = tokens.findIndex(({ token }) => token === 'channel');
 
@@ -387,8 +305,8 @@ async function updateText(jsonText: string) {
 						if (channel == props.channel) {
 							foundChannel = true;
 							//found entry - now update bounds
-							const updatedIdentifiers = findUpdatedIdentifiers(JSON.stringify(defaultProps), jsonText);
-							updatedIdentifiers.forEach((ident) => {
+							const updatedIdentifiers = CabbageUtils.findUpdatedIdentifiers(JSON.stringify(defaultProps), jsonText);
+							updatedIdentifiers.forEach((ident: string) => {
 								// Only want to display user-accessible identifiers...
 								if (!internalIdentifiers.includes(ident)) {
 									const newIndex = tokens.findIndex(({ token }) => token === ident);
@@ -446,10 +364,10 @@ async function updateText(jsonText: string) {
 
 				//this is called when we create a widgets from the popup menu in the UI builder
 				if (!foundChannel && props.type != "form") {
-					let newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${getIdentifierFromJson(jsonText, "channel")}`;
+					let newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${CabbageUtils.getCabbageCodeFromJSON(jsonText, "channel")}`;
 
 					if (props.type.indexOf('slider') > -1) {
-						newLine += ` ${getIdentifierFromJson(jsonText, "range")}`
+						newLine += ` ${CabbageUtils.getCabbageCodeFromJSON(jsonText, "range")}`
 					}
 
 					editBuilder.insert(new vscode.Position(lineNumber, 0), newLine + '\n');

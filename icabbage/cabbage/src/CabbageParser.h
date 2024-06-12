@@ -88,7 +88,8 @@ public:
             else if (tokens[i].name == "text")
             {
     //            std::string text = tokens[++i];
-    //            jsonObj["text"] = text;
+                std::cout << tokens[i].stringArgs[0] << std::endl;
+                jsonObj["text"] = tokens[i].stringArgs[0];
             }
             else if (tokens[i].name == "channel")
             {
@@ -146,16 +147,20 @@ public:
     {
         std::vector<CabbageParser::Identifier> identifiers;
 
+        // Replace all occurrences of \" with "
+        std::string sanitizedSyntax = syntax;
+        std::replace(sanitizedSyntax.begin(), sanitizedSyntax.end(), '\\', '\"');
+
         // Regular expressions for different parts of the syntax
         std::regex identifierRegex("\\s*([a-zA-Z]+)\\s*\\(([^)]*)\\)");
         std::regex numericArgRegex("-?\\d*\\.?\\d+");
         std::regex stringArgRegex("\"([^\"]*)\"");
 
         std::smatch match;
-        std::string::const_iterator searchStart(syntax.cbegin());
+        std::string::const_iterator searchStart(sanitizedSyntax.cbegin());
 
-        // Find all identifiers in the syntax
-        while (std::regex_search(searchStart, syntax.cend(), match, identifierRegex)) {
+        // Find all identifiers in the sanitized syntax
+        while (std::regex_search(searchStart, sanitizedSyntax.cend(), match, identifierRegex)) {
             Identifier identifier;
             identifier.name = match[1].str();
 
@@ -173,13 +178,10 @@ public:
             while (strArgIter != end) {
                 StringArgument strArg;
                 std::string strArgValue = strArgIter->str();
-                // Remove quotes and split by whitespace
-                std::istringstream iss(strArgValue);
-                std::string token;
-                while (iss >> token) {
-                    identifier.stringArgs.push_back(token);
-                    ++strArgIter;
-                }
+                // Remove quotes
+                strArgValue.erase(std::remove(strArgValue.begin(), strArgValue.end(), '\"'), strArgValue.end());
+                identifier.stringArgs.push_back(strArgValue);
+                ++strArgIter;
             }
 
             identifiers.push_back(identifier);

@@ -9,7 +9,10 @@
 
 #include <readerwriterqueue.h>
 #include <plugin.h>
+#include "json.hpp"
 
+#define IS_OK 0
+#define NOT_OK 1
 
 struct CabbageOpcodeData
 {
@@ -26,7 +29,7 @@ struct CabbageOpcodeData
     
     
     
-    std::string identifier = {};
+    std::string identifierText = {};
     std::string channel = {};
     std::vector<float> numericData;
     std::vector<std::string> stringData;
@@ -35,36 +38,48 @@ struct CabbageOpcodeData
 
 };
 
-template <std::size_t N>
+template <std::size_t NumInputParams>
 struct CabbageOpcodes
 {
-    moodycamel::ReaderWriterQueue<CabbageOpcodeData>** vt = nullptr;
+    moodycamel::ReaderWriterQueue<CabbageOpcodeData>** od = nullptr;
     moodycamel::ReaderWriterQueue<CabbageOpcodeData> queue;
+    std::vector<nlohmann::json>** wd = nullptr;
     char* name = NULL;
     char* identifier = NULL;
     MYFLT* value = {};
     MYFLT lastValue = 0;
     MYFLT* str = {};
-    int IS_OK = 0;
-    int NOT_OK = -1;
-    
         
-    static moodycamel::ReaderWriterQueue<CabbageOpcodeData>* getGlobalvariable(csnd::Csound* csound, moodycamel::ReaderWriterQueue<CabbageOpcodeData>** vt)
+    static std::vector<nlohmann::json>* getWidgetDataGlobalvariable(csnd::Csound* csound, std::vector<nlohmann::json>** wd)
     {
-        if (vt != nullptr)
+        if (wd != nullptr)
         {
-            return *vt;
+            return *wd;
+        }
+        else
+        {
+            csound->create_global_variable("cabbageWidgetData", sizeof(std::vector<nlohmann::json>*));
+            wd = (std::vector<nlohmann::json>**)csound->query_global_variable("cabbageWidgetData");
+            return *wd;
+        }
+    }
+    
+    static moodycamel::ReaderWriterQueue<CabbageOpcodeData>* getOpcodeDataGlobalvariable(csnd::Csound* csound, moodycamel::ReaderWriterQueue<CabbageOpcodeData>** od)
+    {
+        if (od != nullptr)
+        {
+            return *od;
         }
         else
         {
             csound->create_global_variable("cabbageOpcodeData", sizeof(moodycamel::ReaderWriterQueue<CabbageOpcodeData>*));
-            vt = (moodycamel::ReaderWriterQueue<CabbageOpcodeData>**)csound->query_global_variable("cabbageOpcodeData");
-            *vt = new moodycamel::ReaderWriterQueue<CabbageOpcodeData>(100);
-            return *vt;
+            od = (moodycamel::ReaderWriterQueue<CabbageOpcodeData>**)csound->query_global_variable("cabbageOpcodeData");
+            *od = new moodycamel::ReaderWriterQueue<CabbageOpcodeData>(100);
+            return *od;
         }
     }
     
-    CabbageOpcodeData getValueIdentData(csnd::Param<N>& args, bool init, int nameIndex, int identIndex)
+    CabbageOpcodeData getValueIdentData(csnd::Param<NumInputParams>& args, bool init, int nameIndex, int identIndex)
     {
         CabbageOpcodeData data;
         if(init)
@@ -75,13 +90,13 @@ struct CabbageOpcodes
                 name = args.str_data(nameIndex).data;
         }
 
-        data.identifier = "value";
+        data.identifierText = "value";
         data.channel = name;
         return data;
     }
     
 
-    CabbageOpcodeData getIdentData(csnd::Param<N>& args, bool init, int nameIndex, int identIndex)
+    CabbageOpcodeData getIdentData(csnd::Param<NumInputParams>& args, bool init, int nameIndex, int identIndex)
     {
         CabbageOpcodeData data;
         if(init)
@@ -100,7 +115,7 @@ struct CabbageOpcodes
         }
         
         data.channel = name;
-        data.identifier = identifier;
+        data.identifierText = identifier;
 
         return data;
     }

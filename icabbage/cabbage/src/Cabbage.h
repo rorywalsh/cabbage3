@@ -12,6 +12,7 @@
 #include "CabbageUtils.h"
 #include "csound.hpp"
 #include "opcodes/CabbageSetOpcodes.h"
+#include "opcodes/CabbageGetOpcodes.h"
 #include "CabbageParser.h"
 
 

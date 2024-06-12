@@ -337,10 +337,3 @@
 	opacity: 0;
 }
 
-.popup.show {
-	opacity: 1;
-}
-
-.popup.hide {
-	opacity: 0;
-}

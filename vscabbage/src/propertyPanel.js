@@ -1,5 +1,6 @@
 /**
  * PropertyPanel Class. Lightweight component that up updated its innerHTML when properties change.
+ * This make uses of https://taufik-nurrohman.js.org/CP/ for colour pickers
  */
 import { CabbageUtils } from "./utils.js";
 

@@ -45,7 +45,7 @@ std::string log(const httplib::Request& req, const httplib::Response& res) {
 	std::string s;
 	char buf[BUFSIZ];
 
-	s += "================================\n";
+	s += "\n================================\n";
 
 	snprintf(buf, sizeof(buf), "%s %s %s", req.method.c_str(),
 		req.version.c_str(), req.path.c_str());

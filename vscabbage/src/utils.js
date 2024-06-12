@@ -257,7 +257,6 @@ export class CabbageUtils {
   static getStringWidth(text, props, padding = 10) {
     var canvas = document.createElement('canvas');
     let fontSize = 0;
-    console.log('props.type:', props.type);
     switch (props.type) {
 
       case 'hslider':
@@ -309,10 +308,113 @@ export class CabbageUtils {
     return element || null;
   }
 
+  /**
+ * This uses a simple regex pattern to get tokens from a line of Cabbage code
+ */
+  static getTokens(text) {
+    const inputString = text
+    const regex = /(\w+)\(([^)]+)\)/g;
+    const tokens = [];
+    let match;
+    while ((match = regex.exec(inputString)) !== null) {
+      const token = match[1];
+      const values = match[2].split(',').map(value => value.trim()); // Split values into an array
+      tokens.push({ token, values });
+    }
+    return tokens;
+  }
+
+  /**
+   * This function will return an identifier in the form of ident(param) from an incoming
+   * JSON object of properties
+   */
+  static getCabbageCodeFromJson(json, name) {
+    const obj = JSON.parse(json);
+    let syntax = '';
+
+    if (name === 'range' && obj['type'].indexOf('slider') > -1) {
+      const { min, max, defaultValue, skew, increment } = obj;
+      syntax = `range(${min}, ${max}, ${defaultValue}, ${skew}, ${increment})`;
+      return syntax;
+    }
+    if (name === 'bounds') {
+      const { left, top, width, height } = obj;
+      syntax = `bounds(${left}, ${top}, ${width}, ${height})`;
+      return syntax;
+    }
+
+
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key) && key === name) {
+        const value = obj[key];
+        // Check if value is string and if so, wrap it in single quotes
+        const formattedValue = typeof value === 'string' ? `"${value}"` : value;
+        syntax += `${key}(${formattedValue}), `;
+      }
+    }
+    // Remove the trailing comma and space
+    syntax = syntax.slice(0, -2);
+    return syntax;
+  }
+
+  /**
+   * This function will check the current widget props against the default set, and return an 
+   * array for any identifiers that are different to their default values - this only returns the identifiers
+   * that need updating, not their parameters..
+   */
+  static findUpdatedIdentifiers(initial, current) {
+    const initialWidgetObj = JSON.parse(initial);
+    const currentWidgetObj = JSON.parse(current);
+
+    var updatedIdentifiers = [];
+
+    // Iterate over the keys of obj1
+    for (var key in initialWidgetObj) {
+      // Check if obj2 has the same key
+      if (currentWidgetObj.hasOwnProperty(key)) {
+        // Compare the values of the keys
+        if (initialWidgetObj[key] !== currentWidgetObj[key]) {
+          // If values are different, add the key to the differentKeys array
+          updatedIdentifiers.push(key);
+        }
+      } else {
+        // If obj2 doesn't have the key from obj1, add it to differentKeys array
+        updatedIdentifiers.push(key);
+      }
+    }
+
+    // Iterate over the keys of obj2 to find any keys not present in obj1
+    for (var key in currentWidgetObj) {
+      if (!initialWidgetObj.hasOwnProperty(key)) {
+        // Add the key to differentKeys array
+        updatedIdentifiers.push(key);
+      }
+    }
+
+
+    if (currentWidgetObj['type'].indexOf('slider') > -1) {
+      updatedIdentifiers.push('min');
+      updatedIdentifiers.push('max');
+      updatedIdentifiers.push('value');
+      updatedIdentifiers.push('skew');
+      updatedIdentifiers.push('increment');
+
+    }
+
+    return updatedIdentifiers;
+  }
+
+
+  static generateIdentifierTestCsd(widgets) {
+
+
+
+  }
+
   static updateBounds(props, identifier) {
     const element = document.getElementById(props.channel);
-    if(element){
-      switch(identifier){
+    if (element) {
+      switch (identifier) {
         case 'left':
           element.style.left = props.left + "px";
           break;
@@ -374,6 +476,120 @@ export class CabbageColours {
     b = b.toString(16).padStart(2, '0');
 
     return `#${r}${g}${b}`;
+  }
+
+}
+
+/*
+* This class contains utility functions for testing the Cabbage UI
+*/
+export class CabbageTestUtilities {
+
+  /*
+  * Generate a CSD file from the widgets array and tests all identifiers. For now this only tests numeric values
+  * for each widget type using cabbageSetValue and only string types for cabbageSet
+  */
+  static generateIdentifierTestCsd(widgets) {
+    let csdText = "<Cabbage>\n";
+    let csoundCode1 = '';
+    let csoundCode2 = '';
+    let similarValues = []
+
+    widgets.forEach((widget) => {
+      const jsonText = JSON.stringify(widget.props);
+      csdText += `   ${widget.props.type} ${CabbageUtils.getCabbageCodeFromJson(jsonText, 'bounds')}\n`;
+      csoundCode1 += `cabbageSetValue "${widget.props.type}", 123\n`
+      for (const [key, value] of Object.entries(widget.props)) {
+        if (key !== 'value' && key !== 'defaultValue') {
+          const newValue = CabbageTestUtilities.getSimilarValue(value);
+          console.log(`Setting ${key} ${value} to ${newValue}`)
+          similarValues.push(newValue);
+          const formattedValue = typeof value === 'string' ? `\\"${newValue}\\"` : newValue;
+          csoundCode1 += `cabbageSet "${widget.props.type}", "${key}(${formattedValue})"\n`;
+        }
+
+      }
+
+      csoundCode2 += `cabbageSetValue ${widget.props.type}, 123\n`
+    });
+
+    csdText += `</Cabbage>
+<CsoundSynthesizer>
+<CsOptions>
+-n -d
+</CsOptions> 
+<CsInstruments>
+; Initialize the global variables. 
+ksmps = 32
+nchnls = 2
+0dbfs = 1
+
+instr 1
+${csoundCode1}
+endin
+
+instr 2
+
+endin
+</CsInstruments>
+<CsScore>
+;causes Csound to run for about 7000 years...
+i1 0 2
+i2 2 2
+</CsScore>
+</CsoundSynthesizer>`;
+
+    console.log(csdText)
+  }
+
+  static getSimilarValue(value) {
+    if (typeof value === 'string') {
+      if (/^#[0-9a-fA-F]{6,8}$/.test(value)) {
+        // Hex color code
+        return this.generateRandomHexColor(value.length);
+      } else if (/^[0-9, ]+$/.test(value)) {
+        // Number string (comma-separated)
+        return this.generateRandomCommaSeparatedNumbers(value);
+      } else {
+        // Comma-separated words
+        return this.generateRandomCommaSeparatedWords(value);
+      }
+    } else if (typeof value === 'number') {
+      // Number
+      return this.generateRandomNumber(value);
+    } else {
+      throw new Error('Unsupported value type');
+    }
+  }
+
+  static generateRandomHexColor(length) {
+    let hex = '#';
+    for (let i = 0; i < length - 1; i++) {
+      hex += Math.floor(Math.random() * 16).toString(16);
+    }
+    return hex;
+  }
+
+  static generateRandomCommaSeparatedNumbers(value) {
+    return value.split(',').map(() => Math.floor(Math.random() * 100)).join(', ');
+  }
+
+  static generateRandomCommaSeparatedWords(value) {
+    const words = value.split(',').map(word => this.generateRandomString(word.trim().length));
+    return words.join(', ');
+  }
+
+  static generateRandomString(length) {
+    const characters = 'abcdefghijklmnopqrstuvwxyz';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result;
+  }
+
+  static generateRandomNumber(value) {
+    return value + Math.floor(Math.random() * 100);
   }
 
 }

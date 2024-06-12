@@ -34,7 +34,7 @@ cabbage(*this, "")
         LoadFile(R"(C:\Users\oli\Dev\iPlug2\Examples\CabbageProcessor\resources\web\index.html)", nullptr);
 #else
         if(!server.isThreadRunning())
-            server.start("/Users/rwalsh/Library/CabbageAudio/CabbagePluginSynth/");
+            server.start("/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/");
         
         const std::string mntPoint = "http://127.0.0.1:" + std::to_string(server.getCurrentPort()) + "/index.html";
         LoadURL(mntPoint.c_str());
@@ -94,7 +94,7 @@ void CabbageProcessor::timerCallback()
                     if(data.channel == CabbageParser::removeQuotes(widget["channel"]))
                     {
                         //this will update the widget JSON with new arguments tied to the identifier, e.g, bounds(x, y, w, h)
-                        CabbageParser::updateJsonFromSyntax(widget, data.identifier);
+                        CabbageParser::updateJsonFromSyntax(widget, data.identifierText);
                     }
                 }
             }
@@ -130,7 +130,7 @@ void CabbageProcessor::timerCallback()
                                                      });
                                                      )",
                                                    data.channel,
-                                                   data.identifier);
+                                                   data.identifierText);
             }
             EvaluateJavaScript(message.c_str());
             
