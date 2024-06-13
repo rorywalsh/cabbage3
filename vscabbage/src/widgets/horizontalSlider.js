@@ -1,5 +1,5 @@
-import { Cabbage } from "./cabbagePluginMethods.js";
-import { CabbageUtils, CabbageColours } from "./utils.js";
+import { Cabbage } from "../cabbagePluginMethods.js";
+import { CabbageUtils, CabbageColours } from "../utils.js";
 
 /**
  * Horizontal Slider (hslider) class
@@ -37,7 +37,6 @@ export class HorizontalSlider {
       "markerStart": 0.1, // Start position of the slider markers
       "markerEnd": 0.9, // End position of the slider markers
       "type": "hslider", // Type of the slider (horizontal)
-      "kind": "horizontal", // Orientation of the slider (horizontal)
       "decimalPlaces": 1, // Number of decimal places to display for the slider value
       "velocity": 0, // Velocity of slider movement (for gesture-based interaction)
       "visible": 1, // Visibility of the slider (0 for hidden, 1 for visible)

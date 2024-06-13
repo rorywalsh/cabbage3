@@ -1,5 +1,5 @@
-import { Cabbage } from "./cabbagePluginMethods.js";
-import { CabbageUtils, CabbageColours } from "./utils.js";
+import { Cabbage } from "../cabbagePluginMethods.js";
+import { CabbageUtils, CabbageColours } from "../utils.js";
 
 /**
  * Form class
@@ -11,7 +11,6 @@ export class MidiKeyboard {
       "left": 0, // Left position of the keyboard widget
       "width": 600, // Width of the keyboard widget
       "height": 300, // Height of the keyboard widget
-      "caption": "", // Caption or label for the keyboard widget
       "type": "keyboard", // Type of the widget (keyboard)
       "colour": "#888888", // Background color of the keyboard
       "channel": "keyboard", // Unique identifier for the keyboard widget

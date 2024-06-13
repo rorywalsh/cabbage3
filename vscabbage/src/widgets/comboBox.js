@@ -1,4 +1,4 @@
-import { CabbageUtils, CabbageColours } from "./utils.js";
+import { CabbageUtils, CabbageColours } from "../utils.js";
 
 export class ComboBox {
     constructor() {
@@ -20,7 +20,9 @@ export class ComboBox {
             "outlineColour": "#dddddd", // Color of the outline
             "outlineWidth": 2, // Width of the outline
             "visible": 1, // Visibility of the widget (0 for hidden, 1 for visible)
-            "type": "combobox" // Type of the widget (combobox)
+            "type": "combobox", // Type of the widget (combobox)
+            "value": 0, // Value of the widget
+            "active": 1 // Whether the widget is active (0 for inactive, 1 for active)
         };
         
 
@@ -66,6 +68,12 @@ export class ComboBox {
 
     addVsCodeEventListeners(widgetDiv, vs) {
         this.vscode = vs;
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+        document.body.addEventListener("click", this.handleClickOutside.bind(this));
+        widgetDiv.ComboBoxInstance = this;
+    }
+
+    addEventListeners(widgetDiv) {
         widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
         document.body.addEventListener("click", this.handleClickOutside.bind(this));
         widgetDiv.ComboBoxInstance = this;

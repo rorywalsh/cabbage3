@@ -33,6 +33,9 @@ struct CabbageOpcodeData
     std::string channel = {};
     std::vector<float> numericData;
     std::vector<std::string> stringData;
+    bool hasStringArgs() const {
+        return !stringData.empty();
+    }
     MessageType type;
     MYFLT value = 0;
 
@@ -77,6 +80,41 @@ struct CabbageOpcodes
             *od = new moodycamel::ReaderWriterQueue<CabbageOpcodeData>(100);
             return *od;
         }
+    }
+    
+    static bool hasNullTerminator(const char* str, size_t length)
+    {
+        for (size_t i = 0; i < length; ++i) 
+        {
+            if (str[i] == '\0') 
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    
+    static std::string removeNullTerminator(const std::string& str) 
+    {
+        // Create a copy of the string
+        std::string result = str;
+
+        // If the last character is null terminator, remove it
+        if (!result.empty() && result.back() == '\0') {
+            result.pop_back();
+        }
+
+        return result;
+    }
+    
+    bool hasNullTerminator(const std::string& str)
+    {
+        const char* cStr = str.c_str();
+        size_t length = str.size();
+
+        // Check if the character after the last element is a null terminator
+        return cStr[length] == '\0';
     }
     
     CabbageOpcodeData getValueIdentData(csnd::Param<NumInputParams>& args, bool init, int nameIndex, int identIndex)

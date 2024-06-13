@@ -24,3 +24,4 @@ struct CabbageSet : csnd::InPlug<64>, CabbageOpcodes<64>
     int kperf(){ return setIdentifier(CabbageOpcodeData::PassType::Init); };
     int setIdentifier(int init);
 };
+

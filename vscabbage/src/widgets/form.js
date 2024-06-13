@@ -4,8 +4,6 @@
 export class Form {
     constructor() {
       this.props = {
-        "top": 0,
-        "left": 0,
         "width": 600,
         "height": 300,
         "caption": "",

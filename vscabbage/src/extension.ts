@@ -3,25 +3,27 @@
 import * as vscode from 'vscode';
 
 // @ts-ignore
-import { RotarySlider } from "./rotarySlider.js";
+import { RotarySlider } from "./widgets/rotarySlider.js";
 // @ts-ignore
-import { HorizontalSlider } from "./horizontalSlider.js";
+import { HorizontalSlider } from "./widgets/horizontalSlider.js";
 // @ts-ignore
-import { VerticalSlider } from "./verticalSlider.js";
+import { VerticalSlider } from "./widgets/verticalSlider.js";
 // @ts-ignore
-import { Button } from "./button.js";
+import { Button } from "./widgets/button.js";
 // @ts-ignore
-import { Checkbox } from "./checkbox.js";
+import { Checkbox } from "./widgets/checkbox.js";
 // @ts-ignore
-import { ComboBox } from "./comboBox.js";
+import { ComboBox } from "./widgets/comboBox.js";
 // @ts-ignore
-import { Label } from "./label.js";
+import { Label } from "./widgets/label.js";
 // @ts-ignore
-import { MidiKeyboard } from "./midiKeyboard.js";
+import { CsoundOutput } from "./widgets/csoundOutput.js";
+// @ts-ignore
+import { MidiKeyboard } from "./widgets/midiKeyboard.js";
 // @ts-ignore
 import { CabbageUtils } from "./utils.js";
 // @ts-ignore
-import { Form } from "./form.js";
+import { Form } from "./widgets/form.js";
 import * as cp from "child_process";
 
 let textEditor: vscode.TextEditor | undefined;
@@ -30,9 +32,9 @@ let panel: vscode.WebviewPanel | undefined = undefined;
 
 import WebSocket from 'ws';
 interface TokenObject {
-    token: string;
+	token: string;
 	values: string[];
-    // Add other properties if necessary
+	// Add other properties if necessary
 }
 
 const wss = new WebSocket.Server({ port: 9991 });
@@ -124,7 +126,7 @@ export function activate(context: vscode.ExtensionContext) {
 		const colourPickerStyles = panel.webview.asWebviewUri(onDiskPath);
 
 		//add widget types to menu
-		const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button", "combobox", "checkbox", "keyboard"];
+		const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button", "combobox", "checkbox", "keyboard", "csoundoutput"];
 
 		let menuItems = "";
 		widgetTypes.forEach((widget) => {
@@ -281,6 +283,9 @@ async function updateText(jsonText: string) {
 				break;
 			case 'form':
 				defaultProps = new Form().props;
+				break;
+			case 'csoundoutput':
+				defaultProps = new CsoundOutput().props;
 				break;
 			default:
 				break;

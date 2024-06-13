@@ -29,7 +29,7 @@ struct CabbageGetValue : csnd::Plugin<1, 1>
 };
 
 
-struct CabbageGetMYFLT : csnd::Plugin<1, 1>
+struct CabbageGetMYFLT : csnd::Plugin<1, 2>, CabbageOpcodes<2>
 {
     int init() { return getIdentifier(CabbageOpcodeData::PassType::Init);    };
     int kperf() { return getIdentifier(CabbageOpcodeData::PassType::Perf);   };
@@ -38,6 +38,13 @@ struct CabbageGetMYFLT : csnd::Plugin<1, 1>
 
 struct CabbageGetString : csnd::Plugin<1, 2>, CabbageOpcodes<2>
 {    
+    int init() { return getIdentifier(CabbageOpcodeData::PassType::Init);    };
+    int kperf() { return getIdentifier(CabbageOpcodeData::PassType::Perf);   };
+    int getIdentifier(int init);
+};
+
+struct CabbageCompare : csnd::Plugin<1, 2>, CabbageOpcodes<2>
+{
     int init() { return getIdentifier(CabbageOpcodeData::PassType::Init);    };
     int kperf() { return getIdentifier(CabbageOpcodeData::PassType::Perf);   };
     int getIdentifier(int init);

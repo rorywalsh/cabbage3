@@ -486,70 +486,211 @@ export class CabbageColours {
 export class CabbageTestUtilities {
 
   /*
+  * Generate a CabbageWidgetDescriptors class with all the identifiers for each widget type, this can be inserted
+  directly into the Cabbage source code
+  */
+  static generateCabbageWidgetDescriptorsClass(widgets) {
+    let cppCode = `
+#pragma once
+
+#include <iostream>
+#include <regex>
+#include <string>
+#include <vector>
+#include "json.hpp"
+#include "CabbageUtils.h"
+
+class CabbageWidgetDescriptors {
+public:
+    static nlohmann::json get(std::string widgetType) {
+`;
+
+    // Generate the widget descriptors for each widget type
+    widgets.forEach((widget) => {
+      const jsonString = JSON.stringify(widget.props, null, 2).split('\n').map(line => `            ${line}`).join('\n');
+      cppCode += `
+        if (widgetType == "${widget.props.type}") {
+            std::string jsonString = R"(
+${jsonString}
+            )";
+            return nlohmann::json::parse(jsonString);
+        }`;
+    });
+
+    cppCode += `
+        cabAssert(false, "Invalid widget type");
+    }
+};
+`;
+
+    console.log(cppCode);
+  }
+
+  /*
   * Generate a CSD file from the widgets array and tests all identifiers. For now this only tests numeric values
   * for each widget type using cabbageSetValue and only string types for cabbageSet
   */
   static generateIdentifierTestCsd(widgets) {
-    let csdText = "<Cabbage>\n";
-    let csoundCode1 = '';
-    let csoundCode2 = '';
-    let similarValues = []
+    let csoundCode = "<Cabbage>\nform size(800, 400)";
 
     widgets.forEach((widget) => {
-      const jsonText = JSON.stringify(widget.props);
-      csdText += `   ${widget.props.type} ${CabbageUtils.getCabbageCodeFromJson(jsonText, 'bounds')}\n`;
-      csoundCode1 += `cabbageSetValue "${widget.props.type}", 123\n`
-      for (const [key, value] of Object.entries(widget.props)) {
-        if (key !== 'value' && key !== 'defaultValue') {
-          const newValue = CabbageTestUtilities.getSimilarValue(value);
-          console.log(`Setting ${key} ${value} to ${newValue}`)
-          similarValues.push(newValue);
-          const formattedValue = typeof value === 'string' ? `\\"${newValue}\\"` : newValue;
-          csoundCode1 += `cabbageSet "${widget.props.type}", "${key}(${formattedValue})"\n`;
-        }
-
-      }
-
-      csoundCode2 += `cabbageSetValue ${widget.props.type}, 123\n`
+      csoundCode += `   ${widget.props.type} bounds(-1000, 0, 100, 100)\n`;
     });
 
-    csdText += `</Cabbage>
+    csoundCode += `   csoundoutput bounds(0, 0, 780, 380)\n`;
+    csoundCode += "</Cabbage>\n";
+
+     csoundCode += `
 <CsoundSynthesizer>
 <CsOptions>
--n -d
+-n -d -m0d
 </CsOptions> 
 <CsInstruments>
 ; Initialize the global variables. 
 ksmps = 32
 nchnls = 2
 0dbfs = 1
+`;
 
-instr 1
-${csoundCode1}
+    // Instrument for setting string values
+    csoundCode += `
+    
+giErrorCnt init 0
+giIdentifiersChecked init 0    
+
+instr CabbageSetString
+  SChannel strcpy p4
+  SIdentifier strcpy p5
+  SString strcpy p6
+  cabbageSet SChannel, sprintf("%s(\\"%s\\")", SIdentifier, SString)
 endin
 
-instr 2
-
+instr CabbageCheckString
+  SChannel strcpy p4
+  SIdentifier strcpy p5
+  SString strcpy p6
+  S1 cabbageGet SChannel, SIdentifier
+  iRes strcmp S1, SString
+  if iRes != 0 then
+      prints("")
+      prints("=========CabbageCheckString============")
+      prints("")
+      prints sprintf("CabbageCheckString Error: %s %s", SChannel, SIdentifier)
+      prints sprintf("CurrentValue: [%s] Incoming value: [%s]", S1, SString)
+      prints sprintf("Size of string: [%d] Incoming size: [%d]", strlen(S1), strlen(SString))
+      giErrorCnt += 1
+  endif
+  giIdentifiersChecked += 1
+  prints(sprintf("Checked %d identifiers", giIdentifiersChecked))
 endin
-</CsInstruments>
-<CsScore>
-;causes Csound to run for about 7000 years...
-i1 0 2
-i2 2 2
-</CsScore>
-</CsoundSynthesizer>`;
 
-    console.log(csdText)
-  }
+instr CabbageSetFloat
+  SChannel strcpy p4
+  SIdentifier strcpy p5
+  SString = sprintf("%s(%3.3f)", SIdentifier, p6)
+  cabbageSet SChannel,SString 
+endin
+
+instr CabbageCheckFloat
+  SChannel strcpy p4
+  SIdentifier strcpy p5
+  i1 cabbageGet SChannel, SIdentifier
+  ;checking floats can be iffy..
+  if i1 <= p6-0.01 || i1 >= p6+0.01 then
+        prints("")
+        prints("=========CabbageCheckInt============")
+        prints("")
+        prints sprintf("CabbageCheckFloat Error: %s %s", SChannel, SIdentifier)
+        prints sprintf("CurrentValue: [%f] Incoming value: [%f]", i1, p6)
+        giErrorCnt += 1
+  endif
+  giIdentifiersChecked += 1
+  prints(sprintf("Checked %d identifiers", giIdentifiersChecked))
+endin
+
+instr CabbageSetValue
+  SChannel strcpy p4
+  cabbageSetValue SChannel, p5
+endin
+
+instr CabbageCheckValue
+  SChannel strcpy p4
+  i1 cabbageGetValue SChannel
+  if i1 != p5 then
+      prints("")
+      prints("=========CabbageCheckValue============")
+      prints("")
+      prints sprintf("CabbageCheckValue Error: %s %s", SChannel, "value")
+      prints sprintf("CurrentValue: [%f] Incoming value: [%f]", i1, p5)
+      giErrorCnt += 1
+  endif
+  giIdentifiersChecked += 1
+  prints(sprintf("Checked %d identifiers", giIdentifiersChecked))
+endin
+
+instr GetErrorCount
+  prints("")
+  prints("")
+  prints("===========Error report ================")
+  prints sprintf("Number of identifiers checked: %d", giIdentifiersChecked)
+  prints sprintf("Number of errors found: %d", giErrorCnt)
+endin
+`;
+
+    csoundCode += '</CsInstruments>\n';
+
+    // Generate CsScore section
+    csoundCode += '<CsScore>\n';
+
+    let delay = 0.2; // Delay between each set/check pair (in seconds)
+    let setStartTime = 1.0; // Start time for score events
+    let checkStartTime = setStartTime+0.1; // Start time for score events
+
+    widgets.forEach((widget) => {
+        for (const [key, value] of Object.entries(widget.props)) {
+            if (key !== 'type' && key !== 'index' && key!== 'channel') {
+                if (key !== 'value' && key !== 'defaultValue') {
+                    const newValue = CabbageTestUtilities.getSimilarValue(value);
+                    if (typeof value === 'number') {
+                        csoundCode += `i"CabbageSetFloat" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" ${newValue}\n`;
+                        csoundCode += `i"CabbageCheckFloat" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" ${newValue}\n`;
+                    } else {
+                        csoundCode += `i"CabbageSetString" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" "${newValue}"\n`;
+                        csoundCode += `i"CabbageCheckString" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" "${newValue}"\n`;
+                    }
+                    setStartTime += delay;
+                    checkStartTime += delay;
+                } else if (key === 'value') {
+                    const newValue = CabbageTestUtilities.getSimilarValue(value);
+                    csoundCode += `i"CabbageSetValue" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" ${newValue}\n`;
+                    csoundCode += `i"CabbageCheckValue" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" ${newValue}\n`;
+                    setStartTime += delay;
+                    checkStartTime += delay;
+                }
+            }
+        }
+    });
+
+    csoundCode += `i"GetErrorCount" ${setStartTime.toFixed(1)} 0.2\n`;
+    csoundCode += '</CsScore>\n';
+    csoundCode += '</CsoundSynthesizer>\n';
+
+    console.log(csoundCode);
+}
+
+
 
   static getSimilarValue(value) {
     if (typeof value === 'string') {
       if (/^#[0-9a-fA-F]{6,8}$/.test(value)) {
         // Hex color code
         return this.generateRandomHexColor(value.length);
-      } else if (/^[0-9, ]+$/.test(value)) {
-        // Number string (comma-separated)
+      } else if (/^[0-9., ]*$/.test(value)) {
+        // Number string (comma-separated, can include floating point)
         return this.generateRandomCommaSeparatedNumbers(value);
+      } else if (value.trim() === '') {
+        // Empty string
+        return this.generateRandomString(5); // Default length of 5 for empty strings
       } else {
         // Comma-separated words
         return this.generateRandomCommaSeparatedWords(value);
@@ -557,8 +698,12 @@ i2 2 2
     } else if (typeof value === 'number') {
       // Number
       return this.generateRandomNumber(value);
+    } else if (value === null || value === undefined) {
+      // Null or undefined
+      return this.generateRandomString(5); // Default length of 5 for unknown types
     } else {
-      throw new Error('Unsupported value type');
+      // Any other type (including empty arrays/objects, which are uncommon in typical JSON usage)
+      return this.generateRandomString(5); // Default length of 5 for unknown types
     }
   }
 
@@ -571,11 +716,44 @@ i2 2 2
   }
 
   static generateRandomCommaSeparatedNumbers(value) {
-    return value.split(',').map(() => Math.floor(Math.random() * 100)).join(', ');
+    if (value.trim() === '') {
+      // Handle empty string by returning a default random string
+      return this.generateRandomString(5);
+    }
+
+    return value.split(',').map(num => {
+      num = num.trim();
+      if (num === '') {
+        return this.generateRandomString(5); // Handle empty parts
+      } else if (num.includes('.')) {
+        // Floating point number
+        const floatValue = parseFloat(num);
+        if (floatValue < 1) {
+          return (Math.random()).toFixed(2); // Generate a new number between 0 and 1
+        } else {
+          return (floatValue + (Math.random() * 10 - 5)).toFixed(2);
+        }
+      } else {
+        // Integer number
+        const intValue = parseInt(num);
+        return (intValue + Math.floor(Math.random() * 10) + 1).toString(); // Ensure it's not zero
+      }
+    }).join(', ');
   }
 
   static generateRandomCommaSeparatedWords(value) {
-    const words = value.split(',').map(word => this.generateRandomString(word.trim().length));
+    if (value.trim() === '') {
+      // Handle empty string by returning a default random word
+      return this.generateRandomString(5);
+    }
+
+    const words = value.split(',').map(word => {
+      if (word.trim() === '') {
+        return this.generateRandomString(5); // Handle empty parts
+      } else {
+        return this.generateRandomString(word.trim().length);
+      }
+    });
     return words.join(', ');
   }
 
@@ -589,7 +767,17 @@ i2 2 2
   }
 
   static generateRandomNumber(value) {
-    return value + Math.floor(Math.random() * 100);
+    if (Number.isInteger(value)) {
+      return value + Math.floor(Math.random() * 10) + 1; // Ensure it's not zero
+    } else {
+      if (value < 1) {
+        return (Math.random()).toFixed(2); // Generate a new number between 0 and 1
+      } else {
+        return (value + (Math.random() * 10 - 5)).toFixed(2); // For floating point numbers >= 1
+      }
+    }
   }
+
+
 
 }

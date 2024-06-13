@@ -45,7 +45,12 @@ cabbage(*this, "")
         //setCabbage(cabbage);
     };
 
-    timer.Start(this, &CabbageProcessor::timerCallback, 1);
+    //editor onInit callback function
+    editorOnLoad = [&]() {
+        uiHasLoaded = true;
+    };
+    
+    timer.Start(this, &CabbageProcessor::timerCallback, 10);
 
     
 }
@@ -63,8 +68,12 @@ void CabbageProcessor::timerCallback()
     while (cabbage.getCsound()->GetMessageCnt() > 0)
     {
         std::string message(cabbage.getCsound()->GetFirstMessage());
-        std::cout << message << std::endl;
-        cabbage.getCsound()->PopFirstMessage();
+        if(uiHasLoaded)
+        {
+            std::cout << message << std::endl;
+            EvaluateJavaScript(CabbageUtils::getCsoundOutputUpdateScript(message));
+            cabbage.getCsound()->PopFirstMessage();
+        }
     }
     
     auto** od = (moodycamel::ReaderWriterQueue<CabbageOpcodeData>**)cabbage.getCsound()->QueryGlobalVariable("cabbageOpcodeData");
@@ -82,15 +91,16 @@ void CabbageProcessor::timerCallback()
                 for(auto &widget : cabbage.getWidgets())
                 {
                     //update widget objects in case UI is closed and reopened...
-                    if(widget["channel"] == data.channel)
+                    if(CabbageParser::removeQuotes(widget["channel"]) == data.channel)
+                    {
                         widget["value"] = data.value;
+                    }
                 }
             }
             else
             {
                 for(auto& widget : cabbage.getWidgets())
                 {
-                    //update widget objects in case UI is closed and reopened...
                     if(data.channel == CabbageParser::removeQuotes(widget["channel"]))
                     {
                         //this will update the widget JSON with new arguments tied to the identifier, e.g, bounds(x, y, w, h)
@@ -106,39 +116,17 @@ void CabbageProcessor::timerCallback()
             std::string message;
             if(data.type == CabbageOpcodeData::MessageType::Value)
             {
-                message =  StringFormatter::format(R"(
-                                                     window.postMessage({
-                                                       command: "widgetUpdate",
-                                                       text: JSON.stringify({
-                                                           channel: "<>",
-                                                           value: <>
-                                                       })
-                                                     });
-                                                     )",
-                                                   data.channel,
-                                                   data.value);
+                message =  CabbageUtils::getWidgetUpdateScript(data.channel, data.value);
             }
             else
             {
-                message =  StringFormatter::format(R"(
-                                                     window.postMessage({
-                                                       command: "widgetUpdate",
-                                                       text: JSON.stringify({
-                                                           channel: "<>",
-                                                           data: "<>"
-                                                       })
-                                                     });
-                                                     )",
-                                                   data.channel,
-                                                   data.identifierText);
+                message = CabbageUtils::getWidgetUpdateScript(data.channel, data.identifierText);
+//                std::cout << message << std::endl;
             }
+
             EvaluateJavaScript(message.c_str());
             
 #endif
-            //in plugins this data needs to get sent to webview, but in this case
-//            std::cout << data.identifier << std::endl;
-            //it goes back to the host
-            
         }
     }
 }
@@ -152,17 +140,7 @@ void CabbageProcessor::OnParamChange(int paramIdx)
         if(p.hasValueChanged(GetParam(paramIdx)->Value()))
         {
             cabbage.setControlChannel(p.name.c_str(), GetParam(paramIdx)->Value());
-            std::string message =  StringFormatter::format(R"(
-                                                         window.postMessage({
-                                                           command: "widgetUpdate",
-                                                           text: JSON.stringify({
-                                                               channel: "<>",
-                                                               value: <>
-                                                           })
-                                                         });
-                                                         )", p.name.c_str(),
-                                                           GetParam(paramIdx)->Value());
-            EvaluateJavaScript(message.c_str());
+            EvaluateJavaScript(CabbageUtils::getWidgetUpdateScript(p.name, GetParam(paramIdx)->Value()));
         }
     }
 }

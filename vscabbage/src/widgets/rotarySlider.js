@@ -1,4 +1,4 @@
-import { CabbageUtils, CabbageColours } from "./utils.js";
+import { CabbageUtils, CabbageColours } from "../utils.js";
 
 /**
  * Rotary Slider (rslider) class
@@ -37,7 +37,6 @@ export class RotarySlider {
       "trackerWidth": 20, // Width of the slider tracker
       "outlineWidth": 2, // Width of the slider outline
       "type": "rslider", // Type of the widget (rotary slider)
-      "kind": "rotary", // Kind of slider (rotary)
       "decimalPlaces": 1, // Number of decimal places in the slider value
       "velocity": 0, // Velocity value for the slider
       "popup": 1, // Display a popup when the slider is clicked

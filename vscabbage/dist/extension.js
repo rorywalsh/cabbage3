@@ -49,18 +49,20 @@ const checkbox_js_1 = __webpack_require__(8);
 // @ts-ignore
 const comboBox_js_1 = __webpack_require__(9);
 // @ts-ignore
-const label_js_1 = __webpack_require__(37);
+const label_js_1 = __webpack_require__(10);
 // @ts-ignore
-const midiKeyboard_js_1 = __webpack_require__(10);
+const csoundOutput_js_1 = __webpack_require__(11);
+// @ts-ignore
+const midiKeyboard_js_1 = __webpack_require__(12);
 // @ts-ignore
 const utils_js_1 = __webpack_require__(3);
 // @ts-ignore
-const form_js_1 = __webpack_require__(11);
-const cp = __importStar(__webpack_require__(12));
+const form_js_1 = __webpack_require__(13);
+const cp = __importStar(__webpack_require__(14));
 let textEditor;
 let output;
 let panel = undefined;
-const ws_1 = __importDefault(__webpack_require__(13));
+const ws_1 = __importDefault(__webpack_require__(15));
 const wss = new ws_1.default.Server({ port: 9991 });
 let websocket;
 let cabbageMode = "play";
@@ -128,7 +130,7 @@ function activate(context) {
         onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'color-picker.css');
         const colourPickerStyles = panel.webview.asWebviewUri(onDiskPath);
         //add widget types to menu
-        const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button", "combobox", "checkbox", "keyboard"];
+        const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button", "combobox", "checkbox", "keyboard", "csoundoutput"];
         let menuItems = "";
         widgetTypes.forEach((widget) => {
             menuItems += `
@@ -259,6 +261,9 @@ async function updateText(jsonText) {
                 break;
             case 'form':
                 defaultProps = new form_js_1.Form().props;
+                break;
+            case 'csoundoutput':
+                defaultProps = new csoundOutput_js_1.CsoundOutput().props;
                 break;
             default:
                 break;
@@ -459,7 +464,6 @@ class RotarySlider {
       "trackerWidth": 20, // Width of the slider tracker
       "outlineWidth": 2, // Width of the slider outline
       "type": "rslider", // Type of the widget (rotary slider)
-      "kind": "rotary", // Kind of slider (rotary)
       "decimalPlaces": 1, // Number of decimal places in the slider value
       "velocity": 0, // Velocity value for the slider
       "popup": 1, // Display a popup when the slider is clicked
@@ -1215,70 +1219,211 @@ class CabbageColours {
 class CabbageTestUtilities {
 
   /*
+  * Generate a CabbageWidgetDescriptors class with all the identifiers for each widget type, this can be inserted
+  directly into the Cabbage source code
+  */
+  static generateCabbageWidgetDescriptorsClass(widgets) {
+    let cppCode = `
+#pragma once
+
+#include <iostream>
+#include <regex>
+#include <string>
+#include <vector>
+#include "json.hpp"
+#include "CabbageUtils.h"
+
+class CabbageWidgetDescriptors {
+public:
+    static nlohmann::json get(std::string widgetType) {
+`;
+
+    // Generate the widget descriptors for each widget type
+    widgets.forEach((widget) => {
+      const jsonString = JSON.stringify(widget.props, null, 2).split('\n').map(line => `            ${line}`).join('\n');
+      cppCode += `
+        if (widgetType == "${widget.props.type}") {
+            std::string jsonString = R"(
+${jsonString}
+            )";
+            return nlohmann::json::parse(jsonString);
+        }`;
+    });
+
+    cppCode += `
+        cabAssert(false, "Invalid widget type");
+    }
+};
+`;
+
+    console.log(cppCode);
+  }
+
+  /*
   * Generate a CSD file from the widgets array and tests all identifiers. For now this only tests numeric values
   * for each widget type using cabbageSetValue and only string types for cabbageSet
   */
   static generateIdentifierTestCsd(widgets) {
-    let csdText = "<Cabbage>\n";
-    let csoundCode1 = '';
-    let csoundCode2 = '';
-    let similarValues = []
+    let csoundCode = "<Cabbage>\nform size(800, 400)";
 
     widgets.forEach((widget) => {
-      const jsonText = JSON.stringify(widget.props);
-      csdText += `   ${widget.props.type} ${CabbageUtils.getCabbageCodeFromJson(jsonText, 'bounds')}\n`;
-      csoundCode1 += `cabbageSetValue "${widget.props.type}", 123\n`
-      for (const [key, value] of Object.entries(widget.props)) {
-        if (key !== 'value' && key !== 'defaultValue') {
-          const newValue = CabbageTestUtilities.getSimilarValue(value);
-          console.log(`Setting ${key} ${value} to ${newValue}`)
-          similarValues.push(newValue);
-          const formattedValue = typeof value === 'string' ? `\\"${newValue}\\"` : newValue;
-          csoundCode1 += `cabbageSet "${widget.props.type}", "${key}(${formattedValue})"\n`;
-        }
-
-      }
-
-      csoundCode2 += `cabbageSetValue ${widget.props.type}, 123\n`
+      csoundCode += `   ${widget.props.type} bounds(-1000, 0, 100, 100)\n`;
     });
 
-    csdText += `</Cabbage>
+    csoundCode += `   csoundoutput bounds(0, 0, 780, 380)\n`;
+    csoundCode += "</Cabbage>\n";
+
+     csoundCode += `
 <CsoundSynthesizer>
 <CsOptions>
--n -d
+-n -d -m0d
 </CsOptions> 
 <CsInstruments>
 ; Initialize the global variables. 
 ksmps = 32
 nchnls = 2
 0dbfs = 1
+`;
 
-instr 1
-${csoundCode1}
+    // Instrument for setting string values
+    csoundCode += `
+    
+giErrorCnt init 0
+giIdentifiersChecked init 0    
+
+instr CabbageSetString
+  SChannel strcpy p4
+  SIdentifier strcpy p5
+  SString strcpy p6
+  cabbageSet SChannel, sprintf("%s(\\"%s\\")", SIdentifier, SString)
 endin
 
-instr 2
-
+instr CabbageCheckString
+  SChannel strcpy p4
+  SIdentifier strcpy p5
+  SString strcpy p6
+  S1 cabbageGet SChannel, SIdentifier
+  iRes strcmp S1, SString
+  if iRes != 0 then
+      prints("")
+      prints("=========CabbageCheckString============")
+      prints("")
+      prints sprintf("CabbageCheckString Error: %s %s", SChannel, SIdentifier)
+      prints sprintf("CurrentValue: [%s] Incoming value: [%s]", S1, SString)
+      prints sprintf("Size of string: [%d] Incoming size: [%d]", strlen(S1), strlen(SString))
+      giErrorCnt += 1
+  endif
+  giIdentifiersChecked += 1
+  prints(sprintf("Checked %d identifiers", giIdentifiersChecked))
 endin
-</CsInstruments>
-<CsScore>
-;causes Csound to run for about 7000 years...
-i1 0 2
-i2 2 2
-</CsScore>
-</CsoundSynthesizer>`;
 
-    console.log(csdText)
-  }
+instr CabbageSetFloat
+  SChannel strcpy p4
+  SIdentifier strcpy p5
+  SString = sprintf("%s(%3.3f)", SIdentifier, p6)
+  cabbageSet SChannel,SString 
+endin
+
+instr CabbageCheckFloat
+  SChannel strcpy p4
+  SIdentifier strcpy p5
+  i1 cabbageGet SChannel, SIdentifier
+  ;checking floats can be iffy..
+  if i1 <= p6-0.01 || i1 >= p6+0.01 then
+        prints("")
+        prints("=========CabbageCheckInt============")
+        prints("")
+        prints sprintf("CabbageCheckFloat Error: %s %s", SChannel, SIdentifier)
+        prints sprintf("CurrentValue: [%f] Incoming value: [%f]", i1, p6)
+        giErrorCnt += 1
+  endif
+  giIdentifiersChecked += 1
+  prints(sprintf("Checked %d identifiers", giIdentifiersChecked))
+endin
+
+instr CabbageSetValue
+  SChannel strcpy p4
+  cabbageSetValue SChannel, p5
+endin
+
+instr CabbageCheckValue
+  SChannel strcpy p4
+  i1 cabbageGetValue SChannel
+  if i1 != p5 then
+      prints("")
+      prints("=========CabbageCheckValue============")
+      prints("")
+      prints sprintf("CabbageCheckValue Error: %s %s", SChannel, "value")
+      prints sprintf("CurrentValue: [%f] Incoming value: [%f]", i1, p5)
+      giErrorCnt += 1
+  endif
+  giIdentifiersChecked += 1
+  prints(sprintf("Checked %d identifiers", giIdentifiersChecked))
+endin
+
+instr GetErrorCount
+  prints("")
+  prints("")
+  prints("===========Error report ================")
+  prints sprintf("Number of identifiers checked: %d", giIdentifiersChecked)
+  prints sprintf("Number of errors found: %d", giErrorCnt)
+endin
+`;
+
+    csoundCode += '</CsInstruments>\n';
+
+    // Generate CsScore section
+    csoundCode += '<CsScore>\n';
+
+    let delay = 0.2; // Delay between each set/check pair (in seconds)
+    let setStartTime = 1.0; // Start time for score events
+    let checkStartTime = setStartTime+0.1; // Start time for score events
+
+    widgets.forEach((widget) => {
+        for (const [key, value] of Object.entries(widget.props)) {
+            if (key !== 'type' && key !== 'index' && key!== 'channel') {
+                if (key !== 'value' && key !== 'defaultValue') {
+                    const newValue = CabbageTestUtilities.getSimilarValue(value);
+                    if (typeof value === 'number') {
+                        csoundCode += `i"CabbageSetFloat" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" ${newValue}\n`;
+                        csoundCode += `i"CabbageCheckFloat" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" ${newValue}\n`;
+                    } else {
+                        csoundCode += `i"CabbageSetString" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" "${newValue}"\n`;
+                        csoundCode += `i"CabbageCheckString" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" "${newValue}"\n`;
+                    }
+                    setStartTime += delay;
+                    checkStartTime += delay;
+                } else if (key === 'value') {
+                    const newValue = CabbageTestUtilities.getSimilarValue(value);
+                    csoundCode += `i"CabbageSetValue" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" ${newValue}\n`;
+                    csoundCode += `i"CabbageCheckValue" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" ${newValue}\n`;
+                    setStartTime += delay;
+                    checkStartTime += delay;
+                }
+            }
+        }
+    });
+
+    csoundCode += `i"GetErrorCount" ${setStartTime.toFixed(1)} 0.2\n`;
+    csoundCode += '</CsScore>\n';
+    csoundCode += '</CsoundSynthesizer>\n';
+
+    console.log(csoundCode);
+}
+
+
 
   static getSimilarValue(value) {
     if (typeof value === 'string') {
       if (/^#[0-9a-fA-F]{6,8}$/.test(value)) {
         // Hex color code
         return this.generateRandomHexColor(value.length);
-      } else if (/^[0-9, ]+$/.test(value)) {
-        // Number string (comma-separated)
+      } else if (/^[0-9., ]*$/.test(value)) {
+        // Number string (comma-separated, can include floating point)
         return this.generateRandomCommaSeparatedNumbers(value);
+      } else if (value.trim() === '') {
+        // Empty string
+        return this.generateRandomString(5); // Default length of 5 for empty strings
       } else {
         // Comma-separated words
         return this.generateRandomCommaSeparatedWords(value);
@@ -1286,8 +1431,12 @@ i2 2 2
     } else if (typeof value === 'number') {
       // Number
       return this.generateRandomNumber(value);
+    } else if (value === null || value === undefined) {
+      // Null or undefined
+      return this.generateRandomString(5); // Default length of 5 for unknown types
     } else {
-      throw new Error('Unsupported value type');
+      // Any other type (including empty arrays/objects, which are uncommon in typical JSON usage)
+      return this.generateRandomString(5); // Default length of 5 for unknown types
     }
   }
 
@@ -1300,11 +1449,44 @@ i2 2 2
   }
 
   static generateRandomCommaSeparatedNumbers(value) {
-    return value.split(',').map(() => Math.floor(Math.random() * 100)).join(', ');
+    if (value.trim() === '') {
+      // Handle empty string by returning a default random string
+      return this.generateRandomString(5);
+    }
+
+    return value.split(',').map(num => {
+      num = num.trim();
+      if (num === '') {
+        return this.generateRandomString(5); // Handle empty parts
+      } else if (num.includes('.')) {
+        // Floating point number
+        const floatValue = parseFloat(num);
+        if (floatValue < 1) {
+          return (Math.random()).toFixed(2); // Generate a new number between 0 and 1
+        } else {
+          return (floatValue + (Math.random() * 10 - 5)).toFixed(2);
+        }
+      } else {
+        // Integer number
+        const intValue = parseInt(num);
+        return (intValue + Math.floor(Math.random() * 10) + 1).toString(); // Ensure it's not zero
+      }
+    }).join(', ');
   }
 
   static generateRandomCommaSeparatedWords(value) {
-    const words = value.split(',').map(word => this.generateRandomString(word.trim().length));
+    if (value.trim() === '') {
+      // Handle empty string by returning a default random word
+      return this.generateRandomString(5);
+    }
+
+    const words = value.split(',').map(word => {
+      if (word.trim() === '') {
+        return this.generateRandomString(5); // Handle empty parts
+      } else {
+        return this.generateRandomString(word.trim().length);
+      }
+    });
     return words.join(', ');
   }
 
@@ -1318,8 +1500,18 @@ i2 2 2
   }
 
   static generateRandomNumber(value) {
-    return value + Math.floor(Math.random() * 100);
+    if (Number.isInteger(value)) {
+      return value + Math.floor(Math.random() * 10) + 1; // Ensure it's not zero
+    } else {
+      if (value < 1) {
+        return (Math.random()).toFixed(2); // Generate a new number between 0 and 1
+      } else {
+        return (value + (Math.random() * 10 - 5)).toFixed(2); // For floating point numbers >= 1
+      }
+    }
   }
+
+
 
 }
 
@@ -1372,7 +1564,6 @@ class HorizontalSlider {
       "markerStart": 0.1, // Start position of the slider markers
       "markerEnd": 0.9, // End position of the slider markers
       "type": "hslider", // Type of the slider (horizontal)
-      "kind": "horizontal", // Orientation of the slider (horizontal)
       "decimalPlaces": 1, // Number of decimal places to display for the slider value
       "velocity": 0, // Velocity of slider movement (for gesture-based interaction)
       "visible": 1, // Visibility of the slider (0 for hidden, 1 for visible)
@@ -1774,7 +1965,7 @@ class VerticalSlider {
       "left": 10, // Left position of the vertical slider widget
       "width": 60, // Width of the vertical slider widget
       "height": 60, // Height of the vertical slider widget
-      "channel": "rslider", // Unique identifier for the vertical slider widget
+      "channel": "vslider", // Unique identifier for the vertical slider widget
       "min": 0, // Minimum value of the slider
       "max": 1, // Maximum value of the slider
       "value": 0, // Current value of the slider
@@ -1797,7 +1988,6 @@ class VerticalSlider {
       "trackerOutlineWidth": 1, // Outline width of the slider tracker
       "outlineWidth": 1, // Width of the slider outline
       "type": "vslider", // Type of the widget (vertical slider)
-      "kind": "vertical", // Kind of slider (vertical)
       "decimalPlaces": 1, // Number of decimal places in the slider value
       "velocity": 0, // Velocity value for the slider
       "visible": 1, // Visibility of the slider
@@ -2094,6 +2284,7 @@ class Button {
       "outlineColour": "#dddddd", // Color of the outline
       "outlineWidth": 2, // Width of the outline
       "name": "", // Name of the button
+      "value": 0, // Value of the button (0 for off, 1 for on)
       "type": "button", // Type of the button (button)
       "visible": 1, // Visibility of the button (0 for hidden, 1 for visible)
       "automatable": 1, // Whether the button value can be automated (0 for no, 1 for yes)
@@ -2179,8 +2370,7 @@ class Button {
   addEventListeners(widgetDiv) {
     widgetDiv.addEventListener("pointerup", this.pointerUp.bind(this));
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
-    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    window.addEventListener("mousemove", this.handleMouseMove.bind(this));
     widgetDiv.VerticalSliderInstance = this;
   }
 
@@ -2260,6 +2450,7 @@ class Checkbox {
         "fontColourOff": "#000000", // Color of the text in the 'Off' state
         "outlineColour": "#999999", // Color of the outline
         "outlineWidth": 1, // Width of the outline
+        "value": 0, // Value of the checkbox (0 for off, 1 for on)
         "type": "checkbox", // Type of the checkbox (checkbox)
         "visible": 1, // Visibility of the checkbox (0 for hidden, 1 for visible)
         "automatable": 1, // Whether the checkbox value can be automated (0 for no, 1 for yes)
@@ -2365,7 +2556,9 @@ class ComboBox {
             "outlineColour": "#dddddd", // Color of the outline
             "outlineWidth": 2, // Width of the outline
             "visible": 1, // Visibility of the widget (0 for hidden, 1 for visible)
-            "type": "combobox" // Type of the widget (combobox)
+            "type": "combobox", // Type of the widget (combobox)
+            "value": 0, // Value of the widget
+            "active": 1 // Whether the widget is active (0 for inactive, 1 for active)
         };
         
 
@@ -2411,6 +2604,12 @@ class ComboBox {
 
     addVsCodeEventListeners(widgetDiv, vs) {
         this.vscode = vs;
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+        document.body.addEventListener("click", this.handleClickOutside.bind(this));
+        widgetDiv.ComboBoxInstance = this;
+    }
+
+    addEventListeners(widgetDiv) {
         widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
         document.body.addEventListener("click", this.handleClickOutside.bind(this));
         widgetDiv.ComboBoxInstance = this;
@@ -2536,6 +2735,184 @@ class ComboBox {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Label: () => (/* binding */ Label)
+/* harmony export */ });
+/**
+ * Label class
+ */
+class Label {
+    constructor() {
+        this.props = {
+            "top": 0,
+            "left": 0,
+            "width": 100,
+            "height": 30,
+            "type": "label",
+            "colour": "#888888",
+            "channel": "label",
+            "fontColour": "#dddddd",
+            "fontFamily": "Verdana",
+            "fontSize": 0,
+            "corners": 4,
+            "align": "centre",
+            "visible": 1,
+            "text": "Default Label"
+        }
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Text": ["text", "fontColour", "fontSize", "fontFamily", "align"],
+            "Colours": ["colour"]
+        };
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    addEventListeners(widgetDiv) {
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    pointerDown() {
+        console.log("Label clicked!");
+    }
+
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+        
+        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.8, 12); // Ensuring font size doesn't get too small
+        const alignMap = {
+            'left': 'end',
+            'center': 'middle',
+            'centre': 'middle',
+            'right': 'start',
+        };
+        const svgAlign = alignMap[this.props.align] || 'middle';
+    
+        return `
+            <div style="position: relative; width: 100%; height: 100%;">
+                <!-- Background SVG with preserveAspectRatio="none" -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none"
+                     style="position: absolute; top: 0; left: 0;">
+                    <rect width="${this.props.width}" height="${this.props.height}" x="0" y="0" rx="${this.props.corners}" ry="${this.props.corners}" fill="${this.props.colour}" 
+                        pointer-events="all"></rect>
+                </svg>
+    
+                <!-- Text SVG with proper alignment -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet"
+                     style="position: absolute; top: 0; left: 0;">
+                    <text x="${this.props.align === 'left' ? '10%' : this.props.align === 'right' ? '90%' : '50%'}" y="50%" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+                        fill="${this.props.fontColour}" text-anchor="${svgAlign}" dominant-baseline="middle" alignment-baseline="middle" 
+                        style="pointer-events: none;">${this.props.text}</text>
+                </svg>
+            </div>
+        `;
+    }
+    
+    
+    
+}
+
+
+/***/ }),
+/* 11 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   CsoundOutput: () => (/* binding */ CsoundOutput)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+
+
+/**
+ * CsoundOutput class
+ */
+class CsoundOutput {
+    constructor() {
+        this.props = {
+            "top": 0,
+            "left": 0,
+            "width": 200,
+            "height": 300,
+            "type": "label",
+            "colour": "#000000",
+            "channel": "csoundoutput",
+            "fontColour": "#dddddd",
+            "fontFamily": "Verdana",
+            "fontSize": 14,
+            "corners": 4,
+            "align": "left",
+            "visible": 1,
+            "text": "Csound Output\n"
+        };
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Text": ["text", "fontColour", "fontSize", "fontFamily", "align"],
+            "Colours": ["colour"]
+        };
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+    }
+
+    addEventListeners(widgetDiv) {
+        // Add any necessary event listeners here
+    }
+
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+
+        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.8, 12); // Ensuring font size doesn't get too small
+        const alignMap = {
+            'left': 'start',
+            'center': 'center',
+            'centre': 'center',
+            'right': 'end',
+        };
+        const textAlign = alignMap[this.props.align] || 'start';
+
+        return `
+                <textarea style="width: 100%; height: 100%; background-color: ${this.props.colour}; 
+                color: ${this.props.fontColour}; font-family: ${this.props.fontFamily}; font-size: ${fontSize}px; 
+                text-align: ${textAlign}; padding: 10px; box-sizing: border-box; border: none; resize: none;">
+${this.props.text}
+                </textarea>
+        `;
+    }
+
+    appendText(newText) {
+        this.props.text += newText + '\n';
+        const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
+
+        if (widgetDiv) {
+            const textarea = widgetDiv.querySelector('textarea');
+            if (textarea) {
+                textarea.value += newText + '\n';
+                console.log(textarea.value);
+                textarea.scrollTop = textarea.scrollHeight; // Scroll to the bottom
+            }
+        }
+    }
+}
+
+
+/***/ }),
+/* 12 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   MidiKeyboard: () => (/* binding */ MidiKeyboard)
 /* harmony export */ });
 /* harmony import */ var _cabbagePluginMethods_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5);
@@ -2553,7 +2930,6 @@ class MidiKeyboard {
       "left": 0, // Left position of the keyboard widget
       "width": 600, // Width of the keyboard widget
       "height": 300, // Height of the keyboard widget
-      "caption": "", // Caption or label for the keyboard widget
       "type": "keyboard", // Type of the widget (keyboard)
       "colour": "#888888", // Background color of the keyboard
       "channel": "keyboard", // Unique identifier for the keyboard widget
@@ -2766,7 +3142,7 @@ class MidiKeyboard {
 
 
 /***/ }),
-/* 11 */
+/* 13 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -2779,8 +3155,6 @@ __webpack_require__.r(__webpack_exports__);
 class Form {
     constructor() {
       this.props = {
-        "top": 0,
-        "left": 0,
         "width": 600,
         "height": 300,
         "caption": "",
@@ -2809,23 +3183,23 @@ class Form {
   }
 
 /***/ }),
-/* 12 */
+/* 14 */
 /***/ ((module) => {
 
 module.exports = require("child_process");
 
 /***/ }),
-/* 13 */
+/* 15 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const WebSocket = __webpack_require__(14);
+const WebSocket = __webpack_require__(16);
 
-WebSocket.createWebSocketStream = __webpack_require__(34);
-WebSocket.Server = __webpack_require__(35);
-WebSocket.Receiver = __webpack_require__(28);
-WebSocket.Sender = __webpack_require__(31);
+WebSocket.createWebSocketStream = __webpack_require__(36);
+WebSocket.Server = __webpack_require__(37);
+WebSocket.Receiver = __webpack_require__(30);
+WebSocket.Sender = __webpack_require__(33);
 
 WebSocket.WebSocket = WebSocket;
 WebSocket.WebSocketServer = WebSocket.Server;
@@ -2834,25 +3208,25 @@ module.exports = WebSocket;
 
 
 /***/ }),
-/* 14 */
+/* 16 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex|Readable$" }] */
 
 
 
-const EventEmitter = __webpack_require__(15);
-const https = __webpack_require__(16);
-const http = __webpack_require__(17);
-const net = __webpack_require__(18);
-const tls = __webpack_require__(19);
-const { randomBytes, createHash } = __webpack_require__(20);
-const { Duplex, Readable } = __webpack_require__(21);
-const { URL } = __webpack_require__(22);
+const EventEmitter = __webpack_require__(17);
+const https = __webpack_require__(18);
+const http = __webpack_require__(19);
+const net = __webpack_require__(20);
+const tls = __webpack_require__(21);
+const { randomBytes, createHash } = __webpack_require__(22);
+const { Duplex, Readable } = __webpack_require__(23);
+const { URL } = __webpack_require__(24);
 
-const PerMessageDeflate = __webpack_require__(23);
-const Receiver = __webpack_require__(28);
-const Sender = __webpack_require__(31);
+const PerMessageDeflate = __webpack_require__(25);
+const Receiver = __webpack_require__(30);
+const Sender = __webpack_require__(33);
 const {
   BINARY_TYPES,
   EMPTY_BUFFER,
@@ -2862,12 +3236,12 @@ const {
   kStatusCode,
   kWebSocket,
   NOOP
-} = __webpack_require__(26);
+} = __webpack_require__(28);
 const {
   EventTarget: { addEventListener, removeEventListener }
-} = __webpack_require__(32);
-const { format, parse } = __webpack_require__(33);
-const { toBuffer } = __webpack_require__(25);
+} = __webpack_require__(34);
+const { format, parse } = __webpack_require__(35);
+const { toBuffer } = __webpack_require__(27);
 
 const closeTimeout = 30 * 1000;
 const kAborted = Symbol('kAborted');
@@ -4176,64 +4550,64 @@ function socketOnError() {
 
 
 /***/ }),
-/* 15 */
+/* 17 */
 /***/ ((module) => {
 
 module.exports = require("events");
 
 /***/ }),
-/* 16 */
+/* 18 */
 /***/ ((module) => {
 
 module.exports = require("https");
 
 /***/ }),
-/* 17 */
+/* 19 */
 /***/ ((module) => {
 
 module.exports = require("http");
 
 /***/ }),
-/* 18 */
+/* 20 */
 /***/ ((module) => {
 
 module.exports = require("net");
 
 /***/ }),
-/* 19 */
+/* 21 */
 /***/ ((module) => {
 
 module.exports = require("tls");
 
 /***/ }),
-/* 20 */
+/* 22 */
 /***/ ((module) => {
 
 module.exports = require("crypto");
 
 /***/ }),
-/* 21 */
+/* 23 */
 /***/ ((module) => {
 
 module.exports = require("stream");
 
 /***/ }),
-/* 22 */
+/* 24 */
 /***/ ((module) => {
 
 module.exports = require("url");
 
 /***/ }),
-/* 23 */
+/* 25 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const zlib = __webpack_require__(24);
+const zlib = __webpack_require__(26);
 
-const bufferUtil = __webpack_require__(25);
-const Limiter = __webpack_require__(27);
-const { kStatusCode } = __webpack_require__(26);
+const bufferUtil = __webpack_require__(27);
+const Limiter = __webpack_require__(29);
+const { kStatusCode } = __webpack_require__(28);
 
 const FastBuffer = Buffer[Symbol.species];
 const TRAILER = Buffer.from([0x00, 0x00, 0xff, 0xff]);
@@ -4744,18 +5118,18 @@ function inflateOnError(err) {
 
 
 /***/ }),
-/* 24 */
+/* 26 */
 /***/ ((module) => {
 
 module.exports = require("zlib");
 
 /***/ }),
-/* 25 */
+/* 27 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { EMPTY_BUFFER } = __webpack_require__(26);
+const { EMPTY_BUFFER } = __webpack_require__(28);
 
 const FastBuffer = Buffer[Symbol.species];
 
@@ -4887,7 +5261,7 @@ if (!process.env.WS_NO_BUFFER_UTIL) {
 
 
 /***/ }),
-/* 26 */
+/* 28 */
 /***/ ((module) => {
 
 
@@ -4905,7 +5279,7 @@ module.exports = {
 
 
 /***/ }),
-/* 27 */
+/* 29 */
 /***/ ((module) => {
 
 
@@ -4966,22 +5340,22 @@ module.exports = Limiter;
 
 
 /***/ }),
-/* 28 */
+/* 30 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { Writable } = __webpack_require__(21);
+const { Writable } = __webpack_require__(23);
 
-const PerMessageDeflate = __webpack_require__(23);
+const PerMessageDeflate = __webpack_require__(25);
 const {
   BINARY_TYPES,
   EMPTY_BUFFER,
   kStatusCode,
   kWebSocket
-} = __webpack_require__(26);
-const { concat, toArrayBuffer, unmask } = __webpack_require__(25);
-const { isValidStatusCode, isValidUTF8 } = __webpack_require__(29);
+} = __webpack_require__(28);
+const { concat, toArrayBuffer, unmask } = __webpack_require__(27);
+const { isValidStatusCode, isValidUTF8 } = __webpack_require__(31);
 
 const FastBuffer = Buffer[Symbol.species];
 const promise = Promise.resolve();
@@ -5714,12 +6088,12 @@ function throwErrorNextTick(err) {
 
 
 /***/ }),
-/* 29 */
+/* 31 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { isUtf8 } = __webpack_require__(30);
+const { isUtf8 } = __webpack_require__(32);
 
 //
 // Allowed token characters:
@@ -5850,26 +6224,26 @@ if (isUtf8) {
 
 
 /***/ }),
-/* 30 */
+/* 32 */
 /***/ ((module) => {
 
 module.exports = require("buffer");
 
 /***/ }),
-/* 31 */
+/* 33 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex" }] */
 
 
 
-const { Duplex } = __webpack_require__(21);
-const { randomFillSync } = __webpack_require__(20);
+const { Duplex } = __webpack_require__(23);
+const { randomFillSync } = __webpack_require__(22);
 
-const PerMessageDeflate = __webpack_require__(23);
-const { EMPTY_BUFFER } = __webpack_require__(26);
-const { isValidStatusCode } = __webpack_require__(29);
-const { mask: applyMask, toBuffer } = __webpack_require__(25);
+const PerMessageDeflate = __webpack_require__(25);
+const { EMPTY_BUFFER } = __webpack_require__(28);
+const { isValidStatusCode } = __webpack_require__(31);
+const { mask: applyMask, toBuffer } = __webpack_require__(27);
 
 const kByteLength = Symbol('kByteLength');
 const maskBuffer = Buffer.alloc(4);
@@ -6339,12 +6713,12 @@ module.exports = Sender;
 
 
 /***/ }),
-/* 32 */
+/* 34 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { kForOnEventAttribute, kListener } = __webpack_require__(26);
+const { kForOnEventAttribute, kListener } = __webpack_require__(28);
 
 const kCode = Symbol('kCode');
 const kData = Symbol('kData');
@@ -6637,12 +7011,12 @@ function callListener(listener, thisArg, event) {
 
 
 /***/ }),
-/* 33 */
+/* 35 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { tokenChars } = __webpack_require__(29);
+const { tokenChars } = __webpack_require__(31);
 
 /**
  * Adds an offer to the map of extension offers or a parameter to the map of
@@ -6846,12 +7220,12 @@ module.exports = { format, parse };
 
 
 /***/ }),
-/* 34 */
+/* 36 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { Duplex } = __webpack_require__(21);
+const { Duplex } = __webpack_require__(23);
 
 /**
  * Emits the `'close'` event on a stream.
@@ -7011,23 +7385,23 @@ module.exports = createWebSocketStream;
 
 
 /***/ }),
-/* 35 */
+/* 37 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex$" }] */
 
 
 
-const EventEmitter = __webpack_require__(15);
-const http = __webpack_require__(17);
-const { Duplex } = __webpack_require__(21);
-const { createHash } = __webpack_require__(20);
+const EventEmitter = __webpack_require__(17);
+const http = __webpack_require__(19);
+const { Duplex } = __webpack_require__(23);
+const { createHash } = __webpack_require__(22);
 
-const extension = __webpack_require__(33);
-const PerMessageDeflate = __webpack_require__(23);
-const subprotocol = __webpack_require__(36);
-const WebSocket = __webpack_require__(14);
-const { GUID, kWebSocket } = __webpack_require__(26);
+const extension = __webpack_require__(35);
+const PerMessageDeflate = __webpack_require__(25);
+const subprotocol = __webpack_require__(38);
+const WebSocket = __webpack_require__(16);
+const { GUID, kWebSocket } = __webpack_require__(28);
 
 const keyRegex = /^[+/0-9A-Za-z]{22}==$/;
 
@@ -7556,12 +7930,12 @@ function abortHandshakeOrEmitwsClientError(server, req, socket, code, message) {
 
 
 /***/ }),
-/* 36 */
+/* 38 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { tokenChars } = __webpack_require__(29);
+const { tokenChars } = __webpack_require__(31);
 
 /**
  * Parses the `Sec-WebSocket-Protocol` header into a set of subprotocol names.
@@ -7621,96 +7995,6 @@ function parse(header) {
 }
 
 module.exports = { parse };
-
-
-/***/ }),
-/* 37 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   Label: () => (/* binding */ Label)
-/* harmony export */ });
-/**
- * Label class
- */
-class Label {
-    constructor() {
-        this.props = {
-            "top": 0,
-            "left": 0,
-            "width": 100,
-            "height": 30,
-            "type": "label",
-            "colour": "#888888",
-            "channel": "label",
-            "fontColour": "#dddddd",
-            "fontFamily": "Verdana",
-            "fontSize": 0,
-            "corners": 4,
-            "align": "centre",
-            "visible": 1,
-            "text": "Default Label"
-        }
-
-        this.panelSections = {
-            "Properties": ["type"],
-            "Bounds": ["left", "top", "width", "height"],
-            "Text": ["text", "fontColour", "fontSize", "fontFamily", "align"],
-            "Colours": ["colour"]
-        };
-    }
-
-    addVsCodeEventListeners(widgetDiv, vs) {
-        this.vscode = vs;
-        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    }
-
-    addEventListeners(widgetDiv) {
-        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    }
-
-    pointerDown() {
-        console.log("Label clicked!");
-    }
-
-    getInnerHTML() {
-        if (this.props.visible === 0) {
-            return '';
-        }
-        
-        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.8, 12); // Ensuring font size doesn't get too small
-        const alignMap = {
-            'left': 'end',
-            'center': 'middle',
-            'centre': 'middle',
-            'right': 'start',
-        };
-        const svgAlign = alignMap[this.props.align] || 'middle';
-    
-        return `
-            <div style="position: relative; width: 100%; height: 100%;">
-                <!-- Background SVG with preserveAspectRatio="none" -->
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none"
-                     style="position: absolute; top: 0; left: 0;">
-                    <rect width="${this.props.width}" height="${this.props.height}" x="0" y="0" rx="${this.props.corners}" ry="${this.props.corners}" fill="${this.props.colour}" 
-                        pointer-events="all"></rect>
-                </svg>
-    
-                <!-- Text SVG with proper alignment -->
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet"
-                     style="position: absolute; top: 0; left: 0;">
-                    <text x="${this.props.align === 'left' ? '10%' : this.props.align === 'right' ? '90%' : '50%'}" y="50%" font-family="${this.props.fontFamily}" font-size="${fontSize}"
-                        fill="${this.props.fontColour}" text-anchor="${svgAlign}" dominant-baseline="middle" alignment-baseline="middle" 
-                        style="pointer-events: none;">${this.props.text}</text>
-                </svg>
-            </div>
-        `;
-    }
-    
-    
-    
-}
 
 
 /***/ })

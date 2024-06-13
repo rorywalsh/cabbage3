@@ -1,4 +1,4 @@
-import { CabbageUtils, CabbageColours } from "./utils.js";
+import { CabbageUtils, CabbageColours } from "../utils.js";
 
 export class Checkbox {
   constructor() {
@@ -25,6 +25,7 @@ export class Checkbox {
         "fontColourOff": "#000000", // Color of the text in the 'Off' state
         "outlineColour": "#999999", // Color of the outline
         "outlineWidth": 1, // Width of the outline
+        "value": 0, // Value of the checkbox (0 for off, 1 for on)
         "type": "checkbox", // Type of the checkbox (checkbox)
         "visible": 1, // Visibility of the checkbox (0 for hidden, 1 for visible)
         "automatable": 1, // Whether the checkbox value can be automated (0 for no, 1 for yes)

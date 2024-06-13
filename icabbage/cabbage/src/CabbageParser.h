@@ -6,6 +6,7 @@
 #include <vector>
 #include <json.hpp>
 #include "../CabbageWidgetDescriptors.h"
+#include "CabbageUtils.h"
 
 
 class CabbageParser {
@@ -47,13 +48,17 @@ public:
         std::string line;
         while (std::getline(iss, line))
         {
-            nlohmann::json j;
-            if(CabbageParser::getWidgetType(line) == "rslider")
-            {
-                j = CabbageWidgetDescriptors::getRotarySlider();
-                CabbageParser::updateJsonFromSyntax(j, line);
-                std::cout << j.dump(4);
-                widgets.push_back(j);
+            try{
+                nlohmann::json j;
+                if(CabbageUtils::isWidget(CabbageParser::getWidgetType(line)))
+                {
+                    j = CabbageWidgetDescriptors::get(CabbageParser::getWidgetType(line));
+                    CabbageParser::updateJsonFromSyntax(j, line);
+                    widgets.push_back(j);
+                }
+            }
+            catch (nlohmann::json::exception& e) {
+                    cabAssert(false, e.what());
             }
         }
         
@@ -62,84 +67,78 @@ public:
 
 
     static void updateJsonFromSyntax(nlohmann::json& jsonObj, const std::string& syntax) {
-        std::vector<Identifier> tokens = tokeniseLine(syntax);
-
-        // Parse tokens and update JSON object
-        for (size_t i = 0; i < tokens.size(); ++i)
-        {
-            if (tokens[i].name == "bounds")
+        try{
+            std::vector<Identifier> tokens = tokeniseLine(syntax);
+            
+            // Parse tokens and update JSON object
+            for (size_t i = 0; i < tokens.size(); ++i)
             {
-                if(tokens[i].numericArgs.size() == 4)
+                if (tokens[i].name == "bounds")
                 {
-                    int top = tokens[i].numericArgs[0];
-                    int left = tokens[i].numericArgs[1];
-                    int width = tokens[i].numericArgs[2];
-                    int height = tokens[i].numericArgs[3];
-                    jsonObj["top"] = top;
-                    jsonObj["left"] = left;
-                    jsonObj["width"] = width;
-                    jsonObj["height"] = height;
-                }
-                else
-                {
-                    std::cout << "The bounds() identifier takes 4 parameters" << std::endl;
-                }
-            }
-            else if (tokens[i].name == "text")
-            {
-    //            std::string text = tokens[++i];
-                std::cout << tokens[i].stringArgs[0] << std::endl;
-                jsonObj["text"] = tokens[i].stringArgs[0];
-            }
-            else if (tokens[i].name == "channel")
-            {
-                std::string channel = tokens[i].stringArgs[0];
-                jsonObj["channel"] = channel;
-            }
-            else if (tokens[i].name == "range")
-            {
-                if(tokens[i].numericArgs.size()>=3)
-                {
-                    double min = tokens[i].numericArgs[0];
-                    double max = tokens[i].numericArgs[1];
-                    double value = tokens[i].numericArgs[2];
-                    jsonObj["min"] = min;
-                    jsonObj["max"] = max;
-                    jsonObj["value"] = value;
-                    
-                    if(tokens[i].numericArgs.size()==5)
+                    if(tokens[i].numericArgs.size() == 4)
                     {
-                        double sliderSkew = tokens[i].numericArgs[3];
-                        double increment = tokens[i].numericArgs[4];
-                        jsonObj["sliderSkew"] = sliderSkew;
-                        jsonObj["increment"] = increment;
+                        const int top = tokens[i].numericArgs[0];
+                        const int left = tokens[i].numericArgs[1];
+                        const int width = tokens[i].numericArgs[2];
+                        const int height = tokens[i].numericArgs[3];
+                        jsonObj["top"] = top;
+                        jsonObj["left"] = left;
+                        jsonObj["width"] = width;
+                        jsonObj["height"] = height;
+                    }
+                    else
+                    {
+                        std::cout << "The bounds() identifier takes 4 parameters" << std::endl;
+                    }
+                }
+
+                else if (tokens[i].name == "channel")
+                {
+                    const std::string channel = tokens[i].stringArgs[0];
+                    jsonObj["channel"] = channel;
+                }
+                else if (tokens[i].name == "range")
+                {
+                    if(tokens[i].numericArgs.size()>=3)
+                    {
+                        const double min = tokens[i].numericArgs[0];
+                        const double max = tokens[i].numericArgs[1];
+                        const double value = tokens[i].numericArgs[2];
+                        jsonObj["min"] = min;
+                        jsonObj["max"] = max;
+                        jsonObj["defaultValue"] = value;
+                        
+                        if(tokens[i].numericArgs.size()==5)
+                        {
+                            double sliderSkew = tokens[i].numericArgs[3];
+                            double increment = tokens[i].numericArgs[4];
+                            jsonObj["skew"] = sliderSkew;
+                            jsonObj["increment"] = increment;
+                        }
+                    }
+                    else
+                    {
+                        std::cout << "The range() identifier takes at least 3 parameters" << std::endl;
                     }
                 }
                 else
                 {
-                    std::cout << "The range() identifier takes at least 3 parameters" << std::endl;
+                    
+                    if(tokens[i].hasStringArgs())
+                    {
+                        std::cout << "Identifier:" << tokens[i].name << " String:" << tokens[i].stringArgs[0] << std::endl;
+                        jsonObj[tokens[i].name] = tokens[i].stringArgs[0];
+                    }
+                    else
+                    {
+                        std::cout << "Identifier:" << tokens[i].name << " Value:" << tokens[i].numericArgs[0] << std::endl;
+                        jsonObj[tokens[i].name] = tokens[i].numericArgs[0];
+                    }
                 }
             }
-            else if (tokens[i].name == "colour")
-            {
-    //            int r = std::stoi(tokens[++i]);
-    //            int g = std::stoi(tokens[++i]);
-    //            int b = std::stoi(tokens[++i]);
-    //            std::stringstream ss;
-    //            ss << "#" << std::hex << r << g << b;
-    //            jsonObj["colour"] = ss.str();
-            }
-            else if (tokens[i].name == "fontColour")
-            {
-    //            std::string fontColour = tokens[++i];
-    //            jsonObj["fontColour"] = fontColour;
-            }
-            else if (tokens[i].name == "trackerColour")
-            {
-    //            std::string trackerColour = tokens[++i];
-    //            jsonObj["trackerColour"] = trackerColour;
-            }
-            // Add more conditions for other properties as needed
+        }
+        catch (nlohmann::json::exception& e) {
+                cabAssert(false, e.what());
         }
     }
 

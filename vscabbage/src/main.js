@@ -1,19 +1,23 @@
 
-import { Form } from "./form.js";
-import { RotarySlider } from "./rotarySlider.js";
-import { HorizontalSlider } from "./horizontalSlider.js";
-import { VerticalSlider } from "./verticalSlider.js";
-import { Button } from "./button.js";
-import { Checkbox } from "./checkbox.js";
-import { ComboBox } from "./comboBox.js";
-import { Label } from "./label.js";
-import { MidiKeyboard } from "./midiKeyboard.js";
+import { Form } from "./widgets/form.js";
+import { RotarySlider } from "./widgets/rotarySlider.js";
+import { HorizontalSlider } from "./widgets/horizontalSlider.js";
+import { VerticalSlider } from "./widgets/verticalSlider.js";
+import { Button } from "./widgets/button.js";
+import { Checkbox } from "./widgets/checkbox.js";
+import { ComboBox } from "./widgets/comboBox.js";
+import { Label } from "./widgets/label.js";
+import { CsoundOutput } from "./widgets/csoundOutput.js";
+import { MidiKeyboard } from "./widgets/midiKeyboard.js";
 import { PropertyPanel } from "./propertyPanel.js";
 import { CabbageUtils, CabbageTestUtilities } from "./utils.js";
 
+const widgetsForTesting= [new RotarySlider(), new ComboBox(), new Button(), new Checkbox(), new Label(), 
+   new HorizontalSlider(), new VerticalSlider(), new MidiKeyboard()];
+CabbageTestUtilities.generateIdentifierTestCsd(widgetsForTesting); // This will generate a test CSD file with the widgets
+//CabbageTestUtilities.generateCabbageWidgetDescriptorsClass(widgetsForTesting); // This will generate a class with the widget descriptors
 
-CabbageTestUtilities.generateIdentifierTestCsd([new Form(), new RotarySlider(), new ComboBox(), new Button(), new Checkbox(), new Label(), 
-  new HorizontalSlider(), new VerticalSlider(), new MidiKeyboard()]); // This will generate a test CSD file with the widgets
+
 
 
 
@@ -56,15 +60,13 @@ CabbageUtils.showOverlay();
  * called from the webview panel on startup, and when a user saves/updates or changes .csd file
  */
 window.addEventListener('message', event => {
+  
   const message = event.data;
   switch (message.command) {
     case 'onFileChanged':
       CabbageUtils.hideOverlay();
-
-
       cabbageMode = 'nonDraggable';
       form.className = "form nonDraggable";
-
       const leftPanel = document.getElementById('LeftPanel');
       if (leftPanel)
         leftPanel.className = "full-height-div nonDraggable"
@@ -72,7 +74,6 @@ window.addEventListener('message', event => {
       const rightPanel = document.getElementById('RightPanel');
       if (rightPanel)
         rightPanel.style.visibility = "hidden";
-
       CabbageUtils.parseCabbageCode(message.text, widgets, form, insertWidget);
       break;
     case 'snapToSize':
@@ -88,7 +89,23 @@ window.addEventListener('message', event => {
       cabbageMode = 'draggable';
       //form.className = "form draggable";
       CabbageUtils.parseCabbageCode(message.text, widgets, form, insertWidget);
-      break;
+      // break;
+    case 'csoundOutputUpdate':
+    // Find csoundOutput widget
+    console.log("csoundOutputUpdate")
+      let csoundOutput = widgets.find(widget => widget.props.channel === 'csoundoutput');
+      if (csoundOutput) {
+        // Update the HTML content of the widget's div
+        const csoundOutputDiv = CabbageUtils.getWidgetDiv(csoundOutput.props.channel);
+        if (csoundOutputDiv) {
+
+          csoundOutputDiv.innerHTML = csoundOutput.getInnerHTML();
+          csoundOutput.appendText(message.text)
+
+        }
+      }
+      else
+        console.log("No csoundoutput widget found");
     default:
       return;
   }
@@ -348,6 +365,9 @@ async function insertWidget(type, props) {
     case "checkbox":
       widget = new Checkbox();
       break;
+    case "csoundoutput":
+      widget = new CsoundOutput();
+      break;
     default:
       return;
   }
@@ -393,13 +413,13 @@ async function insertWidget(type, props) {
 
   if (cabbageMode === 'nonDraggable') {
     if (typeof acquireVsCodeApi === 'function') {
-      if (!vscode)
+      if (!vscode){
         vscode = acquireVsCodeApi();
-
-      widget.addVsCodeEventListeners(widgetDiv, vscode);
+        widget.addVsCodeEventListeners(widgetDiv, vscode);
+      }
     }
     else
-      widget.addEventListeners(widgetDiv, vscode);
+      widget.addEventListeners(widgetDiv);
   }
 
   widgetDiv.id = widget.props.channel;

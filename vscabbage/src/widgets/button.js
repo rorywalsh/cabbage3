@@ -1,4 +1,4 @@
-import { CabbageUtils, CabbageColours } from "./utils.js";
+import { CabbageUtils, CabbageColours } from "../utils.js";
 
 export class Button {
   constructor() {
@@ -26,6 +26,7 @@ export class Button {
       "outlineColour": "#dddddd", // Color of the outline
       "outlineWidth": 2, // Width of the outline
       "name": "", // Name of the button
+      "value": 0, // Value of the button (0 for off, 1 for on)
       "type": "button", // Type of the button (button)
       "visible": 1, // Visibility of the button (0 for hidden, 1 for visible)
       "automatable": 1, // Whether the button value can be automated (0 for no, 1 for yes)
@@ -111,8 +112,7 @@ export class Button {
   addEventListeners(widgetDiv) {
     widgetDiv.addEventListener("pointerup", this.pointerUp.bind(this));
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
-    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    window.addEventListener("mousemove", this.handleMouseMove.bind(this));
     widgetDiv.VerticalSliderInstance = this;
   }
 

@@ -36,10 +36,13 @@ void Cabbage::addOpcodes()
     csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Si", csnd::thread::i);
     csnd::plugin<CabbageSet>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSS", csnd::thread::ik);
     csnd::plugin<CabbageSet>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "SS", csnd::thread::i);
+    csnd::plugin<CabbageSet>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "SS", csnd::thread::i);
     csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "i", "S", csnd::thread::i);
     csnd::plugin<CabbageGetMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "k", "SS", csnd::thread::ik);
+    csnd::plugin<CabbageGetMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "i", "SS", csnd::thread::i);
     csnd::plugin<CabbageGetString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "S", "SS", csnd::thread::i);
+    csnd::plugin<CabbageCompare>((csnd::Csound*) getCsound()->GetCsound(), "cabbageCompare", "i", "SS", csnd::thread::i);
 }
 
 bool Cabbage::setupCsound()
@@ -96,7 +99,7 @@ bool Cabbage::setupCsound()
             {
                 std::string message(csound->GetFirstMessage());
                 std::cout << message << std::endl;
-                csound->PopFirstMessage();
+//                csound->PopFirstMessage();
             }
             return false;
         }
@@ -109,18 +112,23 @@ bool Cabbage::setupCsound()
             {
                 if(w["type"] == "rslider")
                 {
-                    std::cout << w.dump(4) << std::endl;
-                    processor.GetParam(numberOfParameters)->InitDouble(w["channel"].get<std::string>().c_str(),
-                                                             w["value"].get<float>(),
-                                                             w["min"].get<float>(),
-                                                             w["max"].get<float>(),
-                                                             w["increment"].get<float>(),
-                                                             std::string(w["channel"].get<std::string>()+"Label1").c_str(),
-                                                             iplug::IParam::EFlags::kFlagsNone,
-                                                             "",
-                                                             iplug::IParam::ShapePowCurve(w["sliderSkew"].get<float>()));
-                    parameterChannels.push_back({CabbageParser::removeQuotes(w["channel"].get<std::string>()), w["value"].get<float>()});
-                    numberOfParameters++;
+                    try{
+                        processor.GetParam(numberOfParameters)->InitDouble(w["channel"].get<std::string>().c_str(),
+                                                                           w["defaultValue"].get<float>(),
+                                                                           w["min"].get<float>(),
+                                                                           w["max"].get<float>(),
+                                                                           w["increment"].get<float>(),
+                                                                           std::string(w["channel"].get<std::string>()+"Label1").c_str(),
+                                                                           iplug::IParam::EFlags::kFlagsNone,
+                                                                           "",
+                                                                           iplug::IParam::ShapePowCurve(w["skew"].get<float>()));
+                        parameterChannels.push_back({CabbageParser::removeQuotes(w["channel"].get<std::string>()), w["value"].get<float>()});
+                        numberOfParameters++;
+                    }
+                    catch (nlohmann::json::exception& e) {
+                        std::cout << w.dump(4) << std::endl << e.what();
+                        cabAssert(false, "");
+                    }
                 }
             }
         }

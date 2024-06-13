@@ -242,3 +242,62 @@ private:
         return result;
     }
 };
+
+class CabbageUtils {
+public:
+    static const char* getWidgetUpdateScript(std::string channel, float value)
+    {
+        static std::string result;
+            result = StringFormatter::format(R"(
+                window.postMessage({
+                    command: "widgetUpdate",
+                    text: JSON.stringify({
+                        channel: "<>",
+                       value: <>
+                    })
+                });
+            )",
+            channel,
+            value);
+            return result.c_str();
+    }
+    
+    static const char* getWidgetUpdateScript(std::string channel, std::string data)
+    {
+        static std::string result;
+            result = StringFormatter::format(R"(
+                window.postMessage({
+                    command: "widgetUpdate",
+                    text: JSON.stringify({
+                        channel: "<>",
+                        data: '<>'
+                    })
+                });
+            )",
+            channel,
+            data);
+            return result.c_str();
+    }
+    
+    static const char* getCsoundOutputUpdateScript(std::string output)
+    {
+        static std::string result;
+            result = StringFormatter::format(R"(
+             window.postMessage({ command: "csoundOutputUpdate", text: `<>` });
+            )",
+            output);
+            return result.c_str();
+    }
+    
+    static std::vector<std::string> getWidgetTypes(){
+        return {"form", "rslider", "combobox", "button", "checkbox", "label", "hslider", "vslider", "keyboard"};
+    }
+    
+    static bool isWidget(const std::string& target) {
+        std::vector<std::string> widgetTypes = getWidgetTypes();
+        
+        // Check if the target string is in the vector
+        auto it = std::find(widgetTypes.begin(), widgetTypes.end(), target);
+        return it != widgetTypes.end();
+    }
+};

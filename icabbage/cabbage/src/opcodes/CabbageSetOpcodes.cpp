@@ -60,8 +60,7 @@ int CabbageSet::setIdentifier(int /*pass*/)
     {
         auto data = getIdentData(args, true, 0, 1);
         data.type = CabbageOpcodeData::MessageType::Identifier;
-        std::cout << "identText:" << args.str_data(1).data;
-        data.stringData.emplace_back(args.str_data(1).data);
+        data.stringData.emplace_back(std::string(args.str_data(1).data));
         varData->enqueue(data);
     }
     

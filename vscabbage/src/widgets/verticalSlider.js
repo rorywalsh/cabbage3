@@ -1,4 +1,4 @@
-import { CabbageUtils, CabbageColours } from "./utils.js";
+import { CabbageUtils, CabbageColours } from "../utils.js";
 
 export class VerticalSlider {
   constructor() {
@@ -7,7 +7,7 @@ export class VerticalSlider {
       "left": 10, // Left position of the vertical slider widget
       "width": 60, // Width of the vertical slider widget
       "height": 60, // Height of the vertical slider widget
-      "channel": "rslider", // Unique identifier for the vertical slider widget
+      "channel": "vslider", // Unique identifier for the vertical slider widget
       "min": 0, // Minimum value of the slider
       "max": 1, // Maximum value of the slider
       "value": 0, // Current value of the slider
@@ -30,7 +30,6 @@ export class VerticalSlider {
       "trackerOutlineWidth": 1, // Outline width of the slider tracker
       "outlineWidth": 1, // Width of the slider outline
       "type": "vslider", // Type of the widget (vertical slider)
-      "kind": "vertical", // Kind of slider (vertical)
       "decimalPlaces": 1, // Number of decimal places in the slider value
       "velocity": 0, // Velocity value for the slider
       "visible": 1, // Visibility of the slider

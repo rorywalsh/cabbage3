@@ -62,16 +62,18 @@ public:
     {
         OnUIOpen();
         std::string result = StringFormatter::format(R"(
-document.addEventListener('DOMContentLoaded', () => {
+
+                                                     console.log("dfghjkl;';lkjhgfdfghjklkjhgfvjkl;")
  const cabbageCode = `<>`;
 setTimeout(function(){
  window.postMessage({ command: "onFileChanged", text: cabbageCode });
 }, 100);
-});
+
                                                      )", CabbageFile::getFileAsString());
-        std::cout << result << std::endl;;
         EvaluateJavaScript(result.c_str());
         Resize(800,400);
+        if (editorOnLoad)
+            editorOnLoad();
     }
     
     void SetMaxJSStringLength(int length)
@@ -97,6 +99,7 @@ protected:
     int mMaxJSStringLength = kDefaultMaxJSStringLength;
     std::function<void()> editorInitFunc = nullptr;
     std::function<void()> editorDeleteFunc = nullptr;
+    std::function<void()> editorOnLoad = nullptr;
     void* mHelperView = nullptr;
     
 private:
