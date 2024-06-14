@@ -12,9 +12,9 @@ import { MidiKeyboard } from "./widgets/midiKeyboard.js";
 import { PropertyPanel } from "./propertyPanel.js";
 import { CabbageUtils, CabbageTestUtilities } from "./utils.js";
 
-const widgetsForTesting= [new RotarySlider(), new ComboBox(), new Button(), new Checkbox(), new Label(), 
-   new HorizontalSlider(), new VerticalSlider(), new MidiKeyboard()];
-CabbageTestUtilities.generateIdentifierTestCsd(widgetsForTesting); // This will generate a test CSD file with the widgets
+// const widgetsForTesting = [new RotarySlider(), new ComboBox(), new Button(), new Checkbox(), new Label(),
+// new HorizontalSlider(), new VerticalSlider(), new MidiKeyboard()];
+// CabbageTestUtilities.generateIdentifierTestCsd(widgetsForTesting); // This will generate a test CSD file with the widgets
 //CabbageTestUtilities.generateCabbageWidgetDescriptorsClass(widgetsForTesting); // This will generate a class with the widget descriptors
 
 
@@ -34,7 +34,6 @@ if (typeof acquireVsCodeApi === 'function') {
     const module = await import("./widgetWrapper.js");
     const { WidgetWrapper } = module;
     // You can now use WidgetWrapper here
-    console.log("loading interface");
     widgetWrappers = new WidgetWrapper(PropertyPanel.updatePanel, selectedElements, widgets, vscode);
     vscode.postMessage({ command: 'ready' });
   } catch (error) {
@@ -60,7 +59,7 @@ CabbageUtils.showOverlay();
  * called from the webview panel on startup, and when a user saves/updates or changes .csd file
  */
 window.addEventListener('message', event => {
-  
+
   const message = event.data;
   switch (message.command) {
     case 'onFileChanged':
@@ -85,14 +84,12 @@ window.addEventListener('message', event => {
       break;
     case 'onEnterEditMode':
       CabbageUtils.hideOverlay();
-      console.log("onEnterEditMode");
       cabbageMode = 'draggable';
       //form.className = "form draggable";
       CabbageUtils.parseCabbageCode(message.text, widgets, form, insertWidget);
-      // break;
+    // break;
     case 'csoundOutputUpdate':
-    // Find csoundOutput widget
-    console.log("csoundOutputUpdate")
+      // Find csoundOutput widget
       let csoundOutput = widgets.find(widget => widget.props.channel === 'csoundoutput');
       if (csoundOutput) {
         // Update the HTML content of the widget's div
@@ -100,12 +97,9 @@ window.addEventListener('message', event => {
         if (csoundOutputDiv) {
 
           csoundOutputDiv.innerHTML = csoundOutput.getInnerHTML();
-          csoundOutput.appendText(message.text)
-
+          csoundOutput.appendText(message.text);
         }
       }
-      else
-        console.log("No csoundoutput widget found");
     default:
       return;
   }
@@ -152,6 +146,8 @@ if (typeof acquireVsCodeApi === 'function') {
   form.addEventListener("contextmenu", e => {
     console.log("context menu");
     e.preventDefault();
+    e.stopImmediatePropagation();
+    e.stopPropagation();
     let x = e.offsetX, y = e.offsetY,
       winWidth = window.innerWidth,
       winHeight = window.innerHeight,
@@ -164,8 +160,7 @@ if (typeof acquireVsCodeApi === 'function') {
     contextMenu.style.left = `${x}px`;
     contextMenu.style.top = `${y}px`;
     mouseDownPosition = { x: x, y: y };
-    if (cabbageMode === 'draggable')
-      contextMenu.style.visibility = "visible";
+    if (cabbageMode === 'draggable') { contextMenu.style.visibility = "visible"; }
 
   });
   document.addEventListener("click", () => contextMenu.style.visibility = "hidden");
@@ -179,10 +174,12 @@ if (typeof acquireVsCodeApi === 'function') {
    */
   let menuItems = document.getElementsByTagName('*');
   for (var i = 0; i < menuItems.length; i++) {
-    if (menuItems[i].getAttribute('class') == 'menuItem') {
-      menuItems[i].addEventListener("click", async (e) => {
+    if (menuItems[i].getAttribute('class') === 'menuItem') {
+      menuItems[i].addEventListener("pointerdown", async (e) => {
+        console.log('clicked');
+        e.stopImmediatePropagation();
+        e.stopPropagation();
         const type = e.target.innerHTML.replace(/(<([^>]+)>)/ig);
-
         const channel = CabbageUtils.getUniqueChannelName(type, widgets);
         const w = await insertWidget(type, { channel: channel, top: mouseDownPosition.y - 20, left: mouseDownPosition.x - 20 });
         if (widgets) {
@@ -190,7 +187,7 @@ if (typeof acquireVsCodeApi === 'function') {
           vscode.postMessage({
             command: 'widgetUpdate',
             text: JSON.stringify(w)
-          })
+          });
         }
 
       });
@@ -210,6 +207,8 @@ if (form) {
   let offsetY = 0;
 
   form.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) { return; }
+
     const clickedElement = event.target;
     const formRect = form.getBoundingClientRect();
     offsetX = formRect.left;
@@ -230,6 +229,7 @@ if (form) {
       selectionBox.style.top = `${startY}px`;
 
       form.appendChild(selectionBox);
+      console.log("adding selection box");
     } else if (clickedElement.classList.contains('draggable') && event.target.id !== "MainForm") {
 
       if (!event.shiftKey && !event.altKey) {
@@ -257,8 +257,11 @@ if (form) {
       selectedElements.clear();
     }
 
-    if (cabbageMode === 'draggable')
-      PropertyPanel.updatePanel(vscode, { eventType: "click", name: CabbageUtils.findValidId(event), bounds: {} }, widgets);
+    if (!event.shiftKey && !event.altKey) {
+      if (cabbageMode === 'draggable') {
+        PropertyPanel.updatePanel(vscode, { eventType: "click", name: CabbageUtils.findValidId(event), bounds: {} }, widgets);
+      }
+    }
   });
 
   document.addEventListener('pointermove', (event) => {
@@ -413,7 +416,7 @@ async function insertWidget(type, props) {
 
   if (cabbageMode === 'nonDraggable') {
     if (typeof acquireVsCodeApi === 'function') {
-      if (!vscode){
+      if (!vscode) {
         vscode = acquireVsCodeApi();
         widget.addVsCodeEventListeners(widgetDiv, vscode);
       }

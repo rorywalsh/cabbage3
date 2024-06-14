@@ -72,8 +72,9 @@ wss.on('connection', (ws) => {
     ws.on('message', (message) => {
         const msg = JSON.parse(message.toString());
         // console.log(JSON.stringify(msg["widgetUpdate"], null, 2));
-        if (panel)
+        if (panel) {
             panel.webview.postMessage({ command: "widgetUpdate", text: JSON.stringify(msg["widgetUpdate"]) });
+        }
     });
     ws.on('close', () => {
         console.log('Client disconnected');
@@ -189,16 +190,19 @@ function activate(context) {
         panel.webview.onDidReceiveMessage(message => {
             switch (message.command) {
                 case 'widgetUpdate':
-                    if (cabbageMode != "play")
+                    if (cabbageMode !== "play") {
                         updateText(message.text);
+                    }
                     return;
                 case 'channelUpdate':
-                    if (websocket)
+                    if (websocket) {
                         websocket.send(JSON.stringify(message.text));
+                    }
                 // console.log(message.text);
                 case 'ready': //trigger when webview is open
-                    if (panel)
+                    if (panel) {
                         panel.webview.postMessage({ command: "snapToSize", text: config.get("snapToSize") });
+                    }
                     break;
             }
         }, undefined, context.subscriptions);
@@ -211,8 +215,9 @@ function activate(context) {
             return;
         }
         const msg = { event: "stopCsound" };
-        if (websocket)
+        if (websocket) {
             websocket.send(JSON.stringify(msg));
+        }
         processes.forEach((p) => {
             p?.kill("SIGKILL");
         });
@@ -225,8 +230,9 @@ exports.activate = activate;
  * This function will update the text associated with a widget
  */
 async function updateText(jsonText) {
-    if (cabbageMode === "play")
+    if (cabbageMode === "play") {
         return;
+    }
     const props = JSON.parse(jsonText);
     // console.log(JSON.stringify(props, null, 2));
     if (textEditor) {
@@ -269,8 +275,9 @@ async function updateText(jsonText) {
                 break;
         }
         const internalIdentifiers = ['top', 'left', 'width', 'defaultValue', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index'];
-        if (props.type.indexOf('slider') != -1)
+        if (props.type.indexOf('slider') !== -1) {
             internalIdentifiers.push('value');
+        }
         await textEditor.edit(async (editBuilder) => {
             if (textEditor) {
                 let foundChannel = false;
@@ -307,8 +314,10 @@ async function updateText(jsonText) {
                             });
                             if (props.type.indexOf('slider') > -1) {
                                 const rangeIndex = tokens.findIndex(({ token }) => token === 'range');
-                                if (rangeIndex != -1)
+                                // eslint-disable-next-line eqeqeq
+                                if (rangeIndex != -1) {
                                     tokens[rangeIndex].values = [props.min, props.max, props.defaultValue, props.skew, props.increment];
+                                }
                             }
                             const boundsIndex = tokens.findIndex(({ token }) => token === 'bounds');
                             tokens[boundsIndex].values = [props.left, props.top, props.width, props.height];
@@ -320,20 +329,23 @@ async function updateText(jsonText) {
                         else {
                         }
                     }
-                    if (lines[i] === '</Cabbage>')
+                    if (lines[i] === '</Cabbage>') {
                         break;
+                    }
                 }
                 let count = 0;
                 lines.forEach((line) => {
-                    if (line.trimStart().startsWith("</Cabbage>"))
+                    if (line.trimStart().startsWith("</Cabbage>")) {
                         lineNumber = count;
+                    }
                     count++;
                 });
                 //this is called when we create a widgets from the popup menu in the UI builder
-                if (!foundChannel && props.type != "form") {
-                    let newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${utils_js_1.CabbageUtils.getCabbageCodeFromJSON(jsonText, "channel")}`;
+                if (!foundChannel && props.type !== "form") {
+                    console.log("here");
+                    let newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${utils_js_1.CabbageUtils.getCabbageCodeFromJson(jsonText, "channel")}`;
                     if (props.type.indexOf('slider') > -1) {
-                        newLine += ` ${utils_js_1.CabbageUtils.getCabbageCodeFromJSON(jsonText, "range")}`;
+                        newLine += ` ${utils_js_1.CabbageUtils.getCabbageCodeFromJson(jsonText, "range")}`;
                     }
                     editBuilder.insert(new vscode.Position(lineNumber, 0), newLine + '\n');
                     textEditor.selection = new vscode.Selection(lineNumber, 0, lineNumber, 10000);
@@ -1057,6 +1069,19 @@ class CabbageUtils {
     return tokens;
   }
 
+  static sendToBack(currentDiv) {
+      const parentElement = currentDiv.parentElement;
+      const allDivs = parentElement.getElementsByTagName('div');
+      console.log(currentDiv);
+      console.log(allDivs);
+      for (let i = 0; i < allDivs.length; i++) {
+        if (allDivs[i] !== currentDiv) {
+          allDivs[i].style.zIndex = 1; // Bring other divs to the top
+        } else {
+          allDivs[i].style.zIndex = 0; // Keep the current div below others
+        }
+      }
+    }
   /**
    * This function will return an identifier in the form of ident(param) from an incoming
    * JSON object of properties
@@ -2185,7 +2210,6 @@ class VerticalSlider {
 
     const popup = document.getElementById('popupValue');
     if (popup) {
-      console.log(this.props.valuePrefix)
       popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
     }
 
@@ -3153,34 +3177,55 @@ __webpack_require__.r(__webpack_exports__);
  * Form class
  */
 class Form {
-    constructor() {
-      this.props = {
-        "width": 600,
-        "height": 300,
-        "caption": "",
-        "type": "form",
-        "colour": "#888888",
-        "channel": "MainForm"
-      }
-  
-      this.panelSections = {
-        "Properties": ["type"],
-        "Bounds": ["width", "height"],
-        "Text": ["caption"],
-        "Colours": ["colour"]
-      };
+  constructor() {
+    this.props = {
+      "width": 600,
+      "height": 300,
+      "caption": "",
+      "type": "form",
+      "colour": "#888888",
+      "channel": "MainForm"
     }
-  
-  
-    getInnerHTML() {
-  
-      return `
-        <svg xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none">
-        <rect width="${this.props.width} " height="${this.props.height}" x="0" y="0" rx="2" ry="2" fill="${this.props.colour}" />
-        </svg>
-        `;
+
+    this.panelSections = {
+      "Properties": ["type"],
+      "Bounds": ["width", "height"],
+      "Text": ["caption"],
+      "Colours": ["colour"]
+    };
+  }
+
+
+  getInnerHTML() {
+    return `
+      <svg class="widget-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none" style="position: relative; z-index: 0;">
+        <rect width="${this.props.width}" height="${this.props.height}" x="0" y="0" rx="2" ry="2" fill="${this.props.colour}" />
+      </svg>
+    `;
+  }
+
+  updateSVG() {
+    // Select the parent div using the channel property
+    const parentDiv = document.getElementById(this.props.channel);
+    
+    if (!parentDiv) {
+      console.error(`Parent div with id ${this.props.channel} not found.`);
+      return;
+    }
+
+    // Check if an SVG element with the class 'widget-svg' already exists
+    let svgElement = parentDiv.querySelector('.widget-svg');
+    
+    if (svgElement) {
+      // Update the existing SVG element's outerHTML
+      svgElement.outerHTML = this.getInnerHTML();
+    } else {
+      // Append the new SVG element if it doesn't exist
+      parentDiv.insertAdjacentHTML('beforeend', this.getInnerHTML());
     }
   }
+}
+
 
 /***/ }),
 /* 14 */

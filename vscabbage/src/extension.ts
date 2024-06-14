@@ -47,8 +47,9 @@ wss.on('connection', (ws) => {
 	ws.on('message', (message) => {
 		const msg = JSON.parse(message.toString());
 		// console.log(JSON.stringify(msg["widgetUpdate"], null, 2));
-		if (panel)
+		if (panel){
 			panel.webview.postMessage({ command: "widgetUpdate", text: JSON.stringify(msg["widgetUpdate"]) })
+		}	
 
 	});
 
@@ -199,16 +200,19 @@ export function activate(context: vscode.ExtensionContext) {
 			message => {
 				switch (message.command) {
 					case 'widgetUpdate':
-						if (cabbageMode != "play")
+						if (cabbageMode !== "play"){
 							updateText(message.text);
+						}
 						return;
 					case 'channelUpdate':
-						if (websocket)
+						if (websocket){
 							websocket.send(JSON.stringify(message.text));
+						}
 					// console.log(message.text);
 					case 'ready': //trigger when webview is open
-						if (panel)
+						if (panel){
 							panel.webview.postMessage({ command: "snapToSize", text: config.get("snapToSize") });
+						}
 						break;
 
 				}
@@ -228,11 +232,12 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 		const msg = { event: "stopCsound" };
-		if (websocket)
+		if (websocket){
 			websocket.send(JSON.stringify(msg));
+		}
 		processes.forEach((p) => {
 			p?.kill("SIGKILL");
-		})
+		});
 		sendTextToWebView(textEditor?.document, 'onEnterEditMode');
 		cabbageMode = "draggable";
 	})
@@ -245,8 +250,9 @@ export function activate(context: vscode.ExtensionContext) {
  * This function will update the text associated with a widget
  */
 async function updateText(jsonText: string) {
-	if (cabbageMode === "play")
+	if (cabbageMode === "play"){
 		return;
+	}
 
 	const props = JSON.parse(jsonText);
 	// console.log(JSON.stringify(props, null, 2));
@@ -293,8 +299,8 @@ async function updateText(jsonText: string) {
 
 
 		const internalIdentifiers: string[] = ['top', 'left', 'width', 'defaultValue', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index'];
-		if (props.type.indexOf('slider') != -1)
-			internalIdentifiers.push('value');
+		if (props.type.indexOf('slider') !== -1)
+			{internalIdentifiers.push('value');}
 
 		await textEditor.edit(async editBuilder => {
 			if (textEditor) {
@@ -336,8 +342,9 @@ async function updateText(jsonText: string) {
 
 							if (props.type.indexOf('slider') > -1) {
 								const rangeIndex = tokens.findIndex(({ token }) => token === 'range');
+								// eslint-disable-next-line eqeqeq
 								if (rangeIndex != -1)
-									tokens[rangeIndex].values = [props.min, props.max, props.defaultValue, props.skew, props.increment];
+									{tokens[rangeIndex].values = [props.min, props.max, props.defaultValue, props.skew, props.increment];}
 							}
 
 							const boundsIndex = tokens.findIndex(({ token }) => token === 'bounds');
@@ -357,22 +364,23 @@ async function updateText(jsonText: string) {
 						}
 					}
 					if (lines[i] === '</Cabbage>')
-						break;
+						{break;}
 				}
 
 				let count = 0;
 				lines.forEach((line) => {
 					if (line.trimStart().startsWith("</Cabbage>"))
-						lineNumber = count;
+						{lineNumber = count;}
 					count++;
-				})
+				});
 
 				//this is called when we create a widgets from the popup menu in the UI builder
-				if (!foundChannel && props.type != "form") {
-					let newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${CabbageUtils.getCabbageCodeFromJSON(jsonText, "channel")}`;
+				if (!foundChannel && props.type !== "form") {
+					console.log("here");
+					let newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${CabbageUtils.getCabbageCodeFromJson(jsonText, "channel")}`;
 
 					if (props.type.indexOf('slider') > -1) {
-						newLine += ` ${CabbageUtils.getCabbageCodeFromJSON(jsonText, "range")}`
+						newLine += ` ${CabbageUtils.getCabbageCodeFromJson(jsonText, "range")}`;
 					}
 
 					editBuilder.insert(new vscode.Position(lineNumber, 0), newLine + '\n');

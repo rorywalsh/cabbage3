@@ -5,7 +5,7 @@
 import { CabbageUtils } from "./utils.js";
 
 export class PropertyPanel {
-  
+
   constructor(vscode, type, properties, panelSections, widgets) {
     this.type = type;
     this.panelSections = panelSections;
@@ -28,8 +28,9 @@ export class PropertyPanel {
     // Create sections based on the panelSections object
     const sections = {};
 
-    if (panelSections === undefined) 
+    if (panelSections === undefined) {
       console.error("panelSections is undefined");
+    }
 
     Object.entries(panelSections).forEach(([sectionName, keys]) => {
       sections[sectionName] = createSection(sectionName);
@@ -59,13 +60,12 @@ export class PropertyPanel {
         input.id = properties.channel;
         input.dataset.parent = properties.channel;
         const picker = new CP(input);
-        picker.on('change', (r,g,b,a) => {
-          console.log("changing colour");
+        picker.on('change', (r, g, b, a) => {
           if (1 === a) {
-             input.value = CP.HEX([r, g, b, a]);
-           } else {
-             input.value = CP.HEX([r, g, b, a]);
-           }
+            input.value = CP.HEX([r, g, b, a]);
+          } else {
+            input.value = CP.HEX([r, g, b, a]);
+          }
 
           this.handleInputChange(input.parentElement);
         });
@@ -111,7 +111,7 @@ export class PropertyPanel {
     // Track properties that have been assigned to sections
     const assignedProperties = new Set();
 
-  
+
 
     // Iterate over panelSections and properties to assign them to their respective sections
     Object.entries(panelSections).forEach(([sectionName, keys]) => {
@@ -184,17 +184,16 @@ export class PropertyPanel {
   }
 
   handleInputChange(evt) {
-    if(evt === undefined){
+    if (evt === undefined) {
       console.error("evt is undefined");
     }
 
     let input;
-    if (evt instanceof Event){
+    if (evt instanceof Event) {
       input = evt.target;
     }
-    else{
+    else {
       input = evt;
-      console.log(input);
       const innerInput = evt.querySelector('input');
       input = innerInput;
     }
@@ -203,10 +202,8 @@ export class PropertyPanel {
     const vscode = this.vscode;
 
     widgets.forEach((widget) => {
-      console.log("widget", widget.props.channel, input.dataset.parent);
       if (widget.props.channel === input.dataset.parent) {
         const inputValue = input.value;
-        console.log("inputValue", inputValue)
         let parsedValue;
 
         if (!isNaN(inputValue) && inputValue.trim() !== "") {
@@ -215,10 +212,17 @@ export class PropertyPanel {
           parsedValue = inputValue;
         }
         widget.props[input.id] = parsedValue;
-        console.log(input.id, parsedValue);
         CabbageUtils.updateBounds(widget.props, input.id);
         const widgetDiv = CabbageUtils.getWidgetDiv(widget.props.channel);
-        widgetDiv.innerHTML = widget.getInnerHTML();
+        
+        if (widget.props['type'] === 'form') {
+          //can't be updated innerHTML for form as it is a parent for all
+          //other components
+          widget.updateSVG();
+        }
+        else{
+          widgetDiv.innerHTML = widget.getInnerHTML();
+        }
         if (!vscode) {
           console.error("vscode is not valid");
         } else {
@@ -238,50 +242,50 @@ export class PropertyPanel {
 * type, name and bounds updates 
 */
   static async updatePanel(vscode, input, widgets) {
-  // Ensure input is an array of objects
-  this.vscode = vscode;
-  let events = Array.isArray(input) ? input : [input];
+    // Ensure input is an array of objects
+    this.vscode = vscode;
+    let events = Array.isArray(input) ? input : [input];
 
-  const element = document.querySelector('.property-panel');
-  if (element) {
-    element.style.visibility = "visible";
-    element.innerHTML = '';
-  }
+    const element = document.querySelector('.property-panel');
+    if (element) {
+      element.style.visibility = "visible";
+      element.innerHTML = '';
+    }
 
-  // Iterate over the array of event objects
-  events.forEach(eventObj => {
-    const { eventType, name, bounds } = eventObj;
+    // Iterate over the array of event objects
+    events.forEach(eventObj => {
+      const { eventType, name, bounds } = eventObj;
 
-    widgets.forEach((widget, index) => {
-      console.log(widget.props.channel);
-      if (widget.props.channel == name) {
-        if (eventType !== 'click') {
-          widget.props.left = Math.floor(bounds.x);
-          widget.props.top = Math.floor(bounds.y);
-          widget.props.width = Math.floor(bounds.w);
-          widget.props.height = Math.floor(bounds.h);
+      widgets.forEach((widget, index) => {
+        if (widget.props.channel === name) {
+          if (eventType !== 'click') {
+            widget.props.left = Math.floor(bounds.x);
+            widget.props.top = Math.floor(bounds.y);
+            widget.props.width = Math.floor(bounds.w);
+            widget.props.height = Math.floor(bounds.h);
 
-          if (widget.props.type !== 'form') {
-            document.getElementById(widget.props.channel).innerHTML = widget.getInnerHTML();
+            if (widget.props.type !== 'form') {
+              document.getElementById(widget.props.channel).innerHTML = widget.getInnerHTML();
+            }
           }
+
+          // if (widget.props.hasOwnProperty('channel')) {
+          //   widget.props.channel = name;
+          // }
+
+          new PropertyPanel(vscode, widget.props.type, widget.props, widget.panelSections, widgets);
+          if (!this.vscode) {
+            console.error("not valid");
+          }
+          //firing these off in one go causes the vs-code editor to shit its pants
+          setTimeout(() => {
+            this.vscode.postMessage({
+              command: 'widgetUpdate',
+              text: JSON.stringify(widget.props)
+            });
+          }, (index + 1) * 50);
         }
-
-        // if (widget.props.hasOwnProperty('channel')) {
-        //   widget.props.channel = name;
-        // }
-
-        new PropertyPanel(vscode, widget.props.type, widget.props, widget.panelSections, widgets);
-        if (!this.vscode)
-          console.error("not valid");
-        //firing these off in one go cause the vs-code editor to shit its pant
-        setTimeout(() => {
-          this.vscode.postMessage({
-            command: 'widgetUpdate',
-            text: JSON.stringify(widget.props)
-          });
-        }, (index + 1) * 50);
-      }
+      });
     });
-  });
-}
+  }
 }

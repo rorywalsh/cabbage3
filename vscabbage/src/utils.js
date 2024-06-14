@@ -324,6 +324,19 @@ export class CabbageUtils {
     return tokens;
   }
 
+  static sendToBack(currentDiv) {
+      const parentElement = currentDiv.parentElement;
+      const allDivs = parentElement.getElementsByTagName('div');
+      console.log(currentDiv);
+      console.log(allDivs);
+      for (let i = 0; i < allDivs.length; i++) {
+        if (allDivs[i] !== currentDiv) {
+          allDivs[i].style.zIndex = 1; // Bring other divs to the top
+        } else {
+          allDivs[i].style.zIndex = 0; // Keep the current div below others
+        }
+      }
+    }
   /**
    * This function will return an identifier in the form of ident(param) from an incoming
    * JSON object of properties
