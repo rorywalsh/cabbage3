@@ -147,3 +147,24 @@ bool Cabbage::setupCsound()
         return false;
     
 }
+
+void Cabbage::setControlChannel(const std::string channel, MYFLT value)
+{
+    //update Csound channel, and update ParameterChannel values..
+    csound->SetControlChannel(channel.c_str(), value);
+    
+    auto index = getIndexForParamChannel(channel);
+    if(index != -1)
+    {
+        if(widgets[getIndexForParamChannel(channel)]["type"].contains("slider"))
+            getParameterChannel(static_cast<int>(index)).setValue(value);
+    }
+
+}
+
+void Cabbage::setStringChannel(const std::string channel, std::string data)
+{
+    //update Csound channel
+    csound->SetStringChannel(channel.c_str(), (char*)data.c_str());
+}
+

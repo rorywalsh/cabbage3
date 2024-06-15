@@ -3,7 +3,7 @@ import { Form } from "./widgets/form.js";
 import { RotarySlider } from "./widgets/rotarySlider.js";
 import { HorizontalSlider } from "./widgets/horizontalSlider.js";
 import { VerticalSlider } from "./widgets/verticalSlider.js";
-import { Button } from "./widgets/button.js";
+import { Button, FileButton } from "./widgets/button.js";
 import { Checkbox } from "./widgets/checkbox.js";
 import { ComboBox } from "./widgets/comboBox.js";
 import { Label } from "./widgets/label.js";
@@ -359,6 +359,9 @@ async function insertWidget(type, props) {
     case "button":
       widget = new Button();
       break;
+    case "filebutton":
+      widget = new FileButton();
+      break;
     case "label":
       widget = new Label();
       break;
@@ -418,6 +421,9 @@ async function insertWidget(type, props) {
     if (typeof acquireVsCodeApi === 'function') {
       if (!vscode) {
         vscode = acquireVsCodeApi();
+        widget.addVsCodeEventListeners(widgetDiv, vscode);
+      }
+      else{
         widget.addVsCodeEventListeners(widgetDiv, vscode);
       }
     }

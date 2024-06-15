@@ -28,31 +28,10 @@ cabbage(*this, "")
     SetEnableDevTools(true);
 #endif
 
-    //editor onInit callback function
-    editorInitFunc = [&]() {
-#ifdef OS_WIN
-        LoadFile(R"(C:\Users\oli\Dev\iPlug2\Examples\CabbageProcessor\resources\web\index.html)", nullptr);
-#else
-        if(!server.isThreadRunning())
-            server.start("/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/");
-        
-        const std::string mntPoint = "http://127.0.0.1:" + std::to_string(server.getCurrentPort()) + "/index.html";
-        LoadURL(mntPoint.c_str());
-   
-#endif
 
-        EnableScroll(false);
-        //setCabbage(cabbage);
-    };
-
-    //editor onInit callback function
-    editorOnLoad = [&]() {
-        uiHasLoaded = true;
-    };
-    
+    setupCallbacks();
     timer.Start(this, &CabbageProcessor::timerCallback, 10);
 
-    
 }
 #endif
 
@@ -62,6 +41,33 @@ CabbageProcessor::~CabbageProcessor()
     timer.Stop();
 }
 
+void CabbageProcessor::setupCallbacks()
+{
+    //editor onInit callback function
+    editorInitFunc = [&]() {
+#ifdef OS_WIN
+        LoadFile(R"(C:\Users\oli\Dev\iPlug2\Examples\CabbageProcessor\resources\web\index.html)", nullptr);
+#else
+        if(!server.isThreadRunning())
+            server.start("/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/");
+        const std::string mntPoint = "http://127.0.0.1:" + std::to_string(server.getCurrentPort()) + "/index.html";
+        LoadURL(mntPoint.c_str());
+   
+#endif
+        EnableScroll(false);
+    };
+
+    //editor onInit callback function
+    editorOnLoad = [&]() {
+        uiHasLoaded = true;
+    };
+
+    
+    updateStringChannel = [&](std::string channel, std::string data){
+        cabbage.setStringChannel(channel, data);
+    };
+    
+}
 //timer thread listens for incoming data from Csound using a lock free fifo
 void CabbageProcessor::timerCallback()
 {

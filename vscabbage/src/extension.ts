@@ -47,9 +47,9 @@ wss.on('connection', (ws) => {
 	ws.on('message', (message) => {
 		const msg = JSON.parse(message.toString());
 		// console.log(JSON.stringify(msg["widgetUpdate"], null, 2));
-		if (panel){
+		if (panel) {
 			panel.webview.postMessage({ command: "widgetUpdate", text: JSON.stringify(msg["widgetUpdate"]) })
-		}	
+		}
 
 	});
 
@@ -127,7 +127,7 @@ export function activate(context: vscode.ExtensionContext) {
 		const colourPickerStyles = panel.webview.asWebviewUri(onDiskPath);
 
 		//add widget types to menu
-		const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button", "combobox", "checkbox", "keyboard", "csoundoutput"];
+		const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button", "filebutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
 
 		let menuItems = "";
 		widgetTypes.forEach((widget) => {
@@ -200,17 +200,17 @@ export function activate(context: vscode.ExtensionContext) {
 			message => {
 				switch (message.command) {
 					case 'widgetUpdate':
-						if (cabbageMode !== "play"){
+						if (cabbageMode !== "play") {
 							updateText(message.text);
 						}
 						return;
 					case 'channelUpdate':
-						if (websocket){
+						if (websocket) {
 							websocket.send(JSON.stringify(message.text));
 						}
 					// console.log(message.text);
 					case 'ready': //trigger when webview is open
-						if (panel){
+						if (panel) {
 							panel.webview.postMessage({ command: "snapToSize", text: config.get("snapToSize") });
 						}
 						break;
@@ -232,7 +232,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 		const msg = { event: "stopCsound" };
-		if (websocket){
+		if (websocket) {
 			websocket.send(JSON.stringify(msg));
 		}
 		processes.forEach((p) => {
@@ -250,7 +250,7 @@ export function activate(context: vscode.ExtensionContext) {
  * This function will update the text associated with a widget
  */
 async function updateText(jsonText: string) {
-	if (cabbageMode === "play"){
+	if (cabbageMode === "play") {
 		return;
 	}
 
@@ -278,6 +278,9 @@ async function updateText(jsonText: string) {
 			case 'button':
 				defaultProps = new Button().props;
 				break;
+			case 'filebutton':
+				defaultProps = new FileButton().props;
+				break;
 			case 'checkbox':
 				defaultProps = new Checkbox().props;
 				break;
@@ -299,8 +302,7 @@ async function updateText(jsonText: string) {
 
 
 		const internalIdentifiers: string[] = ['top', 'left', 'width', 'defaultValue', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index'];
-		if (props.type.indexOf('slider') !== -1)
-			{internalIdentifiers.push('value');}
+		if (props.type.indexOf('slider') !== -1) { internalIdentifiers.push('value'); }
 
 		await textEditor.edit(async editBuilder => {
 			if (textEditor) {
@@ -343,8 +345,7 @@ async function updateText(jsonText: string) {
 							if (props.type.indexOf('slider') > -1) {
 								const rangeIndex = tokens.findIndex(({ token }) => token === 'range');
 								// eslint-disable-next-line eqeqeq
-								if (rangeIndex != -1)
-									{tokens[rangeIndex].values = [props.min, props.max, props.defaultValue, props.skew, props.increment];}
+								if (rangeIndex != -1) { tokens[rangeIndex].values = [props.min, props.max, props.defaultValue, props.skew, props.increment]; }
 							}
 
 							const boundsIndex = tokens.findIndex(({ token }) => token === 'bounds');
@@ -363,14 +364,12 @@ async function updateText(jsonText: string) {
 
 						}
 					}
-					if (lines[i] === '</Cabbage>')
-						{break;}
+					if (lines[i] === '</Cabbage>') { break; }
 				}
 
 				let count = 0;
 				lines.forEach((line) => {
-					if (line.trimStart().startsWith("</Cabbage>"))
-						{lineNumber = count;}
+					if (line.trimStart().startsWith("</Cabbage>")) { lineNumber = count; }
 					count++;
 				});
 

@@ -1,4 +1,4 @@
-import { Cabbage } from "../cabbagePluginMethods.js";
+import { Cabbage } from "../cabbage.js";
 import { CabbageUtils, CabbageColours } from "../utils.js";
 
 /**

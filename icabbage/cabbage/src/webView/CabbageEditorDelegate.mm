@@ -22,6 +22,31 @@
 #import <UIKit/UIKit.h>
 #endif
 
+
+
+extern "C" const char* OpenFileBrowser() {
+    @autoreleasepool {
+        NSOpenPanel* panel = [NSOpenPanel openPanel];
+
+        [panel setCanChooseFiles:YES];
+        [panel setCanChooseDirectories:YES];
+        [panel setAllowsMultipleSelection:NO];
+        [panel setAllowedFileTypes:nil]; // Set file types if needed
+
+        // runModal blocks execution until the user makes a choice
+        NSInteger result = [panel runModal];
+        if (result == NSModalResponseOK) {
+            NSURL* selectedFileURL = [[panel URLs] objectAtIndex:0];
+            NSString* filePath = [selectedFileURL path];
+            const char* cFilePath = [filePath UTF8String];
+            char* result = strdup(cFilePath); // Duplicate the string to return it
+            return result;
+        } else {
+            return nullptr;
+        }
+    }
+}
+
 using namespace iplug;
 
 @interface HELPER_VIEW : PLATFORM_VIEW
@@ -66,6 +91,7 @@ CabbageEditorDelegate::CabbageEditorDelegate(int nParams)
 : IEditorDelegate(nParams)
 , IWebView()
 {
+    
 }
 
 CabbageEditorDelegate::~CabbageEditorDelegate()
@@ -96,6 +122,20 @@ void* CabbageEditorDelegate::OpenWindow(void* pParent)
     
     
     return mHelperView;
+    
+}
+
+/*
+ Opens a native file browser dialogue
+ */
+void CabbageEditorDelegate::OpenFileBrowser() {
+    const char* selectedPath = ::OpenFileBrowser();  // Call the global function
+    if (selectedPath) {
+        selectedFilePath = std::string(selectedPath);  // Store the selected path in a member variable
+        free((void*)selectedPath);  // Free the duplicated string
+    } else {
+        selectedFilePath.clear();
+    }
     
 }
 
@@ -178,6 +218,11 @@ void CabbageEditorDelegate::OnMessageFromWebView(const char* jsonStr)
     if(json["msg"] == "parameterUpdate")
     {
         SendParameterValueFromUI(json["paramIdx"], json["value"]);
+    }
+    else if(json["msg"] == "fileOpen")
+    {
+        OpenFileBrowser();
+        updateStringChannel(json["channel"], selectedFilePath);
     }
     else if (json["msg"] == "BPCFUI")
     {

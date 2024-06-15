@@ -18,6 +18,16 @@ export class Cabbage {
   static MidiMessageFromHost(statusByte, dataByte1, dataByte2) {
     console.log("Got MIDI Message" + status + ":" + dataByte1 + ":" + dataByte2);
   }
+
+  static triggerFileOpenDialog(channel) {
+    var message = {
+      "msg": "fileOpen",
+      "channel": channel
+    };
+    
+    if (typeof IPlugSendMsg === 'function')
+      IPlugSendMsg(message);
+  }
 }
 
 

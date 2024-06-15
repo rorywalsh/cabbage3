@@ -124,20 +124,8 @@ public:
         return -1;
     }
     
-    void setControlChannel(const std::string channel, MYFLT value)
-    {
-        //update Csound channel, and update ParameterChannel values..
-        csound->SetControlChannel(channel.c_str(), value);
-        
-        auto index = getIndexForParamChannel(channel);
-        if(index != -1)
-        {
-            if(widgets[getIndexForParamChannel(channel)]["type"].contains("slider"))
-                getParameterChannel(static_cast<int>(index)).setValue(value);
-        }
-
-    }
-
+    void setControlChannel(const std::string channel, MYFLT value);
+    void setStringChannel(const std::string channel, std::string data);
     
     void stopProcessing()
     {

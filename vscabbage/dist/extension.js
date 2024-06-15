@@ -131,7 +131,7 @@ function activate(context) {
         onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'color-picker.css');
         const colourPickerStyles = panel.webview.asWebviewUri(onDiskPath);
         //add widget types to menu
-        const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button", "combobox", "checkbox", "keyboard", "csoundoutput"];
+        const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button", "filebutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
         let menuItems = "";
         widgetTypes.forEach((widget) => {
             menuItems += `
@@ -255,6 +255,9 @@ async function updateText(jsonText) {
                 break;
             case 'button':
                 defaultProps = new button_js_1.Button().props;
+                break;
+            case 'filebutton':
+                defaultProps = new FileButton().props;
                 break;
             case 'checkbox':
                 defaultProps = new checkbox_js_1.Checkbox().props;
@@ -1548,7 +1551,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   HorizontalSlider: () => (/* binding */ HorizontalSlider)
 /* harmony export */ });
-/* harmony import */ var _cabbagePluginMethods_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5);
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5);
 /* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(3);
 
 
@@ -1877,6 +1880,16 @@ class Cabbage {
 
   static MidiMessageFromHost(statusByte, dataByte1, dataByte2) {
     console.log("Got MIDI Message" + status + ":" + dataByte1 + ":" + dataByte2);
+  }
+
+  static triggerFileOpenDialog(channel) {
+    var message = {
+      "msg": "fileOpen",
+      "channel": channel
+    };
+    
+    if (typeof IPlugSendMsg === 'function')
+      IPlugSendMsg(message);
   }
 }
 
@@ -2277,9 +2290,12 @@ class VerticalSlider {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   Button: () => (/* binding */ Button)
+/* harmony export */   Button: () => (/* binding */ Button),
+/* harmony export */   FileButton: () => (/* binding */ FileButton)
 /* harmony export */ });
 /* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(5);
+
 
 
 class Button {
@@ -2340,6 +2356,7 @@ class Button {
     if (this.props.active === 0) {
       return '';
     }
+    console.log("pointerDown");
     this.isMouseDown = true;
     this.state =! this.state;
     _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
@@ -2384,6 +2401,7 @@ class Button {
 
 
   addVsCodeEventListeners(widgetDiv, vs) {
+    console.log("addVsCodeEventListeners");
     this.vscode = vs;
     widgetDiv.addEventListener("pointerdown", this.pointerUp.bind(this));
     widgetDiv.addEventListener("pointerup", this.pointerDown.bind(this));
@@ -2433,8 +2451,67 @@ class Button {
       </svg>
     `;
   }
+}
+
+class FileButton extends Button {
+  constructor() {
+    super();
+    this.props.channel = "fileButton";
+    delete this.props.textOn;
+    delete this.props.textOff;
+    delete this.props.colourOn;
+    delete this.props.fontColourOff;
+    delete this.props.fontColourOn;
+    this.props["fontColour"] = "#dddddd";
+    this.props["text"] = "Choose File";
+    this.props["colour"] = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue");
+  }
+
+  pointerDown(evt) {
+    if (this.props.active === 0) {
+      return '';
+    }
+    this.isMouseDown = true;
+    this.state =! this.state;
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.triggerFileOpenDialog(this.props.channel);
+  }
+
+  getInnerHTML() {
+    if (this.props.visible === 0) {
+      return '';
+    }
   
+    const alignMap = {
+      'left': 'start',
+      'center': 'middle',
+      'centre': 'middle',
+      'right': 'end',
+    };
   
+    const svgAlign = alignMap[this.props.align] || this.props.align;
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
+    const padding = 5;
+  
+    let textX;
+    if (this.props.align === 'left') {
+      textX = this.props.corners; // Add padding for left alignment
+    } else if (this.props.align === 'right') {
+      textX = this.props.width - this.props.corners - padding; // Add padding for right alignment
+    } else {
+      textX = this.props.width / 2;
+    }
+  
+    const currentColour = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, this.isMouseInside ? 0.2 : 0);
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+          <rect x="${this.props.corners/2}" y="${this.props.corners/2}" width="${this.props.width-this.props.corners*2}" height="${this.props.height-this.props.corners*2}" fill="${currentColour}" stroke="${this.props.outlineColour}"
+            stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
+          <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+            fill="${this.props.fontColour}" text-anchor="${svgAlign}" alignment-baseline="middle">${this.props.text}</text>
+      </svg>
+    `;
+  }
 }
 
 
@@ -2939,7 +3016,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   MidiKeyboard: () => (/* binding */ MidiKeyboard)
 /* harmony export */ });
-/* harmony import */ var _cabbagePluginMethods_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5);
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5);
 /* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(3);
 
 
@@ -3000,7 +3077,7 @@ class MidiKeyboard {
       e.target.setAttribute('fill', this.props.keydownColour);
       console.log(`Key down: ${this.noteMap[e.target.dataset.note]}`);
       console.log(`Key down: ${e.target.dataset.note}`);
-      _cabbagePluginMethods_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendMidiMessageFromUI(0x90, this.noteMap[e.target.dataset.note], 127);
+      _cabbage_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendMidiMessageFromUI(0x90, this.noteMap[e.target.dataset.note], 127);
     }
   }
 
@@ -3011,7 +3088,7 @@ class MidiKeyboard {
       if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
         e.target.setAttribute('fill', e.target.classList.contains('white-key') ? this.props.whiteNoteColour : this.props.blackNoteColour);
         console.log(`Key up: ${this.noteMap[e.target.dataset.note]}`);
-        _cabbagePluginMethods_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendMidiMessageFromUI(0x80, this.noteMap[e.target.dataset.note], 127);
+        _cabbage_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendMidiMessageFromUI(0x80, this.noteMap[e.target.dataset.note], 127);
       }
     }
   }

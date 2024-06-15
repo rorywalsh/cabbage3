@@ -103,6 +103,8 @@ public:
         return cabbage;
     }
     
+    void setupCallbacks();
+    
 #ifdef CabbageApp
     std::function<void(CabbageOpcodeData)> hostCallback = nullptr;
 #endif

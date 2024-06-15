@@ -36,6 +36,7 @@ public:
         CloseWebView();
     }
     
+    void OpenFileBrowser();
     void SendControlValueFromDelegate(int ctrlTag, double normalizedValue) override;
     void SendControlMsgFromDelegate(int ctrlTag, int msgTag, int dataSize, const void* pData) override;
     
@@ -71,7 +72,7 @@ setTimeout(function(){
 
                                                      )", CabbageFile::getFileAsString());
         EvaluateJavaScript(result.c_str());
-        Resize(800,400);
+        Resize(1800,800);
         if (editorOnLoad)
             editorOnLoad();
     }
@@ -100,7 +101,10 @@ protected:
     std::function<void()> editorInitFunc = nullptr;
     std::function<void()> editorDeleteFunc = nullptr;
     std::function<void()> editorOnLoad = nullptr;
+    std::function<void(std::string, std::string)> updateStringChannel = nullptr;
+    std::function<void(std::string, float)> updateChannel = nullptr;
     void* mHelperView = nullptr;
+    std::string selectedFilePath;
     
 private:
     bool mEnableDevTools = false;
