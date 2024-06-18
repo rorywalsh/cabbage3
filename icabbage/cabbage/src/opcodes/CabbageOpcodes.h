@@ -16,7 +16,6 @@
 
 struct CabbageOpcodeData
 {
-    //I could enum all identifiers, this would be quicker then search strings..
     enum MessageType{
         Value,
         Identifier

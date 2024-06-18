@@ -43,7 +43,6 @@ int CabbageSet::setIdentifier(int /*pass*/)
             if(in_count() == 3)
             {
                 //if only three inputs, it's in the form cabbageSet kTrig, "channel", "bounds(10, 10, 60, 60)"
-                //so parse the string and assign tokens..
                 data.type = CabbageOpcodeData::MessageType::Identifier;
             }
             else

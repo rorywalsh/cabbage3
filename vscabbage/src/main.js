@@ -7,15 +7,16 @@ import { Button, FileButton } from "./widgets/button.js";
 import { Checkbox } from "./widgets/checkbox.js";
 import { ComboBox } from "./widgets/comboBox.js";
 import { Label } from "./widgets/label.js";
+import { GenTable } from "./widgets/genTable.js";
 import { CsoundOutput } from "./widgets/csoundOutput.js";
 import { MidiKeyboard } from "./widgets/midiKeyboard.js";
 import { PropertyPanel } from "./propertyPanel.js";
 import { CabbageUtils, CabbageTestUtilities } from "./utils.js";
 
-// const widgetsForTesting = [new RotarySlider(), new ComboBox(), new Button(), new Checkbox(), new Label(),
-// new HorizontalSlider(), new VerticalSlider(), new MidiKeyboard()];
+const widgetsForTesting = [new RotarySlider(), new ComboBox(), new Button(), new Checkbox(), new Label(),
+new HorizontalSlider(), new VerticalSlider(), new MidiKeyboard(), new GenTable, new Form];
 // CabbageTestUtilities.generateIdentifierTestCsd(widgetsForTesting); // This will generate a test CSD file with the widgets
-//CabbageTestUtilities.generateCabbageWidgetDescriptorsClass(widgetsForTesting); // This will generate a class with the widget descriptors
+CabbageTestUtilities.generateCabbageWidgetDescriptorsClass(widgetsForTesting); // This will generate a class with the widget descriptors
 
 
 
@@ -82,6 +83,10 @@ window.addEventListener('message', event => {
       const msg = JSON.parse(message.text);
       updateWidget(msg);
       break;
+    case 'widgetTableUpdate':
+      const tableMsg = JSON.parse(message.text);
+      updateTableWidget(tableMsg);
+      break;
     case 'onEnterEditMode':
       CabbageUtils.hideOverlay();
       cabbageMode = 'draggable';
@@ -110,7 +115,6 @@ window.addEventListener('message', event => {
 * this is called from the plugin and will update either the value of 
 * a widget, or some of its properties
 */
-
 function updateWidget(obj) {
   const channel = obj['channel'];
   for (const widget of widgets) {
@@ -134,6 +138,19 @@ function updateWidget(obj) {
   }
 }
 
+/*
+* this is called from the plugin and will update either the value of 
+* a widget, or some of its properties
+*/
+function updateTableWidget(obj) {
+  const channel = obj['channel'];
+  for (const widget of widgets) {
+    if (widget.props.channel == channel) {
+      widget.props.samples = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      CabbageUtils.getWidgetDiv(widget.props.channel).innerHTML = widget.getInnerHTML();
+    }
+  }
+}
 
 const contextMenu = document.querySelector(".wrapper");
 
@@ -362,6 +379,9 @@ async function insertWidget(type, props) {
     case "filebutton":
       widget = new FileButton();
       break;
+    case "gentable":
+      widget = new GenTable();
+      break;
     case "label":
       widget = new Label();
       break;
@@ -423,7 +443,7 @@ async function insertWidget(type, props) {
         vscode = acquireVsCodeApi();
         widget.addVsCodeEventListeners(widgetDiv, vscode);
       }
-      else{
+      else {
         widget.addVsCodeEventListeners(widgetDiv, vscode);
       }
     }

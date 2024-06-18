@@ -147,6 +147,18 @@ public:
         return widgets;
     }
     
+    nlohmann::json& getWidget(std::string channel)
+    {
+        for(auto& w : widgets)
+        {
+            std::cout << w["channel"] << std::endl;
+            if(CabbageParser::removeQuotes(w["channel"]) == channel)
+                return w;
+        }
+        
+
+    }
+    
 //    std::vector<std::string> getParameterChannel()
 //    {
 //        return parameterChannels;

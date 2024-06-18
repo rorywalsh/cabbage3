@@ -21,6 +21,8 @@ import { CsoundOutput } from "./widgets/csoundOutput.js";
 // @ts-ignore
 import { MidiKeyboard } from "./widgets/midiKeyboard.js";
 // @ts-ignore
+import { GenTable } from "./widgets/genTable.js";
+// @ts-ignore
 import { CabbageUtils } from "./utils.js";
 // @ts-ignore
 import { Form } from "./widgets/form.js";
@@ -127,7 +129,7 @@ export function activate(context: vscode.ExtensionContext) {
 		const colourPickerStyles = panel.webview.asWebviewUri(onDiskPath);
 
 		//add widget types to menu
-		const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button", "filebutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
+		const widgetTypes = ["hslider", "rslider", "gentable", "vslider", "keyboard", "button", "filebutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
 
 		let menuItems = "";
 		widgetTypes.forEach((widget) => {
@@ -277,6 +279,9 @@ async function updateText(jsonText: string) {
 				break;
 			case 'button':
 				defaultProps = new Button().props;
+				break;
+			case 'gentable':
+				defaultProps = new GenTable().props;
 				break;
 			case 'filebutton':
 				defaultProps = new FileButton().props;

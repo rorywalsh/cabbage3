@@ -55,6 +55,8 @@ const csoundOutput_js_1 = __webpack_require__(11);
 // @ts-ignore
 const midiKeyboard_js_1 = __webpack_require__(12);
 // @ts-ignore
+const genTable_js_1 = __webpack_require__(39);
+// @ts-ignore
 const utils_js_1 = __webpack_require__(3);
 // @ts-ignore
 const form_js_1 = __webpack_require__(13);
@@ -131,7 +133,7 @@ function activate(context) {
         onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'color-picker.css');
         const colourPickerStyles = panel.webview.asWebviewUri(onDiskPath);
         //add widget types to menu
-        const widgetTypes = ["hslider", "rslider", "vslider", "keyboard", "button", "filebutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
+        const widgetTypes = ["hslider", "rslider", "gentable", "vslider", "keyboard", "button", "filebutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
         let menuItems = "";
         widgetTypes.forEach((widget) => {
             menuItems += `
@@ -255,6 +257,9 @@ async function updateText(jsonText) {
                 break;
             case 'button':
                 defaultProps = new button_js_1.Button().props;
+                break;
+            case 'gentable':
+                defaultProps = new genTable_js_1.GenTable().props;
                 break;
             case 'filebutton':
                 defaultProps = new FileButton().props;
@@ -8117,6 +8122,102 @@ function parse(header) {
 }
 
 module.exports = { parse };
+
+
+/***/ }),
+/* 39 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   GenTable: () => (/* binding */ GenTable)
+/* harmony export */ });
+/**
+ * Label class
+ */
+class GenTable {
+    constructor() {
+        this.props = {
+            "top": 0,
+            "left": 0,
+            "width": 200,
+            "height": 100,
+            "type": "gentable",
+            "colour": "#888888",
+            "outlineColour": "#dddddd",
+            "outlineWidth": 1,
+            "channel": "gentable",
+            "backgroundColour": "#a8d388",
+            "fontColour": "#dddddd",
+            "fontFamily": "Verdana",
+            "fontSize": 0,
+            "corners": 4,
+            "align": "centre",
+            "visible": 1,
+            "text": "Default Label",
+            "tableNumber": 1,
+            "samples": []
+        }
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Text": ["text", "fontColour", "fontSize", "fontFamily", "align"],
+            "Colours": ["colour", "outlineColour", "backgroundColour"]
+        };
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    addEventListeners(widgetDiv) {
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    pointerDown() {
+        console.log("Label clicked!");
+    }
+
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+        
+        console.log("samples", this.props.samples)
+        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.8, 12); // Ensuring font size doesn't get too small
+        const alignMap = {
+            'left': 'end',
+            'center': 'middle',
+            'centre': 'middle',
+            'right': 'start',
+        };
+        const svgAlign = alignMap[this.props.align] || 'middle';
+    
+        return `
+            <div style="position: relative; width: 100%; height: 100%;">
+                <!-- Background SVG with preserveAspectRatio="none" -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none"
+                     style="position: absolute; top: 0; left: 0;">
+                    <rect width="${this.props.width}" height="${this.props.height}" x="0" y="0" rx="${this.props.corners}" ry="${this.props.corners}" fill="${this.props.colour}" 
+                        pointer-events="all"></rect>
+                </svg>
+    
+                <!-- Text SVG with proper alignment -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet"
+                     style="position: absolute; top: 0; left: 0;">
+                    <text x="${this.props.align === 'left' ? '10%' : this.props.align === 'right' ? '90%' : '50%'}" y="50%" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+                        fill="${this.props.fontColour}" text-anchor="${svgAlign}" dominant-baseline="middle" alignment-baseline="middle" 
+                        style="pointer-events: none;">${this.props.text}</text>
+                </svg>
+            </div>
+        `;
+    }
+    
+    
+    
+}
 
 
 /***/ })

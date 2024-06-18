@@ -126,8 +126,25 @@ void CabbageProcessor::timerCallback()
             }
             else
             {
-                message = CabbageUtils::getWidgetUpdateScript(data.channel, data.identifierText);
-//                std::cout << message << std::endl;
+                if(data.identifierText.find("tableNumber") != std::string::npos)
+                {
+                    auto& j = cabbage.getWidget(data.channel);
+                    CabbageParser::updateJsonFromSyntax(cabbage.getWidget(data.channel), data.identifierText);
+                    const int tableNumber = j["tableNumber"];
+                    const int tableSize = cabbage.getCsound()->TableLength(tableNumber);
+                    if(tableSize != -1)
+                    {
+                        std::vector<double> temp (tableSize);
+                        cabbage.getCsound()->TableCopyOut (tableNumber, &temp[0]);
+                        message = "";
+//                        message =  CabbageUtils::getTableUpdateScript(data.channel, temp);
+                        temp.clear();
+                    }
+                }
+                else
+                {
+                    message = CabbageUtils::getWidgetUpdateScript(data.channel, data.identifierText);
+                }
             }
 
             EvaluateJavaScript(message.c_str());

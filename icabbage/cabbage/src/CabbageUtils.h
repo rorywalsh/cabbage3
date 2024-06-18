@@ -279,6 +279,30 @@ public:
             return result.c_str();
     }
     
+    static const char* getTableUpdateScript(std::string channel, std::vector<double> samples)
+    {
+        std::string data = "[";
+        for(const auto& s : samples)
+        {
+            data += std::to_string(s) + ",";
+        }
+        data += "]";
+        
+        static std::string result;
+            result = StringFormatter::format(R"(
+                window.postMessage({
+                    command: "widgetTableUpdate",
+                    text: JSON.stringify({
+                        channel: "<>",
+                        data: '<>'
+                    })
+                });
+            )",
+            channel,
+            data);
+            return result.c_str();
+    }
+    
     static const char* getCsoundOutputUpdateScript(std::string output)
     {
         static std::string result;
@@ -290,12 +314,11 @@ public:
     }
     
     static std::vector<std::string> getWidgetTypes(){
-        return {"form", "rslider", "combobox", "button", "checkbox", "label", "hslider", "vslider", "keyboard"};
+        return {"form", "rslider", "combobox", "button", "checkbox", "gentable", "label", "hslider", "vslider", "checkbox", "keyboard"};
     }
     
     static bool isWidget(const std::string& target) {
         std::vector<std::string> widgetTypes = getWidgetTypes();
-        
         // Check if the target string is in the vector
         auto it = std::find(widgetTypes.begin(), widgetTypes.end(), target);
         return it != widgetTypes.end();

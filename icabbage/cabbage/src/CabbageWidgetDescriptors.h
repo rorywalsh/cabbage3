@@ -1,3 +1,4 @@
+
 #pragma once
 
 #include <iostream>
@@ -11,19 +12,6 @@ class CabbageWidgetDescriptors {
 public:
     static nlohmann::json get(std::string widgetType) {
 
-        if (widgetType == "form") {
-            std::string jsonString = R"(
-            {
-              "width": 600,
-              "height": 300,
-              "caption": "",
-              "type": "form",
-              "colour": "#888888",
-              "channel": "MainForm"
-            }
-            )";
-            return nlohmann::json::parse(jsonString);
-        }
         if (widgetType == "rslider") {
             std::string jsonString = R"(
             {
@@ -291,6 +279,45 @@ public:
               "mouseoverKeyColour": "#93d200",
               "keydownColour": "#93d200",
               "octaveButtonColour": "#00f"
+            }
+            )";
+            return nlohmann::json::parse(jsonString);
+        }
+        if (widgetType == "gentable") {
+            std::string jsonString = R"(
+            {
+              "top": 0,
+              "left": 0,
+              "width": 200,
+              "height": 100,
+              "type": "gentable",
+              "colour": "#888888",
+              "outlineColour": "#dddddd",
+              "outlineWidth": 1,
+              "channel": "gentable",
+              "backgroundColour": "#a8d388",
+              "fontColour": "#dddddd",
+              "fontFamily": "Verdana",
+              "fontSize": 0,
+              "corners": 4,
+              "align": "centre",
+              "visible": 1,
+              "text": "Default Label",
+              "tableNumber": 1,
+              "samples": []
+            }
+            )";
+            return nlohmann::json::parse(jsonString);
+        }
+        if (widgetType == "form") {
+            std::string jsonString = R"(
+            {
+              "width": 600,
+              "height": 300,
+              "caption": "",
+              "type": "form",
+              "colour": "#888888",
+              "channel": "MainForm"
             }
             )";
             return nlohmann::json::parse(jsonString);
