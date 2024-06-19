@@ -24,6 +24,8 @@
 #include "IPlugPaths.h"
 #include "CabbageParser.h"
 #include "Cabbage.h"
+#include <future> // For std::async and std::future
+#include <mutex>  // For std::mutex and std::lock_guard
 
 #ifndef CabbageApp
 #include "CabbageServer.h"
@@ -112,14 +114,16 @@ public:
 private:
     
     TimerThread timer;
+    std::mutex mMutex;
     void timerCallback();
     std::string host = {"127.0.0.1"};
     Cabbage cabbage;
-    
+    std::function<void(std::string)> triggerScript;
     int csndIndex = 0;
     int csdKsmps = 0;
     int pos = 0;
     bool uiHasLoaded = false;
+    bool firstTime = true;
     
     
 };

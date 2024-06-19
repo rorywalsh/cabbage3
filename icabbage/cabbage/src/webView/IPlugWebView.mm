@@ -17,6 +17,7 @@
 #import <objc/message.h>
 #include "IPlugWebView.h"
 #include "IPlugPaths.h"
+#include "Cabbage.h"
 
 namespace iplug {
 extern bool GetResourcePathFromBundle(const char* fileName, const char* searchExt, WDL_String& fullPath, const char* bundleID);
@@ -43,6 +44,24 @@ using namespace iplug;
     mEnableInteraction = true;
   }
   return self;
+}
+
+- (void)evaluateJavaScriptOnMainThread:(std::string)script completionHandler:(completionHandlerFunc)func
+{
+    IPLUG_WKWEBVIEW* webView = self; // Assuming this method is within IPLUG_WKWEBVIEW context
+
+    if (![webView isLoading]) {
+        [webView evaluateJavaScript:[NSString stringWithUTF8String:script.c_str()] completionHandler:^(NSString *result, NSError *error) {
+            if (error != nil) {
+                NSLog(@"Error %@", error);
+            } else if (func) {
+                func([result UTF8String]);
+            }
+        }];
+    } else {
+        // Handle the case where webView is still loading
+        NSLog(@"Web view is still loading. Cannot evaluate JavaScript.");
+    }
 }
 
 #ifdef OS_MAC
@@ -323,19 +342,18 @@ void IWebView::LoadFile(const char* fileName, const char* bundleID)
 
 void IWebView::EvaluateJavaScript(const char* scriptStr, completionHandlerFunc func)
 {
-  IPLUG_WKWEBVIEW* webView = (__bridge IPLUG_WKWEBVIEW*) mWKWebView;
-  
-  if (webView && ![webView isLoading])
-  {
-    [webView evaluateJavaScript:[NSString stringWithUTF8String:scriptStr] completionHandler:^(NSString *result, NSError *error) {
-      if (error != nil)
-        NSLog(@"Error %@",error);
-      else if(func)
-      {
-        func([result UTF8String]);
-      }
-    }];
-  }
+    auto cleanString = Cabbage::removeControlCharacters(scriptStr);
+    IPLUG_WKWEBVIEW* webView = (__bridge IPLUG_WKWEBVIEW*) mWKWebView;
+
+    if (webView) {
+        if (![NSThread isMainThread]) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [webView evaluateJavaScriptOnMainThread:cleanString completionHandler:func];
+            });
+        } else {
+            [webView evaluateJavaScriptOnMainThread:cleanString completionHandler:func];
+        }
+    }
 }
 
 void IWebView::EnableScroll(bool enable)

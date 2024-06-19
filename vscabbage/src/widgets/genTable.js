@@ -1,6 +1,10 @@
 /**
- * Label class
+ * GenTable class
  */
+
+import { CabbageUtils } from "../utils.js";
+
+
 export class GenTable {
     constructor() {
         this.props = {
@@ -31,6 +35,10 @@ export class GenTable {
             "Text": ["text", "fontColour", "fontSize", "fontFamily", "align"],
             "Colours": ["colour", "outlineColour", "backgroundColour"]
         };
+
+        // Create canvas element during initialization
+        this.canvas = document.createElement('canvas');
+        this.ctx = this.canvas.getContext('2d');
     }
 
     addVsCodeEventListeners(widgetDiv, vs) {
@@ -47,40 +55,55 @@ export class GenTable {
     }
 
     getInnerHTML() {
-        if (this.props.visible === 0) {
-            return '';
-        }
-        
-        console.log("samples", this.props.samples)
-        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.8, 12); // Ensuring font size doesn't get too small
-        const alignMap = {
-            'left': 'end',
-            'center': 'middle',
-            'centre': 'middle',
-            'right': 'start',
-        };
-        const svgAlign = alignMap[this.props.align] || 'middle';
-    
-        return `
-            <div style="position: relative; width: 100%; height: 100%;">
-                <!-- Background SVG with preserveAspectRatio="none" -->
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none"
-                     style="position: absolute; top: 0; left: 0;">
-                    <rect width="${this.props.width}" height="${this.props.height}" x="0" y="0" rx="${this.props.corners}" ry="${this.props.corners}" fill="${this.props.colour}" 
-                        pointer-events="all"></rect>
-                </svg>
-    
-                <!-- Text SVG with proper alignment -->
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet"
-                     style="position: absolute; top: 0; left: 0;">
-                    <text x="${this.props.align === 'left' ? '10%' : this.props.align === 'right' ? '90%' : '50%'}" y="50%" font-family="${this.props.fontFamily}" font-size="${fontSize}"
-                        fill="${this.props.fontColour}" text-anchor="${svgAlign}" dominant-baseline="middle" alignment-baseline="middle" 
-                        style="pointer-events: none;">${this.props.text}</text>
-                </svg>
-            </div>
-        `;
+        return ``;
     }
-    
-    
-    
+
+    updateTable(obj) {
+        this.props.samples = obj["data"];
+        this.canvas.width = this.props.width;
+        this.canvas.height = this.props.height;
+        // Clear canvas
+        this.ctx.clearRect(0, 0, this.props.width, this.props.height);
+
+        // Draw background
+        this.ctx.fillStyle = this.props.backgroundColour;
+        this.ctx.fillRect(0, 0, this.props.width, this.props.height);
+
+        // Draw waveform
+        this.ctx.strokeStyle = this.props.colour;
+        this.ctx.lineWidth = this.props.outlineWidth;
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, this.props.height / 2);
+
+        if (!Array.isArray(this.props.samples) || this.props.samples.length === 0) {
+            console.warn('No samples to draw.');
+        } else {
+            for (let i = 0; i < this.props.samples.length; i++) {
+                const x = CabbageUtils.map(i, 0, this.props.samples.length, 0, this.props.width);
+                const y = CabbageUtils.map(this.props.samples[i], -1, 1, this.props.height, 0);
+                this.ctx.lineTo(x, y);
+            }
+        }
+
+        this.ctx.stroke();
+        this.ctx.closePath();
+
+        // Update DOM with the canvas
+        const widgetElement = document.getElementById(this.props.channel);
+        if (widgetElement) {
+            widgetElement.style.transform = `translate(${this.props.left}px, ${this.props.top}px)`;
+            widgetElement.setAttribute('data-x', this.props.left);
+            widgetElement.setAttribute('data-y', this.props.top);
+            widgetElement.style.top = `${this.props.top}px`;
+            widgetElement.style.left = `${this.props.left}px`;
+
+            widgetElement.innerHTML = ''; // Clear existing content
+            widgetElement.appendChild(this.canvas); // Append canvas
+        } else {
+            console.error(`Element with channel ${this.props.channel} not found.`);
+        }
+
+    }
+
+
 }

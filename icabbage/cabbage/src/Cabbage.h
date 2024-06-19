@@ -6,6 +6,7 @@
 #include <regex>
 #include <string>
 #include <vector>
+#include <optional>
 
 #include "IPlug_include_in_plug_hdr.h"
 #include "CabbageWidgetDescriptors.h"
@@ -147,16 +148,16 @@ public:
         return widgets;
     }
     
-    nlohmann::json& getWidget(std::string channel)
+    std::optional<std::reference_wrapper<nlohmann::json>> getWidget(const std::string& channel)
     {
-        for(auto& w : widgets)
+        for (auto& w : widgets)
         {
-            std::cout << w["channel"] << std::endl;
-            if(CabbageParser::removeQuotes(w["channel"]) == channel)
-                return w;
+            if (CabbageParser::removeQuotes(w["channel"]) == channel)
+            {
+                return std::ref(w); // Use std::ref to wrap the reference
+            }
         }
-        
-
+        return std::nullopt;
     }
     
 //    std::vector<std::string> getParameterChannel()
@@ -167,6 +168,87 @@ public:
 //    static std::vector<nlohmann::json> parseCsdForWidgets(std::string csdFile);
     static int getNumberOfParameters(const std::string& csdFile);
     std::vector<iplug::IMidiMsg> &getMidiQueue(){    return midiQueue;   };
+    
+    static std::string getWidgetUpdateScript(std::string channel, float value)
+    {
+        std::string result;
+            result = StringFormatter::format(R"(
+                window.postMessage({
+                    command: "widgetUpdate",
+                    text: JSON.stringify({
+                        channel: "<>",
+                       value: <>
+                    })
+                });
+            )",
+            channel,
+            value);
+            return result.c_str();
+    }
+    
+    static std::string removeControlCharacters(const std::string& input) {
+        std::string result;
+        for (char c : input) {
+            if (!iscntrl(static_cast<unsigned char>(c)) || c == ' ') {
+                result += c;
+            }
+        }
+        return result;
+    }
+    
+    static std::string getWidgetUpdateScript(std::string channel, std::string data)
+    {
+        std::string result;
+            result = StringFormatter::format(R"(
+                window.postMessage({
+                    command: "widgetUpdate",
+                    text: JSON.stringify({
+                        channel: "<>",
+                        data: '<>'
+                    })
+                });
+            )",
+            channel,
+            data);
+            return result.c_str();
+    }
+    
+    static std::string getTableUpdateScript(std::string channel, std::vector<double> samples)
+    {
+        std::string data = "[";
+        int i = 0;
+        for(const auto& s : samples)
+        {
+            data += std::to_string(s) + (i<samples.size()-1 ? "," : "");
+            i++;
+        }
+        data += "]";
+        
+        std::string result;
+            result = StringFormatter::format(R"(
+                window.postMessage({
+                    command: "widgetTableUpdate",
+                    text: JSON.stringify({
+                        channel: "<>",
+                        data: <>
+                    })
+                });
+            )",
+        channel,
+        data);
+        return result.c_str();
+    }
+    
+    const std::string getCsoundOutputUpdateScript(std::string output)
+    {
+        std::string result;
+            result = StringFormatter::format(R"(
+             window.postMessage({ command: "csoundOutputUpdate", text: `<>` });
+            )",
+        output);
+        return result.c_str();
+    }
+
     
 private:
     void addOpcodes();

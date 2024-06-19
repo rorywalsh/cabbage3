@@ -62,6 +62,7 @@ void CabbageProcessor::setupCallbacks()
         uiHasLoaded = true;
     };
 
+
     
     updateStringChannel = [&](std::string channel, std::string data){
         cabbage.setStringChannel(channel, data);
@@ -71,17 +72,30 @@ void CabbageProcessor::setupCallbacks()
 //timer thread listens for incoming data from Csound using a lock free fifo
 void CabbageProcessor::timerCallback()
 {
-    while (cabbage.getCsound()->GetMessageCnt() > 0)
+    if(uiHasLoaded)
     {
-        std::string message(cabbage.getCsound()->GetFirstMessage());
-        if(uiHasLoaded)
-        {
-            std::cout << message << std::endl;
-            EvaluateJavaScript(CabbageUtils::getCsoundOutputUpdateScript(message));
-            cabbage.getCsound()->PopFirstMessage();
+        if(firstTime){
+            auto csdText = CabbageFile::getCabbageSection();
+            std::string result = StringFormatter::format(R"(
+            window.postMessage({ command: "onFileChanged", text: `<>` });
+        )", csdText);
+            
+            EvaluateJavaScript(result.c_str());
+            firstTime = false;
         }
     }
     
+    if(uiHasLoaded)
+    {
+        while (cabbage.getCsound()->GetMessageCnt() > 0)
+        {
+            std::string message(cabbage.getCsound()->GetFirstMessage());
+            std::cout << message << std::endl;
+            EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
+            cabbage.getCsound()->PopFirstMessage();
+            
+        }
+    }
     auto** od = (moodycamel::ReaderWriterQueue<CabbageOpcodeData>**)cabbage.getCsound()->QueryGlobalVariable("cabbageOpcodeData");
     if (od != nullptr)
     {
@@ -119,35 +133,38 @@ void CabbageProcessor::timerCallback()
             //send data to vscode extension..
             hostCallback(data);
 #else
-            std::string message;
+            std::string message = {};
             if(data.type == CabbageOpcodeData::MessageType::Value)
             {
-                message =  CabbageUtils::getWidgetUpdateScript(data.channel, data.value);
+                message =  cabbage.getWidgetUpdateScript(data.channel, data.value);
             }
             else
             {
                 if(data.identifierText.find("tableNumber") != std::string::npos)
                 {
-                    auto& j = cabbage.getWidget(data.channel);
-                    CabbageParser::updateJsonFromSyntax(cabbage.getWidget(data.channel), data.identifierText);
-                    const int tableNumber = j["tableNumber"];
-                    const int tableSize = cabbage.getCsound()->TableLength(tableNumber);
-                    if(tableSize != -1)
+                    auto widgetOpt = cabbage.getWidget(data.channel);
+                    if (widgetOpt.has_value())
                     {
-                        std::vector<double> temp (tableSize);
-                        cabbage.getCsound()->TableCopyOut (tableNumber, &temp[0]);
-                        message = "";
-//                        message =  CabbageUtils::getTableUpdateScript(data.channel, temp);
-                        temp.clear();
+                        auto& j = widgetOpt.value().get();
+                        CabbageParser::updateJsonFromSyntax(j, data.identifierText);
+                        const int tableNumber = j["tableNumber"];
+                        const int tableSize = cabbage.getCsound()->TableLength(tableNumber);
+                        if(tableSize != -1)
+                        {
+                            std::vector<double> temp (tableSize);
+                            cabbage.getCsound()->TableCopyOut (tableNumber, &temp[0]);
+                            message =  cabbage.getTableUpdateScript(data.channel, temp);
+                        }
                     }
                 }
                 else
                 {
-                    message = CabbageUtils::getWidgetUpdateScript(data.channel, data.identifierText);
+                    message = cabbage.getWidgetUpdateScript(data.channel, data.identifierText);
                 }
             }
-
-            EvaluateJavaScript(message.c_str());
+            
+            if(uiHasLoaded)
+                EvaluateJavaScript(message.c_str());
             
 #endif
         }
@@ -163,7 +180,7 @@ void CabbageProcessor::OnParamChange(int paramIdx)
         if(p.hasValueChanged(GetParam(paramIdx)->Value()))
         {
             cabbage.setControlChannel(p.name.c_str(), GetParam(paramIdx)->Value());
-            EvaluateJavaScript(CabbageUtils::getWidgetUpdateScript(p.name, GetParam(paramIdx)->Value()));
+            EvaluateJavaScript(cabbage.getWidgetUpdateScript(p.name, GetParam(paramIdx)->Value()).c_str());
         }
     }
 }

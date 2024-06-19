@@ -36,6 +36,17 @@ public:
         return result;
     }
     
+    static std::vector<std::string> getWidgetTypes(){
+        return {"form", "rslider", "combobox", "button", "checkbox", "gentable", "label", "hslider", "vslider", "checkbox", "keyboard"};
+    }
+    
+    static bool isWidget(const std::string& target) {
+        std::vector<std::string> widgetTypes = getWidgetTypes();
+        // Check if the target string is in the vector
+        auto it = std::find(widgetTypes.begin(), widgetTypes.end(), target);
+        return it != widgetTypes.end();
+    }
+    
     static std::vector<nlohmann::json> parseCsdForWidgets(std::string csdFile)
     {
         std::vector<nlohmann::json> widgets;
@@ -50,7 +61,7 @@ public:
         {
             try{
                 nlohmann::json j;
-                if(CabbageUtils::isWidget(CabbageParser::getWidgetType(line)))
+                if(CabbageParser::isWidget(CabbageParser::getWidgetType(line)))
                 {
                     j = CabbageWidgetDescriptors::get(CabbageParser::getWidgetType(line));
                     CabbageParser::updateJsonFromSyntax(j, line);
@@ -126,12 +137,12 @@ public:
                     
                     if(tokens[i].hasStringArgs())
                     {
-                        std::cout << "Identifier:" << tokens[i].name << " String:" << tokens[i].stringArgs[0] << std::endl;
+//                        std::cout << "Identifier: " << tokens[i].name << " String:" << tokens[i].stringArgs[0] << std::endl;
                         jsonObj[tokens[i].name] = tokens[i].stringArgs[0];
                     }
                     else
                     {
-                        std::cout << "Identifier:" << tokens[i].name << " Value:" << tokens[i].numericArgs[0] << std::endl;
+//                        std::cout << "Identifier: " << tokens[i].name << " Value:" << tokens[i].numericArgs[0] << std::endl;
                         jsonObj[tokens[i].name] = tokens[i].numericArgs[0];
                     }
                 }

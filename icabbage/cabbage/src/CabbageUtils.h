@@ -24,6 +24,81 @@
 #include <pwd.h>
 #endif
 
+// StringFormatter class
+class StringFormatter {
+public:
+    template <typename... Args>
+    static std::string format(const std::string& templateStr, Args&&... args) {
+        std::vector<std::string> arguments{ toString(std::forward<Args>(args))... };
+        return processTemplate(templateStr, arguments);
+    }
+
+    static std::string getCabbageSectionAsJSEscapedString(const std::string& input) {
+        // Find the positions of <Cabbage> and </Cabbage>
+        size_t start_pos = input.find("<Cabbage>");
+        size_t end_pos = input.find("</Cabbage>");
+        std::string cabbageSection;
+            // Check if both markers are found
+            if (start_pos != std::string::npos && end_pos != std::string::npos) {
+                start_pos = input.find("<Cabbage>");
+                end_pos = input.find("</Cabbage>");
+                size_t length = end_pos + strlen("</Cabbage>") - start_pos;
+                cabbageSection = input.substr(start_pos, length);
+            } else {
+                // If markers are not found, return empty string or handle error as needed
+                // For simplicity, returning the entire input if markers are not found
+                cabbageSection = input;
+            }
+        std::string sanitisedString = sanitiseString(cabbageSection);
+
+        return sanitisedString + "\n";
+    }
+
+private:
+    template <typename T>
+    static std::string toString(T&& value) {
+        std::ostringstream oss;
+        oss << std::forward<T>(value);
+        return oss.str();
+    }
+
+    static std::string processTemplate(const std::string& templateStr, const std::vector<std::string>& args) {
+        std::string result;
+        result.reserve(templateStr.size());
+
+        size_t argIndex = 0;
+        for (size_t i = 0; i < templateStr.size(); ++i) {
+            if (templateStr[i] == '<' && i + 1 < templateStr.size() && templateStr[i + 1] == '>' && argIndex < args.size()) {
+                result += args[argIndex++];
+                ++i;  // Skip the '>'
+            } else {
+                result += templateStr[i];
+            }
+        }
+
+        return result;
+    }
+
+    static std::string sanitiseString(const std::string& input) {
+        std::string sanitized;
+        sanitized.reserve(input.size() * 2); // Reserve space to avoid frequent reallocations
+
+        for (char c : input) {
+            switch (c) {
+                case '\\': sanitized += "\\\\"; break;
+                case '\"': sanitized += "\\\""; break;
+                case '\r': sanitized += "\\r"; break;
+                case '\n': sanitized += "\\n"; break;
+                default: sanitized += c; break;
+            }
+        }
+
+        return sanitized;
+    }
+};
+
+
+
 class CabbageFile {
 public:
     static std::string getBinaryPath() {
@@ -104,6 +179,14 @@ public:
         return joinPath(newPath, binaryFileName + ".csd");
     }
     
+    //return a JS escaped string
+    static std::string getCabbageSection(){
+        auto csdText = getFileAsString();
+        return StringFormatter::getCabbageSectionAsJSEscapedString(csdText);
+    }
+    
+    //return the file contents, if the file path is not provided, finds
+    //the file based on the curren binary name
     static std::string getFileAsString(std::string csdFile = ""){
         if(csdFile.empty())
             csdFile = getCsdPath();
@@ -178,13 +261,13 @@ private:
 
 class TimerThread {
 public:
-    TimerThread() : mStop(false) {}
+    TimerThread() : stop(false) {}
 
     // Start the thread with a member function callback and a timer interval
         template <typename T>
         void Start(T* obj, void (T::*memberFunc)(), int intervalMillis) {
             mThread = std::thread([=]() {
-                while (!mStop) {
+                while (!stop) {
                     // Call the member function on the object instance
                     (obj->*memberFunc)();
                     std::this_thread::sleep_for(std::chrono::milliseconds(intervalMillis)); // Sleep for the specified interval
@@ -197,7 +280,7 @@ public:
 
     // Stop the timer thread
     void Stop() {
-        mStop = true;
+        stop = true;
         if (mThread.joinable()) {
             mThread.join();
         }
@@ -205,122 +288,7 @@ public:
 
 private:
     std::thread mThread;
-    std::atomic<bool> mStop;
+    std::atomic<bool> stop;
 };
 
 
-class StringFormatter {
-public:
-    template <typename... Args>
-    static std::string format(const std::string& templateStr, Args&&... args) {
-        std::vector<std::string> arguments{ toString(std::forward<Args>(args))... };
-        return processTemplate(templateStr, arguments);
-    }
-
-private:
-    template <typename T>
-    static std::string toString(T&& value) {
-        std::ostringstream oss;
-        oss << std::forward<T>(value);
-        return oss.str();
-    }
-
-    static std::string processTemplate(const std::string& templateStr, const std::vector<std::string>& args) {
-        std::string result;
-        result.reserve(templateStr.size());
-
-        size_t argIndex = 0;
-        for (size_t i = 0; i < templateStr.size(); ++i) {
-            if (templateStr[i] == '<' && i + 1 < templateStr.size() && templateStr[i + 1] == '>' && argIndex < args.size()) {
-                result += args[argIndex++];
-                ++i;  // Skip the '}'
-            } else {
-                result += templateStr[i];
-            }
-        }
-
-        return result;
-    }
-};
-
-class CabbageUtils {
-public:
-    static const char* getWidgetUpdateScript(std::string channel, float value)
-    {
-        static std::string result;
-            result = StringFormatter::format(R"(
-                window.postMessage({
-                    command: "widgetUpdate",
-                    text: JSON.stringify({
-                        channel: "<>",
-                       value: <>
-                    })
-                });
-            )",
-            channel,
-            value);
-            return result.c_str();
-    }
-    
-    static const char* getWidgetUpdateScript(std::string channel, std::string data)
-    {
-        static std::string result;
-            result = StringFormatter::format(R"(
-                window.postMessage({
-                    command: "widgetUpdate",
-                    text: JSON.stringify({
-                        channel: "<>",
-                        data: '<>'
-                    })
-                });
-            )",
-            channel,
-            data);
-            return result.c_str();
-    }
-    
-    static const char* getTableUpdateScript(std::string channel, std::vector<double> samples)
-    {
-        std::string data = "[";
-        for(const auto& s : samples)
-        {
-            data += std::to_string(s) + ",";
-        }
-        data += "]";
-        
-        static std::string result;
-            result = StringFormatter::format(R"(
-                window.postMessage({
-                    command: "widgetTableUpdate",
-                    text: JSON.stringify({
-                        channel: "<>",
-                        data: '<>'
-                    })
-                });
-            )",
-            channel,
-            data);
-            return result.c_str();
-    }
-    
-    static const char* getCsoundOutputUpdateScript(std::string output)
-    {
-        static std::string result;
-            result = StringFormatter::format(R"(
-             window.postMessage({ command: "csoundOutputUpdate", text: `<>` });
-            )",
-            output);
-            return result.c_str();
-    }
-    
-    static std::vector<std::string> getWidgetTypes(){
-        return {"form", "rslider", "combobox", "button", "checkbox", "gentable", "label", "hslider", "vslider", "checkbox", "keyboard"};
-    }
-    
-    static bool isWidget(const std::string& target) {
-        std::vector<std::string> widgetTypes = getWidgetTypes();
-        // Check if the target string is in the vector
-        auto it = std::find(widgetTypes.begin(), widgetTypes.end(), target);
-        return it != widgetTypes.end();
-    }
-};

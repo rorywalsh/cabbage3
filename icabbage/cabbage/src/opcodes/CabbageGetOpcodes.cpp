@@ -37,7 +37,7 @@ int CabbageGetMYFLT::getIdentifier(int init)
             auto channel = CabbageParser::removeQuotes(widget["channel"].get<std::string>());
             if(channel == data.channel)
             {
-                //std::cout << data.identifierText << ":" << widget[data.identifierText].get<float>();
+                //EvaluateJavaScript << data.identifierText << ":" << widget[data.identifierText].get<float>();
                 outargs[0] = widget[data.identifierText].get<float>();
             }
                 

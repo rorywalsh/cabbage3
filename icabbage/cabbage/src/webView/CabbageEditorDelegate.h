@@ -59,20 +59,9 @@ public:
             editorInitFunc();
     }
     
-    void OnWebContentLoaded() override
-    {
+    void OnWebContentLoaded() override {
         OnUIOpen();
-        std::string result = StringFormatter::format(R"(
-
-                                                     console.log("dfghjkl;';lkjhgfdfghjklkjhgfvjkl;")
- const cabbageCode = `<>`;
-setTimeout(function(){
- window.postMessage({ command: "onFileChanged", text: cabbageCode });
-}, 100);
-
-                                                     )", CabbageFile::getFileAsString());
-        EvaluateJavaScript(result.c_str());
-        Resize(1800,800);
+        Resize(800,400);
         if (editorOnLoad)
             editorOnLoad();
     }
