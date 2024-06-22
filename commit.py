@@ -39,6 +39,7 @@ with open("icabbage/cabbage/CMakeLists.txt", "w") as f:
 os.system('git add icabbage/cabbage')
 os.system('git add icabbage/iplug.patch')
 os.system('git add vscabbage')
+os.system('git add tests')
 os.system('git add example')
 os.system('git add commit.py')
 os.system('git add readme.md')
