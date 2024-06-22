@@ -167,6 +167,7 @@ export class FileButton extends Button {
     delete this.props.fontColourOn;
     this.props["fontColour"] = "#dddddd";
     this.props["text"] = "Choose File";
+    this.props["type"] = "filebutton";
     this.props["colour"] = CabbageColours.getColour("blue");
   }
 

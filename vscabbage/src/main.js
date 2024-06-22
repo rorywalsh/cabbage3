@@ -13,15 +13,18 @@ import { MidiKeyboard } from "./widgets/midiKeyboard.js";
 import { PropertyPanel } from "./propertyPanel.js";
 import { CabbageUtils, CabbageTestUtilities } from "./utils.js";
 
-// const widgetsForTesting = [new RotarySlider(), new ComboBox(), new Button(), new Checkbox(), new Label(),
-// new HorizontalSlider(), new VerticalSlider(), new MidiKeyboard(), new GenTable, new Form];
-// CabbageTestUtilities.generateIdentifierTestCsd(widgetsForTesting); // This will generate a test CSD file with the widgets
-// CabbageTestUtilities.generateCabbageWidgetDescriptorsClass(widgetsForTesting); // This will generate a class with the widget descriptors
+/* 
+Uncomment to generate various source code files for testing
+const widgetsForTesting = [new RotarySlider(), new ComboBox(), new Button(), new Checkbox(), new Label(),
+new HorizontalSlider(), new VerticalSlider(), new MidiKeyboard(), new GenTable, new Form];
+CabbageTestUtilities.generateIdentifierTestCsd(widgetsForTesting); // This will generate a test CSD file with the widgets
+CabbageTestUtilities.generateCabbageWidgetDescriptorsClass(widgetsForTesting); // This will generate a class with the widget descriptors 
+*/
 
-
-
-
-
+//sending a message to notify when main has been loaded - Cabbage listens for this message 
+//before trying to load an interface.
+console.log("main.js loaded!")
+window.postMessage({ command: 'main.js ready' });
 
 
 let vscode = null;
@@ -64,6 +67,7 @@ window.addEventListener('message', event => {
   const message = event.data;
   switch (message.command) {
     case 'onFileChanged':
+      console.log("creating interface");
       CabbageUtils.hideOverlay();
       cabbageMode = 'nonDraggable';
       form.className = "form nonDraggable";
@@ -75,17 +79,20 @@ window.addEventListener('message', event => {
       if (rightPanel)
         rightPanel.style.visibility = "hidden";
       CabbageUtils.parseCabbageCode(message.text, widgets, form, insertWidget);
+      window.postMessage({ command: 'Cabbage file has been parsed' });
       break;
     case 'snapToSize':
       widgetWrappers.setSnapSize(parseInt(message.text));
       break;
-    case 'widgetUpdate':
+    case 'widgetIdentifierUpdate':
+      // console.log("widgetUpdate: " + message.text);
       const msg = JSON.parse(message.text);
       updateWidget(msg);
       break;
-    case 'widgetTableUpdate':
-      const tableMsg = JSON.parse(message.text);
-      updateTableWidget(tableMsg);
+    case 'widgetUpdate':
+      // console.log("widgetUpdate: " + message.text);
+      const updateMsg = JSON.parse(message.text);
+      updateWidget(updateMsg);
       break;
     case 'onEnterEditMode':
       CabbageUtils.hideOverlay();
@@ -100,7 +107,6 @@ window.addEventListener('message', event => {
         // Update the HTML content of the widget's div
         const csoundOutputDiv = CabbageUtils.getWidgetDiv(csoundOutput.props.channel);
         if (csoundOutputDiv) {
-
           csoundOutputDiv.innerHTML = csoundOutput.getInnerHTML();
           csoundOutput.appendText(message.text);
         }
@@ -110,56 +116,45 @@ window.addEventListener('message', event => {
   }
 });
 
-
 /*
-* this is called from the plugin and will update either the value of 
-* a widget, or some of its properties
+* this is called from the plugin and will a corresponding widget
 */
 function updateWidget(obj) {
   const channel = obj['channel'];
   for (const widget of widgets) {
-    if (widget.props.channel == channel) {
-      if (obj.hasOwnProperty('value')) {
+    if (widget.props.channel === channel) {
+      if (obj.hasOwnProperty('data')) {
+        widget.props = JSON.parse(obj["data"]);
+      } else if (obj.hasOwnProperty('value')) {
         widget.props.value = obj['value'];
       }
-      else if (obj.hasOwnProperty('data')) {
-        Object.entries(CabbageUtils.getCabbageCodeAsJSON(obj['data'])).forEach((entry) => {
-          const [key, value] = entry;
-          widget.props[key] = value;
-        });
-      }
-      document.getElementById(widget.props.channel).style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
-      document.getElementById(widget.props.channel).setAttribute('data-x', widget.props.left);
-      document.getElementById(widget.props.channel).setAttribute('data-y', widget.props.top);
-      document.getElementById(widget.props.channel).style.top = widget.props.top + 'px';
-      document.getElementById(widget.props.channel).style.left = widget.props.left + 'px';
-      document.getElementById(widget.props.channel).innerHTML = widget.getInnerHTML();
-    }
-  }
-}
 
-/*
-* this is called from the plugin and will update either the value of 
-* a widget, or some of its properties
-*/
-function updateTableWidget(obj) {
-  const channel = obj['channel'];
-  for (const widget of widgets) {
-    if (widget.props.channel == channel) {
-      const widgetElement = document.getElementById(widget.props.channel);
+      const widgetElement = CabbageUtils.getWidgetDiv(widget.props.channel);
       if (widgetElement) {
-        widget.updateTable(obj);
-        widgetElement.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
+        console.log(widgetElement.id, widgetElement.parentElement.id);
+        // widgetElement.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
         widgetElement.setAttribute('data-x', widget.props.left);
         widgetElement.setAttribute('data-y', widget.props.top);
         widgetElement.style.top = widget.props.top + 'px';
         widgetElement.style.left = widget.props.left + 'px';
-      } else {
-        console.error(`Element with channel ${widget.props.channel} not found.`);
+
+        // Do not update the innerHTML of a form as it will remove all its children
+        if (widget.props.type !== "form") {
+          widgetElement.innerHTML = widget.getInnerHTML();
+        }
+      }
+
+      // gentable and form are special cases and have dedicated update methods
+      if (widget.props.type == "gentable") {
+        widget.updateTable();
+
+      } else if (widget.props.type == "form") {
+        widget.updateSVG();
       }
     }
   }
 }
+
 
 const contextMenu = document.querySelector(".wrapper");
 
@@ -466,7 +461,10 @@ async function insertWidget(type, props) {
   if (form) {
     form.appendChild(widgetDiv);
   }
-  widgetDiv.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
+  console.log("I've commented this, but may need it in drag mode");
+  if (typeof acquireVsCodeApi === 'function') {
+    widgetDiv.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
+  }
   widgetDiv.setAttribute('data-x', widget.props.left);
   widgetDiv.setAttribute('data-y', widget.props.top);
   widgetDiv.style.width = widget.props.width + 'px'

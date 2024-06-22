@@ -16,32 +16,25 @@
 #include "opcodes/CabbageGetOpcodes.h"
 #include "CabbageParser.h"
 
+//choc classes for reading audio files
+#include "../../../choc-main/audio/choc_AudioFileFormat.h"
+#include "../../../choc-main/audio/choc_AudioFileFormat_Ogg.h"
+#include "../../../choc-main/audio/choc_AudioFileFormat_WAV.h"
+#include "../../../choc-main/audio/choc_AudioFileFormat_FLAC.h"
+#include "../../../choc-main/audio/choc_AudioFileFormat_MP3.h"
+#include "../../../choc-main/audio/choc_SampleBuffers.h"
 
 
 class CabbageProcessor;
 
 class Cabbage {
+    
+    //a vector containined all Cabbage widgets
     std::vector<nlohmann::json> widgets;
     
 public:
-    struct StringArgument {
-        std::vector<std::string> values;
-    };
 
-    struct NumericArgument {
-        std::vector<double> values;
-    };
-
-    struct Identifier {
-        std::string name;
-        std::vector<double> numericArgs;
-        std::vector<std::string> stringArgs;
-        bool hasStringArgs() const {
-            return !stringArgs.empty();
-        }
-    };
-    
-    
+    //a parameter struct whose namees match that of the corresponding Csound channel
     struct ParameterChannel {
         std::string name;
         void setValue(float v, float min = 0, float max = 1, float skew= 1, float increment = 1){
@@ -63,191 +56,86 @@ public:
     Cabbage(CabbageProcessor& p, std::string file);
     ~Cabbage();
     
-    Csound* getCsound()
-    {
-        return csound.get();
-    }
+    // Get the Csound object
+    Csound* getCsound()                   { return csound.get(); }
     
+    // Setup Csound
     bool setupCsound();
     
-    void setCsdFile(std::string file)
-    {
-        csdFile = file;
-    }
+    // Set the CSD file
+    void setCsdFile(std::string file)     { csdFile = file; }
     
-    std::string getCsdFile()
-    {
-        return csdFile;
-    }
+    // Get the CSD file
+    std::string getCsdFile()              { return csdFile; }
     
-    void compileCsdFile (std::string csoundFile)
-    {
-        csCompileResult = csound->Compile (csoundFile.c_str());
-    }
+    // Compile the CSD file
+    void compileCsdFile(std::string csoundFile) { csCompileResult = csound->Compile(csoundFile.c_str()); }
     
-    void performKsmps()
-    {
-        csCompileResult = csound->PerformKsmps();
-    }
+    // Perform KSMPS (control periods)
+    void performKsmps()                   { csCompileResult = csound->PerformKsmps(); }
     
-    void setSpIn(int index, MYFLT value)
-    {
-        csSpin[index] =  value*csScale;
-    }
+    // Set input value for a specific index in csSpin array
+    void setSpIn(int index, MYFLT value)  { csSpin[index] = value * csScale; }
     
-    MYFLT getSpOut(int index)
-    {
-        auto outSample = csSpout[index]/csScale;
-        return outSample;
-    }
+    // Get output value for a specific index in csSpout array
+    MYFLT getSpOut(int index)             { return csSpout[index] / csScale; }
     
-    bool csdCompiledWithoutError()
-    {
-        return csCompileResult == 0 ? true : false;
-    }
+    // Check if CSD compiled without error
+    bool csdCompiledWithoutError()        { return csCompileResult == 0 ? true : false; }
     
-    int getKsmps()
-    {
-        return csdKsmps;
-    }
+    // Get the KSMPS value
+    int getKsmps()                        { return csdKsmps; }
     
-    size_t getIndexForParamChannel(std::string name)
-    {
-        auto it = std::find_if(parameterChannels.begin(), parameterChannels.end(), [&name](const ParameterChannel& paramChannel) {
-            return paramChannel.name == name;
-        });
-
-        if (it != parameterChannels.end()) {
-            size_t index = std::distance(parameterChannels.begin(), it);
-            return index;
-        }
-        
-        return -1;
-    }
+    // Get the MIDI queue
+    std::vector<iplug::IMidiMsg>& getMidiQueue() { return midiQueue; }
     
+    // Stop processing
+    void stopProcessing()                 { csCompileResult = -1; }
+    
+    // Get a parameter channel by index
+    ParameterChannel& getParameterChannel(int index) { return parameterChannels[index]; }
+    
+    // Get the number of parameters
+    int getNumberOfParameter()            { return numberOfParameters; }
+    
+    // Get the widgets
+    std::vector<nlohmann::json>& getWidgets() { return widgets; }
+    
+    // Get the index for a parameter channel by name
+    size_t getIndexForParamChannel(std::string name);
+    
+    // Set control channel value
     void setControlChannel(const std::string channel, MYFLT value);
+    
+    // Set string channel data
     void setStringChannel(const std::string channel, std::string data);
     
-    void stopProcessing()
-    {
-        csCompileResult = -1;
-    }
-    
-    ParameterChannel& getParameterChannel(int index)
-    {
-        return parameterChannels[index];
-    }
-    
-    int getNumberOfParameter()
-    {
-        return numberOfParameters;
-    }
-    
-    std::vector<nlohmann::json>& getWidgets()
-    {
-        return widgets;
-    }
-    
-    std::optional<std::reference_wrapper<nlohmann::json>> getWidget(const std::string& channel)
-    {
-        for (auto& w : widgets)
-        {
-            if (CabbageParser::removeQuotes(w["channel"]) == channel)
-            {
-                return std::ref(w); // Use std::ref to wrap the reference
-            }
-        }
-        return std::nullopt;
-    }
-    
-//    std::vector<std::string> getParameterChannel()
-//    {
-//        return parameterChannels;
-//    }
-    //===============================================================================
-//    static std::vector<nlohmann::json> parseCsdForWidgets(std::string csdFile);
+    //returns a JSON widget references from the lists of widget
+    std::optional<std::reference_wrapper<nlohmann::json>> getWidget(const std::string& channel);
+
+    //returns number of plugin paremters - even though lots of widgets have channels, only a select few can be plugin parameters
     static int getNumberOfParameters(const std::string& csdFile);
-    std::vector<iplug::IMidiMsg> &getMidiQueue(){    return midiQueue;   };
     
-    static std::string getWidgetUpdateScript(std::string channel, float value)
-    {
-        std::string result;
-            result = StringFormatter::format(R"(
-                window.postMessage({
-                    command: "widgetUpdate",
-                    text: JSON.stringify({
-                        channel: "<>",
-                       value: <>
-                    })
-                });
-            )",
-            channel,
-            value);
-            return result.c_str();
-    }
+    //utility script to remove control characters from string - needed to santise Cabbage code going to JS
+    static std::string removeControlCharacters(const std::string& input);
     
-    static std::string removeControlCharacters(const std::string& input) {
-        std::string result;
-        for (char c : input) {
-            if (!iscntrl(static_cast<unsigned char>(c)) || c == ' ') {
-                result += c;
-            }
-        }
-        return result;
-    }
+    //return a JS script that will trigger a widget's properties to be updated
+    static std::string getWidgetUpdateScript(std::string channel, std::string data);
+    static std::string getWidgetUpdateScript(std::string channel, float value);
+
     
-    static std::string getWidgetUpdateScript(std::string channel, std::string data)
-    {
-        std::string result;
-            result = StringFormatter::format(R"(
-                window.postMessage({
-                    command: "widgetUpdate",
-                    text: JSON.stringify({
-                        channel: "<>",
-                        data: '<>'
-                    })
-                });
-            )",
-            channel,
-            data);
-            return result.c_str();
-    }
+    //these two methods return combine with getWidgetIdentifierUpdateScript() to return a JS method
+    //that packs samples for a given table
+    std::string updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonObj);
+    static void setTableJSON(std::string channel, std::vector<double> samples, nlohmann::json& jsonObj);
     
-    static std::string getTableUpdateScript(std::string channel, std::vector<double> samples)
-    {
-        std::string data = "[";
-        int i = 0;
-        for(const auto& s : samples)
-        {
-            data += std::to_string(s) + (i<samples.size()-1 ? "," : "");
-            i++;
-        }
-        data += "]";
-        
-        std::string result;
-            result = StringFormatter::format(R"(
-                window.postMessage({
-                    command: "widgetTableUpdate",
-                    text: JSON.stringify({
-                        channel: "<>",
-                        data: <>
-                    })
-                });
-            )",
-        channel,
-        data);
-        return result.c_str();
-    }
+    //returns a script that will update a csoundoutput widget
+    const std::string getCsoundOutputUpdateScript(std::string output);
+
+    //utlity function to loads samples from a sound file on disk.
+    static std::vector<double> readAudioFile(const std::string& filePath);
     
-    const std::string getCsoundOutputUpdateScript(std::string output)
-    {
-        std::string result;
-            result = StringFormatter::format(R"(
-             window.postMessage({ command: "csoundOutputUpdate", text: `<>` });
-            )",
-        output);
-        return result.c_str();
-    }
+    
 
     
 private:

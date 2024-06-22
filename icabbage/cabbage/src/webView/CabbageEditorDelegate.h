@@ -30,10 +30,11 @@ public:
     
     //IEditorDelegate
     void* OpenWindow(void* pParent) override;
-    
     void CloseWindow() override
     {
         CloseWebView();
+        if (editorCloseCallback)
+            editorCloseCallback();
     }
     
     void OpenFileBrowser();
@@ -55,15 +56,15 @@ public:
     
     void OnWebViewReady() override
     {
-        if (editorInitFunc)
-            editorInitFunc();
+        if (editorInitFuncCallback)
+            editorInitFuncCallback();
     }
     
     void OnWebContentLoaded() override {
         OnUIOpen();
-        Resize(800,400);
-        if (editorOnLoad)
-            editorOnLoad();
+        Resize(800,500);
+        if (editorOnLoadCallback)
+            editorOnLoadCallback();
     }
     
     void SetMaxJSStringLength(int length)
@@ -87,11 +88,13 @@ protected:
     }
     
     int mMaxJSStringLength = kDefaultMaxJSStringLength;
-    std::function<void()> editorInitFunc = nullptr;
-    std::function<void()> editorDeleteFunc = nullptr;
-    std::function<void()> editorOnLoad = nullptr;
-    std::function<void(std::string, std::string)> updateStringChannel = nullptr;
-    std::function<void(std::string, float)> updateChannel = nullptr;
+    std::function<void()> editorInitFuncCallback = nullptr;
+    std::function<void()> editorDeleteFuncCallback = nullptr;
+    std::function<void()> editorCloseCallback = nullptr;
+    std::function<void()> editorOnLoadCallback = nullptr;
+    std::function<void(std::string, std::string)> readAudioFileCallback = nullptr;
+    std::function<void(std::string, std::string)> updateStringChannelCallback = nullptr;
+    std::function<void(std::string, float)> updateChannelCallback = nullptr;
     void* mHelperView = nullptr;
     std::string selectedFilePath;
     

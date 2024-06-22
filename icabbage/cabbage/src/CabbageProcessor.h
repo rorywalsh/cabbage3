@@ -43,8 +43,6 @@
 #endif
 
 
-
-
 enum EParams
 {
     kGain = 0,
@@ -106,7 +104,7 @@ public:
     }
     
     void setupCallbacks();
-    
+    void updateWidgetsOnUIOpen();
 #ifdef CabbageApp
     std::function<void(CabbageOpcodeData)> hostCallback = nullptr;
 #endif
@@ -122,7 +120,7 @@ private:
     int csndIndex = 0;
     int csdKsmps = 0;
     int pos = 0;
-    bool uiHasLoaded = false;
+    bool uiIsOpen = false;
     bool firstTime = true;
     
     

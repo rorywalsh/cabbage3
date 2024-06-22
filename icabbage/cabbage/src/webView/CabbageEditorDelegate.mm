@@ -98,8 +98,8 @@ CabbageEditorDelegate::~CabbageEditorDelegate()
 {
     CloseWindow();
     
-    if (editorDeleteFunc)
-        editorDeleteFunc();
+    if (editorDeleteFuncCallback)
+        editorDeleteFuncCallback();
     
     PLATFORM_VIEW* pHelperView = (PLATFORM_VIEW*) mHelperView;
     [pHelperView release];
@@ -117,8 +117,8 @@ void* CabbageEditorDelegate::OpenWindow(void* pParent)
         [pParentView addSubview: pHelperView];
     }
     
-    if (editorInitFunc)
-        editorInitFunc();
+    if (editorInitFuncCallback)
+        editorInitFuncCallback();
     
     
     return mHelperView;
@@ -222,8 +222,12 @@ void CabbageEditorDelegate::OnMessageFromWebView(const char* jsonStr)
     else if(json["msg"] == "fileOpen")
     {
         OpenFileBrowser();
-        updateStringChannel(json["channel"], selectedFilePath);
+        updateStringChannelCallback(json["channel"], selectedFilePath);
     }
+//    else if(json["msg"] == "fileRead")
+//    {
+//        readAudioFileCallback(json["channel"], selectedFilePath);
+//    }
     else if (json["msg"] == "BPCFUI")
     {
         BeginInformHostOfParamChangeFromUI(json["paramIdx"]);

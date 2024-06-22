@@ -36,12 +36,10 @@ public:
         return result;
     }
     
-    static std::vector<std::string> getWidgetTypes(){
-        return {"form", "rslider", "combobox", "button", "checkbox", "gentable", "label", "hslider", "vslider", "checkbox", "keyboard"};
-    }
+
     
     static bool isWidget(const std::string& target) {
-        std::vector<std::string> widgetTypes = getWidgetTypes();
+        std::vector<std::string> widgetTypes = CabbageWidgetDescriptors::getWidgetTypes();
         // Check if the target string is in the vector
         auto it = std::find(widgetTypes.begin(), widgetTypes.end(), target);
         return it != widgetTypes.end();
@@ -77,23 +75,25 @@ public:
     }
 
 
-    static void updateJsonFromSyntax(nlohmann::json& jsonObj, const std::string& syntax) {
-        try{
+    static void updateJsonFromSyntax(nlohmann::json& jsonObj, const std::string& syntax)
+    {
+        try
+        {
             std::vector<Identifier> tokens = tokeniseLine(syntax);
-            
+
             // Parse tokens and update JSON object
-            for (size_t i = 0; i < tokens.size(); ++i)
+            for (const auto& token : tokens)
             {
-                if (tokens[i].name == "bounds")
+                if (token.name == "bounds")
                 {
-                    if(tokens[i].numericArgs.size() == 4)
+                    if (token.numericArgs.size() == 4)
                     {
-                        const int top = tokens[i].numericArgs[0];
-                        const int left = tokens[i].numericArgs[1];
-                        const int width = tokens[i].numericArgs[2];
-                        const int height = tokens[i].numericArgs[3];
-                        jsonObj["top"] = top;
+                        const int left = token.numericArgs[0];
+                        const int top = token.numericArgs[1];
+                        const int width = token.numericArgs[2];
+                        const int height = token.numericArgs[3];
                         jsonObj["left"] = left;
+                        jsonObj["top"] = top;
                         jsonObj["width"] = width;
                         jsonObj["height"] = height;
                     }
@@ -102,28 +102,22 @@ public:
                         std::cout << "The bounds() identifier takes 4 parameters" << std::endl;
                     }
                 }
-
-                else if (tokens[i].name == "channel")
+                else if (token.name == "range")
                 {
-                    const std::string channel = tokens[i].stringArgs[0];
-                    jsonObj["channel"] = channel;
-                }
-                else if (tokens[i].name == "range")
-                {
-                    if(tokens[i].numericArgs.size()>=3)
+                    if (token.numericArgs.size() >= 3)
                     {
-                        const double min = tokens[i].numericArgs[0];
-                        const double max = tokens[i].numericArgs[1];
-                        const double value = tokens[i].numericArgs[2];
+                        const double min = token.numericArgs[0];
+                        const double max = token.numericArgs[1];
+                        const double defaultValue = token.numericArgs[2];
                         jsonObj["min"] = min;
                         jsonObj["max"] = max;
-                        jsonObj["defaultValue"] = value;
-                        
-                        if(tokens[i].numericArgs.size()==5)
+                        jsonObj["defaultValue"] = defaultValue;
+
+                        if (token.numericArgs.size() == 5)
                         {
-                            double sliderSkew = tokens[i].numericArgs[3];
-                            double increment = tokens[i].numericArgs[4];
-                            jsonObj["skew"] = sliderSkew;
+                            const double skew = token.numericArgs[3];
+                            const double increment = token.numericArgs[4];
+                            jsonObj["skew"] = skew;
                             jsonObj["increment"] = increment;
                         }
                     }
@@ -132,26 +126,95 @@ public:
                         std::cout << "The range() identifier takes at least 3 parameters" << std::endl;
                     }
                 }
-                else
+                else if (token.name == "size")
                 {
-                    
-                    if(tokens[i].hasStringArgs())
+                    if (token.numericArgs.size() == 2)
                     {
-//                        std::cout << "Identifier: " << tokens[i].name << " String:" << tokens[i].stringArgs[0] << std::endl;
-                        jsonObj[tokens[i].name] = tokens[i].stringArgs[0];
+                        const int width = token.numericArgs[0];
+                        const int height = token.numericArgs[1];
+                        jsonObj["width"] = width;
+                        jsonObj["height"] = height;
                     }
                     else
                     {
-//                        std::cout << "Identifier: " << tokens[i].name << " Value:" << tokens[i].numericArgs[0] << std::endl;
-                        jsonObj[tokens[i].name] = tokens[i].numericArgs[0];
+                        std::cout << "The size() identifier takes 2 parameters" << std::endl;
+                    }
+                }
+                else if (token.name == "sampleRange")
+                {
+                    if (token.numericArgs.size() == 2)
+                    {
+                        const int start = token.numericArgs[0];
+                        const int end = token.numericArgs[1];
+                        jsonObj["startSample"] = start;
+                        jsonObj["endSample"] = end;
+                    }
+                    else
+                    {
+                        std::cout << "The sampleRange() identifier takes 2 parameters" << std::endl;
+                    }
+                }
+                else if (token.name == "items")
+                {
+                    if (token.hasStringArgs())
+                    {
+                        const std::string items = std::accumulate(
+                            std::next(token.stringArgs.begin()), token.stringArgs.end(), token.stringArgs[0],
+                            [](std::string a, std::string b) { return a + ", " + b; }
+                        );
+                        jsonObj["items"] = items;
+                    }
+                    else
+                    {
+                        std::cout << "The items() identifier takes string parameters" << std::endl;
+                    }
+                }
+                else if (token.name == "samples")
+                {
+                    if (!token.numericArgs.empty())
+                    {
+                        std::vector<double> samples(token.numericArgs.begin(), token.numericArgs.end());
+                        jsonObj["samples"] = samples;
+                    }
+                    else
+                    {
+                        std::cout << "The samples() identifier takes numeric parameters" << std::endl;
+                    }
+                }
+                else if (token.name == "channel")
+                {
+                    if (token.hasStringArgs())
+                    {
+                        jsonObj["channel"] = token.stringArgs[0];
+                    }
+                    else
+                    {
+                        std::cout << "The channel() identifier takes a string parameter" << std::endl;
+                    }
+                }
+                else
+                {
+                    if (token.hasStringArgs())
+                    {
+                        jsonObj[token.name] = token.stringArgs[0];
+                    }
+                    else if (!token.numericArgs.empty())
+                    {
+                        jsonObj[token.name] = token.numericArgs[0];
+                    }
+                    else
+                    {
+                        std::cout << "The " << token.name << " identifier has no valid arguments" << std::endl;
                     }
                 }
             }
         }
-        catch (nlohmann::json::exception& e) {
-                cabAssert(false, e.what());
+        catch (nlohmann::json::exception& e)
+        {
+            cabAssert(false, e.what());
         }
     }
+
 
     static std::vector<CabbageParser::Identifier> tokeniseLine(const std::string& syntax)
     {

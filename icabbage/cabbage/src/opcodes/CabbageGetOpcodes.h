@@ -20,7 +20,7 @@
 #include <plugin.h>
 #include "CabbageSetOpcodes.h"
 
-struct CabbageGetValue : csnd::Plugin<1, 1>
+struct CabbageGetValue : csnd::Plugin<2, 1>
 {
     MYFLT* value;
     int init() { return getValue(CabbageOpcodeData::PassType::Init);    };
@@ -28,6 +28,14 @@ struct CabbageGetValue : csnd::Plugin<1, 1>
     int getValue(int init);
 };
 
+struct CabbageGetValueString : csnd::Plugin<1, 1>
+{
+    char* currentString = {};
+    MYFLT* value;
+    int init() { return getValue(CabbageOpcodeData::PassType::Init);    };
+    int kperf() { return getValue(CabbageOpcodeData::PassType::Perf);   };
+    int getValue(int init);
+};
 
 struct CabbageGetMYFLT : csnd::Plugin<1, 2>, CabbageOpcodes<2>
 {
@@ -37,15 +45,15 @@ struct CabbageGetMYFLT : csnd::Plugin<1, 2>, CabbageOpcodes<2>
 };
 
 struct CabbageGetString : csnd::Plugin<1, 2>, CabbageOpcodes<2>
-{    
+{
     int init() { return getIdentifier(CabbageOpcodeData::PassType::Init);    };
     int kperf() { return getIdentifier(CabbageOpcodeData::PassType::Perf);   };
     int getIdentifier(int init);
 };
 
-struct CabbageCompare : csnd::Plugin<1, 2>, CabbageOpcodes<2>
+struct CabbageGetStringWithTrigger : csnd::Plugin<2, 2>, CabbageOpcodes<2>
 {
-    int init() { return getIdentifier(CabbageOpcodeData::PassType::Init);    };
+    char* currentString = {};
     int kperf() { return getIdentifier(CabbageOpcodeData::PassType::Perf);   };
     int getIdentifier(int init);
 };

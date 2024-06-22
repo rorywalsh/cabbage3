@@ -17,7 +17,7 @@ elseif(DEFINED CabbagePluginSynth)
 endif()
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION 0.0.53)
+	set(BUILD_VERSION 0.0.54)
 endif()
 
 
@@ -26,6 +26,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(IPLUG2_DIR ${CMAKE_SOURCE_DIR}/../iPlug2)
+set(CHOC_DIR ${CMAKE_SOURCE_DIR}/../choc-main)
 set(IXWebSocket_DIR ${CMAKE_SOURCE_DIR}/../IXWebSocket)
 include(${IPLUG2_DIR}/iPlug2.cmake)
 
@@ -75,7 +76,9 @@ if(WIN32)
   set(EXTRA_INCLUDE_DIRECTORIES 
     ${WEBVIEW2_SOURCE_DIR}/build/native/include 
     ${WIL_SOURCE_DIR}/include
+    ${CHOC_DIR}
     ${IXWebSocket_DIR}
+
     ${PROJECT_DIR}/src/
     ${PROJECT_DIR}/src/app
   )
