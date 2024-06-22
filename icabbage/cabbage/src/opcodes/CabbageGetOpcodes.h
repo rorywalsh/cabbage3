@@ -37,6 +37,15 @@ struct CabbageGetValueString : csnd::Plugin<1, 1>
     int getValue(int init);
 };
 
+struct CabbageGetValueStringWithTrigger : csnd::Plugin<2, 2>
+{
+    char* currentString = {};
+    MYFLT* value;
+    int init() { return getValue(CabbageOpcodeData::PassType::Init);    };
+    int kperf() { return getValue(CabbageOpcodeData::PassType::Perf);   };
+    int getValue(int init);
+};
+
 struct CabbageGetMYFLT : csnd::Plugin<1, 2>, CabbageOpcodes<2>
 {
     int init() { return getIdentifier(CabbageOpcodeData::PassType::Init);    };

@@ -58,6 +58,45 @@ int CabbageGetValueString::getValue(int rate)
         return IS_OK;
 }
 
+int CabbageGetValueStringWithTrigger::getValue(int rate)
+{
+    if(in_count() == 0)
+        return NOTOK;
+        
+    int trigOnInit = 0;
+
+    if(in_count() == 2)
+        trigOnInit = inargs[1];
+
+    if (csound->get_csound()->GetChannelPtr(csound->get_csound(), &value, inargs.str_data(0).data,
+                                            CSOUND_STRING_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
+    {
+        const auto s = csound->strdup(inargs.str_data(0).data);
+        if(!currentString){
+            currentString = csound->strdup((((STRINGDAT*)value)->data));
+        }
+        
+        if(strcmp(currentString, ((STRINGDAT*)value)->data) != 0)
+        {
+            currentString = csound->strdup(((STRINGDAT*)value)->data);
+            outargs[1] = 1;
+        }
+        else
+        {
+            if (trigOnInit && rate!=CabbageOpcodeData::PassType::Init)
+                outargs[1] = 1;
+            else
+                outargs[1] = 0;
+        }
+        
+        outargs.str_data(0).size = int(strlen(currentString))+1;
+        outargs.str_data(0).data = currentString;
+    }
+
+
+    return IS_OK;
+}
+
 int CabbageGetMYFLT::getIdentifier(int init)
 {
     wd = (std::vector<nlohmann::json>**)csound->query_global_variable("cabbageWidgetData");
