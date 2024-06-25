@@ -2,6 +2,7 @@ import { CabbageUtils } from "../utils.js";
 
 export class GenTable {
     constructor() {
+        console.log("Creating GenTable widget");
         this.props = {
             "top": 0,
             "left": 0,
@@ -75,7 +76,7 @@ export class GenTable {
         this.ctx.moveTo(0, this.props.height / 2);
 
         const sampleIncrement = Math.floor(this.props.samples.length / this.props.width);
-        console.log(sampleIncrement * this.props.width);
+
         if (!Array.isArray(this.props.samples) || this.props.samples.length === 0) {
             console.warn('No samples to draw.');
         } else {
@@ -124,7 +125,6 @@ export class GenTable {
         const textX = this.props.align === 'right' ? this.props.width - 10 : this.props.align === 'center' || this.props.align === 'centre' ? this.props.width / 2 : 10;
         const textY = this.props.height - 10;
 
-        console.log(`Drawing text "${this.props.file==="" ? this.props.text : this.props.file}" at (${textX}, ${textY}) with alignment "${this.props.align}"`);
         // if(this.props.file){
         //     this.ctx.fillText(CabbageUtils.getFileNameFromPath(this.props.file), textX, textY);
         // }
@@ -148,7 +148,7 @@ export class GenTable {
             // Add event listeners
             this.addEventListeners(widgetElement);
         } else {
-            console.error(`Element with channel ${this.props.channel} not found.`);
+            console.error(`Element: ${this.props.channel} not found.`);
         }
     }
 }

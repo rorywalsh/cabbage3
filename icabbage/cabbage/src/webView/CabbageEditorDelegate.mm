@@ -214,53 +214,55 @@ void CabbageEditorDelegate::SendMidiMsgFromDelegate(const iplug::IMidiMsg& msg)
 void CabbageEditorDelegate::OnMessageFromWebView(const char* jsonStr)
 {
     auto json = nlohmann::json::parse(jsonStr, nullptr, false);
-    
-    if(json["msg"] == "parameterUpdate")
+    const std::string command = json["command"];
+    auto message = nlohmann::json::parse(json["text"].get<std::string>());
+    _log(message.dump(4));
+    if(command == "parameterChange")
     {
-        SendParameterValueFromUI(json["paramIdx"], json["value"]);
+        SendParameterValueFromUI(message["paramIdx"], message["value"]);
     }
-    else if(json["msg"] == "fileOpen")
+    else if(command == "fileOpen")
     {
         OpenFileBrowser();
-        updateStringChannelCallback(json["channel"], selectedFilePath);
+        updateStringChannelCallback(message["channel"], selectedFilePath);
     }
 //    else if(json["msg"] == "fileRead")
 //    {
 //        readAudioFileCallback(json["channel"], selectedFilePath);
 //    }
-    else if (json["msg"] == "BPCFUI")
-    {
-        BeginInformHostOfParamChangeFromUI(json["paramIdx"]);
-    }
-    else if (json["msg"] == "EPCFUI")
-    {
-        EndInformHostOfParamChangeFromUI(json["paramIdx"]);
-    }
-    else if (json["msg"] == "SAMFUI")
-    {
-        std::vector<unsigned char> base64;
-        
-        if(json.count("data") > 0 && json["data"].is_string())
-        {
-            auto dStr = json["data"].get<std::string>();
-            int dSize = static_cast<int>(dStr.size());
-            
-            // calculate the exact size of the decoded base64 data
-            int numPaddingBytes = 0;
-            
-            if(dSize >= 2 && dStr[dSize-2] == '=')
-                numPaddingBytes = 2;
-            else if(dSize >= 1 && dStr[dSize-1] == '=')
-                numPaddingBytes = 1;
-            
-            
-            base64.resize((dSize * 3) / 4 - numPaddingBytes);
-            wdl_base64decode(dStr.c_str(), base64.data(), static_cast<int>(base64.size()));
-        }
-        
-        SendArbitraryMsgFromUI(json["msgTag"], json["ctrlTag"], static_cast<int>(base64.size()), base64.data());
-    }
-    else if(json["msg"] == "SMMFUI")
+//    else if (json["msg"] == "BPCFUI")
+//    {
+//        BeginInformHostOfParamChangeFromUI(json["paramIdx"]);
+//    }
+//    else if (json["msg"] == "EPCFUI")
+//    {
+//        EndInformHostOfParamChangeFromUI(json["paramIdx"]);
+//    }
+//    else if (json["msg"] == "SAMFUI")
+//    {
+//        std::vector<unsigned char> base64;
+//        
+//        if(json.count("data") > 0 && json["data"].is_string())
+//        {
+//            auto dStr = json["data"].get<std::string>();
+//            int dSize = static_cast<int>(dStr.size());
+//            
+//            // calculate the exact size of the decoded base64 data
+//            int numPaddingBytes = 0;
+//            
+//            if(dSize >= 2 && dStr[dSize-2] == '=')
+//                numPaddingBytes = 2;
+//            else if(dSize >= 1 && dStr[dSize-1] == '=')
+//                numPaddingBytes = 1;
+//            
+//            
+//            base64.resize((dSize * 3) / 4 - numPaddingBytes);
+//            wdl_base64decode(dStr.c_str(), base64.data(), static_cast<int>(base64.size()));
+//        }
+//        
+//        SendArbitraryMsgFromUI(json["msgTag"], json["ctrlTag"], static_cast<int>(base64.size()), base64.data());
+//    }
+    else if(command == "midiMessage")
     {
         iplug::IMidiMsg msg {0, json["statusByte"].get<uint8_t>(),
         json["dataByte1"].get<uint8_t>(),

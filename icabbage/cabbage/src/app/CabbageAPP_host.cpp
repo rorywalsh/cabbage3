@@ -41,42 +41,38 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
     
     webSocket.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg)
             {
-                //remove escape quotes..
-                std::string jsonString = msg->str;
-                if (jsonString.front() == '\"' && jsonString.back() == '\"')
-                {
-                       jsonString = jsonString.substr(1, jsonString.size() - 2);
-                }
-        
-                size_t pos = jsonString.find("\\\"");
-                while (pos != std::string::npos)
-                {
-                    jsonString.replace(pos, 2, "\"");
-                    pos = jsonString.find("\\\"", pos + 1); // Find the next occurrence starting from pos + 1
-                }
-                
-//                std::cout << jsonString << std::endl;
                 if (msg->type == ix::WebSocketMessageType::Message)
                 {
                     try{
-                        auto j = nlohmann::json::parse(jsonString);
-//                        std::cout << "JSON DUMP:" << j.dump();
-                        if(j.contains("event") && j["event"] == "stopCsound")
+                        auto& cabbage = cabbageProcessor->getCabbage();
+                        auto json = nlohmann::json::parse(msg->str, nullptr, false);
+                        _log(json.dump(4));
+                        const std::string command = json["command"];
+                        auto message = nlohmann::json::parse(json["text"].get<std::string>());
+                        _log(message.dump(4));
+                        if(command == "parameterChange")
                         {
-                            std::cout << "stopping Csound" << msg->str << std::endl;
-                            cabbageProcessor->stopProcessing();
-                        }
-                        else if(j.count("channel") > 0)
-                        {
-                            for(int i = 0 ; i < cabbageProcessor->getCabbage().getNumberOfParameter() ; i++)
+                            for(int i = 0 ; i < cabbage.getNumberOfParameter() ; i++)
                             {
-                                if(cabbageProcessor->getCabbage().getParameterChannel(i).name == j["channel"].get<std::string>())
+                                if(cabbage.getParameterChannel(i).name == message["channel"].get<std::string>())
                                 {
-                                    mIPlug->SetParameterValue (i, j["value"].get<double>());
+                                    cabbageProcessor->SetParameterValue (i, message["value"].get<double>());
 //                                    std::cout << "Host: " << channel << " Value:" << j["value"].get<double>() << std::endl;
                                 }
                             }
-                            //
+//                            SendParameterValueFromUI(message["paramIdx"], message["value"]);
+                        }
+                        else if(command == "fileOpenFromVSCode")
+                        {
+                            if(message.contains("fileName")){
+                                cabbage.setStringChannel(message["channel"].get<std::string>(), message["fileName"].get<std::string>());
+                            }
+                        }
+
+                        if(command == "stopCsound")
+                        {
+                            std::cout << "stopping Csound" << msg->str << std::endl;
+                            cabbageProcessor->stopProcessing();
                         }
                         else
                         {
@@ -102,11 +98,12 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
             }
     );
 
-        // Now that our callback is setup, we can start our background thread and receive messages
+    // Now that our callback is setup, we can start our background thread and receive messages
     webSocket.start();
     
+    //this callback is triggered from CabbageProcessor.cpp and is responsible for
+    //updating the widgets in the VSCode web panel
     auto callback = [&](CabbageOpcodeData data) {
-//            data.channel
         if(data.type == CabbageOpcodeData::MessageType::Value)
         {
             nlohmann::json j;
@@ -116,10 +113,32 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
         }
         else
         {
-            nlohmann::json j;
-            j["widgetUpdate"]["channel"] = data.channel;
-            j["widgetUpdate"]["data"] = data.identifier;
-            webSocket.send(j.dump());
+            auto& cabbage = cabbageProcessor->getCabbage();
+            auto widgetOpt = cabbage.getWidget(data.channel);
+            if (widgetOpt.has_value())
+            {
+                auto& j = widgetOpt.value().get();
+                if(j["type"].get<std::string>() == "gentable")
+                {
+                    cabbage.updateFunctionTable(data, j);
+                    nlohmann::json json;
+                    json["widgetUpdate"]["channel"] = data.channel;
+                    json["widgetUpdate"]["data"] = j.dump();
+                    webSocket.send(json.dump());
+                    //message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
+                }
+                else{
+                    nlohmann::json json;
+                    json["widgetUpdate"]["channel"] = data.channel;
+                    json["widgetUpdate"]["data"] = data.identifierText;
+                    webSocket.send(json.dump());
+                    //message = cabbage.getWidgetUpdateScript(data.channel, data.identifierText);
+                }
+                    
+            }
+            
+
+            
         }
 
         };

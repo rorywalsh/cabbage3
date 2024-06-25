@@ -24,6 +24,23 @@
 #include <pwd.h>
 #endif
 
+
+// Define a macro to enable/disable debugging
+#define DEBUG 1
+
+#if DEBUG
+#define _log(message) \
+    do { \
+        std::ostringstream oss; \
+        oss << "DEBUG: " << __FILE__ << " (" << __LINE__ << ") " << __FUNCTION__ << ": " << message << std::endl; \
+        std::cout << oss.str(); \
+    } while (0)
+#else
+#define DEBUG_LOG(message) \
+    do { \
+    } while (0)
+#endif
+
 // StringFormatter class
 class StringFormatter {
 public:

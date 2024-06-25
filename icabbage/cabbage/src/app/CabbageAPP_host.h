@@ -249,6 +249,7 @@ private:
     std::unique_ptr<RtAudio> mDAC = nullptr;
     std::unique_ptr<RtMidiIn> mMidiIn = nullptr;
     std::unique_ptr<RtMidiOut> mMidiOut = nullptr;
+    std::function<void(std::string, std::string)> updateStringChannelCallback = nullptr;
     int mMidiOutChannel = -1;
     int mMidiInChannel = -1;
     std::string csdFile;

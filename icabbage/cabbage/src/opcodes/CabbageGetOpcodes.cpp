@@ -9,12 +9,12 @@
 #include "CabbageGetOpcodes.h"
 #include "CabbageParser.h"
 
-int CabbageGetValue::getValue(int /*init*/)
+int CabbageGetValue::getValue(int init)
 {
     if(in_count() == 0)
         return NOTOK;
-        
-        
+
+    
     if (csound->get_csound()->GetChannelPtr(csound->get_csound(), &value, inargs.str_data(0).data,
                                             CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
     {
@@ -78,6 +78,7 @@ int CabbageGetValueStringWithTrigger::getValue(int rate)
         
         if(strcmp(currentString, ((STRINGDAT*)value)->data) != 0)
         {
+            
             currentString = csound->strdup(((STRINGDAT*)value)->data);
             outargs[1] = 1;
         }

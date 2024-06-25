@@ -9,7 +9,7 @@ import { HorizontalSlider } from "./widgets/horizontalSlider.js";
 // @ts-ignore
 import { VerticalSlider } from "./widgets/verticalSlider.js";
 // @ts-ignore
-import { Button } from "./widgets/button.js";
+import { Button, FileButton } from "./widgets/button.js";
 // @ts-ignore
 import { Checkbox } from "./widgets/checkbox.js";
 // @ts-ignore
@@ -48,7 +48,6 @@ wss.on('connection', (ws) => {
 	websocket = ws;
 	ws.on('message', (message) => {
 		const msg = JSON.parse(message.toString());
-		// console.log(JSON.stringify(msg["widgetUpdate"], null, 2));
 		if (panel) {
 			panel.webview.postMessage({ command: "widgetUpdate", text: JSON.stringify(msg["widgetUpdate"]) })
 		}
@@ -173,14 +172,19 @@ export function activate(context: vscode.ExtensionContext) {
 			processes.forEach((p) => {
 				p?.kill("SIGKILL");
 			})
-			// 	process.kill("SIGKILL");
+
 			const process = cp.spawn(command, [editor.fileName], {});
-			// currentPid = process.pid;
+
 			processes.push(process);
 
 			process.stdout.on("data", (data) => {
 				// I've seen spurious 'ANSI reset color' sequences in some csound output
 				// which doesn't render correctly in this context. Stripping that out here.
+				output.append(data.toString().replace(/\x1b\[m/g, ""));
+			});
+			process.stderr.on("data", (data) => {
+				// It looks like all csound output is written to stderr, actually.
+				// If you want your changes to show up, change this one.
 				output.append(data.toString().replace(/\x1b\[m/g, ""));
 			});
 
@@ -200,22 +204,50 @@ export function activate(context: vscode.ExtensionContext) {
 		// callback for when users update widget properties in webview
 		panel.webview.onDidReceiveMessage(
 			message => {
+				console.warn("message", message);
+				
 				switch (message.command) {
 					case 'widgetUpdate':
 						if (cabbageMode !== "play") {
 							updateText(message.text);
 						}
 						return;
-					case 'channelUpdate':
-						if (websocket) {
-							websocket.send(JSON.stringify(message.text));
-						}
 					// console.log(message.text);
 					case 'ready': //trigger when webview is open
 						if (panel) {
 							panel.webview.postMessage({ command: "snapToSize", text: config.get("snapToSize") });
 						}
 						break;
+					case 'fileOpen':
+						const jsonText = JSON.parse(message.text);
+						vscode.window.showOpenDialog({
+							canSelectFiles: true,
+							canSelectFolders: false,
+							canSelectMany: false,
+							openLabel: 'Open',
+							filters: {
+								'Audio files': ['wav', 'ogg', 'mp3', 'FLAC']
+							}
+						}).then((fileUri) => {
+							if (fileUri) {
+								
+								const m = {
+									"fileName": fileUri[0].fsPath,
+									"channel": jsonText.channel
+								}
+								const msg = {
+									command: "fileOpenFromVSCode",
+									text:JSON.stringify(m)
+								  };
+								console.error(JSON.stringify(msg, null, 2));
+								websocket.send(JSON.stringify(msg));
+							}
+						});
+						break;
+					default:
+						if (websocket) {
+								websocket.send(JSON.stringify(message));
+						}
 
 				}
 			},
@@ -233,7 +265,7 @@ export function activate(context: vscode.ExtensionContext) {
 		if (!panel) {
 			return;
 		}
-		const msg = { event: "stopCsound" };
+		const msg = { command:"stopCsound" };
 		if (websocket) {
 			websocket.send(JSON.stringify(msg));
 		}

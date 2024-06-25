@@ -2,32 +2,62 @@
 
 
 export class Cabbage {
-  static sendMidiMessageFromUI(statusByte, dataByte1, dataByte2) {
+static sendParameterUpdate(vscode, message){
+  const msg = {
+    command: "parameterChange",
+    text:JSON.stringify(message)
+  };
+  if (vscode != null) {
+    vscode.postMessage(msg);
+  }
+  else{
+    IPlugSendMsg(msg);
+  }
+}
+
+  static sendMidiMessageFromUI(vscode, statusByte, dataByte1, dataByte2) {
     var message = {
-      "msg": "SMMFUI",
       "statusByte": statusByte,
       "dataByte1": dataByte1,
       "dataByte2": dataByte2
     };
+
+    const msg = {
+      command: "midiMessage", 
+      text: JSON.stringify(message)
+    };
     
     console.log("sending midi message from UI", message);
-    if (typeof IPlugSendMsg === 'function')
-      IPlugSendMsg(message);
+    if (vscode != null) {
+      vscode.postMessage(msg);
+    }
+    else{
+      IPlugSendMsg(msg);
+    }
   }
 
   static MidiMessageFromHost(statusByte, dataByte1, dataByte2) {
-    console.log("Got MIDI Message" + status + ":" + dataByte1 + ":" + dataByte2);
+    console.log("Got MIDI Message" + statusByte + ":" + dataByte1 + ":" + dataByte2);
   }
 
-  static triggerFileOpenDialog(channel) {
+  static triggerFileOpenDialog(vscode, channel) {
     var message = {
-      "msg": "fileOpen",
       "channel": channel
     };
     
-    if (typeof IPlugSendMsg === 'function')
-      IPlugSendMsg(message);
+    const msg = {
+      command: "fileOpen",
+      text:JSON.stringify(message)
+    };
+    if (vscode != null) {
+      vscode.postMessage(msg);
+    }
+    else{
+      IPlugSendMsg(msg);
+    }
   }
+
+
 }
 
 

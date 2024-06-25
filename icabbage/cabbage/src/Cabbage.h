@@ -126,7 +126,7 @@ public:
     
     //these two methods return combine with getWidgetIdentifierUpdateScript() to return a JS method
     //that packs samples for a given table
-    std::string updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonObj);
+    void updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonObj);
     static void setTableJSON(std::string channel, std::vector<double> samples, nlohmann::json& jsonObj);
     
     //returns a script that will update a csoundoutput widget

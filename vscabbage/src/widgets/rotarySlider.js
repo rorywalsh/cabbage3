@@ -1,5 +1,5 @@
 import { CabbageUtils, CabbageColours } from "../utils.js";
-
+import { Cabbage } from "../cabbage.js";
 /**
  * Rotary Slider (rslider) class
  */
@@ -166,26 +166,18 @@ export class RotarySlider {
     const steps = 200;
     const valueDiff = ((this.props.max - this.props.min) * (clientY - this.startY)) / steps;
     const value = CabbageUtils.clamp(this.startValue - valueDiff, this.props.min, this.props.max);
+    
 
     this.props.value = Math.round(value / this.props.increment) * this.props.increment;
+
     const widgetDiv = document.getElementById(this.props.channel);
     widgetDiv.innerHTML = this.getInnerHTML();
 
-    const msg = { channel: this.props.channel, value: CabbageUtils.map(this.props.value.map, this.props.min, this.props.max, 0, 1) }
-    if (this.vscode) {
-      this.vscode.postMessage({
-        command: 'channelUpdate',
-        text: JSON.stringify(msg)
-      })
-    }
-    else {
-      var message = {
-        "msg": "parameterUpdate",
-        "paramIdx": this.props.index,
-        "value": CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1)
-      };
-      // IPlugSendMsg(message);
-    }
+    const newValue = CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
+
+    const msg = { paramIdx:this.props.index, channel: this.props.channel, value: newValue }
+    Cabbage.sendParameterUpdate(this.vscode, msg);
+  
   }
 
   // https://stackoverflow.com/questions/20593575/making-circular-progress-bar-with-html5-svg

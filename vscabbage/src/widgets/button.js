@@ -178,7 +178,7 @@ export class FileButton extends Button {
     this.isMouseDown = true;
     this.state =! this.state;
     CabbageUtils.updateInnerHTML(this.props.channel, this);
-    Cabbage.triggerFileOpenDialog(this.props.channel);
+    Cabbage.triggerFileOpenDialog(this.vscode, this.props.channel);
   }
 
   getInnerHTML() {

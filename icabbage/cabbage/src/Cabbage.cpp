@@ -65,7 +65,7 @@ bool Cabbage::setupCsound()
     csound->SetParams(csoundParams.get());
     //    compileCsdFile(csdFile);
     
-    //csdFile = "/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/CabbagePluginEffect.csd";
+//    csdFile = "/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/CabbagePluginEffect.csd";
     std::filesystem::path file = csdFile.empty() ? CabbageFile::getCsdPath() : csdFile;
     csdFile = file.string();
     
@@ -102,6 +102,7 @@ bool Cabbage::setupCsound()
                 if(w["type"] == "rslider")
                 {
                     try{
+
                         processor.GetParam(numberOfParameters)->InitDouble(w["channel"].get<std::string>().c_str(),
                                                                            w["defaultValue"].get<float>(),
                                                                            w["min"].get<float>(),
@@ -237,7 +238,7 @@ std::string Cabbage::getWidgetUpdateScript(std::string channel, float value)
     return result.c_str();
 }
 
-std::string Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonObj)
+void Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonObj)
 {
     if(data.identifierText.find("tableNumber") != std::string::npos)
     {
@@ -270,7 +271,6 @@ std::string Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json&
             }
         }
     }
-    return {};
 }
 
 void Cabbage::setTableJSON(std::string channel, std::vector<double> samples, nlohmann::json& jsonObj)

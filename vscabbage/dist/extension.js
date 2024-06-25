@@ -73,7 +73,6 @@ wss.on('connection', (ws) => {
     websocket = ws;
     ws.on('message', (message) => {
         const msg = JSON.parse(message.toString());
-        // console.log(JSON.stringify(msg["widgetUpdate"], null, 2));
         if (panel) {
             panel.webview.postMessage({ command: "widgetUpdate", text: JSON.stringify(msg["widgetUpdate"]) });
         }
@@ -171,13 +170,16 @@ function activate(context) {
             processes.forEach((p) => {
                 p?.kill("SIGKILL");
             });
-            // 	process.kill("SIGKILL");
             const process = cp.spawn(command, [editor.fileName], {});
-            // currentPid = process.pid;
             processes.push(process);
             process.stdout.on("data", (data) => {
                 // I've seen spurious 'ANSI reset color' sequences in some csound output
                 // which doesn't render correctly in this context. Stripping that out here.
+                output.append(data.toString().replace(/\x1b\[m/g, ""));
+            });
+            process.stderr.on("data", (data) => {
+                // It looks like all csound output is written to stderr, actually.
+                // If you want your changes to show up, change this one.
                 output.append(data.toString().replace(/\x1b\[m/g, ""));
             });
         });
@@ -190,22 +192,48 @@ function activate(context) {
         });
         // callback for when users update widget properties in webview
         panel.webview.onDidReceiveMessage(message => {
+            console.warn("message", message);
             switch (message.command) {
                 case 'widgetUpdate':
                     if (cabbageMode !== "play") {
                         updateText(message.text);
                     }
                     return;
-                case 'channelUpdate':
-                    if (websocket) {
-                        websocket.send(JSON.stringify(message.text));
-                    }
                 // console.log(message.text);
                 case 'ready': //trigger when webview is open
                     if (panel) {
                         panel.webview.postMessage({ command: "snapToSize", text: config.get("snapToSize") });
                     }
                     break;
+                case 'fileOpen':
+                    const jsonText = JSON.parse(message.text);
+                    vscode.window.showOpenDialog({
+                        canSelectFiles: true,
+                        canSelectFolders: false,
+                        canSelectMany: false,
+                        openLabel: 'Open',
+                        filters: {
+                            'Audio files': ['wav', 'ogg', 'mp3', 'FLAC']
+                        }
+                    }).then((fileUri) => {
+                        if (fileUri) {
+                            const m = {
+                                "fileName": fileUri[0].fsPath,
+                                "channel": jsonText.channel
+                            };
+                            const msg = {
+                                command: "fileOpenFromVSCode",
+                                text: JSON.stringify(m)
+                            };
+                            console.error(JSON.stringify(msg, null, 2));
+                            websocket.send(JSON.stringify(msg));
+                        }
+                    });
+                    break;
+                default:
+                    if (websocket) {
+                        websocket.send(JSON.stringify(message));
+                    }
             }
         }, undefined, context.subscriptions);
     }));
@@ -216,7 +244,7 @@ function activate(context) {
         if (!panel) {
             return;
         }
-        const msg = { event: "stopCsound" };
+        const msg = { command: "stopCsound" };
         if (websocket) {
             websocket.send(JSON.stringify(msg));
         }
@@ -262,7 +290,7 @@ async function updateText(jsonText) {
                 defaultProps = new genTable_js_1.GenTable().props;
                 break;
             case 'filebutton':
-                defaultProps = new FileButton().props;
+                defaultProps = new button_js_1.FileButton().props;
                 break;
             case 'checkbox':
                 defaultProps = new checkbox_js_1.Checkbox().props;
@@ -445,6 +473,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   RotarySlider: () => (/* binding */ RotarySlider)
 /* harmony export */ });
 /* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(5);
 
 
 /**
@@ -613,26 +642,18 @@ class RotarySlider {
     const steps = 200;
     const valueDiff = ((this.props.max - this.props.min) * (clientY - this.startY)) / steps;
     const value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(this.startValue - valueDiff, this.props.min, this.props.max);
+    
 
     this.props.value = Math.round(value / this.props.increment) * this.props.increment;
+
     const widgetDiv = document.getElementById(this.props.channel);
     widgetDiv.innerHTML = this.getInnerHTML();
 
-    const msg = { channel: this.props.channel, value: _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value.map, this.props.min, this.props.max, 0, 1) }
-    if (this.vscode) {
-      this.vscode.postMessage({
-        command: 'channelUpdate',
-        text: JSON.stringify(msg)
-      })
-    }
-    else {
-      var message = {
-        "msg": "parameterUpdate",
-        "paramIdx": this.props.index,
-        "value": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1)
-      };
-      // IPlugSendMsg(message);
-    }
+    const newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
+
+    const msg = { paramIdx:this.props.index, channel: this.props.channel, value: newValue }
+    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
+  
   }
 
   // https://stackoverflow.com/questions/20593575/making-circular-progress-bar-with-html5-svg
@@ -1901,32 +1922,62 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class Cabbage {
-  static sendMidiMessageFromUI(statusByte, dataByte1, dataByte2) {
+static sendParameterUpdate(vscode, message){
+  const msg = {
+    command: "parameterChange",
+    text:JSON.stringify(message)
+  };
+  if (vscode != null) {
+    vscode.postMessage(msg);
+  }
+  else{
+    IPlugSendMsg(msg);
+  }
+}
+
+  static sendMidiMessageFromUI(vscode, statusByte, dataByte1, dataByte2) {
     var message = {
-      "msg": "SMMFUI",
       "statusByte": statusByte,
       "dataByte1": dataByte1,
       "dataByte2": dataByte2
     };
+
+    const msg = {
+      command: "midiMessage", 
+      text: JSON.stringify(message)
+    };
     
     console.log("sending midi message from UI", message);
-    if (typeof IPlugSendMsg === 'function')
-      IPlugSendMsg(message);
+    if (vscode != null) {
+      vscode.postMessage(msg);
+    }
+    else{
+      IPlugSendMsg(msg);
+    }
   }
 
   static MidiMessageFromHost(statusByte, dataByte1, dataByte2) {
-    console.log("Got MIDI Message" + status + ":" + dataByte1 + ":" + dataByte2);
+    console.log("Got MIDI Message" + statusByte + ":" + dataByte1 + ":" + dataByte2);
   }
 
-  static triggerFileOpenDialog(channel) {
+  static triggerFileOpenDialog(vscode, channel) {
     var message = {
-      "msg": "fileOpen",
       "channel": channel
     };
     
-    if (typeof IPlugSendMsg === 'function')
-      IPlugSendMsg(message);
+    const msg = {
+      command: "fileOpen",
+      text:JSON.stringify(message)
+    };
+    if (vscode != null) {
+      vscode.postMessage(msg);
+    }
+    else{
+      IPlugSendMsg(msg);
+    }
   }
+
+
 }
 
 
@@ -2511,7 +2562,7 @@ class FileButton extends Button {
     this.isMouseDown = true;
     this.state =! this.state;
     _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.triggerFileOpenDialog(this.props.channel);
+    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.triggerFileOpenDialog(this.vscode, this.props.channel);
   }
 
   getInnerHTML() {
@@ -3292,6 +3343,7 @@ __webpack_require__.r(__webpack_exports__);
 
 class GenTable {
     constructor() {
+        console.log("Creating GenTable widget");
         this.props = {
             "top": 0,
             "left": 0,
@@ -3365,7 +3417,7 @@ class GenTable {
         this.ctx.moveTo(0, this.props.height / 2);
 
         const sampleIncrement = Math.floor(this.props.samples.length / this.props.width);
-        console.log(sampleIncrement * this.props.width);
+
         if (!Array.isArray(this.props.samples) || this.props.samples.length === 0) {
             console.warn('No samples to draw.');
         } else {
@@ -3414,7 +3466,6 @@ class GenTable {
         const textX = this.props.align === 'right' ? this.props.width - 10 : this.props.align === 'center' || this.props.align === 'centre' ? this.props.width / 2 : 10;
         const textY = this.props.height - 10;
 
-        console.log(`Drawing text "${this.props.file==="" ? this.props.text : this.props.file}" at (${textX}, ${textY}) with alignment "${this.props.align}"`);
         // if(this.props.file){
         //     this.ctx.fillText(CabbageUtils.getFileNameFromPath(this.props.file), textX, textY);
         // }
@@ -3438,7 +3489,7 @@ class GenTable {
             // Add event listeners
             this.addEventListeners(widgetElement);
         } else {
-            console.error(`Element with channel ${this.props.channel} not found.`);
+            console.error(`Element: ${this.props.channel} not found.`);
         }
     }
 }

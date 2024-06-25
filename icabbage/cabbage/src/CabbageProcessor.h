@@ -105,6 +105,7 @@ public:
     
     void setupCallbacks();
     void updateWidgetsOnUIOpen();
+    
 #ifdef CabbageApp
     std::function<void(CabbageOpcodeData)> hostCallback = nullptr;
 #endif

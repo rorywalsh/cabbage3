@@ -18,6 +18,7 @@
 #include "CabbageUtils.h"
 
 
+
 /** This Editor Delegate allows using a platform native web view as the UI for an iPlug plugin */
 class CabbageEditorDelegate : public iplug::IEditorDelegate
 , public iplug::IWebView

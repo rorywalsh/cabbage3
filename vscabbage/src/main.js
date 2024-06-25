@@ -457,14 +457,30 @@ async function insertWidget(type, props) {
 
   widgetDiv.id = widget.props.channel;
 
-  widgetDiv.innerHTML = widget.getInnerHTML();
+  
+  console.log("widgetDiv.id: " + widgetDiv.id);
+
   if (form) {
     form.appendChild(widgetDiv);
   }
-  console.log("I've commented this, but may need it in drag mode");
+
+  // gentable and form are special cases and have dedicated update methods
+  if (widget.props.type == "gentable") {
+    widget.updateTable();
+
+  } else if (widget.props.type == "form") {
+    widget.updateSVG();
+  }
+  else{
+    widgetDiv.innerHTML = widget.getInnerHTML();
+  }
+  
+
+ 
   if (typeof acquireVsCodeApi === 'function') {
     widgetDiv.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
   }
+
   widgetDiv.setAttribute('data-x', widget.props.left);
   widgetDiv.setAttribute('data-y', widget.props.top);
   widgetDiv.style.width = widget.props.width + 'px'

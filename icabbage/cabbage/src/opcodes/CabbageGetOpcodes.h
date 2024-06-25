@@ -20,7 +20,7 @@
 #include <plugin.h>
 #include "CabbageSetOpcodes.h"
 
-struct CabbageGetValue : csnd::Plugin<2, 1>
+struct CabbageGetValue : csnd::Plugin<1, 1>
 {
     MYFLT* value;
     int init() { return getValue(CabbageOpcodeData::PassType::Init);    };
