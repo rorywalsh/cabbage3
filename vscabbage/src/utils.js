@@ -5,6 +5,7 @@ export class CabbageUtils {
  * and converts it to a JSON object
  */
   static getCabbageCodeAsJSON(text) {
+    const type = `${text.trimStart().split(' ')[0]}`;
     const regex = /(\w+)\(([^)]+)\)/g;
     const jsonObj = {};
 
@@ -21,11 +22,11 @@ export class CabbageUtils {
         jsonObj['width'] = width;
         jsonObj['height'] = height;
       } else if (name === 'range') {
-        // Splitting the value into individual parts for min, max, defaultValue, skew, and increment
-        const [min, max, defaultValue, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
+        // Splitting the value into individual parts for min, max, value, skew, and increment
+        const [min, max, value, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
         jsonObj['min'] = min;
         jsonObj['max'] = max;
-        jsonObj['defaultValue'] = defaultValue;
+        jsonObj['value'] = value;
         jsonObj['skew'] = skew;
         jsonObj['increment'] = increment;
       } else if (name === 'size') {
@@ -34,14 +35,25 @@ export class CabbageUtils {
         jsonObj['width'] = width;
         jsonObj['height'] = height;
       } else if (name === 'sampleRange') {
-          // Splitting the value into individual parts for width and height
-          const [start, end] = value.split(',').map(v => parseInt(v.trim()));
-          jsonObj['startSample'] = start;
-          jsonObj['endSample'] = end;
+        // Splitting the value into individual parts for width and height
+        const [start, end] = value.split(',').map(v => parseInt(v.trim()));
+        jsonObj['startSample'] = start;
+        jsonObj['endSample'] = end;
       } else if (name === 'items') {
         // Handling the items attribute
         const items = value.split(',').map(v => v.trim()).join(', ');
         jsonObj['items'] = items;
+      } else if (name === 'text') {
+        if (type.indexOf('button') > -1) {
+          // Extract the contents inside the parentheses
+          const textItems = value.split(',').map(v => v.trim());
+          console.log(textItems)
+          jsonObj['textOff'] = textItems[0];
+          jsonObj['textOn'] = (textItems.length > 1 ? textItems[1] : textItems[0]);
+        }
+        else{
+          jsonObj[name] = value;
+        }
       } else if (name === 'samples') {
         // Handling the items attribute
         const samples = value.split(',').map(v => parseFloat(v.trim()));
@@ -65,14 +77,7 @@ export class CabbageUtils {
   static getFileNameFromPath(fullPath) {
     return fullPath.split(/[/\\]/).pop();
   }
-  
-  static setDivPosition(widgetElement, widget){
-    widgetElement.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
-    widgetElement.setAttribute('data-x', widget.props.left);
-    widgetElement.setAttribute('data-y', widget.props.top);
-    widgetElement.style.top = widget.props.top + 'px';
-    widgetElement.style.left = widget.props.left + 'px';
-  }
+
   /**
    * this function parses the Cabbage code and creates new widgets accordingly..
    */
@@ -344,18 +349,18 @@ export class CabbageUtils {
   }
 
   static sendToBack(currentDiv) {
-      const parentElement = currentDiv.parentElement;
-      const allDivs = parentElement.getElementsByTagName('div');
-      console.log(currentDiv);
-      console.log(allDivs);
-      for (let i = 0; i < allDivs.length; i++) {
-        if (allDivs[i] !== currentDiv) {
-          allDivs[i].style.zIndex = 1; // Bring other divs to the top
-        } else {
-          allDivs[i].style.zIndex = 0; // Keep the current div below others
-        }
+    const parentElement = currentDiv.parentElement;
+    const allDivs = parentElement.getElementsByTagName('div');
+    console.log(currentDiv);
+    console.log(allDivs);
+    for (let i = 0; i < allDivs.length; i++) {
+      if (allDivs[i] !== currentDiv) {
+        allDivs[i].style.zIndex = 1; // Bring other divs to the top
+      } else {
+        allDivs[i].style.zIndex = 0; // Keep the current div below others
       }
     }
+  }
   /**
    * This function will return an identifier in the form of ident(param) from an incoming
    * JSON object of properties
@@ -365,8 +370,8 @@ export class CabbageUtils {
     let syntax = '';
 
     if (name === 'range' && obj['type'].indexOf('slider') > -1) {
-      const { min, max, defaultValue, skew, increment } = obj;
-      syntax = `range(${min}, ${max}, ${defaultValue}, ${skew}, ${increment})`;
+      const { min, max, value, skew, increment } = obj;
+      syntax = `range(${min}, ${max}, ${value}, ${skew}, ${increment})`;
       return syntax;
     }
     if (name === 'bounds') {
@@ -480,7 +485,7 @@ export class CabbageColours {
 
     return colourMap[colourName] || colourMap["blue"];
   }
-  static brighter(hex, amount) {
+  static lighter(hex, amount) {
     return this.adjustBrightness(hex, amount);
   }
 
@@ -584,7 +589,7 @@ ${jsonString}
     csoundCode += `   csoundoutput bounds(0, 0, 780, 380)\n`;
     csoundCode += "</Cabbage>\n";
 
-     csoundCode += `
+    csoundCode += `
 <CsoundSynthesizer>
 <CsOptions>
 -n -d -m0d
@@ -688,31 +693,31 @@ endin
 
     let delay = 0.2; // Delay between each set/check pair (in seconds)
     let setStartTime = 1.0; // Start time for score events
-    let checkStartTime = setStartTime+0.1; // Start time for score events
+    let checkStartTime = setStartTime + 0.1; // Start time for score events
 
     widgets.forEach((widget) => {
-        for (const [key, value] of Object.entries(widget.props)) {
-            if (key !== 'type' && key !== 'index' && key!== 'channel') {
-                if (key !== 'value' && key !== 'defaultValue') {
-                    const newValue = CabbageTestUtilities.getSimilarValue(value);
-                    if (typeof value === 'number') {
-                        csoundCode += `i"CabbageSetFloat" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" ${newValue}\n`;
-                        csoundCode += `i"CabbageCheckFloat" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" ${newValue}\n`;
-                    } else {
-                        csoundCode += `i"CabbageSetString" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" "${newValue}"\n`;
-                        csoundCode += `i"CabbageCheckString" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" "${newValue}"\n`;
-                    }
-                    setStartTime += delay;
-                    checkStartTime += delay;
-                } else if (key === 'value') {
-                    const newValue = CabbageTestUtilities.getSimilarValue(value);
-                    csoundCode += `i"CabbageSetValue" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" ${newValue}\n`;
-                    csoundCode += `i"CabbageCheckValue" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" ${newValue}\n`;
-                    setStartTime += delay;
-                    checkStartTime += delay;
-                }
+      for (const [key, value] of Object.entries(widget.props)) {
+        if (key !== 'type' && key !== 'index' && key !== 'channel') {
+          if (key !== 'value' && key !== 'defaultValue') {
+            const newValue = CabbageTestUtilities.getSimilarValue(value);
+            if (typeof value === 'number') {
+              csoundCode += `i"CabbageSetFloat" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" ${newValue}\n`;
+              csoundCode += `i"CabbageCheckFloat" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" ${newValue}\n`;
+            } else {
+              csoundCode += `i"CabbageSetString" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" "${newValue}"\n`;
+              csoundCode += `i"CabbageCheckString" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" "${newValue}"\n`;
             }
+            setStartTime += delay;
+            checkStartTime += delay;
+          } else if (key === 'value') {
+            const newValue = CabbageTestUtilities.getSimilarValue(value);
+            csoundCode += `i"CabbageSetValue" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" ${newValue}\n`;
+            csoundCode += `i"CabbageCheckValue" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" ${newValue}\n`;
+            setStartTime += delay;
+            checkStartTime += delay;
+          }
         }
+      }
     });
 
     csoundCode += `i"GetErrorCount" ${setStartTime.toFixed(1)} 0.2\n`;
@@ -720,7 +725,7 @@ endin
     csoundCode += '</CsoundSynthesizer>\n';
 
     console.log(csoundCode);
-}
+  }
 
 
 

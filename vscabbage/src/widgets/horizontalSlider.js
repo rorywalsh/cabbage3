@@ -15,10 +15,8 @@ export class HorizontalSlider {
       "min": 0, // Minimum value of the slider
       "max": 1, // Maximum value of the slider
       "value": 0, // Current value of the slider
-      "defaultValue": 0, // Default value of the slider
       "skew": 1, // Skew factor for the slider (for non-linear scales)
       "increment": 0.001, // Value increment/decrement when moving the slider
-      "index": 0, // Index of the slider
       "text": "", // Text displayed next to the slider
       "fontFamily": "Verdana", // Font family for the text
       "fontSize": 0, // Font size for the text
@@ -56,6 +54,7 @@ export class HorizontalSlider {
       "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
     };
 
+    this.parameterIndex = 0;
     this.moveListener = this.pointerMove.bind(this);
     this.upListener = this.pointerUp.bind(this);
     this.startX = 0;

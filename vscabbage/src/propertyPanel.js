@@ -264,9 +264,20 @@ export class PropertyPanel {
             widget.props.width = Math.floor(bounds.w);
             widget.props.height = Math.floor(bounds.h);
 
-            if (widget.props.type !== 'form') {
-              document.getElementById(widget.props.channel).innerHTML = widget.getInnerHTML();
+            // gentable and form are special cases and have dedicated update methods
+            if (widget.props.type == "gentable") {
+              widget.updateTable();
+            } else if (widget.props.type == "form") {
+              widget.updateSVG();
             }
+            else{
+              const widgetDiv = CabbageUtils.getWidgetDiv(widget.props.channel);
+              widgetDiv.innerHTML = widget.getInnerHTML();
+            }
+
+            // if (widget.props.type !== 'form') {
+            //   document.getElementById(widget.props.channel).innerHTML = widget.getInnerHTML();
+            // }
           }
 
           // if (widget.props.hasOwnProperty('channel')) {

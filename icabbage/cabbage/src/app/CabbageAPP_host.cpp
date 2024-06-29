@@ -46,10 +46,8 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                     try{
                         auto& cabbage = cabbageProcessor->getCabbage();
                         auto json = nlohmann::json::parse(msg->str, nullptr, false);
-                        _log(json.dump(4));
                         const std::string command = json["command"];
                         auto message = nlohmann::json::parse(json["text"].get<std::string>());
-                        _log(message.dump(4));
                         if(command == "parameterChange")
                         {
                             for(int i = 0 ; i < cabbage.getNumberOfParameter() ; i++)

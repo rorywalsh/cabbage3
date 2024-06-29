@@ -173,20 +173,20 @@ export function activate(context: vscode.ExtensionContext) {
 				p?.kill("SIGKILL");
 			})
 
-			const process = cp.spawn(command, [editor.fileName], {});
+			// const process = cp.spawn(command, [editor.fileName], {});
 
-			processes.push(process);
+			// processes.push(process);
 
-			process.stdout.on("data", (data) => {
-				// I've seen spurious 'ANSI reset color' sequences in some csound output
-				// which doesn't render correctly in this context. Stripping that out here.
-				output.append(data.toString().replace(/\x1b\[m/g, ""));
-			});
-			process.stderr.on("data", (data) => {
-				// It looks like all csound output is written to stderr, actually.
-				// If you want your changes to show up, change this one.
-				output.append(data.toString().replace(/\x1b\[m/g, ""));
-			});
+			// process.stdout.on("data", (data) => {
+			// 	// I've seen spurious 'ANSI reset color' sequences in some csound output
+			// 	// which doesn't render correctly in this context. Stripping that out here.
+			// 	output.append(data.toString().replace(/\x1b\[m/g, ""));
+			// });
+			// process.stderr.on("data", (data) => {
+			// 	// It looks like all csound output is written to stderr, actually.
+			// 	// If you want your changes to show up, change this one.
+			// 	output.append(data.toString().replace(/\x1b\[m/g, ""));
+			// });
 
 
 
@@ -338,7 +338,7 @@ async function updateText(jsonText: string) {
 		}
 
 
-		const internalIdentifiers: string[] = ['top', 'left', 'width', 'defaultValue', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index'];
+		const internalIdentifiers: string[] = ['top', 'left', 'width', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index'];
 		if (props.type.indexOf('slider') !== -1) { internalIdentifiers.push('value'); }
 
 		await textEditor.edit(async editBuilder => {

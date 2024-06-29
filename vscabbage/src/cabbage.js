@@ -2,18 +2,30 @@
 
 
 export class Cabbage {
-static sendParameterUpdate(vscode, message){
-  const msg = {
-    command: "parameterChange",
-    text:JSON.stringify(message)
-  };
-  if (vscode != null) {
-    vscode.postMessage(msg);
+  static sendParameterUpdate(vscode, message) {
+    const msg = {
+      command: "parameterChange",
+      text: JSON.stringify(message)
+    };
+    if (vscode != null) {
+      vscode.postMessage(msg);
+    }
+    else {
+      console.log("sending parameter change from UI", msg);
+      IPlugSendMsg(msg);
+    }
   }
-  else{
-    IPlugSendMsg(msg);
+
+  static sendWidgetUpdate(widget){
+    console.log("sending widget update from UI", widget.props);
+    const msg = {
+      command: "widgetStateUpdate",
+      text:JSON.stringify(widget.props)
+    };
+    if(typeof IPlugSendMsg === 'function'){
+      IPlugSendMsg(msg);
+    }
   }
-}
 
   static sendMidiMessageFromUI(vscode, statusByte, dataByte1, dataByte2) {
     var message = {
@@ -23,15 +35,15 @@ static sendParameterUpdate(vscode, message){
     };
 
     const msg = {
-      command: "midiMessage", 
+      command: "midiMessage",
       text: JSON.stringify(message)
     };
-    
+
     console.log("sending midi message from UI", message);
     if (vscode != null) {
       vscode.postMessage(msg);
     }
-    else{
+    else {
       IPlugSendMsg(msg);
     }
   }
@@ -44,15 +56,15 @@ static sendParameterUpdate(vscode, message){
     var message = {
       "channel": channel
     };
-    
+
     const msg = {
       command: "fileOpen",
-      text:JSON.stringify(message)
+      text: JSON.stringify(message)
     };
     if (vscode != null) {
       vscode.postMessage(msg);
     }
-    else{
+    else {
       IPlugSendMsg(msg);
     }
   }
@@ -62,17 +74,17 @@ static sendParameterUpdate(vscode, message){
 
 
 function SPVFD(paramIdx, val) {
-//  console.log("paramIdx: " + paramIdx + " value:" + val);
+  //  console.log("paramIdx: " + paramIdx + " value:" + val);
   OnParamChange(paramIdx, val);
 }
 
 function SCVFD(ctrlTag, val) {
   OnControlChange(ctrlTag, val);
-//  console.log("SCVFD ctrlTag: " + ctrlTag + " value:" + val);
+  //  console.log("SCVFD ctrlTag: " + ctrlTag + " value:" + val);
 }
 
 function SCMFD(ctrlTag, msgTag, msg) {
-//  var decodedData = window.atob(msg);
+  //  var decodedData = window.atob(msg);
   console.log("SCMFD ctrlTag: " + ctrlTag + " msgTag:" + msgTag + "msg:" + msg);
 }
 
@@ -98,7 +110,7 @@ function SAMFUI(msgTag, ctrlTag = -1, data = 0) {
     "ctrlTag": ctrlTag,
     "data": data
   };
-  
+
   IPlugSendMsg(message);
 }
 
@@ -109,7 +121,7 @@ function SMMFUI(statusByte, dataByte1, dataByte2) {
     "dataByte1": dataByte1,
     "dataByte2": dataByte2
   };
-  
+
   IPlugSendMsg(message);
 }
 
@@ -119,7 +131,7 @@ function SSMFUI(data = 0) {
     "msg": "SSMFUI",
     "data": data
   };
-  
+
   IPlugSendMsg(message);
 }
 
@@ -128,7 +140,7 @@ function EPCFUI(paramIdx) {
     "msg": "EPCFUI",
     "paramIdx": paramIdx,
   };
-  
+
   IPlugSendMsg(message);
 }
 
@@ -137,7 +149,7 @@ function BPCFUI(paramIdx) {
     "msg": "BPCFUI",
     "paramIdx": paramIdx,
   };
-  
+
   IPlugSendMsg(message);
 }
 

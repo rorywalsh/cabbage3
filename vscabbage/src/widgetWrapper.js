@@ -8,7 +8,7 @@ export class WidgetWrapper {
             restriction: 'parent',
             endOnly: true
         };
-        this.snapSize = 4;
+        this.snapSize = 2;
         this.selectedElements = selectedSet;
         this.updatePanelCallback = updatePanelCallback;
         this.dragMoveListener = this.dragMoveListener.bind(this);
@@ -93,9 +93,9 @@ export class WidgetWrapper {
             },
             modifiers: [
                 interact.modifiers.restrictRect(restrictions),
-                interact.modifiers.restrictSize({
-                    min: { width: 10, height: 10 }
-                }),
+                // interact.modifiers.restrictSize({
+                //     min: { width: 10, height: 10 }
+                // }),
                 interact.modifiers.snap({
                     targets: [
                         interact.snappers.grid({ x: this.snapSize, y: this.snapSize })
@@ -153,10 +153,10 @@ export class WidgetWrapper {
                 }
             },
             modifiers: [
-                interact.modifiers.restrictSize({
-                    min: { width: 50, height: 50 }, // Minimum size for the element
-                    max: { width: 1500, height: 1500 } // Maximum size for the element
-                })
+                // interact.modifiers.restrictSize({
+                //     min: { width: 10, height: 10 }, // Minimum size for the element
+                //     max: { width: 1500, height: 1500 } // Maximum size for the element
+                // })
             ],
             inertia: true
         });
@@ -179,10 +179,10 @@ interact('.draggablePanel')
     .draggable({
         inertia: true,
         autoScroll: true,
-        onmove: dragMoveListener
+        onmove: formDragMoveListener
     });
 
-function dragMoveListener(event) {
+function formDragMoveListener(event) {
 
     var target = event.target;
     if (event.shiftKey || event.altKey) {

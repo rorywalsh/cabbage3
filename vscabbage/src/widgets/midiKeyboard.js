@@ -15,7 +15,7 @@ export class MidiKeyboard {
       "colour": "#888888", // Background color of the keyboard
       "channel": "keyboard", // Unique identifier for the keyboard widget
       "blackNoteColour": "#000", // Color of the black keys on the keyboard
-      "defaultValue": "36", // The leftmost note of the keyboard
+      "value": "36", // The leftmost note of the keyboard
       "fontFamily": "Verdana", // Font family for the text displayed on the keyboard
       "whiteNoteColour": "#fff", // Color of the white keys on the keyboard
       "keySeparatorColour": "#000", // Color of the separators between keys

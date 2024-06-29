@@ -211,21 +211,34 @@ void CabbageEditorDelegate::SendMidiMsgFromDelegate(const iplug::IMidiMsg& msg)
     EvaluateJavaScript(message.c_str());
 }
 
+/* this method is called from the webview. It will trigger various callback
+ functions which are hosted from the CabbageProcessor class*/
 void CabbageEditorDelegate::OnMessageFromWebView(const char* jsonStr)
 {
     auto json = nlohmann::json::parse(jsonStr, nullptr, false);
     const std::string command = json["command"];
-    auto message = nlohmann::json::parse(json["text"].get<std::string>());
-    _log(message.dump(4));
+    auto jsonContent = nlohmann::json::parse(json["text"].get<std::string>());
+
+    //this is called whenever a UI parameter is updated
     if(command == "parameterChange")
     {
-        SendParameterValueFromUI(message["paramIdx"], message["value"]);
+        SendParameterValueFromUI(jsonContent["paramIdx"], jsonContent["value"]);
     }
+    
+    //this is called to trigger a native OS file browser
     else if(command == "fileOpen")
     {
         OpenFileBrowser();
-        updateStringChannelCallback(message["channel"], selectedFilePath);
+        updateStringChannelCallback(jsonContent["channel"], selectedFilePath);
     }
+    
+    //called whenever the state of a widget is updated in the UI - the C++ widget array
+    //and the JS widget array should always be in sync
+    else if(command == "widgetStateUpdate")
+    {
+        updateWidgetState(jsonContent);
+    }
+    
 //    else if(json["msg"] == "fileRead")
 //    {
 //        readAudioFileCallback(json["channel"], selectedFilePath);

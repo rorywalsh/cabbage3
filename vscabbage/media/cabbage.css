@@ -1,11 +1,14 @@
 .draggable {
-	width: 120px;
-	border-radius: 8px;
+	width: auto;
+	border-radius: 2px;
 	border-color: #e0e0e03c;
 	border-style: solid;
-	stroke-width: 1;
+	border-width: 1;
+	stroke-width: 0;
 	margin: 0;
-	padding: 0;
+	display: inline-block;
+	margin: 0;
+	padding-right: 0px;
 	border: 1;
 	background-color: rgba(34, 153, 238, 0);
 	color: white;
@@ -14,9 +17,8 @@
 	position: absolute;
 	touch-action: none;
 	/* This makes things *much* easier */
-	box-sizing: border-box;
+	/* box-sizing: border-box; */
 	z-index: 9999;
-
 	-webkit-user-select: none;
 	-moz-user-select: none;
 	-ms-user-select: none;
@@ -39,8 +41,8 @@
 .selected {
 	border: 2px solid rgb(246, 255, 0);
 	border-style: dashed;
-	margin: 0;
-	padding: 0;
+	border-radius: 0px;
+	margin-right: 0;
 }
 
 .nonDraggable {

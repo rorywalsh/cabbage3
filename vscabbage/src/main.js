@@ -12,6 +12,8 @@ import { CsoundOutput } from "./widgets/csoundOutput.js";
 import { MidiKeyboard } from "./widgets/midiKeyboard.js";
 import { PropertyPanel } from "./propertyPanel.js";
 import { CabbageUtils, CabbageTestUtilities } from "./utils.js";
+import { Cabbage } from "./cabbage.js";
+
 
 /* 
 Uncomment to generate various source code files for testing
@@ -62,7 +64,7 @@ CabbageUtils.showOverlay();
 /**
  * called from the webview panel on startup, and when a user saves/updates or changes .csd file
  */
-window.addEventListener('message', event => {
+window.addEventListener('message', async event => {
 
   const message = event.data;
   switch (message.command) {
@@ -78,7 +80,11 @@ window.addEventListener('message', event => {
       const rightPanel = document.getElementById('RightPanel');
       if (rightPanel)
         rightPanel.style.visibility = "hidden";
-      CabbageUtils.parseCabbageCode(message.text, widgets, form, insertWidget);
+      await CabbageUtils.parseCabbageCode(message.text, widgets, form, insertWidget);
+      //in plugin mode we need to sync with the instrument's widget array
+      widgets.forEach(w => {
+        Cabbage.sendWidgetUpdate(w);
+      });
       window.postMessage({ command: 'Cabbage file has been parsed' });
       break;
     case 'snapToSize':
@@ -117,7 +123,7 @@ window.addEventListener('message', event => {
 });
 
 /*
-* this is called from the plugin and will a corresponding widget
+* this is called from the plugin and will update a corresponding widget
 */
 function updateWidget(obj) {
   const channel = obj['channel'];
@@ -125,13 +131,14 @@ function updateWidget(obj) {
     if (widget.props.channel === channel) {
       if (obj.hasOwnProperty('data')) {
         widget.props = JSON.parse(obj["data"]);
+        console.log("updating widget", widget.props);
       } else if (obj.hasOwnProperty('value')) {
         widget.props.value = obj['value'];
       }
 
       const widgetElement = CabbageUtils.getWidgetDiv(widget.props.channel);
       if (widgetElement) {
-        console.log(widgetElement.id, widgetElement.parentElement.id);
+        // console.log(widgetElement.id, widgetElement.parentElement.id);
         // widgetElement.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
         widgetElement.setAttribute('data-x', widget.props.left);
         widgetElement.setAttribute('data-y', widget.props.top);
@@ -385,6 +392,7 @@ async function insertWidget(type, props) {
       break;
     case "gentable":
       widget = new GenTable();
+      widget.createCanvas();
       break;
     case "label":
       widget = new Label();
@@ -433,13 +441,9 @@ async function insertWidget(type, props) {
     widget.props[key] = value;
   })
 
-
-
-
   widgets.push(widget); // Push the new widget object into the array
   const index = CabbageUtils.getNumberOfPluginParameters(widgets, "rslider", "hslider", "vslider", "button", "combobox", "checkbox");
-  widget.props.index = index - 1;
-
+  widget.parameterIndex = index - 1;
 
   if (cabbageMode === 'nonDraggable') {
     if (typeof acquireVsCodeApi === 'function') {
@@ -457,9 +461,7 @@ async function insertWidget(type, props) {
 
   widgetDiv.id = widget.props.channel;
 
-  
-  console.log("widgetDiv.id: " + widgetDiv.id);
-
+  widgetDiv.innerHTML = widget.getInnerHTML();
   if (form) {
     form.appendChild(widgetDiv);
   }
@@ -471,12 +473,12 @@ async function insertWidget(type, props) {
   } else if (widget.props.type == "form") {
     widget.updateSVG();
   }
-  else{
+  else {
     widgetDiv.innerHTML = widget.getInnerHTML();
   }
-  
 
- 
+
+
   if (typeof acquireVsCodeApi === 'function') {
     widgetDiv.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
   }
@@ -485,7 +487,6 @@ async function insertWidget(type, props) {
   widgetDiv.setAttribute('data-y', widget.props.top);
   widgetDiv.style.width = widget.props.width + 'px'
   widgetDiv.style.height = widget.props.height + 'px'
-
 
   return widget.props;
 }

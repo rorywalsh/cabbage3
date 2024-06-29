@@ -9,7 +9,6 @@ export class ComboBox {
             "height": 30, // Height of the widget
             "channel": "comboBox", // Unique identifier for the widget
             "corners": 4, // Radius of the corners of the widget rectangle
-            "defaultValue": 0, // Default value index for the dropdown items
             "fontFamily": "Verdana", // Font family for the text
             "fontSize": 14, // Font size for the text
             "align": "center", // Text alignment within the widget (left, center, right)
@@ -35,8 +34,8 @@ export class ComboBox {
 
         this.isMouseInside = false;
         this.isOpen = false;
-        this.selectedItem = this.props.value > 0 ? this.items[this.props.defaultValue] : this.props.text;
-
+        this.selectedItem = this.props.value > 0 ? this.items[this.props.value] : this.props.text;
+        this.parameterIndex = 0;
         this.vscode = null;
     }
 
@@ -138,13 +137,13 @@ export class ComboBox {
                     <rect x="0" y="${index * itemHeight}" width="${this.props.width}" height="${itemHeight}"
                         fill="${CabbageColours.darker(this.props.colour, 0.2)}" rx="0" ry="0"
                         style="cursor: pointer;" pointer-events="all" data-item="${item}"
-                        onmouseover="this.setAttribute('fill', '${CabbageColours.brighter(this.props.colour, 0.2)}')"
+                        onmouseover="this.setAttribute('fill', '${CabbageColours.lighter(this.props.colour, 0.2)}')"
                         onmouseout="this.setAttribute('fill', '${CabbageColours.darker(this.props.colour, 0.2)}')"></rect>
                     <text x="${(this.props.width - this.props.corners / 2) / 2}" y="${(index + 1) * itemHeight - itemHeight / 2}"
                         font-family="${this.props.fontFamily}" font-size="${this.props.fontSize}" fill="${this.props.fontColour}"
                         text-anchor="middle" alignment-baseline="middle" data-item="${item}"
                         style="cursor: pointer;" pointer-events="all"
-                        onmouseover="this.previousElementSibling.setAttribute('fill', '${CabbageColours.brighter(this.props.colour, 0.2)}')"
+                        onmouseover="this.previousElementSibling.setAttribute('fill', '${CabbageColours.lighter(this.props.colour, 0.2)}')"
                         onmouseout="this.previousElementSibling.setAttribute('fill', '${CabbageColours.darker(this.props.colour, 0.2)}')"
                         onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.handleItemClick('${item}')">${item}</text>
                 `;

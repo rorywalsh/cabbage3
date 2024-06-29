@@ -12,8 +12,6 @@ export class Checkbox {
         "min": 0, // Minimum value for the checkbox (for sliders)
         "max": 1, // Maximum value for the checkbox (for sliders)
         "value": 0, // Current value of the checkbox (for sliders)
-        "defaultValue": 0, // Default value of the checkbox
-        "index": 0, // Index of the checkbox
         "text": "On/Off", // Text displayed next to the checkbox
         "fontFamily": "Verdana", // Font family for the text
         "fontColour": "#dddddd", // Color of the text
@@ -41,6 +39,7 @@ export class Checkbox {
 
     this.vscode = null;
     this.isChecked = false;
+    this.parameterIndex = 0;
   }
 
   toggle() {

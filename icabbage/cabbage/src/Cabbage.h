@@ -46,7 +46,7 @@ public:
         }
         
         bool hasValueChanged(float newValue){
-            return value == newValue;
+            return value != newValue;
         }
         
         float value;

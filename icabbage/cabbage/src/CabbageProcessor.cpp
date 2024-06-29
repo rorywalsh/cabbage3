@@ -89,6 +89,18 @@ void CabbageProcessor::setupCallbacks()
         cabbage.setStringChannel(channel, data);
     };
     
+    updateWidgetState = [&](nlohmann::json json){
+        auto j = json;
+        auto const channel = j["channel"].get<std::string>();
+        auto widgetOpt = cabbage.getWidget(channel);
+        if (widgetOpt.has_value())
+        {
+            auto& w = widgetOpt.value().get();
+            w.merge_patch(j);
+            auto result = cabbage.getWidgetUpdateScript(w["channel"], w.dump());
+            EvaluateJavaScript(result.c_str());
+        }
+    };
     
 }
 
@@ -135,8 +147,10 @@ void CabbageProcessor::updateWidgetsOnUIOpen()
 //timer thread listens for incoming data from Csound using a lock free fifo
 void CabbageProcessor::timerCallback()
 {
+#ifndef CabbageApp
     if(uiIsOpen)
     {
+#endif
         while (cabbage.getCsound()->GetMessageCnt() > 0)
         {
             std::string message(cabbage.getCsound()->GetFirstMessage());
@@ -144,7 +158,9 @@ void CabbageProcessor::timerCallback()
             EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
             cabbage.getCsound()->PopFirstMessage();
         }
+#ifndef CabbageApp
     }
+#endif
     //any of these messages from the Cabbage opcodes can be sent when the UI is not open, or before it opens when first loaded..
     auto** od = (moodycamel::ReaderWriterQueue<CabbageOpcodeData>**)cabbage.getCsound()->QueryGlobalVariable("cabbageOpcodeData");
     if (od != nullptr)
@@ -229,6 +245,7 @@ void CabbageProcessor::OnParamChange(int paramIdx)
         auto& p = cabbage.getParameterChannel(paramIdx);
         if(p.hasValueChanged(GetParam(paramIdx)->Value()))
         {
+            p.setValue(GetParam(paramIdx)->Value());
             cabbage.setControlChannel(p.name.c_str(), GetParam(paramIdx)->Value());
             EvaluateJavaScript(cabbage.getWidgetUpdateScript(p.name, GetParam(paramIdx)->Value()).c_str());
         }

@@ -42,13 +42,6 @@
 #include <unistd.h>
 #endif
 
-
-enum EParams
-{
-    kGain = 0,
-    kNumParams
-};
-
 enum EMsgTags
 {
     kMsgTagButton1 = 0,

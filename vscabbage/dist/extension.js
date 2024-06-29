@@ -39,7 +39,7 @@ const vscode = __importStar(__webpack_require__(1));
 // @ts-ignore
 const rotarySlider_js_1 = __webpack_require__(2);
 // @ts-ignore
-const horizontalSlider_js_1 = __webpack_require__(4);
+const horizontalSlider_js_1 = __webpack_require__(5);
 // @ts-ignore
 const verticalSlider_js_1 = __webpack_require__(6);
 // @ts-ignore
@@ -60,7 +60,6 @@ const genTable_js_1 = __webpack_require__(13);
 const utils_js_1 = __webpack_require__(3);
 // @ts-ignore
 const form_js_1 = __webpack_require__(14);
-const cp = __importStar(__webpack_require__(15));
 let textEditor;
 let output;
 let panel = undefined;
@@ -170,18 +169,18 @@ function activate(context) {
             processes.forEach((p) => {
                 p?.kill("SIGKILL");
             });
-            const process = cp.spawn(command, [editor.fileName], {});
-            processes.push(process);
-            process.stdout.on("data", (data) => {
-                // I've seen spurious 'ANSI reset color' sequences in some csound output
-                // which doesn't render correctly in this context. Stripping that out here.
-                output.append(data.toString().replace(/\x1b\[m/g, ""));
-            });
-            process.stderr.on("data", (data) => {
-                // It looks like all csound output is written to stderr, actually.
-                // If you want your changes to show up, change this one.
-                output.append(data.toString().replace(/\x1b\[m/g, ""));
-            });
+            // const process = cp.spawn(command, [editor.fileName], {});
+            // processes.push(process);
+            // process.stdout.on("data", (data) => {
+            // 	// I've seen spurious 'ANSI reset color' sequences in some csound output
+            // 	// which doesn't render correctly in this context. Stripping that out here.
+            // 	output.append(data.toString().replace(/\x1b\[m/g, ""));
+            // });
+            // process.stderr.on("data", (data) => {
+            // 	// It looks like all csound output is written to stderr, actually.
+            // 	// If you want your changes to show up, change this one.
+            // 	output.append(data.toString().replace(/\x1b\[m/g, ""));
+            // });
         });
         vscode.workspace.onDidOpenTextDocument((editor) => {
             sendTextToWebView(editor, 'onFileChanged');
@@ -310,7 +309,7 @@ async function updateText(jsonText) {
             default:
                 break;
         }
-        const internalIdentifiers = ['top', 'left', 'width', 'defaultValue', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index'];
+        const internalIdentifiers = ['top', 'left', 'width', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index'];
         if (props.type.indexOf('slider') !== -1) {
             internalIdentifiers.push('value');
         }
@@ -473,7 +472,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   RotarySlider: () => (/* binding */ RotarySlider)
 /* harmony export */ });
 /* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
-/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(5);
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
 
 
 /**
@@ -490,7 +489,6 @@ class RotarySlider {
       "min": 0, // Minimum value of the slider
       "max": 1, // Maximum value of the slider
       "value": 0, // Current value of the slider
-      "defaultValue": 0, // Default value of the slider
       "skew": 1, // Skew factor for the slider
       "increment": 0.001, // Incremental value change per step
       "index": 0, // Index of the slider
@@ -527,7 +525,7 @@ class RotarySlider {
     this.panelSections = {
       "Properties": ["type", "channel"],
       "Bounds": ["left", "top", "width", "height"],
-      "Range": ["min", "max", "defaultValue", "skew", "increment"],
+      "Range": ["min", "max", "value", "skew", "increment"],
       "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
       "Colours": ["colour", "trackerColour", "trackerBackgroundColour", "trackerOutlineColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour", "markerColour"]
     };
@@ -539,6 +537,7 @@ class RotarySlider {
     this.vscode = null;
     this.isMouseDown = false;
     this.decimalPlaces = 0;
+    this.parameterIndex = 0;
   }
 
   pointerUp() {
@@ -608,6 +607,8 @@ class RotarySlider {
       popup.classList.add('show');
       popup.classList.remove('hide');
     }
+
+    console.log("pointerEnter", this);
   }
 
 
@@ -628,6 +629,7 @@ class RotarySlider {
   }
 
   addEventListeners(widgetDiv) {
+    console.log(JSON.stringify(this.props, null, 2));
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
     widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
     widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
@@ -651,9 +653,10 @@ class RotarySlider {
 
     const newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
 
-    const msg = { paramIdx:this.props.index, channel: this.props.channel, value: newValue }
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
+    console.log("msg", msg);
     _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
-  
+    
   }
 
   // https://stackoverflow.com/questions/20593575/making-circular-progress-bar-with-html5-svg
@@ -779,6 +782,7 @@ class CabbageUtils {
  * and converts it to a JSON object
  */
   static getCabbageCodeAsJSON(text) {
+    const type = `${text.trimStart().split(' ')[0]}`;
     const regex = /(\w+)\(([^)]+)\)/g;
     const jsonObj = {};
 
@@ -795,11 +799,11 @@ class CabbageUtils {
         jsonObj['width'] = width;
         jsonObj['height'] = height;
       } else if (name === 'range') {
-        // Splitting the value into individual parts for min, max, defaultValue, skew, and increment
-        const [min, max, defaultValue, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
+        // Splitting the value into individual parts for min, max, value, skew, and increment
+        const [min, max, value, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
         jsonObj['min'] = min;
         jsonObj['max'] = max;
-        jsonObj['defaultValue'] = defaultValue;
+        jsonObj['value'] = value;
         jsonObj['skew'] = skew;
         jsonObj['increment'] = increment;
       } else if (name === 'size') {
@@ -808,14 +812,25 @@ class CabbageUtils {
         jsonObj['width'] = width;
         jsonObj['height'] = height;
       } else if (name === 'sampleRange') {
-          // Splitting the value into individual parts for width and height
-          const [start, end] = value.split(',').map(v => parseInt(v.trim()));
-          jsonObj['startSample'] = start;
-          jsonObj['endSample'] = end;
+        // Splitting the value into individual parts for width and height
+        const [start, end] = value.split(',').map(v => parseInt(v.trim()));
+        jsonObj['startSample'] = start;
+        jsonObj['endSample'] = end;
       } else if (name === 'items') {
         // Handling the items attribute
         const items = value.split(',').map(v => v.trim()).join(', ');
         jsonObj['items'] = items;
+      } else if (name === 'text') {
+        if (type.indexOf('button') > -1) {
+          // Extract the contents inside the parentheses
+          const textItems = value.split(',').map(v => v.trim());
+          console.log(textItems)
+          jsonObj['textOff'] = textItems[0];
+          jsonObj['textOn'] = (textItems.length > 1 ? textItems[1] : textItems[0]);
+        }
+        else{
+          jsonObj[name] = value;
+        }
       } else if (name === 'samples') {
         // Handling the items attribute
         const samples = value.split(',').map(v => parseFloat(v.trim()));
@@ -839,14 +854,7 @@ class CabbageUtils {
   static getFileNameFromPath(fullPath) {
     return fullPath.split(/[/\\]/).pop();
   }
-  
-  static setDivPosition(widgetElement, widget){
-    widgetElement.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
-    widgetElement.setAttribute('data-x', widget.props.left);
-    widgetElement.setAttribute('data-y', widget.props.top);
-    widgetElement.style.top = widget.props.top + 'px';
-    widgetElement.style.left = widget.props.left + 'px';
-  }
+
   /**
    * this function parses the Cabbage code and creates new widgets accordingly..
    */
@@ -1118,18 +1126,18 @@ class CabbageUtils {
   }
 
   static sendToBack(currentDiv) {
-      const parentElement = currentDiv.parentElement;
-      const allDivs = parentElement.getElementsByTagName('div');
-      console.log(currentDiv);
-      console.log(allDivs);
-      for (let i = 0; i < allDivs.length; i++) {
-        if (allDivs[i] !== currentDiv) {
-          allDivs[i].style.zIndex = 1; // Bring other divs to the top
-        } else {
-          allDivs[i].style.zIndex = 0; // Keep the current div below others
-        }
+    const parentElement = currentDiv.parentElement;
+    const allDivs = parentElement.getElementsByTagName('div');
+    console.log(currentDiv);
+    console.log(allDivs);
+    for (let i = 0; i < allDivs.length; i++) {
+      if (allDivs[i] !== currentDiv) {
+        allDivs[i].style.zIndex = 1; // Bring other divs to the top
+      } else {
+        allDivs[i].style.zIndex = 0; // Keep the current div below others
       }
     }
+  }
   /**
    * This function will return an identifier in the form of ident(param) from an incoming
    * JSON object of properties
@@ -1139,8 +1147,8 @@ class CabbageUtils {
     let syntax = '';
 
     if (name === 'range' && obj['type'].indexOf('slider') > -1) {
-      const { min, max, defaultValue, skew, increment } = obj;
-      syntax = `range(${min}, ${max}, ${defaultValue}, ${skew}, ${increment})`;
+      const { min, max, value, skew, increment } = obj;
+      syntax = `range(${min}, ${max}, ${value}, ${skew}, ${increment})`;
       return syntax;
     }
     if (name === 'bounds') {
@@ -1254,7 +1262,7 @@ class CabbageColours {
 
     return colourMap[colourName] || colourMap["blue"];
   }
-  static brighter(hex, amount) {
+  static lighter(hex, amount) {
     return this.adjustBrightness(hex, amount);
   }
 
@@ -1358,7 +1366,7 @@ ${jsonString}
     csoundCode += `   csoundoutput bounds(0, 0, 780, 380)\n`;
     csoundCode += "</Cabbage>\n";
 
-     csoundCode += `
+    csoundCode += `
 <CsoundSynthesizer>
 <CsOptions>
 -n -d -m0d
@@ -1462,31 +1470,31 @@ endin
 
     let delay = 0.2; // Delay between each set/check pair (in seconds)
     let setStartTime = 1.0; // Start time for score events
-    let checkStartTime = setStartTime+0.1; // Start time for score events
+    let checkStartTime = setStartTime + 0.1; // Start time for score events
 
     widgets.forEach((widget) => {
-        for (const [key, value] of Object.entries(widget.props)) {
-            if (key !== 'type' && key !== 'index' && key!== 'channel') {
-                if (key !== 'value' && key !== 'defaultValue') {
-                    const newValue = CabbageTestUtilities.getSimilarValue(value);
-                    if (typeof value === 'number') {
-                        csoundCode += `i"CabbageSetFloat" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" ${newValue}\n`;
-                        csoundCode += `i"CabbageCheckFloat" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" ${newValue}\n`;
-                    } else {
-                        csoundCode += `i"CabbageSetString" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" "${newValue}"\n`;
-                        csoundCode += `i"CabbageCheckString" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" "${newValue}"\n`;
-                    }
-                    setStartTime += delay;
-                    checkStartTime += delay;
-                } else if (key === 'value') {
-                    const newValue = CabbageTestUtilities.getSimilarValue(value);
-                    csoundCode += `i"CabbageSetValue" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" ${newValue}\n`;
-                    csoundCode += `i"CabbageCheckValue" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" ${newValue}\n`;
-                    setStartTime += delay;
-                    checkStartTime += delay;
-                }
+      for (const [key, value] of Object.entries(widget.props)) {
+        if (key !== 'type' && key !== 'index' && key !== 'channel') {
+          if (key !== 'value' && key !== 'defaultValue') {
+            const newValue = CabbageTestUtilities.getSimilarValue(value);
+            if (typeof value === 'number') {
+              csoundCode += `i"CabbageSetFloat" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" ${newValue}\n`;
+              csoundCode += `i"CabbageCheckFloat" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" ${newValue}\n`;
+            } else {
+              csoundCode += `i"CabbageSetString" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" "${newValue}"\n`;
+              csoundCode += `i"CabbageCheckString" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" "${key}" "${newValue}"\n`;
             }
+            setStartTime += delay;
+            checkStartTime += delay;
+          } else if (key === 'value') {
+            const newValue = CabbageTestUtilities.getSimilarValue(value);
+            csoundCode += `i"CabbageSetValue" ${setStartTime.toFixed(1)} 0.2 "${widget.props.channel}" ${newValue}\n`;
+            csoundCode += `i"CabbageCheckValue" ${checkStartTime.toFixed(1)} 0.2 "${widget.props.channel}" ${newValue}\n`;
+            setStartTime += delay;
+            checkStartTime += delay;
+          }
         }
+      }
     });
 
     csoundCode += `i"GetErrorCount" ${setStartTime.toFixed(1)} 0.2\n`;
@@ -1494,7 +1502,7 @@ endin
     csoundCode += '</CsoundSynthesizer>\n';
 
     console.log(csoundCode);
-}
+  }
 
 
 
@@ -1606,9 +1614,183 @@ endin
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Cabbage: () => (/* binding */ Cabbage)
+/* harmony export */ });
+
+
+
+class Cabbage {
+  static sendParameterUpdate(vscode, message) {
+    const msg = {
+      command: "parameterChange",
+      text: JSON.stringify(message)
+    };
+    if (vscode != null) {
+      vscode.postMessage(msg);
+    }
+    else {
+      console.log("sending parameter change from UI", msg);
+      IPlugSendMsg(msg);
+    }
+  }
+
+  static sendWidgetUpdate(widget){
+    console.log("sending widget update from UI", widget.props);
+    const msg = {
+      command: "widgetStateUpdate",
+      text:JSON.stringify(widget.props)
+    };
+    if(typeof IPlugSendMsg === 'function'){
+      IPlugSendMsg(msg);
+    }
+  }
+
+  static sendMidiMessageFromUI(vscode, statusByte, dataByte1, dataByte2) {
+    var message = {
+      "statusByte": statusByte,
+      "dataByte1": dataByte1,
+      "dataByte2": dataByte2
+    };
+
+    const msg = {
+      command: "midiMessage",
+      text: JSON.stringify(message)
+    };
+
+    console.log("sending midi message from UI", message);
+    if (vscode != null) {
+      vscode.postMessage(msg);
+    }
+    else {
+      IPlugSendMsg(msg);
+    }
+  }
+
+  static MidiMessageFromHost(statusByte, dataByte1, dataByte2) {
+    console.log("Got MIDI Message" + statusByte + ":" + dataByte1 + ":" + dataByte2);
+  }
+
+  static triggerFileOpenDialog(vscode, channel) {
+    var message = {
+      "channel": channel
+    };
+
+    const msg = {
+      command: "fileOpen",
+      text: JSON.stringify(message)
+    };
+    if (vscode != null) {
+      vscode.postMessage(msg);
+    }
+    else {
+      IPlugSendMsg(msg);
+    }
+  }
+
+
+}
+
+
+function SPVFD(paramIdx, val) {
+  //  console.log("paramIdx: " + paramIdx + " value:" + val);
+  OnParamChange(paramIdx, val);
+}
+
+function SCVFD(ctrlTag, val) {
+  OnControlChange(ctrlTag, val);
+  //  console.log("SCVFD ctrlTag: " + ctrlTag + " value:" + val);
+}
+
+function SCMFD(ctrlTag, msgTag, msg) {
+  //  var decodedData = window.atob(msg);
+  console.log("SCMFD ctrlTag: " + ctrlTag + " msgTag:" + msgTag + "msg:" + msg);
+}
+
+function SAMFD(msgTag, dataSize, msg) {
+  //  var decodedData = window.atob(msg);
+  console.log("SAMFD msgTag:" + msgTag + " msg:" + msg);
+}
+
+function SMMFD(statusByte, dataByte1, dataByte2) {
+  console.log("Got MIDI Message" + status + ":" + dataByte1 + ":" + dataByte2);
+}
+
+function SSMFD(offset, size, msg) {
+  console.log("Got Sysex Message");
+}
+
+// FROM UI
+// data should be a base64 encoded string
+function SAMFUI(msgTag, ctrlTag = -1, data = 0) {
+  var message = {
+    "msg": "SAMFUI",
+    "msgTag": msgTag,
+    "ctrlTag": ctrlTag,
+    "data": data
+  };
+
+  IPlugSendMsg(message);
+}
+
+function SMMFUI(statusByte, dataByte1, dataByte2) {
+  var message = {
+    "msg": "SMMFUI",
+    "statusByte": statusByte,
+    "dataByte1": dataByte1,
+    "dataByte2": dataByte2
+  };
+
+  IPlugSendMsg(message);
+}
+
+// data should be a base64 encoded string
+function SSMFUI(data = 0) {
+  var message = {
+    "msg": "SSMFUI",
+    "data": data
+  };
+
+  IPlugSendMsg(message);
+}
+
+function EPCFUI(paramIdx) {
+  var message = {
+    "msg": "EPCFUI",
+    "paramIdx": paramIdx,
+  };
+
+  IPlugSendMsg(message);
+}
+
+function BPCFUI(paramIdx) {
+  var message = {
+    "msg": "BPCFUI",
+    "paramIdx": paramIdx,
+  };
+
+  IPlugSendMsg(message);
+}
+
+function SPVFUI(paramIdx, value) {
+  var message = {
+    "msg": "SPVFUI",
+    "paramIdx": paramIdx,
+    "value": value
+  };
+
+  IPlugSendMsg(message);
+}
+
+
+/***/ }),
+/* 5 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   HorizontalSlider: () => (/* binding */ HorizontalSlider)
 /* harmony export */ });
-/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5);
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(4);
 /* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(3);
 
 
@@ -1627,10 +1809,8 @@ class HorizontalSlider {
       "min": 0, // Minimum value of the slider
       "max": 1, // Maximum value of the slider
       "value": 0, // Current value of the slider
-      "defaultValue": 0, // Default value of the slider
       "skew": 1, // Skew factor for the slider (for non-linear scales)
       "increment": 0.001, // Value increment/decrement when moving the slider
-      "index": 0, // Index of the slider
       "text": "", // Text displayed next to the slider
       "fontFamily": "Verdana", // Font family for the text
       "fontSize": 0, // Font size for the text
@@ -1668,6 +1848,7 @@ class HorizontalSlider {
       "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
     };
 
+    this.parameterIndex = 0;
     this.moveListener = this.pointerMove.bind(this);
     this.upListener = this.pointerUp.bind(this);
     this.startX = 0;
@@ -1911,168 +2092,6 @@ class HorizontalSlider {
 
 
 /***/ }),
-/* 5 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   Cabbage: () => (/* binding */ Cabbage)
-/* harmony export */ });
-
-
-
-class Cabbage {
-static sendParameterUpdate(vscode, message){
-  const msg = {
-    command: "parameterChange",
-    text:JSON.stringify(message)
-  };
-  if (vscode != null) {
-    vscode.postMessage(msg);
-  }
-  else{
-    IPlugSendMsg(msg);
-  }
-}
-
-  static sendMidiMessageFromUI(vscode, statusByte, dataByte1, dataByte2) {
-    var message = {
-      "statusByte": statusByte,
-      "dataByte1": dataByte1,
-      "dataByte2": dataByte2
-    };
-
-    const msg = {
-      command: "midiMessage", 
-      text: JSON.stringify(message)
-    };
-    
-    console.log("sending midi message from UI", message);
-    if (vscode != null) {
-      vscode.postMessage(msg);
-    }
-    else{
-      IPlugSendMsg(msg);
-    }
-  }
-
-  static MidiMessageFromHost(statusByte, dataByte1, dataByte2) {
-    console.log("Got MIDI Message" + statusByte + ":" + dataByte1 + ":" + dataByte2);
-  }
-
-  static triggerFileOpenDialog(vscode, channel) {
-    var message = {
-      "channel": channel
-    };
-    
-    const msg = {
-      command: "fileOpen",
-      text:JSON.stringify(message)
-    };
-    if (vscode != null) {
-      vscode.postMessage(msg);
-    }
-    else{
-      IPlugSendMsg(msg);
-    }
-  }
-
-
-}
-
-
-function SPVFD(paramIdx, val) {
-//  console.log("paramIdx: " + paramIdx + " value:" + val);
-  OnParamChange(paramIdx, val);
-}
-
-function SCVFD(ctrlTag, val) {
-  OnControlChange(ctrlTag, val);
-//  console.log("SCVFD ctrlTag: " + ctrlTag + " value:" + val);
-}
-
-function SCMFD(ctrlTag, msgTag, msg) {
-//  var decodedData = window.atob(msg);
-  console.log("SCMFD ctrlTag: " + ctrlTag + " msgTag:" + msgTag + "msg:" + msg);
-}
-
-function SAMFD(msgTag, dataSize, msg) {
-  //  var decodedData = window.atob(msg);
-  console.log("SAMFD msgTag:" + msgTag + " msg:" + msg);
-}
-
-function SMMFD(statusByte, dataByte1, dataByte2) {
-  console.log("Got MIDI Message" + status + ":" + dataByte1 + ":" + dataByte2);
-}
-
-function SSMFD(offset, size, msg) {
-  console.log("Got Sysex Message");
-}
-
-// FROM UI
-// data should be a base64 encoded string
-function SAMFUI(msgTag, ctrlTag = -1, data = 0) {
-  var message = {
-    "msg": "SAMFUI",
-    "msgTag": msgTag,
-    "ctrlTag": ctrlTag,
-    "data": data
-  };
-  
-  IPlugSendMsg(message);
-}
-
-function SMMFUI(statusByte, dataByte1, dataByte2) {
-  var message = {
-    "msg": "SMMFUI",
-    "statusByte": statusByte,
-    "dataByte1": dataByte1,
-    "dataByte2": dataByte2
-  };
-  
-  IPlugSendMsg(message);
-}
-
-// data should be a base64 encoded string
-function SSMFUI(data = 0) {
-  var message = {
-    "msg": "SSMFUI",
-    "data": data
-  };
-  
-  IPlugSendMsg(message);
-}
-
-function EPCFUI(paramIdx) {
-  var message = {
-    "msg": "EPCFUI",
-    "paramIdx": paramIdx,
-  };
-  
-  IPlugSendMsg(message);
-}
-
-function BPCFUI(paramIdx) {
-  var message = {
-    "msg": "BPCFUI",
-    "paramIdx": paramIdx,
-  };
-  
-  IPlugSendMsg(message);
-}
-
-function SPVFUI(paramIdx, value) {
-  var message = {
-    "msg": "SPVFUI",
-    "paramIdx": paramIdx,
-    "value": value
-  };
-
-  IPlugSendMsg(message);
-}
-
-
-/***/ }),
 /* 6 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
@@ -2094,10 +2113,8 @@ class VerticalSlider {
       "min": 0, // Minimum value of the slider
       "max": 1, // Maximum value of the slider
       "value": 0, // Current value of the slider
-      "defaultValue": 0, // Default value of the slider
       "skew": 1, // Skew factor for the slider
       "increment": 0.001, // Incremental value change per step
-      "index": 0, // Index of the slider
       "text": "", // Text displayed on the slider
       "fontFamily": "Verdana", // Font family for the text displayed on the slider
       "fontSize": 0, // Font size for the text displayed on the slider
@@ -2139,6 +2156,7 @@ class VerticalSlider {
     this.vscode = null;
     this.isMouseDown = false;
     this.decimalPlaces = 0;
+    this.parameterIndex = 0;
   }
 
   pointerUp() {
@@ -2381,7 +2399,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   FileButton: () => (/* binding */ FileButton)
 /* harmony export */ });
 /* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
-/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(5);
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
 
 
 
@@ -2397,8 +2415,6 @@ class Button {
       "min": 0, // Minimum value for the button (for sliders)
       "max": 1, // Maximum value for the button (for sliders)
       "value": 0, // Current value of the button (for sliders)
-      "defaultValue": 0, // Default value of the button
-      "index": 0, // Index of the button
       "textOn": "On", // Text displayed when button is in the 'On' state
       "textOff": "Off", // Text displayed when button is in the 'Off' state
       "fontFamily": "Verdana", // Font family for the text
@@ -2416,8 +2432,8 @@ class Button {
       "visible": 1, // Visibility of the button (0 for hidden, 1 for visible)
       "automatable": 1, // Whether the button value can be automated (0 for no, 1 for yes)
       "presetIgnore": 0 // Whether the button should be ignored in presets (0 for no, 1 for yes)
-  };
-  
+    };
+
 
     this.panelSections = {
       "Info": ["type", "channel"],
@@ -2429,7 +2445,7 @@ class Button {
     this.vscode = null;
     this.isMouseDown = false;
     this.isMouseInside = false;
-    this.state = false;
+    this.parameterIndex = 0;
   }
 
   pointerUp() {
@@ -2437,6 +2453,7 @@ class Button {
       return '';
     }
     this.isMouseDown = false;
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
   pointerDown(evt) {
@@ -2445,8 +2462,11 @@ class Button {
     }
     console.log("pointerDown");
     this.isMouseDown = true;
-    this.state =! this.state;
+    this.props.value = (this.props.value === 0 ? 1 : 0);
+
     _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+    const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: this.props.value }
+    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
   }
 
 
@@ -2456,6 +2476,7 @@ class Button {
     }
     this.isMouseOver = true;
     _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+
   }
 
 
@@ -2483,6 +2504,7 @@ class Button {
       this.isMouseInside = true;
     }
 
+    // console.log("pointerEnter", this.props);
     _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
@@ -2507,18 +2529,18 @@ class Button {
     if (this.props.visible === 0) {
       return '';
     }
-  
+
     const alignMap = {
       'left': 'start',
       'center': 'middle',
       'centre': 'middle',
       'right': 'end',
     };
-  
+
     const svgAlign = alignMap[this.props.align] || this.props.align;
     const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
     const padding = 5;
-  
+
     let textX;
     if (this.props.align === 'left') {
       textX = this.props.corners; // Add padding for left alignment
@@ -2527,14 +2549,15 @@ class Button {
     } else {
       textX = this.props.width / 2;
     }
-  
-    const currentColour = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.state ? this.props.colourOn : this.props.colourOff, this.isMouseInside ? 0.2 : 0);
+
+    const stateColour = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.value === 1 ? this.props.colourOn : this.props.colourOff, this.isMouseInside ? 0.2 : 0);
+    const currentColour = this.isMouseDown ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.lighter(this.props.colourOn, 0.2) : stateColour;
     return `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-          <rect x="${this.props.corners/2}" y="${this.props.corners/2}" width="${this.props.width-this.props.corners*2}" height="${this.props.height-this.props.corners*2}" fill="${currentColour}" stroke="${this.props.outlineColour}"
+          <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners}" fill="${currentColour}" stroke="${this.props.outlineColour}"
             stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
           <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
-            fill="${this.state ? this.props.fontColourOn : this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${this.state ? this.props.textOn : this.props.textOff}</text>
+            fill="${this.props.value === 1 ? this.props.fontColourOn : this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${this.props.value === 1 ? this.props.textOn : this.props.textOff}</text>
       </svg>
     `;
   }
@@ -2560,7 +2583,7 @@ class FileButton extends Button {
       return '';
     }
     this.isMouseDown = true;
-    this.state =! this.state;
+    this.state = !this.state;
     _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
     _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.triggerFileOpenDialog(this.vscode, this.props.channel);
   }
@@ -2569,18 +2592,18 @@ class FileButton extends Button {
     if (this.props.visible === 0) {
       return '';
     }
-  
+
     const alignMap = {
       'left': 'start',
       'center': 'middle',
       'centre': 'middle',
       'right': 'end',
     };
-  
+
     const svgAlign = alignMap[this.props.align] || this.props.align;
     const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
     const padding = 5;
-  
+
     let textX;
     if (this.props.align === 'left') {
       textX = this.props.corners; // Add padding for left alignment
@@ -2589,11 +2612,11 @@ class FileButton extends Button {
     } else {
       textX = this.props.width / 2;
     }
-  
+
     const currentColour = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, this.isMouseInside ? 0.2 : 0);
     return `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-          <rect x="${this.props.corners/2}" y="${this.props.corners/2}" width="${this.props.width-this.props.corners*2}" height="${this.props.height-this.props.corners*2}" fill="${currentColour}" stroke="${this.props.outlineColour}"
+          <rect x="0" y="0" width="${this.props.width}" height="${this.props.height}" fill="${currentColour}" stroke="${this.props.outlineColour}"
             stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
           <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
             fill="${this.props.fontColour}" text-anchor="${svgAlign}" alignment-baseline="middle">${this.props.text}</text>
@@ -2626,8 +2649,6 @@ class Checkbox {
         "min": 0, // Minimum value for the checkbox (for sliders)
         "max": 1, // Maximum value for the checkbox (for sliders)
         "value": 0, // Current value of the checkbox (for sliders)
-        "defaultValue": 0, // Default value of the checkbox
-        "index": 0, // Index of the checkbox
         "text": "On/Off", // Text displayed next to the checkbox
         "fontFamily": "Verdana", // Font family for the text
         "fontColour": "#dddddd", // Color of the text
@@ -2655,6 +2676,7 @@ class Checkbox {
 
     this.vscode = null;
     this.isChecked = false;
+    this.parameterIndex = 0;
   }
 
   toggle() {
@@ -2734,7 +2756,6 @@ class ComboBox {
             "height": 30, // Height of the widget
             "channel": "comboBox", // Unique identifier for the widget
             "corners": 4, // Radius of the corners of the widget rectangle
-            "defaultValue": 0, // Default value index for the dropdown items
             "fontFamily": "Verdana", // Font family for the text
             "fontSize": 14, // Font size for the text
             "align": "center", // Text alignment within the widget (left, center, right)
@@ -2760,8 +2781,8 @@ class ComboBox {
 
         this.isMouseInside = false;
         this.isOpen = false;
-        this.selectedItem = this.props.value > 0 ? this.items[this.props.defaultValue] : this.props.text;
-
+        this.selectedItem = this.props.value > 0 ? this.items[this.props.value] : this.props.text;
+        this.parameterIndex = 0;
         this.vscode = null;
     }
 
@@ -2863,13 +2884,13 @@ class ComboBox {
                     <rect x="0" y="${index * itemHeight}" width="${this.props.width}" height="${itemHeight}"
                         fill="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}" rx="0" ry="0"
                         style="cursor: pointer;" pointer-events="all" data-item="${item}"
-                        onmouseover="this.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.brighter(this.props.colour, 0.2)}')"
+                        onmouseover="this.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.lighter(this.props.colour, 0.2)}')"
                         onmouseout="this.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}')"></rect>
                     <text x="${(this.props.width - this.props.corners / 2) / 2}" y="${(index + 1) * itemHeight - itemHeight / 2}"
                         font-family="${this.props.fontFamily}" font-size="${this.props.fontSize}" fill="${this.props.fontColour}"
                         text-anchor="middle" alignment-baseline="middle" data-item="${item}"
                         style="cursor: pointer;" pointer-events="all"
-                        onmouseover="this.previousElementSibling.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.brighter(this.props.colour, 0.2)}')"
+                        onmouseover="this.previousElementSibling.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.lighter(this.props.colour, 0.2)}')"
                         onmouseout="this.previousElementSibling.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}')"
                         onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.handleItemClick('${item}')">${item}</text>
                 `;
@@ -3104,7 +3125,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   MidiKeyboard: () => (/* binding */ MidiKeyboard)
 /* harmony export */ });
-/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5);
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(4);
 /* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(3);
 
 
@@ -3123,7 +3144,7 @@ class MidiKeyboard {
       "colour": "#888888", // Background color of the keyboard
       "channel": "keyboard", // Unique identifier for the keyboard widget
       "blackNoteColour": "#000", // Color of the black keys on the keyboard
-      "defaultValue": "36", // The leftmost note of the keyboard
+      "value": "36", // The leftmost note of the keyboard
       "fontFamily": "Verdana", // Font family for the text displayed on the keyboard
       "whiteNoteColour": "#fff", // Color of the white keys on the keyboard
       "keySeparatorColour": "#000", // Color of the separators between keys
@@ -3369,13 +3390,22 @@ class GenTable {
             "samples": []
         };
 
+        
+        this.panelSections = {
+            "Info": ["type", "channel"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Text": ["text", "fontSize", "fontFamily", "fontColour", "align"],
+            "Colours": ["colour", "backgroundColour", "outlineColour"]
+        };
+    }
+
+    createCanvas(){
         // Create canvas element during initialization
         this.canvas = document.createElement('canvas');
         this.canvas.width = this.props.width;
         this.canvas.height = this.props.height;
         this.ctx = this.canvas.getContext('2d');
     }
-
     addVsCodeEventListeners(widgetDiv, vs) {
         this.vscode = vs;
         widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
@@ -3463,13 +3493,9 @@ class GenTable {
         this.ctx.textAlign = textAlign;
         this.ctx.textBaseline = 'bottom';
 
+        
         const textX = this.props.align === 'right' ? this.props.width - 10 : this.props.align === 'center' || this.props.align === 'centre' ? this.props.width / 2 : 10;
         const textY = this.props.height - 10;
-
-        // if(this.props.file){
-        //     this.ctx.fillText(CabbageUtils.getFileNameFromPath(this.props.file), textX, textY);
-        // }
-        // else
         this.ctx.fillText(this.props.text, textX, textY);
         
 
@@ -3477,10 +3503,10 @@ class GenTable {
         const widgetElement = document.getElementById(this.props.channel);
         if (widgetElement) {
             // widgetElement.style.transform = `translate(${this.props.left}px, ${this.props.top}px)`;
-            widgetElement.setAttribute('data-x', this.props.left);
-            widgetElement.setAttribute('data-y', this.props.top);
-            widgetElement.style.top = `${this.props.top}px`;
-            widgetElement.style.left = `${this.props.left}px`;
+            // widgetElement.setAttribute('data-x', this.props.left);
+            // widgetElement.setAttribute('data-y', this.props.top);
+            // widgetElement.style.top = `${this.props.top}px`;
+            // widgetElement.style.left = `${this.props.left}px`;
             widgetElement.style.padding = '0';
             widgetElement.style.margin = '0';
             widgetElement.innerHTML = ''; // Clear existing content
@@ -3558,12 +3584,7 @@ class Form {
 
 
 /***/ }),
-/* 15 */
-/***/ ((module) => {
-
-module.exports = require("child_process");
-
-/***/ }),
+/* 15 */,
 /* 16 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 

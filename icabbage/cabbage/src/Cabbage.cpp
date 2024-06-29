@@ -21,13 +21,18 @@ void Cabbage::addOpcodes()
 {
     csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Sk", csnd::thread::k);
     csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Si", csnd::thread::i);
+    
     csnd::plugin<CabbageSet>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSS", csnd::thread::ik);
     csnd::plugin<CabbageSet>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "SS", csnd::thread::i);
     csnd::plugin<CabbageSet>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "SS", csnd::thread::i);
+    
     csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "i", "S", csnd::thread::i);
     csnd::plugin<CabbageGetValueString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "S", "S", csnd::thread::ik);
+    csnd::plugin<CabbageGetValueWithTrigger>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "kk", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValueStringWithTrigger>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "Sk", "So", csnd::thread::ik);
+    
+    
     csnd::plugin<CabbageGetMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "k", "SS", csnd::thread::ik);
     csnd::plugin<CabbageGetMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "i", "SS", csnd::thread::i);
     csnd::plugin<CabbageGetString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "S", "SS", csnd::thread::i);
@@ -99,12 +104,11 @@ bool Cabbage::setupCsound()
         {
             if(w.contains("automatable") && w["automatable"] == 1)
             {
-                if(w["type"] == "rslider")
+                if(w["type"].get<std::string>().find("slider") != std::string::npos)
                 {
                     try{
-
                         processor.GetParam(numberOfParameters)->InitDouble(w["channel"].get<std::string>().c_str(),
-                                                                           w["defaultValue"].get<float>(),
+                                                                           w["value"].get<float>(),
                                                                            w["min"].get<float>(),
                                                                            w["max"].get<float>(),
                                                                            w["increment"].get<float>(),
@@ -113,6 +117,26 @@ bool Cabbage::setupCsound()
                                                                            "",
                                                                            iplug::IParam::ShapePowCurve(w["skew"].get<float>()));
                         parameterChannels.push_back({CabbageParser::removeQuotes(w["channel"].get<std::string>()), w["value"].get<float>()});
+                        numberOfParameters++;
+                    }
+                    catch (nlohmann::json::exception& e) {
+                        std::cout << w.dump(4) << std::endl << e.what();
+                        cabAssert(false, "");
+                    }
+                }
+                else
+                {
+                    try{
+                        _log(w.dump(4));
+                        processor.GetParam(numberOfParameters)->InitInt(w["channel"].get<std::string>().c_str(),
+                                                                           w["value"].get<int>(),
+                                                                           w["min"].get<int>(),
+                                                                           w["max"].get<int>(),
+                                                                           std::string(w["channel"].get<std::string>()+"Label1").c_str(),
+                                                                           iplug::IParam::EFlags::kFlagsNone,
+                                                                           "");
+                        parameterChannels.push_back({CabbageParser::removeQuotes(w["channel"].get<std::string>()), w["value"].get<int>()});
+                        csound->SetControlChannel(w["channel"].get<std::string>().c_str(), w["value"].get<float>());
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {

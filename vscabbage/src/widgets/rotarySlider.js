@@ -14,7 +14,6 @@ export class RotarySlider {
       "min": 0, // Minimum value of the slider
       "max": 1, // Maximum value of the slider
       "value": 0, // Current value of the slider
-      "defaultValue": 0, // Default value of the slider
       "skew": 1, // Skew factor for the slider
       "increment": 0.001, // Incremental value change per step
       "index": 0, // Index of the slider
@@ -51,7 +50,7 @@ export class RotarySlider {
     this.panelSections = {
       "Properties": ["type", "channel"],
       "Bounds": ["left", "top", "width", "height"],
-      "Range": ["min", "max", "defaultValue", "skew", "increment"],
+      "Range": ["min", "max", "value", "skew", "increment"],
       "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
       "Colours": ["colour", "trackerColour", "trackerBackgroundColour", "trackerOutlineColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour", "markerColour"]
     };
@@ -63,6 +62,7 @@ export class RotarySlider {
     this.vscode = null;
     this.isMouseDown = false;
     this.decimalPlaces = 0;
+    this.parameterIndex = 0;
   }
 
   pointerUp() {
@@ -132,6 +132,8 @@ export class RotarySlider {
       popup.classList.add('show');
       popup.classList.remove('hide');
     }
+
+    console.log("pointerEnter", this);
   }
 
 
@@ -152,6 +154,7 @@ export class RotarySlider {
   }
 
   addEventListeners(widgetDiv) {
+    console.log(JSON.stringify(this.props, null, 2));
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
     widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
     widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
@@ -175,9 +178,10 @@ export class RotarySlider {
 
     const newValue = CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
 
-    const msg = { paramIdx:this.props.index, channel: this.props.channel, value: newValue }
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
+    console.log("msg", msg);
     Cabbage.sendParameterUpdate(this.vscode, msg);
-  
+    
   }
 
   // https://stackoverflow.com/questions/20593575/making-circular-progress-bar-with-html5-svg

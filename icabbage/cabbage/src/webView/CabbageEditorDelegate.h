@@ -95,6 +95,7 @@ protected:
     std::function<void()> editorOnLoadCallback = nullptr;
     std::function<void(std::string, std::string)> readAudioFileCallback = nullptr;
     std::function<void(std::string, std::string)> updateStringChannelCallback = nullptr;
+    std::function<void(nlohmann::json)> updateWidgetState = nullptr;
     std::function<void(std::string, float)> updateChannelCallback = nullptr;
     void* mHelperView = nullptr;
     std::string selectedFilePath;

@@ -28,6 +28,17 @@ struct CabbageGetValue : csnd::Plugin<1, 1>
     int getValue(int init);
 };
 
+struct CabbageGetValueWithTrigger : csnd::Plugin<2, 1>
+{
+    MYFLT* value;
+    MYFLT currentValue = 0;
+    int numberOfPasses = 0;
+    int triggerOnPerfPass = 0;
+    int init() { return getValue(CabbageOpcodeData::PassType::Init);    };
+    int kperf() { return getValue(CabbageOpcodeData::PassType::Perf);   };
+    int getValue(int init);
+};
+
 struct CabbageGetValueString : csnd::Plugin<1, 1>
 {
     char* currentString = {};

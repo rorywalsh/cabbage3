@@ -28,13 +28,22 @@ export class GenTable {
             "samples": []
         };
 
+        
+        this.panelSections = {
+            "Info": ["type", "channel"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Text": ["text", "fontSize", "fontFamily", "fontColour", "align"],
+            "Colours": ["colour", "backgroundColour", "outlineColour"]
+        };
+    }
+
+    createCanvas(){
         // Create canvas element during initialization
         this.canvas = document.createElement('canvas');
         this.canvas.width = this.props.width;
         this.canvas.height = this.props.height;
         this.ctx = this.canvas.getContext('2d');
     }
-
     addVsCodeEventListeners(widgetDiv, vs) {
         this.vscode = vs;
         widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
@@ -122,13 +131,9 @@ export class GenTable {
         this.ctx.textAlign = textAlign;
         this.ctx.textBaseline = 'bottom';
 
+        
         const textX = this.props.align === 'right' ? this.props.width - 10 : this.props.align === 'center' || this.props.align === 'centre' ? this.props.width / 2 : 10;
         const textY = this.props.height - 10;
-
-        // if(this.props.file){
-        //     this.ctx.fillText(CabbageUtils.getFileNameFromPath(this.props.file), textX, textY);
-        // }
-        // else
         this.ctx.fillText(this.props.text, textX, textY);
         
 
@@ -136,10 +141,10 @@ export class GenTable {
         const widgetElement = document.getElementById(this.props.channel);
         if (widgetElement) {
             // widgetElement.style.transform = `translate(${this.props.left}px, ${this.props.top}px)`;
-            widgetElement.setAttribute('data-x', this.props.left);
-            widgetElement.setAttribute('data-y', this.props.top);
-            widgetElement.style.top = `${this.props.top}px`;
-            widgetElement.style.left = `${this.props.left}px`;
+            // widgetElement.setAttribute('data-x', this.props.left);
+            // widgetElement.setAttribute('data-y', this.props.top);
+            // widgetElement.style.top = `${this.props.top}px`;
+            // widgetElement.style.left = `${this.props.left}px`;
             widgetElement.style.padding = '0';
             widgetElement.style.margin = '0';
             widgetElement.innerHTML = ''; // Clear existing content

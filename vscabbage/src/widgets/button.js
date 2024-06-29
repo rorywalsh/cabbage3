@@ -13,8 +13,6 @@ export class Button {
       "min": 0, // Minimum value for the button (for sliders)
       "max": 1, // Maximum value for the button (for sliders)
       "value": 0, // Current value of the button (for sliders)
-      "defaultValue": 0, // Default value of the button
-      "index": 0, // Index of the button
       "textOn": "On", // Text displayed when button is in the 'On' state
       "textOff": "Off", // Text displayed when button is in the 'Off' state
       "fontFamily": "Verdana", // Font family for the text
@@ -32,8 +30,8 @@ export class Button {
       "visible": 1, // Visibility of the button (0 for hidden, 1 for visible)
       "automatable": 1, // Whether the button value can be automated (0 for no, 1 for yes)
       "presetIgnore": 0 // Whether the button should be ignored in presets (0 for no, 1 for yes)
-  };
-  
+    };
+
 
     this.panelSections = {
       "Info": ["type", "channel"],
@@ -45,7 +43,7 @@ export class Button {
     this.vscode = null;
     this.isMouseDown = false;
     this.isMouseInside = false;
-    this.state = false;
+    this.parameterIndex = 0;
   }
 
   pointerUp() {
@@ -53,6 +51,7 @@ export class Button {
       return '';
     }
     this.isMouseDown = false;
+    CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
   pointerDown(evt) {
@@ -61,8 +60,11 @@ export class Button {
     }
     console.log("pointerDown");
     this.isMouseDown = true;
-    this.state =! this.state;
+    this.props.value = (this.props.value === 0 ? 1 : 0);
+
     CabbageUtils.updateInnerHTML(this.props.channel, this);
+    const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: this.props.value }
+    Cabbage.sendParameterUpdate(this.vscode, msg);
   }
 
 
@@ -72,6 +74,7 @@ export class Button {
     }
     this.isMouseOver = true;
     CabbageUtils.updateInnerHTML(this.props.channel, this);
+
   }
 
 
@@ -99,6 +102,7 @@ export class Button {
       this.isMouseInside = true;
     }
 
+    // console.log("pointerEnter", this.props);
     CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
@@ -123,18 +127,18 @@ export class Button {
     if (this.props.visible === 0) {
       return '';
     }
-  
+
     const alignMap = {
       'left': 'start',
       'center': 'middle',
       'centre': 'middle',
       'right': 'end',
     };
-  
+
     const svgAlign = alignMap[this.props.align] || this.props.align;
     const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
     const padding = 5;
-  
+
     let textX;
     if (this.props.align === 'left') {
       textX = this.props.corners; // Add padding for left alignment
@@ -143,14 +147,15 @@ export class Button {
     } else {
       textX = this.props.width / 2;
     }
-  
-    const currentColour = CabbageColours.darker(this.state ? this.props.colourOn : this.props.colourOff, this.isMouseInside ? 0.2 : 0);
+
+    const stateColour = CabbageColours.darker(this.props.value === 1 ? this.props.colourOn : this.props.colourOff, this.isMouseInside ? 0.2 : 0);
+    const currentColour = this.isMouseDown ? CabbageColours.lighter(this.props.colourOn, 0.2) : stateColour;
     return `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-          <rect x="${this.props.corners/2}" y="${this.props.corners/2}" width="${this.props.width-this.props.corners*2}" height="${this.props.height-this.props.corners*2}" fill="${currentColour}" stroke="${this.props.outlineColour}"
+          <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners}" fill="${currentColour}" stroke="${this.props.outlineColour}"
             stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
           <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
-            fill="${this.state ? this.props.fontColourOn : this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${this.state ? this.props.textOn : this.props.textOff}</text>
+            fill="${this.props.value === 1 ? this.props.fontColourOn : this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${this.props.value === 1 ? this.props.textOn : this.props.textOff}</text>
       </svg>
     `;
   }
@@ -176,7 +181,7 @@ export class FileButton extends Button {
       return '';
     }
     this.isMouseDown = true;
-    this.state =! this.state;
+    this.state = !this.state;
     CabbageUtils.updateInnerHTML(this.props.channel, this);
     Cabbage.triggerFileOpenDialog(this.vscode, this.props.channel);
   }
@@ -185,18 +190,18 @@ export class FileButton extends Button {
     if (this.props.visible === 0) {
       return '';
     }
-  
+
     const alignMap = {
       'left': 'start',
       'center': 'middle',
       'centre': 'middle',
       'right': 'end',
     };
-  
+
     const svgAlign = alignMap[this.props.align] || this.props.align;
     const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
     const padding = 5;
-  
+
     let textX;
     if (this.props.align === 'left') {
       textX = this.props.corners; // Add padding for left alignment
@@ -205,11 +210,11 @@ export class FileButton extends Button {
     } else {
       textX = this.props.width / 2;
     }
-  
+
     const currentColour = CabbageColours.darker(this.props.colour, this.isMouseInside ? 0.2 : 0);
     return `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-          <rect x="${this.props.corners/2}" y="${this.props.corners/2}" width="${this.props.width-this.props.corners*2}" height="${this.props.height-this.props.corners*2}" fill="${currentColour}" stroke="${this.props.outlineColour}"
+          <rect x="0" y="0" width="${this.props.width}" height="${this.props.height}" fill="${currentColour}" stroke="${this.props.outlineColour}"
             stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
           <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
             fill="${this.props.fontColour}" text-anchor="${svgAlign}" alignment-baseline="middle">${this.props.text}</text>

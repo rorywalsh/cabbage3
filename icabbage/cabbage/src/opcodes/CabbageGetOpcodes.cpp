@@ -8,6 +8,7 @@
 #include <sstream>
 #include "CabbageGetOpcodes.h"
 #include "CabbageParser.h"
+#include "CabbageUtils.h"
 
 int CabbageGetValue::getValue(int init)
 {
@@ -19,6 +20,40 @@ int CabbageGetValue::getValue(int init)
                                             CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
     {
         outargs[0] = *value;
+    }
+    
+    return IS_OK;
+}
+
+
+int CabbageGetValueWithTrigger::getValue(int mode)
+{
+    if(in_count() == 0)
+        return NOTOK;
+    
+    if(in_count() > 1)
+        triggerOnPerfPass = inargs[1];
+
+    if (csound->get_csound()->GetChannelPtr(csound->get_csound(), &value, inargs.str_data(0).data,
+                                            CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
+    {
+        numberOfPasses = (numberOfPasses < 3 ? numberOfPasses+1 : 3);
+
+        if(*value != currentValue)
+        {
+            currentValue = *value;
+            outargs[1] = 1;
+            outargs[0] = currentValue;
+        }
+        else
+        {
+            if(numberOfPasses == 2 && triggerOnPerfPass>0)//test first k-pass
+            {
+                outargs[1] = 1;
+            }
+            else
+                outargs[1] = 0;
+        }
     }
     
     return IS_OK;
