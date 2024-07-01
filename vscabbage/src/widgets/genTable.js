@@ -25,7 +25,8 @@ export class GenTable {
             "visible": 1,
             "text": "Default Label",
             "tableNumber": 1,
-            "samples": []
+            "samples": [],
+            "automatable": 0
         };
 
         
@@ -153,7 +154,7 @@ export class GenTable {
             // Add event listeners
             this.addEventListeners(widgetElement);
         } else {
-            console.error(`Element: ${this.props.channel} not found.`);
+            console.log(`Element: ${this.props.channel} not found.`);
         }
     }
 }

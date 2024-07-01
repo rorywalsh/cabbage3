@@ -223,6 +223,7 @@ void CabbageEditorDelegate::OnMessageFromWebView(const char* jsonStr)
     if(command == "parameterChange")
     {
         SendParameterValueFromUI(jsonContent["paramIdx"], jsonContent["value"]);
+        updateWidgetStateCallback(jsonContent);
     }
     
     //this is called to trigger a native OS file browser
@@ -236,9 +237,18 @@ void CabbageEditorDelegate::OnMessageFromWebView(const char* jsonStr)
     //and the JS widget array should always be in sync
     else if(command == "widgetStateUpdate")
     {
-        updateWidgetState(jsonContent);
+        updateWidgetStateCallback(jsonContent);
     }
     
+    else if(command == "cabbageSetupComplete")
+    {
+        interfaceHasLoadedCallback();
+    }
+    
+    else if(command == "cabbageIsReadyToLoad")
+    {
+        cabbageIsReadyToLoadCsdCallback();
+    }
 //    else if(json["msg"] == "fileRead")
 //    {
 //        readAudioFileCallback(json["channel"], selectedFilePath);

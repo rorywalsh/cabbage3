@@ -32,7 +32,7 @@
 #define _log(message) \
     do { \
         std::ostringstream oss; \
-        oss << "DEBUG: " << __FILE__ << " (" << __LINE__ << ") " << __FUNCTION__ << ": " << message << std::endl; \
+        oss << "Cabbage DEBUG: " << __FILE__ << " (" << __LINE__ << ") " << __FUNCTION__ << ": " << message << std::endl; \
         std::cout << oss.str(); \
     } while (0)
 #else

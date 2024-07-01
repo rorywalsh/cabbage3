@@ -1,4 +1,4 @@
-
+//widgets ---------------
 import { Form } from "./widgets/form.js";
 import { RotarySlider } from "./widgets/rotarySlider.js";
 import { HorizontalSlider } from "./widgets/horizontalSlider.js";
@@ -10,24 +10,36 @@ import { Label } from "./widgets/label.js";
 import { GenTable } from "./widgets/genTable.js";
 import { CsoundOutput } from "./widgets/csoundOutput.js";
 import { MidiKeyboard } from "./widgets/midiKeyboard.js";
+import { TextEditor } from "./widgets/textEditor.js";
+//------------------------
+
 import { PropertyPanel } from "./propertyPanel.js";
 import { CabbageUtils, CabbageTestUtilities } from "./utils.js";
 import { Cabbage } from "./cabbage.js";
 
+// Uncomment to generate various source code files for testing
+// const widgetsForTesting = [
+//   new Button(), 
+//   new Checkbox(), 
+//   new ComboBox(), 
+//   new CsoundOutput(), 
+//   new FileButton(),
+//   new Form(), 
+//   new GenTable(), 
+//   new HorizontalSlider(), 
+//   new Label(), 
+//   new MidiKeyboard(), 
+//   new RotarySlider(), 
+//   new TextEditor(), 
+//   new VerticalSlider()
+// ];
+// CabbageTestUtilities.generateIdentifierTestCsd(widgetsForTesting); // This will generate a test CSD file with the widgets
+//CabbageTestUtilities.generateCabbageWidgetDescriptorsClass(widgetsForTesting); // This will generate a class with the widget descriptors 
 
-/* 
-Uncomment to generate various source code files for testing
-const widgetsForTesting = [new RotarySlider(), new ComboBox(), new Button(), new Checkbox(), new Label(),
-new HorizontalSlider(), new VerticalSlider(), new MidiKeyboard(), new GenTable, new Form];
-CabbageTestUtilities.generateIdentifierTestCsd(widgetsForTesting); // This will generate a test CSD file with the widgets
-CabbageTestUtilities.generateCabbageWidgetDescriptorsClass(widgetsForTesting); // This will generate a class with the widget descriptors 
-*/
 
 //sending a message to notify when main has been loaded - Cabbage listens for this message 
 //before trying to load an interface.
 console.log("main.js loaded!")
-window.postMessage({ command: 'main.js ready' });
-
 
 let vscode = null;
 let widgetWrappers = null;
@@ -41,12 +53,12 @@ if (typeof acquireVsCodeApi === 'function') {
     const { WidgetWrapper } = module;
     // You can now use WidgetWrapper here
     widgetWrappers = new WidgetWrapper(PropertyPanel.updatePanel, selectedElements, widgets, vscode);
-    vscode.postMessage({ command: 'ready' });
   } catch (error) {
     console.error("Error loading widgetWrapper.js:", error);
   }
 }
 
+Cabbage.sendCustomCommand(vscode, 'cabbageIsReadyToLoad');
 
 
 
@@ -68,8 +80,8 @@ window.addEventListener('message', async event => {
 
   const message = event.data;
   switch (message.command) {
+
     case 'onFileChanged':
-      console.log("creating interface");
       CabbageUtils.hideOverlay();
       cabbageMode = 'nonDraggable';
       form.className = "form nonDraggable";
@@ -81,31 +93,32 @@ window.addEventListener('message', async event => {
       if (rightPanel)
         rightPanel.style.visibility = "hidden";
       await CabbageUtils.parseCabbageCode(message.text, widgets, form, insertWidget);
+
       //in plugin mode we need to sync with the instrument's widget array
       widgets.forEach(w => {
-        Cabbage.sendWidgetUpdate(w);
+        Cabbage.sendWidgetUpdate(vscode, w);
       });
-      window.postMessage({ command: 'Cabbage file has been parsed' });
+
+      Cabbage.sendCustomCommand(vscode, 'cabbageSetupComplete');
       break;
+
     case 'snapToSize':
       widgetWrappers.setSnapSize(parseInt(message.text));
       break;
-    case 'widgetIdentifierUpdate':
-      // console.log("widgetUpdate: " + message.text);
-      const msg = JSON.parse(message.text);
-      updateWidget(msg);
-      break;
+
     case 'widgetUpdate':
-      // console.log("widgetUpdate: " + message.text);
       const updateMsg = JSON.parse(message.text);
+      console.log("widgetUpdate: ", updateMsg);
       updateWidget(updateMsg);
       break;
+
     case 'onEnterEditMode':
       CabbageUtils.hideOverlay();
       cabbageMode = 'draggable';
       //form.className = "form draggable";
       CabbageUtils.parseCabbageCode(message.text, widgets, form, insertWidget);
-    // break;
+      break;
+
     case 'csoundOutputUpdate':
       // Find csoundOutput widget
       let csoundOutput = widgets.find(widget => widget.props.channel === 'csoundoutput');
@@ -117,6 +130,8 @@ window.addEventListener('message', async event => {
           csoundOutput.appendText(message.text);
         }
       }
+      break;
+
     default:
       return;
   }
@@ -130,8 +145,8 @@ function updateWidget(obj) {
   for (const widget of widgets) {
     if (widget.props.channel === channel) {
       if (obj.hasOwnProperty('data')) {
+        console.log("updating widget: " + obj['data'])
         widget.props = JSON.parse(obj["data"]);
-        console.log("updating widget", widget.props);
       } else if (obj.hasOwnProperty('value')) {
         widget.props.value = obj['value'];
       }
@@ -245,19 +260,15 @@ if (form) {
     if ((event.shiftKey || event.altKey) && event.target === form) {
       // Start selection mode
       isSelecting = true;
-
       startX = event.clientX - offsetX;
       startY = event.clientY - offsetY;
-
       selectionBox = document.createElement('div');
       selectionBox.style.position = 'absolute';
       selectionBox.style.border = '1px dashed #000';
       selectionBox.style.backgroundColor = 'rgba(20, 20, 20, 0.3)';
       selectionBox.style.left = `${startX}px`;
       selectionBox.style.top = `${startY}px`;
-
       form.appendChild(selectionBox);
-      console.log("adding selection box");
     } else if (clickedElement.classList.contains('draggable') && event.target.id !== "MainForm") {
 
       if (!event.shiftKey && !event.altKey) {
@@ -406,6 +417,9 @@ async function insertWidget(type, props) {
     case "csoundoutput":
       widget = new CsoundOutput();
       break;
+    case "texteditor":
+      widget = new TextEditor();
+      break;
     default:
       return;
   }
@@ -480,6 +494,7 @@ async function insertWidget(type, props) {
 
 
   if (typeof acquireVsCodeApi === 'function') {
+    // console.error('this is not good - house of cards nonsense with difference in translate between plugin and vscode')
     widgetDiv.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
   }
 

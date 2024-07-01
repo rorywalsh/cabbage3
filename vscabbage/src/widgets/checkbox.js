@@ -1,4 +1,5 @@
 import { CabbageUtils, CabbageColours } from "../utils.js";
+import { Cabbage } from "../cabbage.js";
 
 export class Checkbox {
   constructor() {
@@ -38,7 +39,6 @@ export class Checkbox {
       };
 
     this.vscode = null;
-    this.isChecked = false;
     this.parameterIndex = 0;
   }
 
@@ -46,8 +46,10 @@ export class Checkbox {
     if (this.props.active === 0) {
       return '';
     }
-    this.isChecked = !this.isChecked;
+    this.props.value = (this.props.value === 0) ? 1 : 0;
     CabbageUtils.updateInnerHTML(this.props.channel, this);
+    const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: this.props.value }
+    Cabbage.sendParameterUpdate(this.vscode, msg);
   }
 
 
@@ -90,7 +92,7 @@ export class Checkbox {
   
     return `
       <svg id="${this.props.channel}-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-        <rect x="${checkboxX}" y="${(this.props.height - checkboxSize) / 2}" width="${checkboxSize}" height="${checkboxSize}" fill="${this.isChecked ? this.props.colourOn : this.props.colourOff}" stroke="${this.props.outlineColour}" stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
+        <rect x="${checkboxX}" y="${(this.props.height - checkboxSize) / 2}" width="${checkboxSize}" height="${checkboxSize}" fill="${this.props.value === 1 ? this.props.colourOn : this.props.colourOff}" stroke="${this.props.outlineColour}" stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
         <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}" fill="${this.props.fontColour}" text-anchor="${adjustedTextAnchor}" alignment-baseline="middle">${this.props.text}</text>
       </svg>
     `;

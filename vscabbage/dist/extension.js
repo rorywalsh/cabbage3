@@ -57,9 +57,12 @@ const midiKeyboard_js_1 = __webpack_require__(12);
 // @ts-ignore
 const genTable_js_1 = __webpack_require__(13);
 // @ts-ignore
+const textEditor_js_1 = __webpack_require__(14);
+// @ts-ignore
 const utils_js_1 = __webpack_require__(3);
 // @ts-ignore
-const form_js_1 = __webpack_require__(14);
+const form_js_1 = __webpack_require__(15);
+const cp = __importStar(__webpack_require__(40));
 let textEditor;
 let output;
 let panel = undefined;
@@ -67,13 +70,21 @@ const ws_1 = __importDefault(__webpack_require__(16));
 const wss = new ws_1.default.Server({ port: 9991 });
 let websocket;
 let cabbageMode = "play";
+let firstMessages = [];
 wss.on('connection', (ws) => {
     console.log('Client connected');
+    //there are times when Cabbage will send message before the webview is ready to receive them. 
+    //so first thing to do is flush the first messages received from Cabbage
+    firstMessages.forEach((msg) => {
+        console.log(msg);
+        ws.send(JSON.stringify(msg));
+    });
+    firstMessages = [];
     websocket = ws;
     ws.on('message', (message) => {
         const msg = JSON.parse(message.toString());
         if (panel) {
-            panel.webview.postMessage({ command: "widgetUpdate", text: JSON.stringify(msg["widgetUpdate"]) });
+            panel.webview.postMessage({ command: "widgetUpdate", text: JSON.stringify(msg["text"]) });
         }
     });
     ws.on('close', () => {
@@ -131,7 +142,7 @@ function activate(context) {
         onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'color-picker.css');
         const colourPickerStyles = panel.webview.asWebviewUri(onDiskPath);
         //add widget types to menu
-        const widgetTypes = ["hslider", "rslider", "gentable", "vslider", "keyboard", "button", "filebutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
+        const widgetTypes = ["hslider", "rslider", "texteditor", "gentable", "vslider", "keyboard", "button", "filebutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
         let menuItems = "";
         widgetTypes.forEach((widget) => {
             menuItems += `
@@ -169,18 +180,18 @@ function activate(context) {
             processes.forEach((p) => {
                 p?.kill("SIGKILL");
             });
-            // const process = cp.spawn(command, [editor.fileName], {});
-            // processes.push(process);
-            // process.stdout.on("data", (data) => {
-            // 	// I've seen spurious 'ANSI reset color' sequences in some csound output
-            // 	// which doesn't render correctly in this context. Stripping that out here.
-            // 	output.append(data.toString().replace(/\x1b\[m/g, ""));
-            // });
-            // process.stderr.on("data", (data) => {
-            // 	// It looks like all csound output is written to stderr, actually.
-            // 	// If you want your changes to show up, change this one.
-            // 	output.append(data.toString().replace(/\x1b\[m/g, ""));
-            // });
+            const process = cp.spawn(command, [editor.fileName], {});
+            processes.push(process);
+            process.stdout.on("data", (data) => {
+                // I've seen spurious 'ANSI reset color' sequences in some csound output
+                // which doesn't render correctly in this context. Stripping that out here.
+                output.append(data.toString().replace(/\x1b\[m/g, ""));
+            });
+            process.stderr.on("data", (data) => {
+                // It looks like all csound output is written to stderr, actually.
+                // If you want your changes to show up, change this one.
+                output.append(data.toString().replace(/\x1b\[m/g, ""));
+            });
         });
         vscode.workspace.onDidOpenTextDocument((editor) => {
             sendTextToWebView(editor, 'onFileChanged');
@@ -189,17 +200,26 @@ function activate(context) {
             //triggered when tab changes
             //console.log(tabs.changed.label);
         });
-        // callback for when users update widget properties in webview
+        // callback for webview messages - some of these will be fired off the CabbageApp
         panel.webview.onDidReceiveMessage(message => {
-            console.warn("message", message);
             switch (message.command) {
                 case 'widgetUpdate':
                     if (cabbageMode !== "play") {
                         updateText(message.text);
                     }
                     return;
-                // console.log(message.text);
-                case 'ready': //trigger when webview is open
+                case 'widgetStateUpdate': //trigger when webview is open
+                    console.error("widgetStateUpdate", message["text"]);
+                    firstMessages.push(message);
+                    websocket.send(JSON.stringify(message));
+                    break;
+                case 'cabbageSetupComplete':
+                    const msg = {
+                        command: "cabbageSetupComplete",
+                        text: JSON.stringify({})
+                    };
+                    firstMessages.push(msg);
+                    websocket.send(JSON.stringify(msg));
                     if (panel) {
                         panel.webview.postMessage({ command: "snapToSize", text: config.get("snapToSize") });
                     }
@@ -224,7 +244,6 @@ function activate(context) {
                                 command: "fileOpenFromVSCode",
                                 text: JSON.stringify(m)
                             };
-                            console.error(JSON.stringify(msg, null, 2));
                             websocket.send(JSON.stringify(msg));
                         }
                     });
@@ -306,10 +325,13 @@ async function updateText(jsonText) {
             case 'csoundoutput':
                 defaultProps = new csoundOutput_js_1.CsoundOutput().props;
                 break;
+            case 'texteditor':
+                defaultProps = new textEditor_js_1.TextEditor().props;
+                break;
             default:
                 break;
         }
-        const internalIdentifiers = ['top', 'left', 'width', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index'];
+        const internalIdentifiers = ['top', 'left', 'width', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index', 'samples'];
         if (props.type.indexOf('slider') !== -1) {
             internalIdentifiers.push('value');
         }
@@ -377,7 +399,6 @@ async function updateText(jsonText) {
                 });
                 //this is called when we create a widgets from the popup menu in the UI builder
                 if (!foundChannel && props.type !== "form") {
-                    console.log("here");
                     let newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${utils_js_1.CabbageUtils.getCabbageCodeFromJson(jsonText, "channel")}`;
                     if (props.type.indexOf('slider') > -1) {
                         newLine += ` ${utils_js_1.CabbageUtils.getCabbageCodeFromJson(jsonText, "range")}`;
@@ -830,6 +851,7 @@ class CabbageUtils {
         }
         else{
           jsonObj[name] = value;
+          console.log(value);
         }
       } else if (name === 'samples') {
         // Handling the items attribute
@@ -1634,13 +1656,30 @@ class Cabbage {
     }
   }
 
-  static sendWidgetUpdate(widget){
+  static sendCustomCommand(vscode, command){
+    const msg = {
+      command: command,
+      text: JSON.stringify({})
+    };
+    console.log("sending custom command from UI", msg);
+    if (vscode != null) {
+      vscode.postMessage(msg);
+    }
+    else {      
+      IPlugSendMsg(msg);
+    }
+  } 
+
+  static sendWidgetUpdate(vscode, widget){
     console.log("sending widget update from UI", widget.props);
     const msg = {
       command: "widgetStateUpdate",
       text:JSON.stringify(widget.props)
     };
-    if(typeof IPlugSendMsg === 'function'){
+    if (vscode != null) {
+      vscode.postMessage(msg);
+    }
+    else {
       IPlugSendMsg(msg);
     }
   }
@@ -2572,10 +2611,12 @@ class FileButton extends Button {
     delete this.props.colourOn;
     delete this.props.fontColourOff;
     delete this.props.fontColourOn;
-    this.props["fontColour"] = "#dddddd";
-    this.props["text"] = "Choose File";
-    this.props["type"] = "filebutton";
-    this.props["colour"] = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue");
+    //override following properties
+    this.props.fontColour = "#dddddd";
+    this.props.text = "Choose File";
+    this.props.type = "filebutton";
+    this.props.colour = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue");
+    this.props.automatable = 0;
   }
 
   pointerDown(evt) {
@@ -2588,41 +2629,41 @@ class FileButton extends Button {
     _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.triggerFileOpenDialog(this.vscode, this.props.channel);
   }
 
-  getInnerHTML() {
-    if (this.props.visible === 0) {
-      return '';
-    }
+  // getInnerHTML() {
+  //   if (this.props.visible === 0) {
+  //     return '';
+  //   }
 
-    const alignMap = {
-      'left': 'start',
-      'center': 'middle',
-      'centre': 'middle',
-      'right': 'end',
-    };
+  //   const alignMap = {
+  //     'left': 'start',
+  //     'center': 'middle',
+  //     'centre': 'middle',
+  //     'right': 'end',
+  //   };
 
-    const svgAlign = alignMap[this.props.align] || this.props.align;
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
-    const padding = 5;
+  //   const svgAlign = alignMap[this.props.align] || this.props.align;
+  //   const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
+  //   const padding = 5;
 
-    let textX;
-    if (this.props.align === 'left') {
-      textX = this.props.corners; // Add padding for left alignment
-    } else if (this.props.align === 'right') {
-      textX = this.props.width - this.props.corners - padding; // Add padding for right alignment
-    } else {
-      textX = this.props.width / 2;
-    }
+  //   let textX;
+  //   if (this.props.align === 'left') {
+  //     textX = this.props.corners; // Add padding for left alignment
+  //   } else if (this.props.align === 'right') {
+  //     textX = this.props.width - this.props.corners - padding; // Add padding for right alignment
+  //   } else {
+  //     textX = this.props.width / 2;
+  //   }
 
-    const currentColour = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, this.isMouseInside ? 0.2 : 0);
-    return `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-          <rect x="0" y="0" width="${this.props.width}" height="${this.props.height}" fill="${currentColour}" stroke="${this.props.outlineColour}"
-            stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
-          <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
-            fill="${this.props.fontColour}" text-anchor="${svgAlign}" alignment-baseline="middle">${this.props.text}</text>
-      </svg>
-    `;
-  }
+  //   const currentColour = CabbageColours.darker(this.props.colour, this.isMouseInside ? 0.2 : 0);
+  //   return `
+  //     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+  //         <rect x="0" y="0" width="${this.props.width}" height="${this.props.height}" fill="${currentColour}" stroke="${this.props.outlineColour}"
+  //           stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
+  //         <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+  //           fill="${this.props.fontColour}" text-anchor="${svgAlign}" alignment-baseline="middle">${this.props.text}</text>
+  //     </svg>
+  //   `;
+  // }
 }
 
 
@@ -2635,6 +2676,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   Checkbox: () => (/* binding */ Checkbox)
 /* harmony export */ });
 /* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
+
 
 
 class Checkbox {
@@ -2675,7 +2718,6 @@ class Checkbox {
       };
 
     this.vscode = null;
-    this.isChecked = false;
     this.parameterIndex = 0;
   }
 
@@ -2683,8 +2725,10 @@ class Checkbox {
     if (this.props.active === 0) {
       return '';
     }
-    this.isChecked = !this.isChecked;
+    this.props.value = (this.props.value === 0) ? 1 : 0;
     _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+    const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: this.props.value }
+    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
   }
 
 
@@ -2727,7 +2771,7 @@ class Checkbox {
   
     return `
       <svg id="${this.props.channel}-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-        <rect x="${checkboxX}" y="${(this.props.height - checkboxSize) / 2}" width="${checkboxSize}" height="${checkboxSize}" fill="${this.isChecked ? this.props.colourOn : this.props.colourOff}" stroke="${this.props.outlineColour}" stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
+        <rect x="${checkboxX}" y="${(this.props.height - checkboxSize) / 2}" width="${checkboxSize}" height="${checkboxSize}" fill="${this.props.value === 1 ? this.props.colourOn : this.props.colourOff}" stroke="${this.props.outlineColour}" stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
         <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}" fill="${this.props.fontColour}" text-anchor="${adjustedTextAnchor}" alignment-baseline="middle">${this.props.text}</text>
       </svg>
     `;
@@ -2835,7 +2879,7 @@ class ComboBox {
             this.isOpen = false;
             // Update the HTML
             const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
-                widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
+                //widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
                 _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
         }
     }
@@ -2966,7 +3010,8 @@ class Label {
             "corners": 4,
             "align": "centre",
             "visible": 1,
-            "text": "Default Label"
+            "text": "Default Label",
+            "automatable": 0
         }
 
         this.panelSections = {
@@ -3050,7 +3095,7 @@ class CsoundOutput {
             "left": 0,
             "width": 200,
             "height": 300,
-            "type": "label",
+            "type": "csoundoutput",
             "colour": "#000000",
             "channel": "csoundoutput",
             "fontColour": "#dddddd",
@@ -3059,7 +3104,8 @@ class CsoundOutput {
             "corners": 4,
             "align": "left",
             "visible": 1,
-            "text": "Csound Output\n"
+            "text": "Csound Output\n",
+            "automatable": 0
         };
 
         this.panelSections = {
@@ -3152,6 +3198,7 @@ class MidiKeyboard {
       "mouseoverKeyColour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of keys when hovered over
       "keydownColour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of keys when pressed
       "octaveButtonColour": "#00f", // Color of the octave change buttons
+      "automatable": 0
   };
   
 
@@ -3387,7 +3434,8 @@ class GenTable {
             "visible": 1,
             "text": "Default Label",
             "tableNumber": 1,
-            "samples": []
+            "samples": [],
+            "automatable": 0
         };
 
         
@@ -3515,7 +3563,7 @@ class GenTable {
             // Add event listeners
             this.addEventListeners(widgetElement);
         } else {
-            console.error(`Element: ${this.props.channel} not found.`);
+            console.log(`Element: ${this.props.channel} not found.`);
         }
     }
 }
@@ -3523,6 +3571,95 @@ class GenTable {
 
 /***/ }),
 /* 14 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   TextEditor: () => (/* binding */ TextEditor)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+
+
+/**
+ * CsoundOutput class
+ */
+class TextEditor {
+    constructor() {
+        this.props = {
+            "top": 0,
+            "left": 0,
+            "width": 200,
+            "height": 300,
+            "type": "texteditor",
+            "colour": "#dddddd",
+            "channel": "texteditor",
+            "fontColour": "#222222",
+            "fontFamily": "Verdana",
+            "fontSize": 14,
+            "corners": 4,
+            "align": "left",
+            "visible": 1,
+            "text": "",
+            "automatable": 0
+        };
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Text": ["text", "fontColour", "fontSize", "fontFamily", "align"],
+            "Colours": ["colour"]
+        };
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+    }
+
+    addEventListeners(widgetDiv) {
+        // Add any necessary event listeners here
+    }
+
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+
+        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.8, 12); // Ensuring font size doesn't get too small
+        const alignMap = {
+            'left': 'start',
+            'center': 'center',
+            'centre': 'center',
+            'right': 'end',
+        };
+        const textAlign = alignMap[this.props.align] || 'start';
+
+        return `
+                <textarea style="width: 100%; height: 100%; top:0px; left:0px; background-color: ${this.props.colour}; 
+                color: ${this.props.fontColour}; font-family: ${this.props.fontFamily}; font-size: ${fontSize}px; 
+                text-align: ${textAlign}; padding: 10px; box-sizing: border-box; border: none; resize: none; position:absolute">
+${this.props.text}
+                </textarea>
+        `;
+    }
+
+    // appendText(newText) {
+    //     this.props.text += newText + '\n';
+    //     const widgetDiv = CabbageUtils.getWidgetDiv(this.props.channel);
+
+    //     if (widgetDiv) {
+    //         const textarea = widgetDiv.querySelector('textarea');
+    //         if (textarea) {
+    //             textarea.value += newText + '\n';
+    //             console.log(textarea.value);
+    //             textarea.scrollTop = textarea.scrollHeight; // Scroll to the bottom
+    //         }
+    //     }
+    // }
+}
+
+
+/***/ }),
+/* 15 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -3584,7 +3721,6 @@ class Form {
 
 
 /***/ }),
-/* 15 */,
 /* 16 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
@@ -8392,6 +8528,12 @@ function parse(header) {
 
 module.exports = { parse };
 
+
+/***/ }),
+/* 40 */
+/***/ ((module) => {
+
+module.exports = require("child_process");
 
 /***/ })
 /******/ 	]);

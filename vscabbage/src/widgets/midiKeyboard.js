@@ -23,6 +23,7 @@ export class MidiKeyboard {
       "mouseoverKeyColour": CabbageColours.getColour('green'), // Color of keys when hovered over
       "keydownColour": CabbageColours.getColour('green'), // Color of keys when pressed
       "octaveButtonColour": "#00f", // Color of the octave change buttons
+      "automatable": 0
   };
   
 

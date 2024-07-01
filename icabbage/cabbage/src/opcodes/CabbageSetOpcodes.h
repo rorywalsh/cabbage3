@@ -18,10 +18,15 @@ struct CabbageSetValue : csnd::InPlug<2>, CabbageOpcodes<2>
     int setValue(int init);
 };
 
-struct CabbageSet : csnd::InPlug<64>, CabbageOpcodes<64>
+struct CabbageSetInitStrings : csnd::InPlug<64>, CabbageOpcodes<64>
 {
     int init(){ return setIdentifier(CabbageOpcodeData::PassType::Init); };
-    int kperf(){ return setIdentifier(CabbageOpcodeData::PassType::Init); };
     int setIdentifier(int init);
 };
 
+struct CabbageSetPerfStrings : csnd::InPlug<64>, CabbageOpcodes<64>
+{
+    int init(){ return setIdentifier(CabbageOpcodeData::PassType::Init); };
+    int kperf(){ return setIdentifier(CabbageOpcodeData::PassType::Perf); };
+    int setIdentifier(int init);
+};

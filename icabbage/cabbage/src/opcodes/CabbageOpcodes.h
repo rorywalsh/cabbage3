@@ -25,16 +25,10 @@ struct CabbageOpcodeData
         Init,
         Perf
     };
+        
     
-    
-    
-    std::string identifierText = {};
+    std::string cabbageCode = {};
     std::string channel = {};
-    std::vector<float> numericData;
-    std::vector<std::string> stringData;
-    bool hasStringArgs() const {
-        return !stringData.empty();
-    }
     MessageType type;
     MYFLT value = 0;
 
@@ -127,7 +121,7 @@ struct CabbageOpcodes
                 name = args.str_data(nameIndex).data;
         }
 
-        data.identifierText = "value";
+        data.cabbageCode = "value";
         data.channel = name;
         return data;
     }
@@ -148,11 +142,13 @@ struct CabbageOpcodes
             if(args.str_data(identIndex).size == 0)
                 identifier = {};
             else
+            {
                 identifier = args.str_data(identIndex).data;
+            }
         }
         
         data.channel = name;
-        data.identifierText = identifier;
+        data.cabbageCode = identifier;
 
         return data;
     }

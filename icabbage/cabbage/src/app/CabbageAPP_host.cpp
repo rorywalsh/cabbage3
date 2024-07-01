@@ -54,8 +54,14 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                             {
                                 if(cabbage.getParameterChannel(i).name == message["channel"].get<std::string>())
                                 {
+                                    //update underlying JSON object if the value has changed
+                                    auto widgetOpt = cabbage.getWidget(message["channel"]);
+                                    if (widgetOpt.has_value())
+                                    {
+                                        auto& j = widgetOpt.value().get();
+                                        CabbageParser::updateJsonWithValue(j, message["value"].get<double>());
+                                    }
                                     cabbageProcessor->SetParameterValue (i, message["value"].get<double>());
-//                                    std::cout << "Host: " << channel << " Value:" << j["value"].get<double>() << std::endl;
                                 }
                             }
 //                            SendParameterValueFromUI(message["paramIdx"], message["value"]);
@@ -66,8 +72,16 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                                 cabbage.setStringChannel(message["channel"].get<std::string>(), message["fileName"].get<std::string>());
                             }
                         }
-
-                        if(command == "stopCsound")
+                        else if(command == "widgetStateUpdate")
+                        {
+                            cabbage.updateWidgetState(message);
+                            
+                        }
+                        else if(command == "cabbageSetupComplete")
+                        {
+                            cabbageProcessor->interfaceHasLoaded();
+                        }
+                        else if(command == "stopCsound")
                         {
                             std::cout << "stopping Csound" << msg->str << std::endl;
                             cabbageProcessor->stopProcessing();
@@ -84,8 +98,9 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                 }
                 else if (msg->type == ix::WebSocketMessageType::Open)
                 {
-                    std::cout << "Connection established" << std::endl;
-                    std::cout << "> " << std::flush;
+                    _log("Connection established" << std::flush);
+                    //if connection is open, enable dequeuing..
+                    cabbageProcessor->interfaceHasLoaded();
                 }
                 else if (msg->type == ix::WebSocketMessageType::Error)
                 {
@@ -105,9 +120,13 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
         if(data.type == CabbageOpcodeData::MessageType::Value)
         {
             nlohmann::json j;
-            j["widgetUpdate"]["channel"] = data.channel;
-            j["widgetUpdate"]["value"] = data.value;
-            webSocket.send(j.dump());
+            j["channel"] = data.channel;
+            j["value"] = data.value;
+            
+            nlohmann::json msg;
+            msg["command"] = "widgetUpdate";
+            msg["text"] = j;
+            webSocket.send(msg.dump());
         }
         else
         {
@@ -120,22 +139,26 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                 {
                     cabbage.updateFunctionTable(data, j);
                     nlohmann::json json;
-                    json["widgetUpdate"]["channel"] = data.channel;
-                    json["widgetUpdate"]["data"] = j.dump();
-                    webSocket.send(json.dump());
-                    //message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
+                    json["channel"] = data.channel;
+                    json["data"] = j.dump();
+                    
+                    nlohmann::json msg;
+                    msg["command"] = "widgetUpdate";
+                    msg["text"] = json;
+                    webSocket.send(msg.dump());
                 }
                 else{
                     nlohmann::json json;
-                    json["widgetUpdate"]["channel"] = data.channel;
-                    json["widgetUpdate"]["data"] = data.identifierText;
-                    webSocket.send(json.dump());
-                    //message = cabbage.getWidgetUpdateScript(data.channel, data.identifierText);
-                }
+                    CabbageParser::updateJsonFromSyntax(j, data.cabbageCode);
+                    json["channel"] = data.channel;
+                    json["data"] = j.dump();
                     
+                    nlohmann::json msg;
+                    msg["command"] = "widgetUpdate";
+                    msg["text"] = json;
+                    webSocket.send(msg.dump());
+                }
             }
-            
-
             
         }
 

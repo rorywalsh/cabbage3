@@ -16,13 +16,30 @@ export class Cabbage {
     }
   }
 
-  static sendWidgetUpdate(widget){
+  static sendCustomCommand(vscode, command){
+    const msg = {
+      command: command,
+      text: JSON.stringify({})
+    };
+    console.log("sending custom command from UI", msg);
+    if (vscode != null) {
+      vscode.postMessage(msg);
+    }
+    else {      
+      IPlugSendMsg(msg);
+    }
+  } 
+
+  static sendWidgetUpdate(vscode, widget){
     console.log("sending widget update from UI", widget.props);
     const msg = {
       command: "widgetStateUpdate",
       text:JSON.stringify(widget.props)
     };
-    if(typeof IPlugSendMsg === 'function'){
+    if (vscode != null) {
+      vscode.postMessage(msg);
+    }
+    else {
       IPlugSendMsg(msg);
     }
   }

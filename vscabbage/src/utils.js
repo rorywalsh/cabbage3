@@ -53,6 +53,7 @@ export class CabbageUtils {
         }
         else{
           jsonObj[name] = value;
+          console.log(value);
         }
       } else if (name === 'samples') {
         // Handling the items attribute

@@ -23,6 +23,8 @@ import { MidiKeyboard } from "./widgets/midiKeyboard.js";
 // @ts-ignore
 import { GenTable } from "./widgets/genTable.js";
 // @ts-ignore
+import { TextEditor } from "./widgets/textEditor.js";
+// @ts-ignore
 import { CabbageUtils } from "./utils.js";
 // @ts-ignore
 import { Form } from "./widgets/form.js";
@@ -42,16 +44,27 @@ interface TokenObject {
 const wss = new WebSocket.Server({ port: 9991 });
 let websocket: WebSocket;
 let cabbageMode = "play";
+let firstMessages: any[] = [];
+
 
 wss.on('connection', (ws) => {
 	console.log('Client connected');
+
+	//there are times when Cabbage will send message before the webview is ready to receive them. 
+	//so first thing to do is flush the first messages received from Cabbage
+	firstMessages.forEach((msg) => {
+		console.log(msg);
+		ws.send(JSON.stringify(msg));
+	});
+
+	firstMessages = [];
+
 	websocket = ws;
 	ws.on('message', (message) => {
 		const msg = JSON.parse(message.toString());
 		if (panel) {
-			panel.webview.postMessage({ command: "widgetUpdate", text: JSON.stringify(msg["widgetUpdate"]) })
+			panel.webview.postMessage({ command: "widgetUpdate", text: JSON.stringify(msg["text"]) })
 		}
-
 	});
 
 	ws.on('close', () => {
@@ -128,7 +141,7 @@ export function activate(context: vscode.ExtensionContext) {
 		const colourPickerStyles = panel.webview.asWebviewUri(onDiskPath);
 
 		//add widget types to menu
-		const widgetTypes = ["hslider", "rslider", "gentable", "vslider", "keyboard", "button", "filebutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
+		const widgetTypes = ["hslider", "rslider", "texteditor", "gentable", "vslider", "keyboard", "button", "filebutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
 
 		let menuItems = "";
 		widgetTypes.forEach((widget) => {
@@ -173,20 +186,20 @@ export function activate(context: vscode.ExtensionContext) {
 				p?.kill("SIGKILL");
 			})
 
-			// const process = cp.spawn(command, [editor.fileName], {});
+			const process = cp.spawn(command, [editor.fileName], {});
 
-			// processes.push(process);
+			processes.push(process);
 
-			// process.stdout.on("data", (data) => {
-			// 	// I've seen spurious 'ANSI reset color' sequences in some csound output
-			// 	// which doesn't render correctly in this context. Stripping that out here.
-			// 	output.append(data.toString().replace(/\x1b\[m/g, ""));
-			// });
-			// process.stderr.on("data", (data) => {
-			// 	// It looks like all csound output is written to stderr, actually.
-			// 	// If you want your changes to show up, change this one.
-			// 	output.append(data.toString().replace(/\x1b\[m/g, ""));
-			// });
+			process.stdout.on("data", (data) => {
+				// I've seen spurious 'ANSI reset color' sequences in some csound output
+				// which doesn't render correctly in this context. Stripping that out here.
+				output.append(data.toString().replace(/\x1b\[m/g, ""));
+			});
+			process.stderr.on("data", (data) => {
+				// It looks like all csound output is written to stderr, actually.
+				// If you want your changes to show up, change this one.
+				output.append(data.toString().replace(/\x1b\[m/g, ""));
+			});
 
 
 
@@ -201,23 +214,35 @@ export function activate(context: vscode.ExtensionContext) {
 			//console.log(tabs.changed.label);
 		});
 
-		// callback for when users update widget properties in webview
+		// callback for webview messages - some of these will be fired off the CabbageApp
 		panel.webview.onDidReceiveMessage(
 			message => {
-				console.warn("message", message);
-				
+
 				switch (message.command) {
 					case 'widgetUpdate':
 						if (cabbageMode !== "play") {
 							updateText(message.text);
 						}
 						return;
-					// console.log(message.text);
-					case 'ready': //trigger when webview is open
+
+					case 'widgetStateUpdate': //trigger when webview is open
+						console.error("widgetStateUpdate", message["text"]);
+						firstMessages.push(message);
+						websocket.send(JSON.stringify(message));
+						break;
+						
+					case 'cabbageSetupComplete':
+						const msg = {
+							command: "cabbageSetupComplete",
+							text: JSON.stringify({})
+						};
+						firstMessages.push(msg);
+						websocket.send(JSON.stringify(msg));
 						if (panel) {
 							panel.webview.postMessage({ command: "snapToSize", text: config.get("snapToSize") });
 						}
 						break;
+
 					case 'fileOpen':
 						const jsonText = JSON.parse(message.text);
 						vscode.window.showOpenDialog({
@@ -230,23 +255,22 @@ export function activate(context: vscode.ExtensionContext) {
 							}
 						}).then((fileUri) => {
 							if (fileUri) {
-								
+
 								const m = {
 									"fileName": fileUri[0].fsPath,
 									"channel": jsonText.channel
 								}
 								const msg = {
 									command: "fileOpenFromVSCode",
-									text:JSON.stringify(m)
-								  };
-								console.error(JSON.stringify(msg, null, 2));
+									text: JSON.stringify(m)
+								};
 								websocket.send(JSON.stringify(msg));
 							}
 						});
 						break;
 					default:
 						if (websocket) {
-								websocket.send(JSON.stringify(message));
+							websocket.send(JSON.stringify(message));
 						}
 
 				}
@@ -265,7 +289,7 @@ export function activate(context: vscode.ExtensionContext) {
 		if (!panel) {
 			return;
 		}
-		const msg = { command:"stopCsound" };
+		const msg = { command: "stopCsound" };
 		if (websocket) {
 			websocket.send(JSON.stringify(msg));
 		}
@@ -333,12 +357,15 @@ async function updateText(jsonText: string) {
 			case 'csoundoutput':
 				defaultProps = new CsoundOutput().props;
 				break;
+			case 'texteditor':
+				defaultProps = new TextEditor().props;
+				break;
 			default:
 				break;
 		}
 
 
-		const internalIdentifiers: string[] = ['top', 'left', 'width', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index'];
+		const internalIdentifiers: string[] = ['top', 'left', 'width', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index', 'samples'];
 		if (props.type.indexOf('slider') !== -1) { internalIdentifiers.push('value'); }
 
 		await textEditor.edit(async editBuilder => {
@@ -412,7 +439,6 @@ async function updateText(jsonText: string) {
 
 				//this is called when we create a widgets from the popup menu in the UI builder
 				if (!foundChannel && props.type !== "form") {
-					console.log("here");
 					let newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${CabbageUtils.getCabbageCodeFromJson(jsonText, "channel")}`;
 
 					if (props.type.indexOf('slider') > -1) {

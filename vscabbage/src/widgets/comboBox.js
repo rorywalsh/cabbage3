@@ -88,7 +88,7 @@ export class ComboBox {
             this.isOpen = false;
             // Update the HTML
             const widgetDiv = CabbageUtils.getWidgetDiv(this.props.channel);
-                widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
+                //widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
                 CabbageUtils.updateInnerHTML(this.props.channel, this);
         }
     }

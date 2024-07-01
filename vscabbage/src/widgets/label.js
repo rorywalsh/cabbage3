@@ -17,7 +17,8 @@ export class Label {
             "corners": 4,
             "align": "centre",
             "visible": 1,
-            "text": "Default Label"
+            "text": "Default Label",
+            "automatable": 0
         }
 
         this.panelSections = {

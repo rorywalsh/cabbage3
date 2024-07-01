@@ -79,25 +79,12 @@ public:
     static int ReadMidiData (CSOUND* csound, void* userData, unsigned char* mbuf, int nbytes);
     static int WriteMidiData (CSOUND* csound, void* userData, const unsigned char* mbuf, int nbytes);
     
-
     
-    void updateUI()
-    {
-        
-    }
-    
-    void stopProcessing()
-    {
-        cabbage.stopProcessing();
-    }
-    
-    Cabbage& getCabbage()
-    {
-        return cabbage;
-    }
+    void stopProcessing(){        cabbage.stopProcessing();    }
+    Cabbage& getCabbage(){        return cabbage;              }
     
     void setupCallbacks();
-    void updateWidgetsOnUIOpen();
+    void interfaceHasLoaded();
     
 #ifdef CabbageApp
     std::function<void(CabbageOpcodeData)> hostCallback = nullptr;
@@ -116,6 +103,7 @@ private:
     int pos = 0;
     bool uiIsOpen = false;
     bool firstTime = true;
+    bool allowDequeuing = false;
     
     
 };

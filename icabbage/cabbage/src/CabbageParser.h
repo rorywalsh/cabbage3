@@ -75,6 +75,11 @@ public:
     }
 
 
+    static void updateJsonWithValue(nlohmann::json& jsonObj, const double value)
+    {
+        jsonObj["value"] = value;
+    }
+    
     static void updateJsonFromSyntax(nlohmann::json& jsonObj, const std::string& syntax)
     {
         try
@@ -215,7 +220,25 @@ public:
         }
     }
 
+    static std::vector<std::string> splitCommaDelimitedArgs(const std::string& input) {
+        std::vector<std::string> result;
+        std::string item;
+        size_t start = 0;
+        size_t end = input.find(',');
 
+        while (end != std::string::npos) {
+            item = input.substr(start, end - start);
+            result.push_back(item);
+            start = end + 1;
+            end = input.find(',', start);
+        }
+        // Add the last substring
+        item = input.substr(start);
+        result.push_back(item);
+
+        return result;
+    }
+    
     static std::vector<CabbageParser::Identifier> tokeniseLine(const std::string& syntax)
     {
         std::vector<CabbageParser::Identifier> identifiers;

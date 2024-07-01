@@ -147,7 +147,7 @@ int CabbageGetMYFLT::getIdentifier(int init)
             if(channel == data.channel)
             {
                 //EvaluateJavaScript << data.identifierText << ":" << widget[data.identifierText].get<float>();
-                outargs[0] = widget[data.identifierText].get<float>();
+                outargs[0] = widget[data.cabbageCode].get<float>();
             }
                 
         }
@@ -172,7 +172,7 @@ int CabbageGetString::getIdentifier(int init)
             auto channel = CabbageParser::removeQuotes(widget["channel"].get<std::string>());
             if(channel == data.channel)
             {
-                auto str = CabbageParser::removeQuotes(widget[data.identifierText].get<std::string>());
+                auto str = CabbageParser::removeQuotes(widget[data.cabbageCode].get<std::string>());
                 outargs.str_data(0).size = int(strlen(str.c_str())+1);
                 outargs.str_data(0).data = csound->strdup(str.data());
             }
@@ -199,7 +199,7 @@ int CabbageGetStringWithTrigger::getIdentifier(int init)
             if(channel == data.channel)
             {
                 std::cout << widget.dump(4);
-                auto str = widget[data.identifierText].get<std::string>();
+                auto str = widget[data.cabbageCode].get<std::string>();
 
                 if(!currentString){
                     currentString = (char*)str.c_str();

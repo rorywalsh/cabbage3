@@ -22,16 +22,14 @@ void Cabbage::addOpcodes()
     csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Sk", csnd::thread::k);
     csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Si", csnd::thread::i);
     
-    csnd::plugin<CabbageSet>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSS", csnd::thread::ik);
-    csnd::plugin<CabbageSet>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "SS", csnd::thread::i);
-    csnd::plugin<CabbageSet>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "SS", csnd::thread::i);
+    csnd::plugin<CabbageSetPerfStrings>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSS", csnd::thread::k);
+    csnd::plugin<CabbageSetInitStrings>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "SW", csnd::thread::i);
     
     csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "i", "S", csnd::thread::i);
     csnd::plugin<CabbageGetValueString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "S", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValueWithTrigger>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "kk", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValueStringWithTrigger>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "Sk", "So", csnd::thread::ik);
-    
     
     csnd::plugin<CabbageGetMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "k", "SS", csnd::thread::ik);
     csnd::plugin<CabbageGetMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "i", "SS", csnd::thread::i);
@@ -127,7 +125,6 @@ bool Cabbage::setupCsound()
                 else
                 {
                     try{
-                        _log(w.dump(4));
                         processor.GetParam(numberOfParameters)->InitInt(w["channel"].get<std::string>().c_str(),
                                                                            w["value"].get<int>(),
                                                                            w["min"].get<int>(),
@@ -226,6 +223,21 @@ std::optional<std::reference_wrapper<nlohmann::json>> Cabbage::getWidget(const s
     }
     return std::nullopt;
 }
+
+const std::string Cabbage::updateWidgetState(nlohmann::json j)
+{
+    auto const channel = j["channel"].get<std::string>();
+    auto widgetOpt = getWidget(channel);
+    if (widgetOpt.has_value())
+    {
+        auto& w = widgetOpt.value().get();
+        w.merge_patch(j);
+        auto result = getWidgetUpdateScript(w["channel"], w.dump());
+        return result;
+    }
+    
+    return "";
+}
 //===========================================================================================
 
 std::string Cabbage::getWidgetUpdateScript(std::string channel, std::string data)
@@ -250,7 +262,7 @@ std::string Cabbage::getWidgetUpdateScript(std::string channel, float value)
     std::string result;
     result = StringFormatter::format(R"(
         window.postMessage({
-            command: "widgetIdentifierUpdate",
+            command: "widgetUpdate",
             text: JSON.stringify({
                 channel: "<>",
                value: <>
@@ -264,9 +276,9 @@ std::string Cabbage::getWidgetUpdateScript(std::string channel, float value)
 
 void Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonObj)
 {
-    if(data.identifierText.find("tableNumber") != std::string::npos)
+    if(data.cabbageCode.find("tableNumber") != std::string::npos)
     {
-        CabbageParser::updateJsonFromSyntax(jsonObj, data.identifierText);
+        CabbageParser::updateJsonFromSyntax(jsonObj, data.cabbageCode);
         const int tableNumber = jsonObj["tableNumber"];
         const int tableSize = getCsound()->TableLength(tableNumber);
         if(tableSize != -1)
@@ -276,11 +288,11 @@ void Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonOb
             setTableJSON(data.channel, temp, jsonObj);
         }
     }
-    else if(data.identifierText.find("file") != std::string::npos)
+    else if(data.cabbageCode.find("file") != std::string::npos)
     {
         if(jsonObj["type"].get<std::string>() == "gentable")
         {
-            CabbageParser::updateJsonFromSyntax(jsonObj, data.identifierText);
+            CabbageParser::updateJsonFromSyntax(jsonObj, data.cabbageCode);
             const int tableNumber = jsonObj["tableNumber"];
             auto samples = Cabbage::readAudioFile(jsonObj["file"].get<std::string>());
             

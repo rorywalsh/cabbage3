@@ -19,7 +19,11 @@
         "Colours",
         "combobox",
         "csound",
+        "csoundoutput",
+        "filebutton",
+        "gentable",
         "hslider",
+        "texteditor",
         "vslider"
     ]
 }

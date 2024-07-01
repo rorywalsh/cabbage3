@@ -101,6 +101,8 @@ public:
     // Get the widgets
     std::vector<nlohmann::json>& getWidgets() { return widgets; }
     
+    //Update widget with JSON object
+    const std::string updateWidgetState(nlohmann::json j);
     // Get the index for a parameter channel by name
     size_t getIndexForParamChannel(std::string name);
     
