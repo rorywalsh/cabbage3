@@ -1,4 +1,5 @@
 import { CabbageUtils, CabbageColours } from "../utils.js";
+import { Cabbage } from "../cabbage.js";
 
 export class VerticalSlider {
   constructor() {
@@ -87,7 +88,11 @@ export class VerticalSlider {
       this.startValue = this.props.value;
       window.addEventListener("pointermove", this.moveListener);
       window.addEventListener("pointerup", this.upListener);
-      Cabbage.updateInnerHTML(this.props.channel, this);
+      CabbageUtils.updateInnerHTML(this.props.channel, this);
+
+      const newValue = CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
+      const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
+      Cabbage.sendParameterUpdate(this.vscode, msg);
     }
   }
 
@@ -202,21 +207,8 @@ export class VerticalSlider {
     const widgetDiv = document.getElementById(this.props.channel);
     widgetDiv.innerHTML = this.getInnerHTML();
 
-    // Post message if vscode is available
-    const msg = { channel: this.props.channel, value: CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) }
-    if (this.vscode) {
-      this.vscode.postMessage({
-        command: 'channelUpdate',
-        text: JSON.stringify(msg)
-      });
-    } else {
-      var message = {
-        "msg": "parameterUpdate",
-        "paramIdx": this.props.index,
-        "value": CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1)
-      };
-      // IPlugSendMsg(message);
-    }
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
+    Cabbage.sendParameterUpdate(this.vscode, msg);
   }
 
   getInnerHTML() {

@@ -179,7 +179,6 @@ export class RotarySlider {
     const newValue = CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
 
     const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
-    console.log("msg", msg);
     Cabbage.sendParameterUpdate(this.vscode, msg);
     
   }

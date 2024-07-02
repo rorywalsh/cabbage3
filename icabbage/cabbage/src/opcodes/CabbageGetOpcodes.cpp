@@ -138,7 +138,7 @@ int CabbageGetMYFLT::getIdentifier(int init)
     wd = (std::vector<nlohmann::json>**)csound->query_global_variable("cabbageWidgetData");
     std::vector<nlohmann::json>* varData = CabbageOpcodes::getWidgetDataGlobalvariable(csound, wd);
     
-    if(in_count()==2) // irate version
+    if(in_count()==2)
     {
         CabbageOpcodeData data = getIdentData(inargs, true, 0, 1);
         for(auto &widget : *varData)
@@ -149,10 +149,25 @@ int CabbageGetMYFLT::getIdentifier(int init)
                 //EvaluateJavaScript << data.identifierText << ":" << widget[data.identifierText].get<float>();
                 outargs[0] = widget[data.cabbageCode].get<float>();
             }
-                
         }
+    }
+    else
+    {
+        //if only a channel string is passed in, then get the current value of that channel
         
-
+        CabbageOpcodeData data = getIdentData(inargs, true, 0, 0);
+        for(auto &widget : *varData)
+        {
+            auto channel = CabbageParser::removeQuotes(widget["channel"].get<std::string>());
+            if(channel == data.channel)
+            {
+                if (csound->get_csound()->GetChannelPtr(csound->get_csound(), &value, inargs.str_data(0).data,
+                                                        CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
+                {
+                    outargs[0] = *value;
+                }
+            }
+        }
     }
     
     return IS_OK;

@@ -141,7 +141,7 @@ export class GenTable {
         // Update DOM with the canvas
         const widgetElement = document.getElementById(this.props.channel);
         if (widgetElement) {
-            // widgetElement.style.transform = `translate(${this.props.left}px, ${this.props.top}px)`;
+            widgetElement.style.transform = `translate(${this.props.left}px, ${this.props.top}px)`;
             // widgetElement.setAttribute('data-x', this.props.left);
             // widgetElement.setAttribute('data-y', this.props.top);
             // widgetElement.style.top = `${this.props.top}px`;

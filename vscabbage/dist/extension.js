@@ -66,6 +66,7 @@ const cp = __importStar(__webpack_require__(40));
 let textEditor;
 let output;
 let panel = undefined;
+let dbg = false;
 const ws_1 = __importDefault(__webpack_require__(16));
 const wss = new ws_1.default.Server({ port: 9991 });
 let websocket;
@@ -180,18 +181,20 @@ function activate(context) {
             processes.forEach((p) => {
                 p?.kill("SIGKILL");
             });
-            const process = cp.spawn(command, [editor.fileName], {});
-            processes.push(process);
-            process.stdout.on("data", (data) => {
-                // I've seen spurious 'ANSI reset color' sequences in some csound output
-                // which doesn't render correctly in this context. Stripping that out here.
-                output.append(data.toString().replace(/\x1b\[m/g, ""));
-            });
-            process.stderr.on("data", (data) => {
-                // It looks like all csound output is written to stderr, actually.
-                // If you want your changes to show up, change this one.
-                output.append(data.toString().replace(/\x1b\[m/g, ""));
-            });
+            if (!dbg) {
+                const process = cp.spawn(command, [editor.fileName], {});
+                processes.push(process);
+                process.stdout.on("data", (data) => {
+                    // I've seen spurious 'ANSI reset color' sequences in some csound output
+                    // which doesn't render correctly in this context. Stripping that out here.
+                    output.append(data.toString().replace(/\x1b\[m/g, ""));
+                });
+                process.stderr.on("data", (data) => {
+                    // It looks like all csound output is written to stderr, actually.
+                    // If you want your changes to show up, change this one.
+                    output.append(data.toString().replace(/\x1b\[m/g, ""));
+                });
+            }
         });
         vscode.workspace.onDidOpenTextDocument((editor) => {
             sendTextToWebView(editor, 'onFileChanged');
@@ -675,7 +678,6 @@ class RotarySlider {
     const newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
 
     const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
-    console.log("msg", msg);
     _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
     
   }
@@ -812,65 +814,59 @@ class CabbageUtils {
       const name = match[1];
       let value = match[2].replace(/"/g, ''); // Remove double quotes
 
+      // console.log(`Processing name: ${name}, value: ${value}`);
+
       if (name === 'bounds') {
-        // Splitting the value into individual parts for top, left, width, and height
         const [left, top, width, height] = value.split(',').map(v => parseInt(v.trim()));
-        jsonObj['left'] = left;
-        jsonObj['top'] = top;
-        jsonObj['width'] = width;
-        jsonObj['height'] = height;
+        jsonObj['left'] = left || 0;
+        jsonObj['top'] = top || 0;
+        jsonObj['width'] = width || 0;
+        jsonObj['height'] = height || 0;
       } else if (name === 'range') {
-        // Splitting the value into individual parts for min, max, value, skew, and increment
-        const [min, max, value, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
-        jsonObj['min'] = min;
-        jsonObj['max'] = max;
-        jsonObj['value'] = value;
-        jsonObj['skew'] = skew;
-        jsonObj['increment'] = increment;
+        const [min, max, val, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
+        jsonObj['min'] = min || 0;
+        jsonObj['max'] = max || 0;
+        jsonObj['value'] = val || 0;
+        jsonObj['skew'] = skew || 0;
+        jsonObj['increment'] = increment || 0;
       } else if (name === 'size') {
-        // Splitting the value into individual parts for width and height
         const [width, height] = value.split(',').map(v => parseInt(v.trim()));
-        jsonObj['width'] = width;
-        jsonObj['height'] = height;
+        jsonObj['width'] = width || 0;
+        jsonObj['height'] = height || 0;
       } else if (name === 'sampleRange') {
-        // Splitting the value into individual parts for width and height
         const [start, end] = value.split(',').map(v => parseInt(v.trim()));
-        jsonObj['startSample'] = start;
-        jsonObj['endSample'] = end;
+        jsonObj['startSample'] = start || 0;
+        jsonObj['endSample'] = end || 0;
       } else if (name === 'items') {
-        // Handling the items attribute
         const items = value.split(',').map(v => v.trim()).join(', ');
         jsonObj['items'] = items;
       } else if (name === 'text') {
         if (type.indexOf('button') > -1) {
-          // Extract the contents inside the parentheses
           const textItems = value.split(',').map(v => v.trim());
-          console.log(textItems)
-          jsonObj['textOff'] = textItems[0];
-          jsonObj['textOn'] = (textItems.length > 1 ? textItems[1] : textItems[0]);
-        }
-        else{
+          jsonObj['textOff'] = textItems[0] || '';
+          jsonObj['textOn'] = (textItems.length > 1 ? textItems[1] : textItems[0]) || '';
+        } else {
           jsonObj[name] = value;
-          console.log(value);
         }
       } else if (name === 'samples') {
-        // Handling the items attribute
         const samples = value.split(',').map(v => parseFloat(v.trim()));
         jsonObj['samples'] = samples;
       } else {
-        // Check if the value is a number
         const numericValue = parseFloat(value);
-        if (!isNaN(numericValue)) {
-          // If it's a number, assign it as a number
-          jsonObj[name] = numericValue;
-        } else {
-          // If it's not a number, assign it as a string
-          jsonObj[name] = value;
-        }
+        jsonObj[name] = !isNaN(numericValue) ? numericValue : value;
       }
+
+      // console.log(`jsonObj so far: ${JSON.stringify(jsonObj)}`);
     }
 
     return jsonObj;
+  }
+
+  static updateInnerHTML(channel, instance) {
+    const element = document.getElementById(channel);
+    if (element) {
+      element.innerHTML = instance.getInnerHTML();
+    }
   }
 
   static getFileNameFromPath(fullPath) {
@@ -899,22 +895,28 @@ class CabbageUtils {
 
     const cabbageCode = lines.slice(cabbageStart, cabbageEnd);
     for (const line of cabbageCode) {
-      const codeProps = CabbageUtils.getCabbageCodeAsJSON(line);
-      const type = `${line.trimStart().split(' ')[0]}`;
-      if (line.trim() != "") {
-        if (type != "form") {
-          await insertWidget(type, codeProps);
-        } else {
-          widgets.forEach((widget) => {
-            if (widget.props.channel == "MainForm") {
-              const w = codeProps.width;
-              const h = codeProps.height;
-              form.style.width = w + "px";
-              form.style.height = h + "px";
-              widget.props.width = w;
-              widget.props.width = h;
-            }
-          });
+
+      if (!line.trim().startsWith(";") && line.trim() !== "") {
+        console.log("line", line)
+        const codeProps = CabbageUtils.getCabbageCodeAsJSON(line);
+        const type = `${line.trimStart().split(' ')[0]}`;
+        console.log("type", type);
+        console.log("copeProps", codeProps);
+        if (line.trim() != "") {
+          if (type != "form") {
+            await insertWidget(type, codeProps);
+          } else {
+            widgets.forEach((widget) => {
+              if (widget.props.channel == "MainForm") {
+                const w = codeProps.width;
+                const h = codeProps.height;
+                form.style.width = w + "px";
+                form.style.height = h + "px";
+                widget.props.width = w;
+                widget.props.width = h;
+              }
+            });
+          }
         }
       }
     }
@@ -1118,13 +1120,6 @@ class CabbageUtils {
     return maxNumberWidth;
   }
 
-
-  static updateInnerHTML(channel, instance) {
-    const element = document.getElementById(channel);
-    if (element) {
-      element.innerHTML = instance.getInnerHTML();
-    }
-  }
 
   static getWidgetDiv(channel) {
     const element = document.getElementById(channel);
@@ -1927,7 +1922,7 @@ class HorizontalSlider {
   
       this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
       this.startValue = this.props.value;
-      _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this.getInnerHTML());
+      _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
     }
   }
   
@@ -2029,23 +2024,11 @@ class HorizontalSlider {
     this.props.value = newValue;
   
     // Update the slider appearance
-    _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this.getInnerHTML());
+    _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
   
     // Post message if vscode is available
-    const msg = { channel: this.props.channel, value: _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) }
-    if (this.vscode) {
-      this.vscode.postMessage({
-        command: 'channelUpdate',
-        text: JSON.stringify(msg)
-      });
-    } else {
-      var message = {
-        "msg": "parameterUpdate",
-        "paramIdx": this.props.index,
-        "value": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1)
-      };
-      // IPlugSendMsg(message);
-    }
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
+    _cabbage_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendParameterUpdate(this.vscode, msg);
   }
   
   handleInputChange(evt) {
@@ -2053,7 +2036,7 @@ class HorizontalSlider {
       const inputValue = parseFloat(evt.target.value);
       if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
         this.props.value = inputValue;
-        _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this.getInnerHTML());
+        _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
         widgetDiv.querySelector('input').focus();
       }
     }
@@ -2139,6 +2122,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   VerticalSlider: () => (/* binding */ VerticalSlider)
 /* harmony export */ });
 /* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
+
 
 
 class VerticalSlider {
@@ -2228,7 +2213,11 @@ class VerticalSlider {
       this.startValue = this.props.value;
       window.addEventListener("pointermove", this.moveListener);
       window.addEventListener("pointerup", this.upListener);
-      Cabbage.updateInnerHTML(this.props.channel, this);
+      _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+
+      const newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
+      const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
+      _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
     }
   }
 
@@ -2343,21 +2332,8 @@ class VerticalSlider {
     const widgetDiv = document.getElementById(this.props.channel);
     widgetDiv.innerHTML = this.getInnerHTML();
 
-    // Post message if vscode is available
-    const msg = { channel: this.props.channel, value: _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) }
-    if (this.vscode) {
-      this.vscode.postMessage({
-        command: 'channelUpdate',
-        text: JSON.stringify(msg)
-      });
-    } else {
-      var message = {
-        "msg": "parameterUpdate",
-        "paramIdx": this.props.index,
-        "value": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1)
-      };
-      // IPlugSendMsg(message);
-    }
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
+    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
   }
 
   getInnerHTML() {
@@ -2879,7 +2855,7 @@ class ComboBox {
             this.isOpen = false;
             // Update the HTML
             const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
-                //widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
+                widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
                 _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
         }
     }
@@ -3550,7 +3526,7 @@ class GenTable {
         // Update DOM with the canvas
         const widgetElement = document.getElementById(this.props.channel);
         if (widgetElement) {
-            // widgetElement.style.transform = `translate(${this.props.left}px, ${this.props.top}px)`;
+            widgetElement.style.transform = `translate(${this.props.left}px, ${this.props.top}px)`;
             // widgetElement.setAttribute('data-x', this.props.left);
             // widgetElement.setAttribute('data-y', this.props.top);
             // widgetElement.style.top = `${this.props.top}px`;
@@ -3634,7 +3610,7 @@ class TextEditor {
         const textAlign = alignMap[this.props.align] || 'start';
 
         return `
-                <textarea style="width: 100%; height: 100%; top:0px; left:0px; background-color: ${this.props.colour}; 
+                <textarea style="width: 100%; height: 100%; background-color: ${this.props.colour}; 
                 color: ${this.props.fontColour}; font-family: ${this.props.fontFamily}; font-size: ${fontSize}px; 
                 text-align: ${textAlign}; padding: 10px; box-sizing: border-box; border: none; resize: none; position:absolute">
 ${this.props.text}

@@ -94,7 +94,7 @@ export class HorizontalSlider {
   
       this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
       this.startValue = this.props.value;
-      CabbageUtils.updateInnerHTML(this.props.channel, this.getInnerHTML());
+      CabbageUtils.updateInnerHTML(this.props.channel, this);
     }
   }
   
@@ -196,23 +196,11 @@ export class HorizontalSlider {
     this.props.value = newValue;
   
     // Update the slider appearance
-    CabbageUtils.updateInnerHTML(this.props.channel, this.getInnerHTML());
+    CabbageUtils.updateInnerHTML(this.props.channel, this);
   
     // Post message if vscode is available
-    const msg = { channel: this.props.channel, value: CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) }
-    if (this.vscode) {
-      this.vscode.postMessage({
-        command: 'channelUpdate',
-        text: JSON.stringify(msg)
-      });
-    } else {
-      var message = {
-        "msg": "parameterUpdate",
-        "paramIdx": this.props.index,
-        "value": CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1)
-      };
-      // IPlugSendMsg(message);
-    }
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
+    Cabbage.sendParameterUpdate(this.vscode, msg);
   }
   
   handleInputChange(evt) {
@@ -220,7 +208,7 @@ export class HorizontalSlider {
       const inputValue = parseFloat(evt.target.value);
       if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
         this.props.value = inputValue;
-        CabbageUtils.updateInnerHTML(this.props.channel, this.getInnerHTML());
+        CabbageUtils.updateInnerHTML(this.props.channel, this);
         widgetDiv.querySelector('input').focus();
       }
     }

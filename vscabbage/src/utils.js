@@ -14,65 +14,59 @@ export class CabbageUtils {
       const name = match[1];
       let value = match[2].replace(/"/g, ''); // Remove double quotes
 
+      // console.log(`Processing name: ${name}, value: ${value}`);
+
       if (name === 'bounds') {
-        // Splitting the value into individual parts for top, left, width, and height
         const [left, top, width, height] = value.split(',').map(v => parseInt(v.trim()));
-        jsonObj['left'] = left;
-        jsonObj['top'] = top;
-        jsonObj['width'] = width;
-        jsonObj['height'] = height;
+        jsonObj['left'] = left || 0;
+        jsonObj['top'] = top || 0;
+        jsonObj['width'] = width || 0;
+        jsonObj['height'] = height || 0;
       } else if (name === 'range') {
-        // Splitting the value into individual parts for min, max, value, skew, and increment
-        const [min, max, value, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
-        jsonObj['min'] = min;
-        jsonObj['max'] = max;
-        jsonObj['value'] = value;
-        jsonObj['skew'] = skew;
-        jsonObj['increment'] = increment;
+        const [min, max, val, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
+        jsonObj['min'] = min || 0;
+        jsonObj['max'] = max || 0;
+        jsonObj['value'] = val || 0;
+        jsonObj['skew'] = skew || 0;
+        jsonObj['increment'] = increment || 0;
       } else if (name === 'size') {
-        // Splitting the value into individual parts for width and height
         const [width, height] = value.split(',').map(v => parseInt(v.trim()));
-        jsonObj['width'] = width;
-        jsonObj['height'] = height;
+        jsonObj['width'] = width || 0;
+        jsonObj['height'] = height || 0;
       } else if (name === 'sampleRange') {
-        // Splitting the value into individual parts for width and height
         const [start, end] = value.split(',').map(v => parseInt(v.trim()));
-        jsonObj['startSample'] = start;
-        jsonObj['endSample'] = end;
+        jsonObj['startSample'] = start || 0;
+        jsonObj['endSample'] = end || 0;
       } else if (name === 'items') {
-        // Handling the items attribute
         const items = value.split(',').map(v => v.trim()).join(', ');
         jsonObj['items'] = items;
       } else if (name === 'text') {
         if (type.indexOf('button') > -1) {
-          // Extract the contents inside the parentheses
           const textItems = value.split(',').map(v => v.trim());
-          console.log(textItems)
-          jsonObj['textOff'] = textItems[0];
-          jsonObj['textOn'] = (textItems.length > 1 ? textItems[1] : textItems[0]);
-        }
-        else{
+          jsonObj['textOff'] = textItems[0] || '';
+          jsonObj['textOn'] = (textItems.length > 1 ? textItems[1] : textItems[0]) || '';
+        } else {
           jsonObj[name] = value;
-          console.log(value);
         }
       } else if (name === 'samples') {
-        // Handling the items attribute
         const samples = value.split(',').map(v => parseFloat(v.trim()));
         jsonObj['samples'] = samples;
       } else {
-        // Check if the value is a number
         const numericValue = parseFloat(value);
-        if (!isNaN(numericValue)) {
-          // If it's a number, assign it as a number
-          jsonObj[name] = numericValue;
-        } else {
-          // If it's not a number, assign it as a string
-          jsonObj[name] = value;
-        }
+        jsonObj[name] = !isNaN(numericValue) ? numericValue : value;
       }
+
+      // console.log(`jsonObj so far: ${JSON.stringify(jsonObj)}`);
     }
 
     return jsonObj;
+  }
+
+  static updateInnerHTML(channel, instance) {
+    const element = document.getElementById(channel);
+    if (element) {
+      element.innerHTML = instance.getInnerHTML();
+    }
   }
 
   static getFileNameFromPath(fullPath) {
@@ -101,22 +95,28 @@ export class CabbageUtils {
 
     const cabbageCode = lines.slice(cabbageStart, cabbageEnd);
     for (const line of cabbageCode) {
-      const codeProps = CabbageUtils.getCabbageCodeAsJSON(line);
-      const type = `${line.trimStart().split(' ')[0]}`;
-      if (line.trim() != "") {
-        if (type != "form") {
-          await insertWidget(type, codeProps);
-        } else {
-          widgets.forEach((widget) => {
-            if (widget.props.channel == "MainForm") {
-              const w = codeProps.width;
-              const h = codeProps.height;
-              form.style.width = w + "px";
-              form.style.height = h + "px";
-              widget.props.width = w;
-              widget.props.width = h;
-            }
-          });
+
+      if (!line.trim().startsWith(";") && line.trim() !== "") {
+        console.log("line", line)
+        const codeProps = CabbageUtils.getCabbageCodeAsJSON(line);
+        const type = `${line.trimStart().split(' ')[0]}`;
+        console.log("type", type);
+        console.log("copeProps", codeProps);
+        if (line.trim() != "") {
+          if (type != "form") {
+            await insertWidget(type, codeProps);
+          } else {
+            widgets.forEach((widget) => {
+              if (widget.props.channel == "MainForm") {
+                const w = codeProps.width;
+                const h = codeProps.height;
+                form.style.width = w + "px";
+                form.style.height = h + "px";
+                widget.props.width = w;
+                widget.props.width = h;
+              }
+            });
+          }
         }
       }
     }
@@ -320,13 +320,6 @@ export class CabbageUtils {
     return maxNumberWidth;
   }
 
-
-  static updateInnerHTML(channel, instance) {
-    const element = document.getElementById(channel);
-    if (element) {
-      element.innerHTML = instance.getInnerHTML();
-    }
-  }
 
   static getWidgetDiv(channel) {
     const element = document.getElementById(channel);

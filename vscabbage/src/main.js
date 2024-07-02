@@ -92,7 +92,14 @@ window.addEventListener('message', async event => {
       const rightPanel = document.getElementById('RightPanel');
       if (rightPanel)
         rightPanel.style.visibility = "hidden";
-      await CabbageUtils.parseCabbageCode(message.text, widgets, form, insertWidget);
+
+      try {
+        await CabbageUtils.parseCabbageCode(message.text, widgets, form, insertWidget);
+        // Additional code to execute if parseCabbageCode succeeds
+      } catch (error) {
+        console.error("An error occurred while parsing the cabbage code:", error);
+        // Handle the error appropriately, such as displaying a message to the user
+      }
 
       //in plugin mode we need to sync with the instrument's widget array
       widgets.forEach(w => {
@@ -108,7 +115,6 @@ window.addEventListener('message', async event => {
 
     case 'widgetUpdate':
       const updateMsg = JSON.parse(message.text);
-      console.log("widgetUpdate: ", updateMsg);
       updateWidget(updateMsg);
       break;
 
@@ -145,20 +151,21 @@ function updateWidget(obj) {
   for (const widget of widgets) {
     if (widget.props.channel === channel) {
       if (obj.hasOwnProperty('data')) {
-        console.log("updating widget: " + obj['data'])
         widget.props = JSON.parse(obj["data"]);
+        console.log("data", widget.props);
       } else if (obj.hasOwnProperty('value')) {
         widget.props.value = obj['value'];
+        console.log("value", widget.props.value);
       }
 
       const widgetElement = CabbageUtils.getWidgetDiv(widget.props.channel);
       if (widgetElement) {
         // console.log(widgetElement.id, widgetElement.parentElement.id);
-        // widgetElement.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
+        widgetElement.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
         widgetElement.setAttribute('data-x', widget.props.left);
         widgetElement.setAttribute('data-y', widget.props.top);
-        widgetElement.style.top = widget.props.top + 'px';
-        widgetElement.style.left = widget.props.left + 'px';
+        // widgetElement.style.top = widget.props.top + 'px';
+        // widgetElement.style.left = widget.props.left + 'px';
 
         // Do not update the innerHTML of a form as it will remove all its children
         if (widget.props.type !== "form") {
@@ -421,6 +428,7 @@ async function insertWidget(type, props) {
       widget = new TextEditor();
       break;
     default:
+      console.error("Unknown widget type: " + type, props);
       return;
   }
 
@@ -492,11 +500,10 @@ async function insertWidget(type, props) {
   }
 
 
-
-  if (typeof acquireVsCodeApi === 'function') {
-    // console.error('this is not good - house of cards nonsense with difference in translate between plugin and vscode')
-    widgetDiv.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
-  }
+  //if (typeof acquireVsCodeApi === 'function') {
+  // console.error('this is not good - house of cards nonsense with difference in translate between plugin and vscode')
+  widgetDiv.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
+  //}
 
   widgetDiv.setAttribute('data-x', widget.props.left);
   widgetDiv.setAttribute('data-y', widget.props.top);

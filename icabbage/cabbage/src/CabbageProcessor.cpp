@@ -211,6 +211,7 @@ void CabbageProcessor::timerCallback()
                 if(data.type == CabbageOpcodeData::MessageType::Value)
                 {
                     message =  cabbage.getWidgetUpdateScript(data.channel, data.value);
+                    EvaluateJavaScript(message.c_str());
                 }
                 else
                 {
@@ -231,9 +232,10 @@ void CabbageProcessor::timerCallback()
                             message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
                         }
                     }
+                    EvaluateJavaScript(message.c_str());
                 }
                 
-                EvaluateJavaScript(message.c_str());
+                
                 
                 
 #endif

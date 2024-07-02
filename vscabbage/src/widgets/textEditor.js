@@ -54,7 +54,7 @@ export class TextEditor {
         const textAlign = alignMap[this.props.align] || 'start';
 
         return `
-                <textarea style="width: 100%; height: 100%; top:0px; left:0px; background-color: ${this.props.colour}; 
+                <textarea style="width: 100%; height: 100%; background-color: ${this.props.colour}; 
                 color: ${this.props.fontColour}; font-family: ${this.props.fontFamily}; font-size: ${fontSize}px; 
                 text-align: ${textAlign}; padding: 10px; box-sizing: border-box; border: none; resize: none; position:absolute">
 ${this.props.text}
