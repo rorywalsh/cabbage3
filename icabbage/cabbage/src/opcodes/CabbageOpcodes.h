@@ -110,6 +110,30 @@ struct CabbageOpcodes
         return cStr[length] == '\0';
     }
     
+    //run identifier strings through this to make sure things are correctly escaped - they will form part
+    //of a JSON string
+    static std::string sanitiseString(const std::string& input) 
+    {
+        std::string sanitized;
+        sanitized.reserve(input.size() * 2); // Reserve space to avoid frequent reallocations
+
+        for (char c : input) {
+            if (c == '\n') {
+                sanitized += "\\n"; // Replace newline with literal "\\n"
+            } else {
+                switch (c) {
+                    case '\\': sanitized += "\\\\"; break;
+                    case '\"': sanitized += "\\\""; break;
+                    case '\r': sanitized += "\\r"; break;
+                    case '\t': sanitized += "\\t"; break;
+                    default: sanitized += c; break;
+                }
+            }
+        }
+
+        return sanitized;
+    }
+    
     CabbageOpcodeData getValueIdentData(csnd::Param<NumInputParams>& args, bool init, int nameIndex, int identIndex)
     {
         CabbageOpcodeData data;
@@ -148,7 +172,7 @@ struct CabbageOpcodes
         }
         
         data.channel = name;
-        data.cabbageCode = identifier;
+        data.cabbageCode = sanitiseString(identifier);
 
         return data;
     }

@@ -69,6 +69,15 @@ void CabbageProcessor::setupCallbacks()
     //editor onInit callback function
     editorOnLoadCallback = [&]() 
     {
+        for(auto &widget : cabbage.getWidgets())
+        {
+            //update widget objects in case UI is closed and reopened...
+            if(widget["type"].get<std::string>() == "form")
+            {
+                Resize(widget["width"].get<int>()*2, widget["height"]);
+            }
+        }
+        
 //        auto csdText = CabbageFile::getCabbageSection();
 //        std::string result = StringFormatter::format(R"(
 //        window.addEventListener('message', event => {
@@ -228,7 +237,6 @@ void CabbageProcessor::timerCallback()
                         else
                         {
                             CabbageParser::updateJsonFromSyntax(j, data.cabbageCode);
-                            _log(j.dump(4));
                             message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
                         }
                     }
@@ -317,7 +325,8 @@ void CabbageProcessor::ProcessMidiMsg(const iplug::IMidiMsg& msg)
     msg.PrintMsg();
     SendMidiMsg(msg);
     cabbage.getMidiQueue().push_back(msg);
-    /* */SendMidiMsgFromDelegate(msg);
+    /* */
+    SendMidiMsgFromDelegate(msg);
 }
 
 //======================== CSOUND MIDI FUNCTIONS ================================

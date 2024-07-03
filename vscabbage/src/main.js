@@ -3,7 +3,7 @@ import { Form } from "./widgets/form.js";
 import { RotarySlider } from "./widgets/rotarySlider.js";
 import { HorizontalSlider } from "./widgets/horizontalSlider.js";
 import { VerticalSlider } from "./widgets/verticalSlider.js";
-import { Button, FileButton } from "./widgets/button.js";
+import { Button, FileButton, OptionButton } from "./widgets/button.js";
 import { Checkbox } from "./widgets/checkbox.js";
 import { ComboBox } from "./widgets/comboBox.js";
 import { Label } from "./widgets/label.js";
@@ -18,23 +18,24 @@ import { CabbageUtils, CabbageTestUtilities } from "./utils.js";
 import { Cabbage } from "./cabbage.js";
 
 // Uncomment to generate various source code files for testing
-// const widgetsForTesting = [
-//   new Button(), 
-//   new Checkbox(), 
-//   new ComboBox(), 
-//   new CsoundOutput(), 
-//   new FileButton(),
-//   new Form(), 
-//   new GenTable(), 
-//   new HorizontalSlider(), 
-//   new Label(), 
-//   new MidiKeyboard(), 
-//   new RotarySlider(), 
-//   new TextEditor(), 
-//   new VerticalSlider()
-// ];
+const widgetsForTesting = [
+  new Button(),
+  new Checkbox(),
+  new ComboBox(),
+  new CsoundOutput(),
+  new FileButton(),
+  new Form(),
+  new GenTable(),
+  new HorizontalSlider(),
+  new Label(),
+  new MidiKeyboard(),
+  new RotarySlider(),
+  new TextEditor(),
+  new VerticalSlider(),
+  new OptionButton()
+];
 // CabbageTestUtilities.generateIdentifierTestCsd(widgetsForTesting); // This will generate a test CSD file with the widgets
-//CabbageTestUtilities.generateCabbageWidgetDescriptorsClass(widgetsForTesting); // This will generate a class with the widget descriptors 
+CabbageTestUtilities.generateCabbageWidgetDescriptorsClass(widgetsForTesting); // This will generate a class with the widget descriptors 
 
 
 //sending a message to notify when main has been loaded - Cabbage listens for this message 
@@ -407,6 +408,9 @@ async function insertWidget(type, props) {
       break;
     case "filebutton":
       widget = new FileButton();
+      break;
+    case "optionbutton":
+      widget = new OptionButton();
       break;
     case "gentable":
       widget = new GenTable();

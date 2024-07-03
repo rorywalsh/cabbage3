@@ -113,10 +113,10 @@ public:
                     {
                         const double min = token.numericArgs[0];
                         const double max = token.numericArgs[1];
-                        const double defaultValue = token.numericArgs[2];
+                        const double value = token.numericArgs[2];
                         jsonObj["min"] = min;
                         jsonObj["max"] = max;
-                        jsonObj["defaultValue"] = defaultValue;
+                        jsonObj["value"] = value;
 
                         if (token.numericArgs.size() == 5)
                         {
@@ -197,6 +197,11 @@ public:
                         std::cout << "The channel() identifier takes a string parameter" << std::endl;
                     }
                 }
+                else if (token.name == "text")
+                {
+                    //text needs to be escaped properly before we fire it off to the webview..
+                    jsonObj[token.name] = escapeJSON(token.stringArgs[0]);
+                }
                 else
                 {
                     if (token.hasStringArgs())
@@ -220,13 +225,31 @@ public:
         }
     }
 
+    static std::string escapeJSON(const std::string& input)
+    {
+        std::ostringstream oss;
+        for (char c : input)
+        {
+            switch (c) {
+                case '\\': oss << "\\\\"; break;
+                case '"': oss << "\\\""; break;
+                case '\n': oss << "\\n"; break;
+                case '\r': oss << "\\r"; break;
+                case '\t': oss << "\\t"; break;
+                default: oss << c; break;
+            }
+        }
+        return oss.str();
+    }
+    
     static std::vector<std::string> splitCommaDelimitedArgs(const std::string& input) {
         std::vector<std::string> result;
         std::string item;
         size_t start = 0;
         size_t end = input.find(',');
 
-        while (end != std::string::npos) {
+        while (end != std::string::npos) 
+        {
             item = input.substr(start, end - start);
             result.push_back(item);
             start = end + 1;
@@ -239,49 +262,46 @@ public:
         return result;
     }
     
-    static std::vector<CabbageParser::Identifier> tokeniseLine(const std::string& syntax)
+    static std::vector<Identifier> tokeniseLine(const std::string& syntax) 
     {
-        std::vector<CabbageParser::Identifier> identifiers;
-
-        // Replace all occurrences of \" with "
-        std::string sanitizedSyntax = syntax;
-        std::replace(sanitizedSyntax.begin(), sanitizedSyntax.end(), '\\', '\"');
+        std::vector<Identifier> identifiers;
 
         // Regular expressions for different parts of the syntax
         std::regex identifierRegex("\\s*([a-zA-Z]+)\\s*\\(([^)]*)\\)");
         std::regex numericArgRegex("-?\\d*\\.?\\d+");
         std::regex stringArgRegex("\"([^\"]*)\"");
 
-        std::smatch match;
-        std::string::const_iterator searchStart(sanitizedSyntax.cbegin());
+        // Find all identifiers in the syntax
+        auto words_begin = std::sregex_iterator(syntax.begin(), syntax.end(), identifierRegex);
+        auto words_end = std::sregex_iterator();
 
-        // Find all identifiers in the sanitized syntax
-        while (std::regex_search(searchStart, sanitizedSyntax.cend(), match, identifierRegex)) {
+        for (auto it = words_begin; it != words_end; ++it) 
+        {
+            std::smatch match = *it;
             Identifier identifier;
             identifier.name = match[1].str();
 
             // Parse numeric arguments
             std::string numericArgsStr = match[2].str();
-            std::sregex_iterator numArgIter(numericArgsStr.begin(), numericArgsStr.end(), numericArgRegex);
-            std::sregex_iterator end;
-            while (numArgIter != end) {
+            auto numArgIter = std::sregex_iterator(numericArgsStr.begin(), numericArgsStr.end(), numericArgRegex);
+            auto numArgEnd = std::sregex_iterator();
+            while (numArgIter != numArgEnd) 
+            {
                 identifier.numericArgs.push_back(std::stod(numArgIter->str()));
                 ++numArgIter;
             }
 
             // Parse string arguments
-            std::sregex_iterator strArgIter(numericArgsStr.begin(), numericArgsStr.end(), stringArgRegex);
-            while (strArgIter != end) {
-                StringArgument strArg;
-                std::string strArgValue = strArgIter->str();
-                // Remove quotes
-                strArgValue.erase(std::remove(strArgValue.begin(), strArgValue.end(), '\"'), strArgValue.end());
+            auto strArgIter = std::sregex_iterator(numericArgsStr.begin(), numericArgsStr.end(), stringArgRegex);
+            auto strArgEnd = std::sregex_iterator();
+            while (strArgIter != strArgEnd) 
+            {
+                std::string strArgValue = (*strArgIter)[1].str(); // Capture group 1 is inside the quotes
                 identifier.stringArgs.push_back(strArgValue);
                 ++strArgIter;
             }
 
             identifiers.push_back(identifier);
-            searchStart = match.suffix().first;
         }
 
         return identifiers;

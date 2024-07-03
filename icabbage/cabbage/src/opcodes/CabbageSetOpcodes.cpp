@@ -61,7 +61,7 @@ int CabbageSetPerfString::setIdentifier(int /*pass*/)
         if(in_count() > 3)
         {
             data.type = CabbageOpcodeData::MessageType::Identifier;
-            data.cabbageCode+=("(\""+std::string(args.str_data(2).data)+"\")");
+            data.cabbageCode+=("(\""+std::string(args.str_data(3).data)+"\")");
             varData->enqueue(data);
         }
     }

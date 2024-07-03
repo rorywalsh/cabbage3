@@ -49,9 +49,10 @@ using namespace iplug;
 - (void)evaluateJavaScriptOnMainThread:(std::string)script completionHandler:(completionHandlerFunc)func
 {
     IPLUG_WKWEBVIEW* webView = self; // Assuming this method is within IPLUG_WKWEBVIEW context
-    
+
     if (![webView isLoading]) {
         [webView evaluateJavaScript:[NSString stringWithUTF8String:script.c_str()] completionHandler:^(NSString *result, NSError *error) {
+            _log(script);
             if (error != nil) {
                 NSLog(@"Error %@", error);
             } else if (func) {

@@ -22,7 +22,7 @@ void Cabbage::addOpcodes()
     csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Sk", csnd::thread::k);
     csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Si", csnd::thread::i);
     
-    csnd::plugin<CabbageSetPerfString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSS", csnd::thread::k);
+    csnd::plugin<CabbageSetPerfString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSSW", csnd::thread::k);
     csnd::plugin<CabbageSetInitString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "SW", csnd::thread::i);
     csnd::plugin<CabbageSetPerfMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSSM", csnd::thread::k);
     csnd::plugin<CabbageSetInitMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "SSM", csnd::thread::i);
@@ -250,7 +250,7 @@ std::string Cabbage::getWidgetUpdateScript(std::string channel, std::string data
             command: "widgetUpdate",
             text: JSON.stringify({
                 channel: "<>",
-                data: '<>'
+                data: `<>`
             })
         });
     )",

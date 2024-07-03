@@ -9,7 +9,7 @@ import { HorizontalSlider } from "./widgets/horizontalSlider.js";
 // @ts-ignore
 import { VerticalSlider } from "./widgets/verticalSlider.js";
 // @ts-ignore
-import { Button, FileButton } from "./widgets/button.js";
+import { Button, FileButton, OptionButton } from "./widgets/button.js";
 // @ts-ignore
 import { Checkbox } from "./widgets/checkbox.js";
 // @ts-ignore
@@ -142,7 +142,7 @@ export function activate(context: vscode.ExtensionContext) {
 		const colourPickerStyles = panel.webview.asWebviewUri(onDiskPath);
 
 		//add widget types to menu
-		const widgetTypes = ["hslider", "rslider", "texteditor", "gentable", "vslider", "keyboard", "button", "filebutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
+		const widgetTypes = ["hslider", "rslider", "texteditor", "gentable", "vslider", "keyboard", "button", "filebutton", "optionbutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
 
 		let menuItems = "";
 		widgetTypes.forEach((widget) => {
@@ -248,6 +248,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 					case 'fileOpen':
 						const jsonText = JSON.parse(message.text);
+						console.error("fileOpen", jsonText.channel);
 						vscode.window.showOpenDialog({
 							canSelectFiles: true,
 							canSelectFolders: false,
@@ -258,7 +259,6 @@ export function activate(context: vscode.ExtensionContext) {
 							}
 						}).then((fileUri) => {
 							if (fileUri) {
-
 								const m = {
 									"fileName": fileUri[0].fsPath,
 									"channel": jsonText.channel
@@ -344,6 +344,9 @@ async function updateText(jsonText: string) {
 				break;
 			case 'filebutton':
 				defaultProps = new FileButton().props;
+				break;
+			case 'optionbutton':
+				defaultProps = new OptionButton().props;
 				break;
 			case 'checkbox':
 				defaultProps = new Checkbox().props;

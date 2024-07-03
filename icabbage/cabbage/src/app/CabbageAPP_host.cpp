@@ -47,35 +47,43 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                         auto& cabbage = cabbageProcessor->getCabbage();
                         auto json = nlohmann::json::parse(msg->str, nullptr, false);
                         const std::string command = json["command"];
-                        auto message = nlohmann::json::parse(json["text"].get<std::string>());
+                        auto jsonObj = nlohmann::json::parse(json["text"].get<std::string>());
                         if(command == "parameterChange")
                         {
                             for(int i = 0 ; i < cabbage.getNumberOfParameter() ; i++)
                             {
-                                if(cabbage.getParameterChannel(i).name == message["channel"].get<std::string>())
+                                if(cabbage.getParameterChannel(i).name == jsonObj["channel"].get<std::string>())
                                 {
                                     //update underlying JSON object if the value has changed
-                                    auto widgetOpt = cabbage.getWidget(message["channel"]);
+                                    auto widgetOpt = cabbage.getWidget(jsonObj["channel"]);
                                     if (widgetOpt.has_value())
                                     {
                                         auto& j = widgetOpt.value().get();
-                                        CabbageParser::updateJsonWithValue(j, message["value"].get<double>());
+                                        CabbageParser::updateJsonWithValue(j, jsonObj["value"].get<double>());
                                     }
-                                    cabbageProcessor->SetParameterValue (i, message["value"].get<double>());
+                                    cabbageProcessor->SetParameterValue (i, jsonObj["value"].get<double>());
                                 }
                             }
 //                            SendParameterValueFromUI(message["paramIdx"], message["value"]);
                         }
                         else if(command == "fileOpenFromVSCode")
                         {
-                            if(message.contains("fileName")){
-                                cabbage.setStringChannel(message["channel"].get<std::string>(), message["fileName"].get<std::string>());
+                            if(jsonObj.contains("fileName")){
+                                cabbage.setStringChannel(jsonObj["channel"].get<std::string>(), jsonObj["fileName"].get<std::string>());
                             }
                         }
                         else if(command == "widgetStateUpdate")
                         {
-                            cabbage.updateWidgetState(message);
+                            cabbage.updateWidgetState(jsonObj);
                             
+                        }
+                        else if(command == "midiMessage")
+                        {
+                            _log(jsonObj.dump(4));
+                            iplug::IMidiMsg msg {0, jsonObj["statusByte"].get<uint8_t>(),
+                                jsonObj["dataByte1"].get<uint8_t>(),
+                                jsonObj["dataByte2"].get<uint8_t>()};
+                            cabbageProcessor->SendMidiMsgFromUI(msg);
                         }
                         else if(command == "cabbageSetupComplete")
                         {

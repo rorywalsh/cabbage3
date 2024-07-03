@@ -62,12 +62,12 @@ const textEditor_js_1 = __webpack_require__(14);
 const utils_js_1 = __webpack_require__(3);
 // @ts-ignore
 const form_js_1 = __webpack_require__(15);
-const cp = __importStar(__webpack_require__(40));
+const cp = __importStar(__webpack_require__(16));
 let textEditor;
 let output;
 let panel = undefined;
 let dbg = false;
-const ws_1 = __importDefault(__webpack_require__(16));
+const ws_1 = __importDefault(__webpack_require__(17));
 const wss = new ws_1.default.Server({ port: 9991 });
 let websocket;
 let cabbageMode = "play";
@@ -229,6 +229,7 @@ function activate(context) {
                     break;
                 case 'fileOpen':
                     const jsonText = JSON.parse(message.text);
+                    console.error("fileOpen", jsonText.channel);
                     vscode.window.showOpenDialog({
                         canSelectFiles: true,
                         canSelectFolders: false,
@@ -676,7 +677,6 @@ class RotarySlider {
     widgetDiv.innerHTML = this.getInnerHTML();
 
     const newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
-
     const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
     _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
     
@@ -2582,16 +2582,13 @@ class FileButton extends Button {
   constructor() {
     super();
     this.props.channel = "fileButton";
-    delete this.props.textOn;
-    delete this.props.textOff;
-    delete this.props.colourOn;
-    delete this.props.fontColourOff;
-    delete this.props.fontColourOn;
+    this.props.textOn = this.props.textOff;
+    this.props.colourOn = this.props.colourOff;
+    this.props.fontColourOn = this.props.fontColourOff;
+    this.props.mode = "file";
     //override following properties
-    this.props.fontColour = "#dddddd";
     this.props.text = "Choose File";
     this.props.type = "filebutton";
-    this.props.colour = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue");
     this.props.automatable = 0;
   }
 
@@ -2599,11 +2596,15 @@ class FileButton extends Button {
     if (this.props.active === 0) {
       return '';
     }
+    console.log("pointerDown");
     this.isMouseDown = true;
-    this.state = !this.state;
+    this.props.value = 1;
+
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
     _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
     _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.triggerFileOpenDialog(this.vscode, this.props.channel);
   }
+
 
   // getInnerHTML() {
   //   if (this.props.visible === 0) {
@@ -3158,36 +3159,36 @@ __webpack_require__.r(__webpack_exports__);
 class MidiKeyboard {
   constructor() {
     this.props = {
-      "top": 0, // Top position of the keyboard widget
-      "left": 0, // Left position of the keyboard widget
-      "width": 600, // Width of the keyboard widget
-      "height": 300, // Height of the keyboard widget
-      "type": "keyboard", // Type of the widget (keyboard)
-      "colour": "#888888", // Background color of the keyboard
-      "channel": "keyboard", // Unique identifier for the keyboard widget
-      "blackNoteColour": "#000", // Color of the black keys on the keyboard
-      "value": "36", // The leftmost note of the keyboard
-      "fontFamily": "Verdana", // Font family for the text displayed on the keyboard
-      "whiteNoteColour": "#fff", // Color of the white keys on the keyboard
-      "keySeparatorColour": "#000", // Color of the separators between keys
-      "arrowBackgroundColour": "#0295cf", // Background color of the arrow keys
-      "mouseoverKeyColour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of keys when hovered over
-      "keydownColour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of keys when pressed
-      "octaveButtonColour": "#00f", // Color of the octave change buttons
-      "automatable": 0
-  };
-  
+      top: 0, // Top position of the keyboard widget
+      left: 0, // Left position of the keyboard widget
+      width: 600, // Width of the keyboard widget
+      height: 300, // Height of the keyboard widget
+      type: "keyboard", // Type of the widget (keyboard)
+      colour: "#888888", // Background color of the keyboard
+      channel: "keyboard", // Unique identifier for the keyboard widget
+      blackNoteColour: "#000", // Color of the black keys on the keyboard
+      value: "36", // The leftmost note of the keyboard
+      fontFamily: "Verdana", // Font family for the text displayed on the keyboard
+      whiteNoteColour: "#fff", // Color of the white keys on the keyboard
+      keySeparatorColour: "#000", // Color of the separators between keys
+      arrowBackgroundColour: "#0295cf", // Background color of the arrow keys
+      mouseoverKeyColour: _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of keys when hovered over
+      keydownColour: _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of keys when pressed
+      octaveButtonColour: "#00f", // Color of the octave change buttons
+      automatable: 0
+    };
 
     this.panelSections = {
-      "Properties": ["type"],
-      "Bounds": ["left", "top", "width", "height"],
-      "Text": ["fontFamily"],
-      "Colours": ["colour", "blackNoteColour", "whiteNoteColour", "keySeparatorColour", "arrowBackgroundColour", "keydownColour", "octaveButtonColour"]
+      Properties: ["type"],
+      Bounds: ["left", "top", "width", "height"],
+      Text: ["fontFamily"],
+      Colours: ["colour", "blackNoteColour", "whiteNoteColour", "keySeparatorColour", "arrowBackgroundColour", "keydownColour", "octaveButtonColour"]
     };
 
     this.isMouseDown = false; // Track the state of the mouse button
     this.octaveOffset = 3;
     this.noteMap = {};
+    this.activeNotes = new Set(); // Track active notes
     const octaveCount = 6; // Adjust this value as needed
 
     // Define an array of note names
@@ -3206,42 +3207,66 @@ class MidiKeyboard {
   pointerDown(e) {
     if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
       this.isMouseDown = true;
-      e.target.setAttribute('fill', this.props.keydownColour);
-      console.log(`Key down: ${this.noteMap[e.target.dataset.note]}`);
-      console.log(`Key down: ${e.target.dataset.note}`);
-      _cabbage_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendMidiMessageFromUI(0x90, this.noteMap[e.target.dataset.note], 127);
+      this.noteOn(e.target);
     }
   }
-
 
   pointerUp(e) {
     if (this.isMouseDown) {
       this.isMouseDown = false;
-      if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
-        e.target.setAttribute('fill', e.target.classList.contains('white-key') ? this.props.whiteNoteColour : this.props.blackNoteColour);
-        console.log(`Key up: ${this.noteMap[e.target.dataset.note]}`);
-        _cabbage_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendMidiMessageFromUI(0x80, this.noteMap[e.target.dataset.note], 127);
-      }
+      this.noteOff(e.target);
     }
   }
 
   pointerMove(e) {
-    if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
-      e.target.setAttribute('fill', this.props.mouseoverKeyColour);
-      console.log(`Key move: ${this.noteMap[e.target.dataset.note]}`);
+    if (this.isMouseDown) {
+      if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
+        if (!this.activeNotes.has(e.target.dataset.note)) {
+          this.noteOn(e.target);
+        }
+      } else {
+        this.noteOffLastKey();
+      }
     }
   }
 
   pointerEnter(e) {
     if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
-      e.target.setAttribute('fill', this.props.mouseoverKeyColour);
-      console.log(`Key enter: ${this.noteMap[e.target.dataset.note]}`);
+      this.noteOn(e.target);
     }
   }
 
   pointerLeave(e) {
     if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
-      e.target.setAttribute('fill', e.target.classList.contains('white-key') ? this.props.whiteNoteColour : this.props.blackNoteColour);
+      this.noteOff(e.target);
+    }
+  }
+
+  noteOn(keyElement) {
+    const note = keyElement.dataset.note;
+    if (!this.activeNotes.has(note)) {
+      this.activeNotes.add(note);
+      keyElement.setAttribute('fill', this.props.keydownColour);
+      console.log(`Key down: ${this.noteMap[note]}`);
+      _cabbage_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendMidiMessageFromUI(this.vscode, 0x90, this.noteMap[note], 127);
+    }
+  }
+
+  noteOff(keyElement) {
+    const note = keyElement.dataset.note;
+    if (this.activeNotes.has(note)) {
+      this.activeNotes.delete(note);
+      keyElement.setAttribute('fill', keyElement.classList.contains('white-key') ? this.props.whiteNoteColour : this.props.blackNoteColour);
+      console.log(`Key up: ${this.noteMap[note]}`);
+      _cabbage_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendMidiMessageFromUI(this.vscode, 0x80, this.noteMap[note], 0);
+    }
+  }
+
+  noteOffLastKey() {
+    if (this.activeNotes.size > 0) {
+      const lastNote = Array.from(this.activeNotes).pop();
+      const keyElement = document.querySelector(`[data-note="${lastNote}"]`);
+      this.noteOff(keyElement);
     }
   }
 
@@ -3275,16 +3300,15 @@ class MidiKeyboard {
     console.log("Midi message listener");
     const detail = event.detail;
     const midiData = JSON.parse(detail.data);
-    console.log("Midi message listener", midiData.status);
-    if(midiData.status == 144) {
+    console.log("Midi message listener", midiData);
+    if (midiData.status == 144) {
       const note = midiData.data1;
       // const velocity = midiData.data2;
       const noteName = Object.keys(this.noteMap).find(key => this.noteMap[key] === note);
       const key = document.querySelector(`[data-note="${noteName}"]`);
       key.setAttribute('fill', this.props.keydownColour);
       console.log(`Key down: ${note} ${noteName}`);
-    }
-    else if(midiData.status == 128) {
+    } else if (midiData.status == 128) {
       const note = midiData.data1;
       const noteName = Object.keys(this.noteMap).find(key => this.noteMap[key] === note);
       const key = document.querySelector(`[data-note="${noteName}"]`);
@@ -3293,7 +3317,7 @@ class MidiKeyboard {
     }
   }
 
-  addListeners(widgetDiv){
+  addListeners(widgetDiv) {
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
     widgetDiv.addEventListener("pointerup", this.pointerUp.bind(this));
     widgetDiv.addEventListener("pointermove", this.pointerMove.bind(this));
@@ -3306,8 +3330,7 @@ class MidiKeyboard {
   handleClickEvent(e) {
     if (e.target.id == "octave-up") {
       this.changeOctave(1);
-    }
-    else {
+    } else {
       this.changeOctave(-1);
     }
   }
@@ -3315,7 +3338,7 @@ class MidiKeyboard {
   getInnerHTML() {
     const scaleFactor = 0.9; // Adjusting this to fit the UI designer bounding rect
   
-    const whiteKeyWidth = (this.props.width / 21) * scaleFactor; 
+    const whiteKeyWidth = (this.props.width / 21) * scaleFactor;
     const whiteKeyHeight = this.props.height * scaleFactor;
     const blackKeyWidth = whiteKeyWidth * 0.4;
     const blackKeyHeight = whiteKeyHeight * 0.6;
@@ -3326,6 +3349,8 @@ class MidiKeyboard {
   
     let whiteSvgKeys = '';
     let blackSvgKeys = '';
+  
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.1;
   
     for (let octave = 0; octave < 3; octave++) {
       for (let i = 0; i < whiteKeys.length; i++) {
@@ -3345,7 +3370,7 @@ class MidiKeyboard {
         if (i === 0) { // First white key of the octave
           const textX = xOffset + whiteKeyWidth / 2; // Position text in the middle of the white key
           const textY = whiteKeyHeight * 0.8; // Position text in the middle vertically
-          whiteSvgKeys += `<text x="${textX}" y="${textY}" text-anchor="middle"  font-family="${this.props.fontFamily}" dominant-baseline="middle" font-size="${whiteKeyHeight / 5}" fill="${this.props.blackNoteColour}" style="pointer-events: none;">${note}</text>`;
+          whiteSvgKeys += `<text x="${textX}" y="${textY}" text-anchor="middle"  font-family="${this.props.fontFamily}" dominant-baseline="middle" font-size="${fontSize}" fill="${this.props.blackNoteColour}" style="pointer-events: none;">${note}</text>`;
         }
       }
     }
@@ -3368,9 +3393,6 @@ class MidiKeyboard {
     `;
   }
   
-
-
-
 }
 
 
@@ -3408,7 +3430,7 @@ class GenTable {
             "corners": 4, // Radius of the background rectangle
             "align": "left",
             "visible": 1,
-            "text": "Default Label",
+            "text": "",
             "tableNumber": 1,
             "samples": [],
             "automatable": 0
@@ -3698,16 +3720,22 @@ class Form {
 
 /***/ }),
 /* 16 */
+/***/ ((module) => {
+
+module.exports = require("child_process");
+
+/***/ }),
+/* 17 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const WebSocket = __webpack_require__(17);
+const WebSocket = __webpack_require__(18);
 
-WebSocket.createWebSocketStream = __webpack_require__(37);
-WebSocket.Server = __webpack_require__(38);
-WebSocket.Receiver = __webpack_require__(31);
-WebSocket.Sender = __webpack_require__(34);
+WebSocket.createWebSocketStream = __webpack_require__(38);
+WebSocket.Server = __webpack_require__(39);
+WebSocket.Receiver = __webpack_require__(32);
+WebSocket.Sender = __webpack_require__(35);
 
 WebSocket.WebSocket = WebSocket;
 WebSocket.WebSocketServer = WebSocket.Server;
@@ -3716,25 +3744,25 @@ module.exports = WebSocket;
 
 
 /***/ }),
-/* 17 */
+/* 18 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex|Readable$" }] */
 
 
 
-const EventEmitter = __webpack_require__(18);
-const https = __webpack_require__(19);
-const http = __webpack_require__(20);
-const net = __webpack_require__(21);
-const tls = __webpack_require__(22);
-const { randomBytes, createHash } = __webpack_require__(23);
-const { Duplex, Readable } = __webpack_require__(24);
-const { URL } = __webpack_require__(25);
+const EventEmitter = __webpack_require__(19);
+const https = __webpack_require__(20);
+const http = __webpack_require__(21);
+const net = __webpack_require__(22);
+const tls = __webpack_require__(23);
+const { randomBytes, createHash } = __webpack_require__(24);
+const { Duplex, Readable } = __webpack_require__(25);
+const { URL } = __webpack_require__(26);
 
-const PerMessageDeflate = __webpack_require__(26);
-const Receiver = __webpack_require__(31);
-const Sender = __webpack_require__(34);
+const PerMessageDeflate = __webpack_require__(27);
+const Receiver = __webpack_require__(32);
+const Sender = __webpack_require__(35);
 const {
   BINARY_TYPES,
   EMPTY_BUFFER,
@@ -3744,12 +3772,12 @@ const {
   kStatusCode,
   kWebSocket,
   NOOP
-} = __webpack_require__(29);
+} = __webpack_require__(30);
 const {
   EventTarget: { addEventListener, removeEventListener }
-} = __webpack_require__(35);
-const { format, parse } = __webpack_require__(36);
-const { toBuffer } = __webpack_require__(28);
+} = __webpack_require__(36);
+const { format, parse } = __webpack_require__(37);
+const { toBuffer } = __webpack_require__(29);
 
 const closeTimeout = 30 * 1000;
 const kAborted = Symbol('kAborted');
@@ -5058,64 +5086,64 @@ function socketOnError() {
 
 
 /***/ }),
-/* 18 */
+/* 19 */
 /***/ ((module) => {
 
 module.exports = require("events");
 
 /***/ }),
-/* 19 */
+/* 20 */
 /***/ ((module) => {
 
 module.exports = require("https");
 
 /***/ }),
-/* 20 */
+/* 21 */
 /***/ ((module) => {
 
 module.exports = require("http");
 
 /***/ }),
-/* 21 */
+/* 22 */
 /***/ ((module) => {
 
 module.exports = require("net");
 
 /***/ }),
-/* 22 */
+/* 23 */
 /***/ ((module) => {
 
 module.exports = require("tls");
 
 /***/ }),
-/* 23 */
+/* 24 */
 /***/ ((module) => {
 
 module.exports = require("crypto");
 
 /***/ }),
-/* 24 */
+/* 25 */
 /***/ ((module) => {
 
 module.exports = require("stream");
 
 /***/ }),
-/* 25 */
+/* 26 */
 /***/ ((module) => {
 
 module.exports = require("url");
 
 /***/ }),
-/* 26 */
+/* 27 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const zlib = __webpack_require__(27);
+const zlib = __webpack_require__(28);
 
-const bufferUtil = __webpack_require__(28);
-const Limiter = __webpack_require__(30);
-const { kStatusCode } = __webpack_require__(29);
+const bufferUtil = __webpack_require__(29);
+const Limiter = __webpack_require__(31);
+const { kStatusCode } = __webpack_require__(30);
 
 const FastBuffer = Buffer[Symbol.species];
 const TRAILER = Buffer.from([0x00, 0x00, 0xff, 0xff]);
@@ -5626,18 +5654,18 @@ function inflateOnError(err) {
 
 
 /***/ }),
-/* 27 */
+/* 28 */
 /***/ ((module) => {
 
 module.exports = require("zlib");
 
 /***/ }),
-/* 28 */
+/* 29 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { EMPTY_BUFFER } = __webpack_require__(29);
+const { EMPTY_BUFFER } = __webpack_require__(30);
 
 const FastBuffer = Buffer[Symbol.species];
 
@@ -5769,7 +5797,7 @@ if (!process.env.WS_NO_BUFFER_UTIL) {
 
 
 /***/ }),
-/* 29 */
+/* 30 */
 /***/ ((module) => {
 
 
@@ -5787,7 +5815,7 @@ module.exports = {
 
 
 /***/ }),
-/* 30 */
+/* 31 */
 /***/ ((module) => {
 
 
@@ -5848,22 +5876,22 @@ module.exports = Limiter;
 
 
 /***/ }),
-/* 31 */
+/* 32 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { Writable } = __webpack_require__(24);
+const { Writable } = __webpack_require__(25);
 
-const PerMessageDeflate = __webpack_require__(26);
+const PerMessageDeflate = __webpack_require__(27);
 const {
   BINARY_TYPES,
   EMPTY_BUFFER,
   kStatusCode,
   kWebSocket
-} = __webpack_require__(29);
-const { concat, toArrayBuffer, unmask } = __webpack_require__(28);
-const { isValidStatusCode, isValidUTF8 } = __webpack_require__(32);
+} = __webpack_require__(30);
+const { concat, toArrayBuffer, unmask } = __webpack_require__(29);
+const { isValidStatusCode, isValidUTF8 } = __webpack_require__(33);
 
 const FastBuffer = Buffer[Symbol.species];
 const promise = Promise.resolve();
@@ -6596,12 +6624,12 @@ function throwErrorNextTick(err) {
 
 
 /***/ }),
-/* 32 */
+/* 33 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { isUtf8 } = __webpack_require__(33);
+const { isUtf8 } = __webpack_require__(34);
 
 //
 // Allowed token characters:
@@ -6732,26 +6760,26 @@ if (isUtf8) {
 
 
 /***/ }),
-/* 33 */
+/* 34 */
 /***/ ((module) => {
 
 module.exports = require("buffer");
 
 /***/ }),
-/* 34 */
+/* 35 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex" }] */
 
 
 
-const { Duplex } = __webpack_require__(24);
-const { randomFillSync } = __webpack_require__(23);
+const { Duplex } = __webpack_require__(25);
+const { randomFillSync } = __webpack_require__(24);
 
-const PerMessageDeflate = __webpack_require__(26);
-const { EMPTY_BUFFER } = __webpack_require__(29);
-const { isValidStatusCode } = __webpack_require__(32);
-const { mask: applyMask, toBuffer } = __webpack_require__(28);
+const PerMessageDeflate = __webpack_require__(27);
+const { EMPTY_BUFFER } = __webpack_require__(30);
+const { isValidStatusCode } = __webpack_require__(33);
+const { mask: applyMask, toBuffer } = __webpack_require__(29);
 
 const kByteLength = Symbol('kByteLength');
 const maskBuffer = Buffer.alloc(4);
@@ -7221,12 +7249,12 @@ module.exports = Sender;
 
 
 /***/ }),
-/* 35 */
+/* 36 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { kForOnEventAttribute, kListener } = __webpack_require__(29);
+const { kForOnEventAttribute, kListener } = __webpack_require__(30);
 
 const kCode = Symbol('kCode');
 const kData = Symbol('kData');
@@ -7519,12 +7547,12 @@ function callListener(listener, thisArg, event) {
 
 
 /***/ }),
-/* 36 */
+/* 37 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { tokenChars } = __webpack_require__(32);
+const { tokenChars } = __webpack_require__(33);
 
 /**
  * Adds an offer to the map of extension offers or a parameter to the map of
@@ -7728,12 +7756,12 @@ module.exports = { format, parse };
 
 
 /***/ }),
-/* 37 */
+/* 38 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { Duplex } = __webpack_require__(24);
+const { Duplex } = __webpack_require__(25);
 
 /**
  * Emits the `'close'` event on a stream.
@@ -7893,23 +7921,23 @@ module.exports = createWebSocketStream;
 
 
 /***/ }),
-/* 38 */
+/* 39 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex$" }] */
 
 
 
-const EventEmitter = __webpack_require__(18);
-const http = __webpack_require__(20);
-const { Duplex } = __webpack_require__(24);
-const { createHash } = __webpack_require__(23);
+const EventEmitter = __webpack_require__(19);
+const http = __webpack_require__(21);
+const { Duplex } = __webpack_require__(25);
+const { createHash } = __webpack_require__(24);
 
-const extension = __webpack_require__(36);
-const PerMessageDeflate = __webpack_require__(26);
-const subprotocol = __webpack_require__(39);
-const WebSocket = __webpack_require__(17);
-const { GUID, kWebSocket } = __webpack_require__(29);
+const extension = __webpack_require__(37);
+const PerMessageDeflate = __webpack_require__(27);
+const subprotocol = __webpack_require__(40);
+const WebSocket = __webpack_require__(18);
+const { GUID, kWebSocket } = __webpack_require__(30);
 
 const keyRegex = /^[+/0-9A-Za-z]{22}==$/;
 
@@ -8438,12 +8466,12 @@ function abortHandshakeOrEmitwsClientError(server, req, socket, code, message) {
 
 
 /***/ }),
-/* 39 */
+/* 40 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { tokenChars } = __webpack_require__(32);
+const { tokenChars } = __webpack_require__(33);
 
 /**
  * Parses the `Sec-WebSocket-Protocol` header into a set of subprotocol names.
@@ -8504,12 +8532,6 @@ function parse(header) {
 
 module.exports = { parse };
 
-
-/***/ }),
-/* 40 */
-/***/ ((module) => {
-
-module.exports = require("child_process");
 
 /***/ })
 /******/ 	]);

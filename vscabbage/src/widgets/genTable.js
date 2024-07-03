@@ -23,7 +23,7 @@ export class GenTable {
             "corners": 4, // Radius of the background rectangle
             "align": "left",
             "visible": 1,
-            "text": "Default Label",
+            "text": "",
             "tableNumber": 1,
             "samples": [],
             "automatable": 0

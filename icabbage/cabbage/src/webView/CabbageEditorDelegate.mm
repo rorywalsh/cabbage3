@@ -189,9 +189,7 @@ void CabbageEditorDelegate::SendArbitraryMsgFromDelegate(int msgTag, int dataSiz
 void CabbageEditorDelegate::SendMidiMsgFromDelegate(const iplug::IMidiMsg& msg)
 {
     std::string message =  StringFormatter::format(R"(
-    (function() {
-      
-
+    
       // Create a custom event with the MIDI message details
       let customEvent = new CustomEvent('midiEvent', {
         detail: {
@@ -205,10 +203,14 @@ void CabbageEditorDelegate::SendMidiMsgFromDelegate(const iplug::IMidiMsg& msg)
 
       // Dispatch the custom event
       document.dispatchEvent(customEvent);
-    })();
+    
     )", std::to_string(msg.mStatus), std::to_string(msg.mData1), std::to_string(msg.mData1));
-
     EvaluateJavaScript(message.c_str());
+    
+//    (function() {
+//
+      
+//    })();
 }
 
 /* this method is called from the webview. It will trigger various callback
@@ -287,9 +289,9 @@ void CabbageEditorDelegate::OnMessageFromWebView(const char* jsonStr)
 //    }
     else if(command == "midiMessage")
     {
-        iplug::IMidiMsg msg {0, json["statusByte"].get<uint8_t>(),
-        json["dataByte1"].get<uint8_t>(),
-        json["dataByte2"].get<uint8_t>()};
+        iplug::IMidiMsg msg {0, jsonContent["statusByte"].get<uint8_t>(),
+            jsonContent["dataByte1"].get<uint8_t>(),
+            jsonContent["dataByte2"].get<uint8_t>()};
         SendMidiMsgFromUI(msg);
     }
 }

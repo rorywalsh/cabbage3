@@ -45,11 +45,12 @@ public:
             return value;
         }
         
-        bool hasValueChanged(float newValue){
-            return value != newValue;
+        bool hasValueChanged(float newValue) {
+            return init ? (init = false, true) : (value != newValue);
         }
         
         float value;
+        bool init = true;
 
     };
     

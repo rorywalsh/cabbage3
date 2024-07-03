@@ -161,20 +161,20 @@ export class Button {
   }
 }
 
+/*
+  * File Button for file browsing @extends Button
+  */ 
 export class FileButton extends Button {
   constructor() {
     super();
     this.props.channel = "fileButton";
-    delete this.props.textOn;
-    delete this.props.textOff;
-    delete this.props.colourOn;
-    delete this.props.fontColourOff;
-    delete this.props.fontColourOn;
+    this.props.textOn = this.props.textOff;
+    this.props.colourOn = this.props.colourOff;
+    this.props.fontColourOn = this.props.fontColourOff;
+    this.props.mode = "file";
     //override following properties
-    this.props.fontColour = "#dddddd";
     this.props.text = "Choose File";
     this.props.type = "filebutton";
-    this.props.colour = CabbageColours.getColour("blue");
     this.props.automatable = 0;
   }
 
@@ -182,45 +182,81 @@ export class FileButton extends Button {
     if (this.props.active === 0) {
       return '';
     }
+    console.log("pointerDown");
     this.isMouseDown = true;
-    this.state = !this.state;
+    this.props.value = 1;
+
     CabbageUtils.updateInnerHTML(this.props.channel, this);
-    Cabbage.triggerFileOpenDialog(this.vscode, this.props.channel);
   }
 
-  // getInnerHTML() {
-  //   if (this.props.visible === 0) {
-  //     return '';
-  //   }
+}
 
-  //   const alignMap = {
-  //     'left': 'start',
-  //     'center': 'middle',
-  //     'centre': 'middle',
-  //     'right': 'end',
-  //   };
+/*
+  * Option Button for multi-item button @extends Button
+  */
+export class OptionButton extends Button {
+  constructor() {
+    super();
+    this.props.channel = "fileButton";
+    this.props.textOn = this.props.textOff;
+    this.props.colourOn = this.props.colourOff;
+    this.props.fontColourOn = this.props.fontColourOff;
+    this.props.items = "One, Two, Three", // List of items for the dropdown
+    //override following properties
+    this.props.text = "";
+    this.props.type = "optionbutton";
+    this.props.automatable = 1;
+  }
 
-  //   const svgAlign = alignMap[this.props.align] || this.props.align;
-  //   const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
-  //   const padding = 5;
+  pointerDown(evt) {
+    if (this.props.active === 0) {
+      return '';
+    }
+    console.log("pointerDown");
+    this.isMouseDown = true;
+    this.props.value = this.props.value < this.props.items.split(",").length - 1 ? this.props.value + 1 : 0;
 
-  //   let textX;
-  //   if (this.props.align === 'left') {
-  //     textX = this.props.corners; // Add padding for left alignment
-  //   } else if (this.props.align === 'right') {
-  //     textX = this.props.width - this.props.corners - padding; // Add padding for right alignment
-  //   } else {
-  //     textX = this.props.width / 2;
-  //   }
+    CabbageUtils.updateInnerHTML(this.props.channel, this);
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: this.props.value }
+    Cabbage.sendParameterUpdate(this.vscode, msg);
+  }
 
-  //   const currentColour = CabbageColours.darker(this.props.colour, this.isMouseInside ? 0.2 : 0);
-  //   return `
-  //     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-  //         <rect x="0" y="0" width="${this.props.width}" height="${this.props.height}" fill="${currentColour}" stroke="${this.props.outlineColour}"
-  //           stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
-  //         <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
-  //           fill="${this.props.fontColour}" text-anchor="${svgAlign}" alignment-baseline="middle">${this.props.text}</text>
-  //     </svg>
-  //   `;
-  // }
+  getInnerHTML() {
+    if (this.props.visible === 0) {
+      return '';
+    }
+
+    const alignMap = {
+      'left': 'start',
+      'center': 'middle',
+      'centre': 'middle',
+      'right': 'end',
+    };
+
+    const svgAlign = alignMap[this.props.align] || this.props.align;
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
+    const padding = 5;
+    const items = this.props.items.split(",");
+
+    let textX;
+    if (this.props.align === 'left') {
+      textX = this.props.corners; // Add padding for left alignment
+    } else if (this.props.align === 'right') {
+      textX = this.props.width - this.props.corners - padding; // Add padding for right alignment
+    } else {
+      textX = this.props.width / 2;
+    }
+
+    const stateColour = CabbageColours.darker(this.props.value === 1 ? this.props.colourOn : this.props.colourOff, this.isMouseInside ? 0.2 : 0);
+    const currentColour = this.isMouseDown ? CabbageColours.lighter(this.props.colourOn, 0.2) : stateColour;
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+          <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners}" fill="${currentColour}" stroke="${this.props.outlineColour}"
+            stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
+          <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+            fill="${this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${items[this.props.value]}</text>
+      </svg>
+    `;
+  }
+
 }

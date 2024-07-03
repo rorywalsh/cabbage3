@@ -7,36 +7,36 @@ import { CabbageUtils, CabbageColours } from "../utils.js";
 export class MidiKeyboard {
   constructor() {
     this.props = {
-      "top": 0, // Top position of the keyboard widget
-      "left": 0, // Left position of the keyboard widget
-      "width": 600, // Width of the keyboard widget
-      "height": 300, // Height of the keyboard widget
-      "type": "keyboard", // Type of the widget (keyboard)
-      "colour": "#888888", // Background color of the keyboard
-      "channel": "keyboard", // Unique identifier for the keyboard widget
-      "blackNoteColour": "#000", // Color of the black keys on the keyboard
-      "value": "36", // The leftmost note of the keyboard
-      "fontFamily": "Verdana", // Font family for the text displayed on the keyboard
-      "whiteNoteColour": "#fff", // Color of the white keys on the keyboard
-      "keySeparatorColour": "#000", // Color of the separators between keys
-      "arrowBackgroundColour": "#0295cf", // Background color of the arrow keys
-      "mouseoverKeyColour": CabbageColours.getColour('green'), // Color of keys when hovered over
-      "keydownColour": CabbageColours.getColour('green'), // Color of keys when pressed
-      "octaveButtonColour": "#00f", // Color of the octave change buttons
-      "automatable": 0
-  };
-  
+      top: 0, // Top position of the keyboard widget
+      left: 0, // Left position of the keyboard widget
+      width: 600, // Width of the keyboard widget
+      height: 300, // Height of the keyboard widget
+      type: "keyboard", // Type of the widget (keyboard)
+      colour: "#888888", // Background color of the keyboard
+      channel: "keyboard", // Unique identifier for the keyboard widget
+      blackNoteColour: "#000", // Color of the black keys on the keyboard
+      value: "36", // The leftmost note of the keyboard
+      fontFamily: "Verdana", // Font family for the text displayed on the keyboard
+      whiteNoteColour: "#fff", // Color of the white keys on the keyboard
+      keySeparatorColour: "#000", // Color of the separators between keys
+      arrowBackgroundColour: "#0295cf", // Background color of the arrow keys
+      mouseoverKeyColour: CabbageColours.getColour('green'), // Color of keys when hovered over
+      keydownColour: CabbageColours.getColour('green'), // Color of keys when pressed
+      octaveButtonColour: "#00f", // Color of the octave change buttons
+      automatable: 0
+    };
 
     this.panelSections = {
-      "Properties": ["type"],
-      "Bounds": ["left", "top", "width", "height"],
-      "Text": ["fontFamily"],
-      "Colours": ["colour", "blackNoteColour", "whiteNoteColour", "keySeparatorColour", "arrowBackgroundColour", "keydownColour", "octaveButtonColour"]
+      Properties: ["type"],
+      Bounds: ["left", "top", "width", "height"],
+      Text: ["fontFamily"],
+      Colours: ["colour", "blackNoteColour", "whiteNoteColour", "keySeparatorColour", "arrowBackgroundColour", "keydownColour", "octaveButtonColour"]
     };
 
     this.isMouseDown = false; // Track the state of the mouse button
     this.octaveOffset = 3;
     this.noteMap = {};
+    this.activeNotes = new Set(); // Track active notes
     const octaveCount = 6; // Adjust this value as needed
 
     // Define an array of note names
@@ -55,42 +55,66 @@ export class MidiKeyboard {
   pointerDown(e) {
     if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
       this.isMouseDown = true;
-      e.target.setAttribute('fill', this.props.keydownColour);
-      console.log(`Key down: ${this.noteMap[e.target.dataset.note]}`);
-      console.log(`Key down: ${e.target.dataset.note}`);
-      Cabbage.sendMidiMessageFromUI(0x90, this.noteMap[e.target.dataset.note], 127);
+      this.noteOn(e.target);
     }
   }
-
 
   pointerUp(e) {
     if (this.isMouseDown) {
       this.isMouseDown = false;
-      if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
-        e.target.setAttribute('fill', e.target.classList.contains('white-key') ? this.props.whiteNoteColour : this.props.blackNoteColour);
-        console.log(`Key up: ${this.noteMap[e.target.dataset.note]}`);
-        Cabbage.sendMidiMessageFromUI(0x80, this.noteMap[e.target.dataset.note], 127);
-      }
+      this.noteOff(e.target);
     }
   }
 
   pointerMove(e) {
-    if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
-      e.target.setAttribute('fill', this.props.mouseoverKeyColour);
-      console.log(`Key move: ${this.noteMap[e.target.dataset.note]}`);
+    if (this.isMouseDown) {
+      if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
+        if (!this.activeNotes.has(e.target.dataset.note)) {
+          this.noteOn(e.target);
+        }
+      } else {
+        this.noteOffLastKey();
+      }
     }
   }
 
   pointerEnter(e) {
     if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
-      e.target.setAttribute('fill', this.props.mouseoverKeyColour);
-      console.log(`Key enter: ${this.noteMap[e.target.dataset.note]}`);
+      this.noteOn(e.target);
     }
   }
 
   pointerLeave(e) {
     if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
-      e.target.setAttribute('fill', e.target.classList.contains('white-key') ? this.props.whiteNoteColour : this.props.blackNoteColour);
+      this.noteOff(e.target);
+    }
+  }
+
+  noteOn(keyElement) {
+    const note = keyElement.dataset.note;
+    if (!this.activeNotes.has(note)) {
+      this.activeNotes.add(note);
+      keyElement.setAttribute('fill', this.props.keydownColour);
+      console.log(`Key down: ${this.noteMap[note]}`);
+      Cabbage.sendMidiMessageFromUI(this.vscode, 0x90, this.noteMap[note], 127);
+    }
+  }
+
+  noteOff(keyElement) {
+    const note = keyElement.dataset.note;
+    if (this.activeNotes.has(note)) {
+      this.activeNotes.delete(note);
+      keyElement.setAttribute('fill', keyElement.classList.contains('white-key') ? this.props.whiteNoteColour : this.props.blackNoteColour);
+      console.log(`Key up: ${this.noteMap[note]}`);
+      Cabbage.sendMidiMessageFromUI(this.vscode, 0x80, this.noteMap[note], 0);
+    }
+  }
+
+  noteOffLastKey() {
+    if (this.activeNotes.size > 0) {
+      const lastNote = Array.from(this.activeNotes).pop();
+      const keyElement = document.querySelector(`[data-note="${lastNote}"]`);
+      this.noteOff(keyElement);
     }
   }
 
@@ -124,16 +148,15 @@ export class MidiKeyboard {
     console.log("Midi message listener");
     const detail = event.detail;
     const midiData = JSON.parse(detail.data);
-    console.log("Midi message listener", midiData.status);
-    if(midiData.status == 144) {
+    console.log("Midi message listener", midiData);
+    if (midiData.status == 144) {
       const note = midiData.data1;
       // const velocity = midiData.data2;
       const noteName = Object.keys(this.noteMap).find(key => this.noteMap[key] === note);
       const key = document.querySelector(`[data-note="${noteName}"]`);
       key.setAttribute('fill', this.props.keydownColour);
       console.log(`Key down: ${note} ${noteName}`);
-    }
-    else if(midiData.status == 128) {
+    } else if (midiData.status == 128) {
       const note = midiData.data1;
       const noteName = Object.keys(this.noteMap).find(key => this.noteMap[key] === note);
       const key = document.querySelector(`[data-note="${noteName}"]`);
@@ -142,7 +165,7 @@ export class MidiKeyboard {
     }
   }
 
-  addListeners(widgetDiv){
+  addListeners(widgetDiv) {
     widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
     widgetDiv.addEventListener("pointerup", this.pointerUp.bind(this));
     widgetDiv.addEventListener("pointermove", this.pointerMove.bind(this));
@@ -155,8 +178,7 @@ export class MidiKeyboard {
   handleClickEvent(e) {
     if (e.target.id == "octave-up") {
       this.changeOctave(1);
-    }
-    else {
+    } else {
       this.changeOctave(-1);
     }
   }
@@ -164,7 +186,7 @@ export class MidiKeyboard {
   getInnerHTML() {
     const scaleFactor = 0.9; // Adjusting this to fit the UI designer bounding rect
   
-    const whiteKeyWidth = (this.props.width / 21) * scaleFactor; 
+    const whiteKeyWidth = (this.props.width / 21) * scaleFactor;
     const whiteKeyHeight = this.props.height * scaleFactor;
     const blackKeyWidth = whiteKeyWidth * 0.4;
     const blackKeyHeight = whiteKeyHeight * 0.6;
@@ -175,6 +197,8 @@ export class MidiKeyboard {
   
     let whiteSvgKeys = '';
     let blackSvgKeys = '';
+  
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.1;
   
     for (let octave = 0; octave < 3; octave++) {
       for (let i = 0; i < whiteKeys.length; i++) {
@@ -194,7 +218,7 @@ export class MidiKeyboard {
         if (i === 0) { // First white key of the octave
           const textX = xOffset + whiteKeyWidth / 2; // Position text in the middle of the white key
           const textY = whiteKeyHeight * 0.8; // Position text in the middle vertically
-          whiteSvgKeys += `<text x="${textX}" y="${textY}" text-anchor="middle"  font-family="${this.props.fontFamily}" dominant-baseline="middle" font-size="${whiteKeyHeight / 5}" fill="${this.props.blackNoteColour}" style="pointer-events: none;">${note}</text>`;
+          whiteSvgKeys += `<text x="${textX}" y="${textY}" text-anchor="middle"  font-family="${this.props.fontFamily}" dominant-baseline="middle" font-size="${fontSize}" fill="${this.props.blackNoteColour}" style="pointer-events: none;">${note}</text>`;
         }
       }
     }
@@ -217,7 +241,4 @@ export class MidiKeyboard {
     `;
   }
   
-
-
-
 }

@@ -63,7 +63,6 @@ public:
     
     void OnWebContentLoaded() override {
         OnUIOpen();
-        Resize(800,500);
         if (editorOnLoadCallback)
             editorOnLoadCallback();
     }
