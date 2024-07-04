@@ -255,7 +255,7 @@ void CabbageProcessor::timerCallback()
 //===============================================================================
 void CabbageProcessor::OnParamChange(int paramIdx)
 {
-    if(cabbage.getNumberOfParameter() > 0)
+    if(cabbage.getNumberOfParameters() > 0)
     {
         //only update if we need to...
         auto& p = cabbage.getParameterChannel(paramIdx);

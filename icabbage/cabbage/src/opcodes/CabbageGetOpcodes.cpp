@@ -14,8 +14,6 @@ int CabbageGetValue::getValue(int init)
 {
     if(in_count() == 0)
         return NOTOK;
-
-    
     if (csound->get_csound()->GetChannelPtr(csound->get_csound(), &value, inargs.str_data(0).data,
                                             CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
     {

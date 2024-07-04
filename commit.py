@@ -101,9 +101,9 @@ base_commit_message = sys.argv[1] if len(sys.argv) > 1 else None
 proposed_commit_message = propose_commit_message(vscabbage_changes, icabbage_changes, tests_changes, example_changes)
 
 if base_commit_message:
-    final_commit_message = base_commit_message + " - Version number: " + newVersionNum
+    final_commit_message = base_commit_message + " - Build number: " + newVersionNum
 else:
-    final_commit_message = "Proposed Commit: - Version number: " + newVersionNum + "\n" + proposed_commit_message
+    final_commit_message = "Build number: " + newVersionNum + "\n" + proposed_commit_message
 
 # Print proposed commit message for debugging
 print(final_commit_message)

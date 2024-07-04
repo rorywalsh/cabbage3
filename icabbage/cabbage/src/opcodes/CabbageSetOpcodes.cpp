@@ -72,7 +72,7 @@ int CabbageSetPerfString::setIdentifier(int /*pass*/)
 // cabbageSet "channel", "identifier("arg")
 // cabbageSet "channel", "identifier", "arg"
 //=====================================================================================
-int CabbageSetInitString::setIdentifier(int /*pass*/)
+int CabbageSetInitString::setIdentifier(int pass)
 {
 
     od = (moodycamel::ReaderWriterQueue<CabbageOpcodeData>**)csound->query_global_variable("cabbageOpcodeData");
@@ -83,6 +83,7 @@ int CabbageSetInitString::setIdentifier(int /*pass*/)
         auto data = getIdentData(args, true, 0, 1);
         data.type = CabbageOpcodeData::MessageType::Identifier;
         data.cabbageCode+=("(\""+std::string(args.str_data(2).data)+"\")");
+        _log(data.cabbageCode);
         varData->enqueue(data);
     }
     else

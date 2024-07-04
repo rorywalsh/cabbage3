@@ -2,6 +2,7 @@
 
 
 export class Cabbage {
+  
   static sendParameterUpdate(vscode, message) {
     const msg = {
       command: "parameterChange",

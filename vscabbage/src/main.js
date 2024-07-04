@@ -13,6 +13,23 @@ import { MidiKeyboard } from "./widgets/midiKeyboard.js";
 import { TextEditor } from "./widgets/textEditor.js";
 //------------------------
 
+const widgetConstructors = {
+  "rslider": RotarySlider,
+  "hslider": HorizontalSlider,
+  "vslider": VerticalSlider,
+  "keyboard": MidiKeyboard,
+  "form": Form,
+  "button": Button,
+  "filebutton": FileButton,
+  "optionbutton": OptionButton,
+  "gentable": GenTable,
+  "label": Label,
+  "combobox": ComboBox,
+  "checkbox": Checkbox,
+  "csoundoutput": CsoundOutput,
+  "texteditor": TextEditor
+};
+
 import { PropertyPanel } from "./propertyPanel.js";
 import { CabbageUtils, CabbageTestUtilities } from "./utils.js";
 import { Cabbage } from "./cabbage.js";
@@ -152,13 +169,12 @@ function updateWidget(obj) {
   for (const widget of widgets) {
     if (widget.props.channel === channel) {
       if (obj.hasOwnProperty('data')) {
+        console.error("data", obj["data"]);
         widget.props = JSON.parse(obj["data"]);
-        console.log("data", widget.props);
       } else if (obj.hasOwnProperty('value')) {
         widget.props.value = obj['value'];
-        console.log("value", widget.props.value);
       }
-
+   
       const widgetElement = CabbageUtils.getWidgetDiv(widget.props.channel);
       if (widgetElement) {
         // console.log(widgetElement.id, widgetElement.parentElement.id);
@@ -379,61 +395,32 @@ if (form) {
     });
   }
 }
+
+// Function to create widget dynamically based on type
+function createWidget(type) {
+  const WidgetClass = widgetConstructors[type];
+  if (WidgetClass) {
+    const widget = new WidgetClass();
+    if (type === "gentable") {
+      widget.createCanvas(); // Additional logic specific to "gentable"
+    }
+    return widget;
+  } else {
+    console.error("Unknown widget type: " + type);
+    return null;
+  }
+}
 /**
  * insets a new widget to the form, this can be called when loading/saving a file, or when we right-
  * click and add widgets
  */
 async function insertWidget(type, props) {
   const widgetDiv = document.createElement('div');
-  let widget = {};
-
-  switch (type) {
-    case "rslider":
-      widget = new RotarySlider();
-      break;
-    case "hslider":
-      widget = new HorizontalSlider();
-      break;
-    case "vslider":
-      widget = new VerticalSlider();
-      break;
-    case "keyboard":
-      widget = new MidiKeyboard();
-      break;
-    case "form":
-      widget = new Form();
-      break;
-    case "button":
-      widget = new Button();
-      break;
-    case "filebutton":
-      widget = new FileButton();
-      break;
-    case "optionbutton":
-      widget = new OptionButton();
-      break;
-    case "gentable":
-      widget = new GenTable();
-      widget.createCanvas();
-      break;
-    case "label":
-      widget = new Label();
-      break;
-    case "combobox":
-      widget = new ComboBox();
-      break;
-    case "checkbox":
-      widget = new Checkbox();
-      break;
-    case "csoundoutput":
-      widget = new CsoundOutput();
-      break;
-    case "texteditor":
-      widget = new TextEditor();
-      break;
-    default:
-      console.error("Unknown widget type: " + type, props);
-      return;
+  let widget = createWidget(type);
+  if (widget) {
+    console.log("Created widget:", widget);
+  } else {
+    console.error("Failed to create widget of type:", type);
   }
 
   if (type === "form")

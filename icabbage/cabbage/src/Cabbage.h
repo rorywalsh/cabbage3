@@ -97,7 +97,7 @@ public:
     ParameterChannel& getParameterChannel(int index) { return parameterChannels[index]; }
     
     // Get the number of parameters
-    int getNumberOfParameter()            { return numberOfParameters; }
+    int getNumberOfParameters()            { return numberOfParameters; }
     
     // Get the widgets
     std::vector<nlohmann::json>& getWidgets() { return widgets; }
@@ -138,7 +138,7 @@ public:
     //utlity function to loads samples from a sound file on disk.
     static std::vector<double> readAudioFile(const std::string& filePath);
     
-    
+    void setReservedChannels();
 
     
 private:

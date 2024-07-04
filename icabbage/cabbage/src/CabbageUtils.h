@@ -186,7 +186,7 @@ public:
         }
     }
 
-    static std::string getCsdPath() {
+    static std::string getCsdFileAndPath() {
         std::string resourceDir = getCabbageResourceDir();
         std::string binaryFileName = getBinaryFileName();
         size_t pos = binaryFileName.find_last_of(".");
@@ -194,6 +194,16 @@ public:
             binaryFileName = binaryFileName.substr(0, pos);
         const std::string newPath = joinPath(resourceDir, binaryFileName);
         return joinPath(newPath, binaryFileName + ".csd");
+    }
+    
+    static std::string getCsdPath() {
+        std::string resourceDir = getCabbageResourceDir();
+        std::string binaryFileName = getBinaryFileName();
+        size_t pos = binaryFileName.find_last_of(".");
+        if (pos != std::string::npos)
+            binaryFileName = binaryFileName.substr(0, pos);
+        const std::string newPath = joinPath(resourceDir, binaryFileName);
+        return newPath;
     }
     
     //return a JS escaped string
@@ -206,7 +216,7 @@ public:
     //the file based on the curren binary name
     static std::string getFileAsString(std::string csdFile = ""){
         if(csdFile.empty())
-            csdFile = getCsdPath();
+            csdFile = getCsdFileAndPath();
         
         std::ifstream file(csdFile);
         std::ostringstream oss;
@@ -214,6 +224,24 @@ public:
         std::string csdContents = oss.str();
         return csdContents;
     }
+    
+    static std::string sanitisePath(const std::string& path) {
+            std::string sanitizedPath = path;
+
+            // Remove trailing backslashes
+            while (!sanitizedPath.empty() && sanitizedPath.back() == '\\') {
+                sanitizedPath.pop_back();
+            }
+
+            // Replace backslashes with forward slashes
+            for (char& c : sanitizedPath) {
+                if (c == '\\') {
+                    c = '/';
+                }
+            }
+
+            return sanitizedPath;
+        }
 
 private:
     #if defined(_WIN32)

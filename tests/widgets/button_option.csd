@@ -29,7 +29,7 @@ nchnls = 2
 
 instr 99
 
-    SText  = "An option button can be used to toggle through different items. The widget will send its current index to is associated channel, starting from 0. In this example an option button is used to toggle through a set of waveform. \n\nWe can't just pass these indices to the vco2 opcode. Instead we use them as indices to simple array that hold the appropriate vco2 waveform modes."
+    SText  = "An option button can be used to toggle through different items. The widget will send its current index to is associated channel, starting from 0. In this example an option button is used to toggle through a set of waveforms. \n\nWe can't just pass these indices to the vco2 opcode. Instead we use them as indices to simple array that hold the appropriate vco2 waveform modes."
     cabbageSet "infoText", "text", SText
 
 endin
@@ -37,7 +37,7 @@ endin
 instr 1
     
     iVcoModes[] fillarray 0, 10, 12
-    
+    print cabbageGetValue:i("waveform")
     iAtt cabbageGetValue "att"
     iDec cabbageGetValue "dec"
     iSus cabbageGetValue "sus"

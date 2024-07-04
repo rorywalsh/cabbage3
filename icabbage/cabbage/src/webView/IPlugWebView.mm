@@ -52,7 +52,6 @@ using namespace iplug;
 
     if (![webView isLoading]) {
         [webView evaluateJavaScript:[NSString stringWithUTF8String:script.c_str()] completionHandler:^(NSString *result, NSError *error) {
-            _log(script);
             if (error != nil) {
                 NSLog(@"Error %@", error);
             } else if (func) {

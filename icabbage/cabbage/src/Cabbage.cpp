@@ -71,7 +71,7 @@ bool Cabbage::setupCsound()
     //    compileCsdFile(csdFile);
     
 //    csdFile = "/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/CabbagePluginEffect.csd";
-    std::filesystem::path file = csdFile.empty() ? CabbageFile::getCsdPath() : csdFile;
+    std::filesystem::path file = csdFile.empty() ? CabbageFile::getCsdFileAndPath() : csdFile;
     csdFile = file.string();
     
     bool exists = std::filesystem::exists(csdFile);
@@ -85,6 +85,7 @@ bool Cabbage::setupCsound()
             csSpout = csound->GetSpout();
             csSpin = csound->GetSpin();
             csScale = csound->Get0dBFS();
+            setReservedChannels();
         }
         else
         {
@@ -162,10 +163,16 @@ bool Cabbage::setupCsound()
 }
 
 //===========================================================================================
-
+void Cabbage::setReservedChannels()
+{
+    auto path = CabbageFile::getCsdPath();
+    csound->SetStringChannel("CSD_PATH", (char*)path.c_str());
+    
+}
+//===========================================================================================
 int Cabbage::getNumberOfParameters(const std::string& csdFile)
 {
-    std::vector<nlohmann::json> widgets = CabbageParser::parseCsdForWidgets(csdFile.empty() ? CabbageFile::getCsdPath() : csdFile);
+    std::vector<nlohmann::json> widgets = CabbageParser::parseCsdForWidgets(csdFile.empty() ? CabbageFile::getCsdFileAndPath() : csdFile);
     int numParams = 0;
     for(auto& w : widgets)
     {
@@ -298,6 +305,9 @@ void Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonOb
             const int tableNumber = jsonObj["tableNumber"];
             auto samples = Cabbage::readAudioFile(jsonObj["file"].get<std::string>());
             
+            if(samples.size() == 0)
+                return;
+            
             auto createTable = StringFormatter::format(R"(giTable<> ftgen <>, 0, <>, -7, 0, 0)", tableNumber, tableNumber, samples.size());
             std::cout << "orc to create table: \n" << createTable << std::endl;;
             getCsound()->CompileOrc(createTable.c_str());
@@ -359,12 +369,19 @@ std::string Cabbage::removeControlCharacters(const std::string& input) {
 
 std::vector<double> Cabbage::readAudioFile(const std::string &filePath)
 {
+    if(!CabbageFile::fileExists(filePath))
+        return {};
+    
     choc::audio::AudioFileFormatList formats;
     formats.addFormat<choc::audio::WAVAudioFileFormat<false>>();
     formats.addFormat<choc::audio::OggAudioFileFormat<false>>();
     formats.addFormat<choc::audio::MP3AudioFileFormat>();
     formats.addFormat<choc::audio::FLACAudioFileFormat<false>>();
     auto reader = formats.createReader (filePath);
+    
+    if(!reader.get())
+        return {};
+    
     
     auto& p = reader->getProperties();
     auto samples = reader->loadFileContent();

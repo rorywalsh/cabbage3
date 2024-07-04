@@ -197,10 +197,18 @@ public:
                         std::cout << "The channel() identifier takes a string parameter" << std::endl;
                     }
                 }
+                else if (token.name == "file")
+                {
+                    if(token.hasStringArgs())
+                    {
+                        auto file = CabbageFile::sanitisePath(token.stringArgs[0]);
+                        jsonObj[token.name] = file;
+                    }
+                }
                 else if (token.name == "text")
                 {
-                    //text needs to be escaped properly before we fire it off to the webview..
-                    jsonObj[token.name] = escapeJSON(token.stringArgs[0]);
+                    if(token.hasStringArgs())
+                        jsonObj[token.name] = escapeJSON(token.stringArgs[0]);
                 }
                 else
                 {
@@ -262,51 +270,79 @@ public:
         return result;
     }
     
-    static std::vector<Identifier> tokeniseLine(const std::string& syntax) 
-    {
-        std::vector<Identifier> identifiers;
-
-        // Regular expressions for different parts of the syntax
-        std::regex identifierRegex("\\s*([a-zA-Z]+)\\s*\\(([^)]*)\\)");
-        std::regex numericArgRegex("-?\\d*\\.?\\d+");
-        std::regex stringArgRegex("\"([^\"]*)\"");
-
-        // Find all identifiers in the syntax
-        auto words_begin = std::sregex_iterator(syntax.begin(), syntax.end(), identifierRegex);
-        auto words_end = std::sregex_iterator();
-
-        for (auto it = words_begin; it != words_end; ++it) 
-        {
-            std::smatch match = *it;
-            Identifier identifier;
-            identifier.name = match[1].str();
-
-            // Parse numeric arguments
-            std::string numericArgsStr = match[2].str();
-            auto numArgIter = std::sregex_iterator(numericArgsStr.begin(), numericArgsStr.end(), numericArgRegex);
-            auto numArgEnd = std::sregex_iterator();
-            while (numArgIter != numArgEnd) 
-            {
-                identifier.numericArgs.push_back(std::stod(numArgIter->str()));
-                ++numArgIter;
-            }
-
-            // Parse string arguments
-            auto strArgIter = std::sregex_iterator(numericArgsStr.begin(), numericArgsStr.end(), stringArgRegex);
-            auto strArgEnd = std::sregex_iterator();
-            while (strArgIter != strArgEnd) 
-            {
-                std::string strArgValue = (*strArgIter)[1].str(); // Capture group 1 is inside the quotes
-                identifier.stringArgs.push_back(strArgValue);
-                ++strArgIter;
-            }
-
-            identifiers.push_back(identifier);
+    static void replaceCharWithinParentheses(std::string& str, char charToReplace, const std::string& replacementStr) {
+        size_t openParenthesisStart = str.find('(');
+        if (openParenthesisStart == std::string::npos) {
+            std::cerr << "No opening parenthesis found.\n";
+            return;
         }
 
-        return identifiers;
+        size_t openParenthesisEnd = str.rfind(')');
+        if (openParenthesisEnd == std::string::npos) {
+            std::cerr << "No closing parenthesis found.\n";
+            return;
+        }
+
+        // Only process the text between the first ( and the last )
+        std::string innerText = str.substr(openParenthesisStart + 1, openParenthesisEnd - openParenthesisStart - 1);
+
+        // Replace the specified character within the inner text
+        size_t pos = 0;
+        while ((pos = innerText.find(charToReplace, pos)) != std::string::npos) {
+            innerText.replace(pos, 1, replacementStr);
+            pos += replacementStr.length();  // Move past the replaced string
+        }
+
+        // Update the original string with the modified inner text
+        str.replace(openParenthesisStart + 1, openParenthesisEnd - openParenthesisStart - 1, innerText);
     }
 
+    
+    static std::vector<Identifier> tokeniseLine(const std::string& syntax)
+        {
+            std::vector<Identifier> identifiers;
+            std::string incomingCode = syntax;
+
+            // Regular expressions for different parts of the syntax
+            std::regex identifierRegex("\\s*([a-zA-Z]+)\\s*\\(([^)]*)\\)");
+            std::regex numericArgRegex("-?\\d*\\.?\\d+");
+            std::regex stringArgRegex("\"([^\"]*)\"");
+
+            // Find all identifiers in the syntax
+            auto words_begin = std::sregex_iterator(incomingCode.begin(), incomingCode.end(), identifierRegex);
+            auto words_end = std::sregex_iterator();
+
+            for (auto it = words_begin; it != words_end; ++it)
+            {
+                std::smatch match = *it;
+                Identifier identifier;
+                identifier.name = match[1].str();
+
+                // Parse numeric arguments
+                std::string numericArgsStr = match[2].str();
+                auto numArgIter = std::sregex_iterator(numericArgsStr.begin(), numericArgsStr.end(), numericArgRegex);
+                auto numArgEnd = std::sregex_iterator();
+                while (numArgIter != numArgEnd)
+                {
+                    identifier.numericArgs.push_back(std::stod(numArgIter->str()));
+                    ++numArgIter;
+                }
+
+                // Parse string arguments
+                auto strArgIter = std::sregex_iterator(numericArgsStr.begin(), numericArgsStr.end(), stringArgRegex);
+                auto strArgEnd = std::sregex_iterator();
+                while (strArgIter != strArgEnd)
+                {
+                    std::string strArgValue = (*strArgIter)[1].str(); // Capture group 1 is inside the quotes
+                    identifier.stringArgs.push_back(strArgValue);
+                    ++strArgIter;
+                }
+
+                identifiers.push_back(identifier);
+            }
+
+            return identifiers;
+        }
     static std::string getWidgetType(const std::string& line)
     {
         std::istringstream iss(line);

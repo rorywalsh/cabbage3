@@ -125,9 +125,7 @@ export class CabbageUtils {
   /**
    * this function will return the number of plugin parameter in our widgets array
    */
-  static getNumberOfPluginParameters(widgets, ...types) {
-    // Create a set from the types for faster lookup
-    const typeSet = new Set(types);
+  static getNumberOfPluginParameters(widgets) {
 
     // Initialize the counter
     let count = 0;
@@ -135,7 +133,7 @@ export class CabbageUtils {
     // Iterate over each widget in the array
     for (const widget of widgets) {
       // Check if the widget's type is one of the specified types
-      if (typeSet.has(widget.props.type)) {
+      if (widget.props.automatable === 1) {
         // Increment the counter if the type matches
         count++;
       }
