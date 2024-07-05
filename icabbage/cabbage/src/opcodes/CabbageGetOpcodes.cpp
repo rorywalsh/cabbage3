@@ -138,7 +138,7 @@ int CabbageGetMYFLT::getIdentifier(int init)
     
     if(in_count()==2)
     {
-        CabbageOpcodeData data = getIdentData(inargs, true, 0, 1);
+        CabbageOpcodeData data = getIdentData(csound, inargs, true, 0, 1);
         for(auto &widget : *varData)
         {
             auto channel = CabbageParser::removeQuotes(widget["channel"].get<std::string>());
@@ -153,7 +153,7 @@ int CabbageGetMYFLT::getIdentifier(int init)
     {
         //if only a channel string is passed in, then get the current value of that channel
         
-        CabbageOpcodeData data = getIdentData(inargs, true, 0, 0);
+        CabbageOpcodeData data = getIdentData(csound, inargs, true, 0, 0);
         for(auto &widget : *varData)
         {
             auto channel = CabbageParser::removeQuotes(widget["channel"].get<std::string>());
@@ -179,7 +179,7 @@ int CabbageGetString::getIdentifier(int init)
     
     if(in_count()==2) // irate version
     {
-        CabbageOpcodeData data = getIdentData(inargs, true, 0, 1);
+        CabbageOpcodeData data = getIdentData(csound, inargs, true, 0, 1);
         for(auto &widget : *varData)
         {
             auto channel = CabbageParser::removeQuotes(widget["channel"].get<std::string>());
@@ -205,13 +205,12 @@ int CabbageGetStringWithTrigger::getIdentifier(int init)
     
     if(in_count()==2)
     {
-        CabbageOpcodeData data = getIdentData(inargs, true, 0, 1);
+        CabbageOpcodeData data = getIdentData(csound, inargs, true, 0, 1);
         for(auto &widget : *varData)
         {
             auto channel = widget["channel"].get<std::string>();
             if(channel == data.channel)
             {
-                std::cout << widget.dump(4);
                 auto str = widget[data.cabbageCode].get<std::string>();
 
                 if(!currentString){

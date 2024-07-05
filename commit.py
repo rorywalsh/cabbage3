@@ -23,13 +23,13 @@ def categorize_changes(changed_files):
         file_path = line[3:].strip()
 
         if file_path.startswith('vscabbage'):
-            vscabbage_changes.append((status, file_path))
+            vscabbage_changes.append((status, os.path.basename(file_path)))
         elif file_path.startswith('icabbage/cabbage'):
-            icabbage_changes.append((status, file_path))
+            icabbage_changes.append((status, os.path.basename(file_path)))
         elif file_path.startswith('tests'):
-            tests_changes.append((status, file_path))
+            tests_changes.append((status, os.path.basename(file_path)))
         elif file_path.startswith('example'):
-            example_changes.append((status, file_path))
+            example_changes.append((status, os.path.basename(file_path)))
     
     return vscabbage_changes, icabbage_changes, tests_changes, example_changes
 
@@ -50,20 +50,20 @@ def propose_commit_message(vscabbage_changes, icabbage_changes, tests_changes, e
                 action = "Renamed"
             else:
                 action = "Updated"
-            formatted += f" - {action}: {file}"
+            formatted += f" {file} "
         return formatted
     
     if vscabbage_changes:
-        commit_message += "\nVSCabbage:\n" + format_changes(vscabbage_changes)
+        commit_message += " VSCabbage:" + format_changes(vscabbage_changes)
     
     if icabbage_changes:
-        commit_message += "\nICabbage/Cabbage:\n" + format_changes(icabbage_changes)
+        commit_message += " Cabbage:" + format_changes(icabbage_changes)
     
     if tests_changes:
-        commit_message += "\nTests:\n" + format_changes(tests_changes)
+        commit_message += " Tests:" + format_changes(tests_changes)
     
     if example_changes:
-        commit_message += "\nExample:\n" + format_changes(example_changes)
+        commit_message += " Example:" + format_changes(example_changes)
     
     return commit_message.strip()
 

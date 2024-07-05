@@ -151,22 +151,55 @@ struct CabbageOpcodes
     }
     
 
-    CabbageOpcodeData getIdentData(csnd::Param<NumInputParams>& args, bool init, int nameIndex, int identIndex)
+    //this check for brackets within strings, when argument is in form of text("this is a string")
+    bool containsIllegalCharsWithinParentheses(const std::string& str) {
+        size_t openParenthesis = str.find('(');
+        if (openParenthesis == std::string::npos) {
+            return false;  // No opening parenthesis found
+        }
+
+        size_t closeParenthesis = str.rfind(')');
+        if (closeParenthesis == std::string::npos || closeParenthesis < openParenthesis) {
+            return false;  // No closing parenthesis found or closing parenthesis is before opening parenthesis
+        }
+
+        // Check for () character within the parentheses
+        for (size_t i = openParenthesis + 1; i < closeParenthesis; ++i) {
+            if (str[i] == ')' || str[i] == '(')
+                return true;
+        }
+        return false;
+    }
+    
+    //this check for brackets within strings, when argument is in form of "this is a string", i.e, no identifier
+    bool containsIllegalChars(const std::string& str) {
+        // Check for both '(' and ')' using ||
+        if (str.find('(') != std::string::npos || str.find(')') != std::string::npos) {
+            return true;
+        }
+        return false;
+    }
+    
+    CabbageOpcodeData getIdentData(csnd::Csound* csound, csnd::Param<NumInputParams>& args, bool init, int channelIndex, int identIndex)
     {
         CabbageOpcodeData data;
         if(init)
         {
-            if(args.str_data(nameIndex).size == 0)
+            if(args.str_data(channelIndex).size == 0)
                 name = {};
             else
             {
-                name = args.str_data(nameIndex).data;
+                name = args.str_data(channelIndex).data;
             }
 
             if(args.str_data(identIndex).size == 0)
                 identifier = {};
             else
             {
+                if(containsIllegalCharsWithinParentheses(args.str_data(identIndex).data))
+                {
+                    csound->message("Cabbage Warning: Ill-formatted arguments passed to channel:\""+data.channel+"\" Check for brackets within strings..");
+                }
                 identifier = args.str_data(identIndex).data;
             }
         }

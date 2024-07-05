@@ -299,50 +299,50 @@ public:
 
     
     static std::vector<Identifier> tokeniseLine(const std::string& syntax)
+    {
+        std::vector<Identifier> identifiers;
+        
+        // Regular expressions for different parts of the syntax
+        std::regex identifierRegex("\\s*([a-zA-Z]+)\\s*\\(([^)]*)\\)");
+        std::regex numericArgRegex("-?\\d*\\.?\\d+");
+        std::regex stringArgRegex("\"([^\"]*)\"");
+
+        // Find all identifiers in the syntax
+        auto words_begin = std::sregex_iterator(syntax.begin(), syntax.end(), identifierRegex);
+        auto words_end = std::sregex_iterator();
+
+        for (auto it = words_begin; it != words_end; ++it)
         {
-            std::vector<Identifier> identifiers;
-            std::string incomingCode = syntax;
+            std::smatch match = *it;
+            Identifier identifier;
+            identifier.name = match[1].str();
 
-            // Regular expressions for different parts of the syntax
-            std::regex identifierRegex("\\s*([a-zA-Z]+)\\s*\\(([^)]*)\\)");
-            std::regex numericArgRegex("-?\\d*\\.?\\d+");
-            std::regex stringArgRegex("\"([^\"]*)\"");
-
-            // Find all identifiers in the syntax
-            auto words_begin = std::sregex_iterator(incomingCode.begin(), incomingCode.end(), identifierRegex);
-            auto words_end = std::sregex_iterator();
-
-            for (auto it = words_begin; it != words_end; ++it)
+            // Parse numeric arguments
+            std::string numericArgsStr = match[2].str();
+            auto numArgIter = std::sregex_iterator(numericArgsStr.begin(), numericArgsStr.end(), numericArgRegex);
+            auto numArgEnd = std::sregex_iterator();
+            while (numArgIter != numArgEnd)
             {
-                std::smatch match = *it;
-                Identifier identifier;
-                identifier.name = match[1].str();
-
-                // Parse numeric arguments
-                std::string numericArgsStr = match[2].str();
-                auto numArgIter = std::sregex_iterator(numericArgsStr.begin(), numericArgsStr.end(), numericArgRegex);
-                auto numArgEnd = std::sregex_iterator();
-                while (numArgIter != numArgEnd)
-                {
-                    identifier.numericArgs.push_back(std::stod(numArgIter->str()));
-                    ++numArgIter;
-                }
-
-                // Parse string arguments
-                auto strArgIter = std::sregex_iterator(numericArgsStr.begin(), numericArgsStr.end(), stringArgRegex);
-                auto strArgEnd = std::sregex_iterator();
-                while (strArgIter != strArgEnd)
-                {
-                    std::string strArgValue = (*strArgIter)[1].str(); // Capture group 1 is inside the quotes
-                    identifier.stringArgs.push_back(strArgValue);
-                    ++strArgIter;
-                }
-
-                identifiers.push_back(identifier);
+                identifier.numericArgs.push_back(std::stod(numArgIter->str()));
+                ++numArgIter;
             }
 
-            return identifiers;
+            // Parse string arguments
+            auto strArgIter = std::sregex_iterator(numericArgsStr.begin(), numericArgsStr.end(), stringArgRegex);
+            auto strArgEnd = std::sregex_iterator();
+            while (strArgIter != strArgEnd)
+            {
+                std::string strArgValue = (*strArgIter)[1].str(); // Capture group 1 is inside the quotes
+                identifier.stringArgs.push_back(strArgValue);
+                ++strArgIter;
+            }
+
+            identifiers.push_back(identifier);
         }
+
+        return identifiers;
+    }
+    
     static std::string getWidgetType(const std::string& line)
     {
         std::istringstream iss(line);

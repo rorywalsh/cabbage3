@@ -48,7 +48,7 @@ int CabbageSetPerfString::setIdentifier(int /*pass*/)
     od = (moodycamel::ReaderWriterQueue<CabbageOpcodeData>**)csound->query_global_variable("cabbageOpcodeData");
     moodycamel::ReaderWriterQueue<CabbageOpcodeData>* varData = CabbageOpcodes::getOpcodeDataGlobalvariable(csound, od);
     
-    auto data = getIdentData(args, true, 1, 2);
+    auto data = getIdentData(csound, args, true, 1, 2);
     data.type = CabbageOpcodeData::MessageType::Identifier;
     int trigger = int(args[0]);
     
@@ -80,15 +80,22 @@ int CabbageSetInitString::setIdentifier(int pass)
 
     if(in_count() > 2)
     {
-        auto data = getIdentData(args, true, 0, 1);
+        auto data = getIdentData(csound, args, true, 0, 1);
         data.type = CabbageOpcodeData::MessageType::Identifier;
+        if(containsIllegalChars(args.str_data(2).data))
+        {
+            _log(args.str_data(2).data);
+            csound->message("Cabbage Warning: Ill-formatted arguments passed to channel:\""+data.channel+"\" Check for brackets within strings..");
+            return IS_OK;
+        }
+        
         data.cabbageCode+=("(\""+std::string(args.str_data(2).data)+"\")");
-        _log(data.cabbageCode);
+        
         varData->enqueue(data);
     }
     else
     {
-        auto data = getIdentData(args, true, 0, 1);
+        auto data = getIdentData(csound, args, true, 0, 1);
         data.type = CabbageOpcodeData::MessageType::Identifier;
         varData->enqueue(data);
     }
@@ -105,7 +112,7 @@ int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
     od = (moodycamel::ReaderWriterQueue<CabbageOpcodeData>**)csound->query_global_variable("cabbageOpcodeData");
     moodycamel::ReaderWriterQueue<CabbageOpcodeData>* varData = CabbageOpcodes::getOpcodeDataGlobalvariable(csound, od);
     
-    auto data = getIdentData(args, true, 1, 2);
+    auto data = getIdentData(csound, args, true, 1, 2);
     data.type = CabbageOpcodeData::MessageType::Identifier;
     int trigger = int(args[0]);
     
@@ -140,7 +147,7 @@ int CabbageSetInitMYFLT::setIdentifier(int /*pass*/)
 
     od = (moodycamel::ReaderWriterQueue<CabbageOpcodeData>**)csound->query_global_variable("cabbageOpcodeData");
     moodycamel::ReaderWriterQueue<CabbageOpcodeData>* varData = CabbageOpcodes::getOpcodeDataGlobalvariable(csound, od);
-    auto data = getIdentData(args, true, 0, 1);
+    auto data = getIdentData(csound, args, true, 0, 1);
     data.type = CabbageOpcodeData::MessageType::Identifier;
     
     if(in_count() > 2)

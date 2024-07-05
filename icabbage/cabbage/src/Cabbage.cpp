@@ -121,7 +121,7 @@ bool Cabbage::setupCsound()
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {
-                        std::cout << w.dump(4) << std::endl << e.what();
+                        _log(w.dump(4));
                         cabAssert(false, "");
                     }
                 }
@@ -140,7 +140,7 @@ bool Cabbage::setupCsound()
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {
-                        std::cout << w.dump(4) << std::endl << e.what();
+                        _log(w.dump(4));
                         cabAssert(false, "");
                     }
                 }
@@ -309,7 +309,7 @@ void Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonOb
                 return;
             
             auto createTable = StringFormatter::format(R"(giTable<> ftgen <>, 0, <>, -7, 0, 0)", tableNumber, tableNumber, samples.size());
-            std::cout << "orc to create table: \n" << createTable << std::endl;;
+
             getCsound()->CompileOrc(createTable.c_str());
             const int tableSize = getCsound()->TableLength(tableNumber);
             if(tableSize != -1)

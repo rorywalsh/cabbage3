@@ -169,7 +169,6 @@ function updateWidget(obj) {
   for (const widget of widgets) {
     if (widget.props.channel === channel) {
       if (obj.hasOwnProperty('data')) {
-        console.error("data", obj["data"]);
         widget.props = JSON.parse(obj["data"]);
       } else if (obj.hasOwnProperty('value')) {
         widget.props.value = obj['value'];

@@ -106,7 +106,7 @@ void CabbageServer::start(std::string mp)
 		std::cout << ("success");
 
 	mServer.set_logger([](const auto& req, const auto& res) {
-		std::cout << log(req, res) << std::endl;
+//		std::cout << log(req, res) << std::endl;
 	});
 
 
