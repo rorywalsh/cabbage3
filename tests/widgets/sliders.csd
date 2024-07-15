@@ -3,15 +3,15 @@ form caption("Slider Example") size(360, 460), guiMode("queue"), colour(2, 145, 
 
 texteditor bounds(16, 254, 332, 191) channel("infoText"), readOnly(1), wrap(1), scrollbars(1)
 
-vslider bounds(20, 20, 40, 180) channel("harmonic1") markerColour(0, 0, 0, 255), trackerColour(2, 145, 209), range(0, 1, 0, 1, 0.001), imgFile("slider", "Fader.png")
-vslider bounds(60, 20, 40, 180) channel("harmonic2") range(0, 1, 0, 1, 0.001), imgFile("slider", "Fader.png")
-vslider bounds(100, 20, 40, 180) channel("harmonic3") range(0, 1, 0, 1, 0.001), imgFile("slider", "Fader.png")
-vslider bounds(140, 20, 40, 180) channel("harmonic4") range(0, 1, 0, 1, 0.001), imgFile("slider", "Fader.png")
-vslider bounds(180, 20, 40, 180) channel("harmonic5") range(0, 1, 0, 1, 0.001), imgFile("slider", "Fader.png")
-vslider bounds(220, 20, 40, 180) channel("harmonic6") range(0, 1, 0, 1, 0.001), imgFile("slider", "Fader.png")
-vslider bounds(260, 20, 40, 180) channel("harmonic7") range(0, 1, 0, 1, 0.001), imgFile("slider", "Fader.png")
-vslider bounds(300, 20, 40, 180) channel("harmonic8") range(0, 1, 0, 1, 0.001), imgFile("slider", "Fader.png")
-checkbox bounds(24, 208, 100, 30) channel("randomise"), colour:1(147, 210, 0), text("Randomise"), fontColour:1("white")
+vslider bounds(20, 20, 40, 180) channel("harmonic1") range(0, 1, 0, 1, 0.001), 
+vslider bounds(60, 20, 40, 180) channel("harmonic2") range(0, 1, 0, 1, 0.001),  
+vslider bounds(100, 20, 40, 180) channel("harmonic3") range(0, 1, 0, 1, 0.001), 
+vslider bounds(140, 20, 40, 180) channel("harmonic4") range(0, 1, 0, 1, 0.001), 
+vslider bounds(180, 20, 40, 180) channel("harmonic5") range(0, 1, 0, 1, 0.001), 
+vslider bounds(220, 20, 40, 180) channel("harmonic6") range(0, 1, 0, 1, 0.001), 
+vslider bounds(260, 20, 40, 180) channel("harmonic7") range(0, 1, 0, 1, 0.001), 
+vslider bounds(300, 20, 40, 180) channel("harmonic8") range(0, 1, 0, 1, 0.001), 
+checkbox bounds(24, 208, 180, 30) channel("randomise"), colour:1(147, 210, 0), text("Randomise"), fontColour:1("white")
 </Cabbage>
 <CsoundSynthesizer>
 <CsOptions>
@@ -33,7 +33,7 @@ giWave ftgen 1, 0, 4096, 10, 1, .2, .1, .2, .1
 
 instr 1
 
-    SText  = "Slider widgets in Cabbage come in a variety of styles. Almost all the widget examples use sliders in some way or another. This simple instrument uses vslider widgets. The fader thumb uses an image loaded from disk.\n\nWhen the 'Randomise' button is pushed, each slider has its position updated according to a simple spline curve.\n\nCabbage sliders can load images for their various parts, background, thumb, etc., or they can use film strips / sprite-sheet type PNGs that contain frames of each state."
+    SText  = "Slider widgets in Cabbage come in a variety of styles. Almost all the widget examples use sliders in some way or another. This simple instrument uses vslider widgets. When the 'Randomise' button is pushed, each slider has its position updated according to a simple spline curve."
     cabbageSet "infoText", "text", SText
     
     a1 oscili tonek(cabbageGetValue:k("harmonic1"), 10), 50, giWave

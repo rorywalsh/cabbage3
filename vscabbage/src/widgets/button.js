@@ -217,7 +217,8 @@ export class OptionButton extends Button {
     this.props.value = this.props.value < this.props.items.split(",").length - 1 ? this.props.value + 1 : 0;
 
     CabbageUtils.updateInnerHTML(this.props.channel, this);
-    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: this.props.value }
+    const newValue = CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
     Cabbage.sendParameterUpdate(this.vscode, msg);
   }
 

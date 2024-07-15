@@ -241,11 +241,7 @@ void CabbageProcessor::timerCallback()
                         }
                     }
                     EvaluateJavaScript(message.c_str());
-                }
-                
-                
-                
-                
+                }                
 #endif
             }
         }
@@ -261,7 +257,9 @@ void CabbageProcessor::OnParamChange(int paramIdx)
         auto& p = cabbage.getParameterChannel(paramIdx);
         if(p.hasValueChanged(GetParam(paramIdx)->Value()))
         {
+            //update parameter value..
             p.setValue(GetParam(paramIdx)->Value());
+            //update channel..
             cabbage.setControlChannel(p.name.c_str(), GetParam(paramIdx)->Value());
         }
     }

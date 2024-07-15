@@ -84,6 +84,7 @@ export class RotarySlider {
 
     this.isMouseDown = true;
     this.startY = evt.clientY;
+    console.log(this.props.value)
     this.startValue = this.props.value;
     window.addEventListener("pointermove", this.moveListener);
     window.addEventListener("pointerup", this.upListener);
@@ -93,6 +94,7 @@ export class RotarySlider {
     if (this.props.active === 0) {
       return '';
     }
+
 
     const popup = document.getElementById('popupValue');
     const form = document.getElementById('MainForm');

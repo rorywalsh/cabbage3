@@ -140,7 +140,7 @@ bool Cabbage::setupCsound()
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {
-                        _log(w.dump(4));
+                        _log(e.what());
                         cabAssert(false, "");
                     }
                 }
@@ -188,13 +188,6 @@ void Cabbage::setControlChannel(const std::string channel, MYFLT value)
 {
     //update Csound channel, and update ParameterChannel values..
     csound->SetControlChannel(channel.c_str(), value);
-    
-    auto index = getIndexForParamChannel(channel);
-    if(index != -1)
-    {
-        if(widgets[getIndexForParamChannel(channel)]["type"].contains("slider"))
-            getParameterChannel(static_cast<int>(index)).setValue(value);
-    }
 
 }
 

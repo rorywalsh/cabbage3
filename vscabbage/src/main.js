@@ -3,6 +3,7 @@ import { Form } from "./widgets/form.js";
 import { RotarySlider } from "./widgets/rotarySlider.js";
 import { HorizontalSlider } from "./widgets/horizontalSlider.js";
 import { VerticalSlider } from "./widgets/verticalSlider.js";
+import { NumberSlider } from "./widgets/numberSlider.js";
 import { Button, FileButton, OptionButton } from "./widgets/button.js";
 import { Checkbox } from "./widgets/checkbox.js";
 import { ComboBox } from "./widgets/comboBox.js";
@@ -17,6 +18,7 @@ const widgetConstructors = {
   "rslider": RotarySlider,
   "hslider": HorizontalSlider,
   "vslider": VerticalSlider,
+  "nslider": NumberSlider,
   "keyboard": MidiKeyboard,
   "form": Form,
   "button": Button,
@@ -46,6 +48,7 @@ const widgetsForTesting = [
   new HorizontalSlider(),
   new Label(),
   new MidiKeyboard(),
+  new NumberSlider(),
   new RotarySlider(),
   new TextEditor(),
   new VerticalSlider(),
@@ -454,7 +457,7 @@ async function insertWidget(type, props) {
   })
 
   widgets.push(widget); // Push the new widget object into the array
-  const index = CabbageUtils.getNumberOfPluginParameters(widgets, "rslider", "hslider", "vslider", "button", "combobox", "checkbox");
+  const index = CabbageUtils.getNumberOfPluginParameters(widgets);//gets any widgets that are automatable - i.e, a parameter a host can see..
   widget.parameterIndex = index - 1;
 
   if (cabbageMode === 'nonDraggable') {

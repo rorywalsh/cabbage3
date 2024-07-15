@@ -1,4 +1,5 @@
 import { CabbageUtils, CabbageColours } from "../utils.js";
+import { Cabbage } from "../cabbage.js";
 
 export class ComboBox {
     constructor() {
@@ -21,10 +22,10 @@ export class ComboBox {
             "visible": 1, // Visibility of the widget (0 for hidden, 1 for visible)
             "type": "combobox", // Type of the widget (combobox)
             "value": 0, // Value of the widget
+            "automatable": 1, // Whether the widget value can be automated (0 for no, 1 for yes)
             "active": 1 // Whether the widget is active (0 for inactive, 1 for active)
         };
         
-
         this.panelSections = {
             "Properties": ["type"],
             "Bounds": ["top", "left", "width", "height"],
@@ -34,7 +35,7 @@ export class ComboBox {
 
         this.isMouseInside = false;
         this.isOpen = false;
-        this.selectedItem = this.props.value > 0 ? this.items[this.props.value] : this.props.text;
+        this.selectedItem = this.props.value > 0 ? this.props.items.split(",")[this.props.value] : this.props.text;
         this.parameterIndex = 0;
         this.vscode = null;
     }
@@ -43,26 +44,26 @@ export class ComboBox {
         if (this.props.active === 0) {
             return '';
         }
-        console.log("Pointer down");
-        this.isOpen = !this.isOpen;
+
+        
+        this.isOpen = true;//!this.isOpen;
+        console.log("Pointer down", this.isOpen);
         this.isMouseInside = true;
         CabbageUtils.updateInnerHTML(this.props.channel, this);
+    }
 
-        if (this.firstOpen) {
-            this.isOpen = true;
-            this.firstOpen = false; // Update the flag after the first open
-        } else {
-            // Check if the event target is a dropdown item
-            const selectedItem = evt.target.getAttribute("data-item");
-            if (selectedItem) {
-                console.log("Item clicked:", selectedItem);
-                this.selectedItem = selectedItem;
-                this.isOpen = false;
-                const widgetDiv = CabbageUtils.getWidgetDiv(this.props.channel);
-                widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
-                CabbageUtils.updateInnerHTML(this.props.channel, this);
-            }
-        }
+    handleItemClick(item) {
+        this.selectedItem = item;
+        const items = this.props.items.split(",");
+        const index = items.indexOf(this.selectedItem);
+        const normalValue = CabbageUtils.map(index, 0, items.length, 0, 1);
+        const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: normalValue }
+        Cabbage.sendParameterUpdate(this.vscode, msg);
+
+        this.isOpen = false;
+        const widgetDiv = CabbageUtils.getWidgetDiv(this.props.channel);
+        widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
+        CabbageUtils.updateInnerHTML(this.props.channel, this);
     }
 
     addVsCodeEventListeners(widgetDiv, vs) {
@@ -79,17 +80,12 @@ export class ComboBox {
     }
 
     handleClickOutside(event) {
-        // Get the widget div
         const widgetDiv = CabbageUtils.getWidgetDiv(this.props.channel);
     
-        // Check if the target of the click event is outside of the widget div
         if (!widgetDiv.contains(event.target)) {
-            // Close the dropdown menu
             this.isOpen = false;
-            // Update the HTML
-            const widgetDiv = CabbageUtils.getWidgetDiv(this.props.channel);
-                widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
-                CabbageUtils.updateInnerHTML(this.props.channel, this);
+            widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
+            CabbageUtils.updateInnerHTML(this.props.channel, this);
         }
     }
 
@@ -150,13 +146,11 @@ export class ComboBox {
             });
         }
     
-        // Adjusting the position of the arrow
         const arrowWidth = 10; // Width of the arrow
         const arrowHeight = 6; // Height of the arrow
         const arrowX = this.props.width - arrowWidth - this.props.corners / 2 - 10; // Decreasing arrowX value to move the arrow more to the left
         const arrowY = (this.props.height - arrowHeight) / 2; // Y-coordinate of the arrow
     
-        // Positioning the selected item text within the main rectangle
         let selectedItemTextX;
         if (svgAlign === 'middle') {
             selectedItemTextX = (this.props.width - arrowWidth - this.props.corners / 2) / 2;
@@ -172,7 +166,7 @@ export class ComboBox {
                 <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners * 2}" fill="${this.props.colour}" stroke="${this.props.outlineColour}"
                     stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}" 
                     style="cursor: pointer;" pointer-events="all" 
-                    onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.pointerDown()"></rect>
+                    onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.pointerDown(event)"></rect>
                 ${dropdownItems}
                 <polygon points="${arrowX},${arrowY} ${arrowX + arrowWidth},${arrowY} ${arrowX + arrowWidth / 2},${arrowY + arrowHeight}"
                     fill="${this.props.outlineColour}" style="${this.isOpen ? 'display: none;' : ''} pointer-events: none;"/>
@@ -182,11 +176,4 @@ export class ComboBox {
             </svg>
         `;
     }
-    
-
-
-
-
-
-
 }

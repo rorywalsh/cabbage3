@@ -168,6 +168,8 @@ public:
                             [](std::string a, std::string b) { return a + ", " + b; }
                         );
                         jsonObj["items"] = items;
+                        jsonObj["min"] = 0;
+                        jsonObj["max"] = token.stringArgs.size();
                     }
                     else
                     {

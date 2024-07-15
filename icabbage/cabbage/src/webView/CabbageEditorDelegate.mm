@@ -225,7 +225,7 @@ void CabbageEditorDelegate::OnMessageFromWebView(const char* jsonStr)
     if(command == "parameterChange")
     {
         SendParameterValueFromUI(jsonContent["paramIdx"], jsonContent["value"]);
-        updateWidgetStateCallback(jsonContent);
+//        updateWidgetStateCallback(jsonContent);
     }
     
     //this is called to trigger a native OS file browser

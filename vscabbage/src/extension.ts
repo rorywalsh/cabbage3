@@ -9,6 +9,8 @@ import { HorizontalSlider } from "./widgets/horizontalSlider.js";
 // @ts-ignore
 import { VerticalSlider } from "./widgets/verticalSlider.js";
 // @ts-ignore
+import { NumberSlider } from "./widgets/numberSlider.js";
+// @ts-ignore
 import { Button, FileButton, OptionButton } from "./widgets/button.js";
 // @ts-ignore
 import { Checkbox } from "./widgets/checkbox.js";
@@ -323,6 +325,7 @@ async function updateText(jsonText: string) {
 		let lineNumber = 0;
 		//get default props so we can compare them to incoming ones and display any that are different
 		let defaultProps = {};
+		defaultProps = CabbageUtils.widgetConstructors[props.type]
 		switch (props.type) {
 			case 'rslider':
 				defaultProps = new RotarySlider().props;
@@ -332,6 +335,9 @@ async function updateText(jsonText: string) {
 				break;
 			case 'vslider':
 				defaultProps = new VerticalSlider().props;
+				break;
+			case 'nslider':
+				defaultProps = new NumberSlider().props;
 				break;
 			case 'keyboard':
 				defaultProps = new MidiKeyboard().props;
