@@ -91,7 +91,7 @@ export class VerticalSlider {
       CabbageUtils.updateInnerHTML(this.props.channel, this);
 
       const newValue = CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
-      const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
+      const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
       Cabbage.sendParameterUpdate(this.vscode, msg);
     }
   }
@@ -207,7 +207,7 @@ export class VerticalSlider {
     const widgetDiv = document.getElementById(this.props.channel);
     widgetDiv.innerHTML = this.getInnerHTML();
 
-    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
     Cabbage.sendParameterUpdate(this.vscode, msg);
   }
 

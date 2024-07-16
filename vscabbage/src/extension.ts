@@ -19,6 +19,8 @@ import { ComboBox } from "./widgets/comboBox.js";
 // @ts-ignore
 import { Label } from "./widgets/label.js";
 // @ts-ignore
+import { ListBox } from "./widgets/listBox.js";
+// @ts-ignore
 import { CsoundOutput } from "./widgets/csoundOutput.js";
 // @ts-ignore
 import { MidiKeyboard } from "./widgets/midiKeyboard.js";
@@ -144,7 +146,7 @@ export function activate(context: vscode.ExtensionContext) {
 		const colourPickerStyles = panel.webview.asWebviewUri(onDiskPath);
 
 		//add widget types to menu
-		const widgetTypes = ["hslider", "rslider", "texteditor", "gentable", "vslider", "keyboard", "button", "filebutton", "optionbutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
+		const widgetTypes = ["hslider", "rslider", "texteditor", "gentable", "vslider", "keyboard", "button", "filebutton", "listbox", "optionbutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
 
 		let menuItems = "";
 		widgetTypes.forEach((widget) => {
@@ -362,6 +364,9 @@ async function updateText(jsonText: string) {
 				break;
 			case 'label':
 				defaultProps = new Label().props;
+				break;
+			case 'listbox':
+				defaultProps = new ListBox().props;
 				break;
 			case 'form':
 				defaultProps = new Form().props;

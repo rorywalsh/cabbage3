@@ -23,9 +23,12 @@ export class ComboBox {
             "type": "combobox", // Type of the widget (combobox)
             "value": 0, // Value of the widget
             "automatable": 1, // Whether the widget value can be automated (0 for no, 1 for yes)
-            "active": 1 // Whether the widget is active (0 for inactive, 1 for active)
+            "active": 1, // Whether the widget is active (0 for inactive, 1 for active)
+            "channelType": "number", // Type of the channel (number, string) - string channels cannot be automated by the host
+            "currentDirectory" : "", // Directory to point to if using populate() identifier
+            "fileType": "" // File type to filter if using populate() identifier, can use semicolon separated list with wildcard patterns, i.e, "*.txt;*.csv" 
         };
-        
+
         this.panelSections = {
             "Properties": ["type"],
             "Bounds": ["top", "left", "width", "height"],
@@ -45,7 +48,6 @@ export class ComboBox {
             return '';
         }
 
-        
         this.isOpen = true;//!this.isOpen;
         console.log("Pointer down", this.isOpen);
         this.isMouseInside = true;
@@ -53,12 +55,18 @@ export class ComboBox {
     }
 
     handleItemClick(item) {
-        this.selectedItem = item;
+        this.selectedItem = item.trim();
         const items = this.props.items.split(",");
         const index = items.indexOf(this.selectedItem);
         const normalValue = CabbageUtils.map(index, 0, items.length, 0, 1);
-        const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: normalValue }
+
+        const msg = {
+            paramIdx: this.parameterIndex, channel: this.props.channel,
+            value: this.props.channelType === "string" ? this.selectedItem : normalValue,
+            channelType: this.props.channelType
+        }
         Cabbage.sendParameterUpdate(this.vscode, msg);
+
 
         this.isOpen = false;
         const widgetDiv = CabbageUtils.getWidgetDiv(this.props.channel);
@@ -81,7 +89,7 @@ export class ComboBox {
 
     handleClickOutside(event) {
         const widgetDiv = CabbageUtils.getWidgetDiv(this.props.channel);
-    
+
         if (!widgetDiv.contains(event.target)) {
             this.isOpen = false;
             widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
@@ -93,30 +101,30 @@ export class ComboBox {
         if (this.props.visible === 0) {
             return '';
         }
-    
+
         const alignMap = {
             'left': 'start',
             'center': 'middle',
             'centre': 'middle',
             'right': 'end',
         };
-    
+
         const svgAlign = alignMap[this.props.align] || this.props.align;
         const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
-    
+
         let totalHeight = this.props.height;
         const itemHeight = this.props.height * 0.8; // Scale back item height to 80% of the original height
         if (this.isOpen) {
             const items = this.props.items.split(",");
             totalHeight += items.length * itemHeight;
-    
+
             // Check if the dropdown will be off the bottom of the screen
             const mainForm = CabbageUtils.getWidgetDiv("MainForm");
             const widgetDiv = mainForm.querySelector(`#${this.props.channel}`);
             const widgetRect = widgetDiv.getBoundingClientRect();
             const mainFormRect = mainForm.getBoundingClientRect();
             const spaceBelow = mainFormRect.bottom - widgetRect.bottom;
-    
+
             if (spaceBelow < totalHeight) {
                 const adjustment = totalHeight - this.props.height * 2; // Adding 10px for some padding
                 const currentTopValue = parseInt(widgetDiv.style.top, 10) || this.props.top; // Use props.top if style.top is not set
@@ -124,7 +132,7 @@ export class ComboBox {
                 widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + newTopValue + 'px)';
             }
         }
-    
+
         let dropdownItems = "";
         if (this.isOpen) {
             const items = this.props.items.split(",");
@@ -145,12 +153,12 @@ export class ComboBox {
                 `;
             });
         }
-    
+
         const arrowWidth = 10; // Width of the arrow
         const arrowHeight = 6; // Height of the arrow
         const arrowX = this.props.width - arrowWidth - this.props.corners / 2 - 10; // Decreasing arrowX value to move the arrow more to the left
         const arrowY = (this.props.height - arrowHeight) / 2; // Y-coordinate of the arrow
-    
+
         let selectedItemTextX;
         if (svgAlign === 'middle') {
             selectedItemTextX = (this.props.width - arrowWidth - this.props.corners / 2) / 2;
@@ -160,7 +168,7 @@ export class ComboBox {
             selectedItemTextX = svgAlign === 'start' ? (this.props.width - this.props.corners / 2) / 2 - selectedItemWidth / 2 + textPadding : (this.props.width - this.props.corners / 2) / 2 + selectedItemWidth / 2 + textPadding;
         }
         const selectedItemTextY = this.props.height / 2;
-    
+
         return `
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${totalHeight}" width="${this.props.width}" height="${totalHeight}" preserveAspectRatio="none">
                 <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners * 2}" fill="${this.props.colour}" stroke="${this.props.outlineColour}"

@@ -185,7 +185,7 @@ export class FileButton extends Button {
     console.log("pointerDown");
     this.isMouseDown = true;
     this.props.value = 1;
-
+    Cabbage.triggerFileOpenDialog(this.vscode, this.props.channel);
     CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
@@ -218,7 +218,7 @@ export class OptionButton extends Button {
 
     CabbageUtils.updateInnerHTML(this.props.channel, this);
     const newValue = CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
-    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
     Cabbage.sendParameterUpdate(this.vscode, msg);
   }
 

@@ -217,14 +217,17 @@ void CabbageEditorDelegate::SendMidiMsgFromDelegate(const iplug::IMidiMsg& msg)
  functions which are hosted from the CabbageProcessor class*/
 void CabbageEditorDelegate::OnMessageFromWebView(const char* jsonStr)
 {
-    auto json = nlohmann::json::parse(jsonStr, nullptr, false);
-    const std::string command = json["command"];
-    auto jsonContent = nlohmann::json::parse(json["text"].get<std::string>());
+    auto incomingJson = nlohmann::json::parse(jsonStr, nullptr, false);
+    const std::string command = incomingJson["command"];
+    auto jsonContent = nlohmann::json::parse(incomingJson["text"].get<std::string>());
 
     //this is called whenever a UI parameter is updated
     if(command == "parameterChange")
     {
-        SendParameterValueFromUI(jsonContent["paramIdx"], jsonContent["value"]);
+        if(jsonContent["channelType"] == "string")
+            updateStringChannelCallback(jsonContent["channel"], jsonContent["value"].get<std::string>());
+        else
+            SendParameterValueFromUI(jsonContent["paramIdx"], jsonContent["value"]);
 //        updateWidgetStateCallback(jsonContent);
     }
     

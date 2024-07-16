@@ -159,6 +159,33 @@ public:
                         std::cout << "The sampleRange() identifier takes 2 parameters" << std::endl;
                     }
                 }
+                else if (token.name == "populate")
+                {
+                    if (token.stringArgs.size() == 2)
+                    {
+                        const std::string dir = token.stringArgs[0];
+                        const std::string fileTypes = token.stringArgs[1];
+                        jsonObj["currentDirectory"] = dir;
+                        jsonObj["fileType"] = fileTypes;
+                        //get a sorted list of files from a given directory
+                        const auto files = CabbageFile::getFilesOfType( dir, CabbageFile::sanitisePath(fileTypes));
+                        
+                        jsonObj["channelType"] = "string";
+                        jsonObj["files"] = files;
+
+                        // Use std::accumulate to concatenate filenames into a comma-delimited string
+                        const std::string items = std::accumulate(
+                            std::next(files.begin()), files.end(), CabbageFile::getFileName(files[0]),
+                            [](std::string a, const std::string& b) { return std::move(a) + ", " + CabbageFile::getFileName(b); }
+                        );
+
+                        jsonObj["items"] = items;
+                    }
+                    else
+                    {
+                        std::cout << "The populate() identifier takes 2 parameters" << std::endl;
+                    }
+                }
                 else if (token.name == "items")
                 {
                     if (token.hasStringArgs())

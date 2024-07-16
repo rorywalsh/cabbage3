@@ -8,6 +8,7 @@ import { Button, FileButton, OptionButton } from "./widgets/button.js";
 import { Checkbox } from "./widgets/checkbox.js";
 import { ComboBox } from "./widgets/comboBox.js";
 import { Label } from "./widgets/label.js";
+import { ListBox } from "./widgets/listBox.js";
 import { GenTable } from "./widgets/genTable.js";
 import { CsoundOutput } from "./widgets/csoundOutput.js";
 import { MidiKeyboard } from "./widgets/midiKeyboard.js";
@@ -26,6 +27,7 @@ const widgetConstructors = {
   "optionbutton": OptionButton,
   "gentable": GenTable,
   "label": Label,
+  "listbox": ListBox,
   "combobox": ComboBox,
   "checkbox": Checkbox,
   "csoundoutput": CsoundOutput,
@@ -47,6 +49,7 @@ const widgetsForTesting = [
   new GenTable(),
   new HorizontalSlider(),
   new Label(),
+  new ListBox(),
   new MidiKeyboard(),
   new NumberSlider(),
   new RotarySlider(),
@@ -172,6 +175,7 @@ function updateWidget(obj) {
   for (const widget of widgets) {
     if (widget.props.channel === channel) {
       if (obj.hasOwnProperty('data')) {
+        console.log(obj["data"]);
         widget.props = JSON.parse(obj["data"]);
       } else if (obj.hasOwnProperty('value')) {
         widget.props.value = obj['value'];

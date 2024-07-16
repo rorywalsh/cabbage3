@@ -103,8 +103,10 @@ bool Cabbage::setupCsound()
         widgets =  CabbageParser::parseCsdForWidgets(csdFile);
         for(auto& w : widgets)
         {
-            if(w.contains("automatable") && w["automatable"] == 1)
+            if (w.contains("automatable") && w["automatable"] == 1 &&
+                (!w.contains("channelType") || w["channelType"] == "number"))
             {
+                _log(w.dump(4));
                 if(w["type"].get<std::string>().find("slider") != std::string::npos)
                 {
                     try{

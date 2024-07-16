@@ -24,6 +24,7 @@
 #include <pwd.h>
 #endif
 
+#include <algorithm> // for std::sort
 
 // Define a macro to enable/disable debugging
 #define DEBUG 1
@@ -196,7 +197,8 @@ public:
         return joinPath(newPath, binaryFileName + ".csd");
     }
     
-    static std::string getCsdPath() {
+    static std::string getCsdPath()
+    {
         std::string resourceDir = getCabbageResourceDir();
         std::string binaryFileName = getBinaryFileName();
         size_t pos = binaryFileName.find_last_of(".");
@@ -207,14 +209,16 @@ public:
     }
     
     //return a JS escaped string
-    static std::string getCabbageSection(){
+    static std::string getCabbageSection()
+    {
         auto csdText = getFileAsString();
         return StringFormatter::getCabbageSectionAsJSEscapedString(csdText);
     }
     
     //return the file contents, if the file path is not provided, finds
     //the file based on the curren binary name
-    static std::string getFileAsString(std::string csdFile = ""){
+    static std::string getFileAsString(std::string csdFile = "")
+    {
         if(csdFile.empty())
             csdFile = getCsdFileAndPath();
         
@@ -225,23 +229,99 @@ public:
         return csdContents;
     }
     
-    static std::string sanitisePath(const std::string& path) {
-            std::string sanitizedPath = path;
+    static std::string sanitisePath(const std::string& path) 
+    {
+        std::string sanitizedPath = path;
 
-            // Remove trailing backslashes
-            while (!sanitizedPath.empty() && sanitizedPath.back() == '\\') {
-                sanitizedPath.pop_back();
+        // Remove trailing backslashes
+        while (!sanitizedPath.empty() && sanitizedPath.back() == '\\') {
+            sanitizedPath.pop_back();
+        }
+
+        // Replace backslashes with forward slashes
+        for (char& c : sanitizedPath) {
+            if (c == '\\') {
+                c = '/';
             }
+        }
 
-            // Replace backslashes with forward slashes
-            for (char& c : sanitizedPath) {
-                if (c == '\\') {
-                    c = '/';
+        return sanitizedPath;
+    }
+
+    static std::vector<std::string> getFilesOfType(const std::string& dirPath, const std::string& fileTypes) {
+        std::vector<std::string> result;
+
+        // Resolve the absolute path based on the current CSD file location
+        std::filesystem::path searchPath = CabbageFile::sanitisePath(dirPath);
+        if (searchPath.is_relative()) {
+            std::string csdFilePath = getCsdFileAndPath();
+            std::filesystem::path csdDirPath = std::filesystem::path(csdFilePath).parent_path();
+            searchPath = csdDirPath / searchPath;
+        }
+
+        // Normalize the path to remove any redundant elements
+        searchPath = std::filesystem::canonical(searchPath);
+
+        // Split the fileTypes string into individual patterns
+        std::vector<std::string> patterns;
+        std::stringstream ss(fileTypes);
+        std::string pattern;
+        while (std::getline(ss, pattern, ';')) {
+            patterns.push_back(pattern);
+        }
+
+        // Iterate over the directory and match the patterns
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(searchPath)) {
+            if (entry.is_regular_file()) {
+                std::string filePath = entry.path().string();
+                for (const auto& p : patterns) {
+                    if (std::filesystem::path(filePath).filename().string().find(p.substr(1)) != std::string::npos) {
+                        result.push_back(filePath);
+                        break;
+                    }
                 }
             }
-
-            return sanitizedPath;
         }
+
+        std::sort(result.begin(), result.end(), [](const std::string& a, const std::string& b) {
+            // Extract filenames without extensions
+            std::string fileNameA = std::filesystem::path(a).filename().stem().string();
+            std::string fileNameB = std::filesystem::path(b).filename().stem().string();
+
+            // Convert filenames to integers if possible
+            auto convertToInt = [](const std::string& s) -> int {
+                try {
+                    return std::stoi(s);
+                } catch (...) {
+                    return 0; // Return 0 if conversion fails
+                }
+            };
+
+            int numA = convertToInt(fileNameA);
+            int numB = convertToInt(fileNameB);
+
+            // Compare numeric parts if both filenames are numeric, otherwise use lexicographical comparison
+            if (numA != 0 && numB != 0) {
+                return numA < numB;
+            } else {
+                return fileNameA < fileNameB;
+            }
+        });
+        
+        return result;
+    }
+    
+    
+    static std::string convertToForwardSlashes(const std::string& path) {
+        std::string convertedPath = path;
+        std::replace(convertedPath.begin(), convertedPath.end(), '\\', '/');
+        return convertedPath;
+    }
+
+    static std::string getFileName(const std::string& absolutePath) {
+        std::filesystem::path path(absolutePath);
+        return path.filename().string();
+    }
 
 private:
     #if defined(_WIN32)

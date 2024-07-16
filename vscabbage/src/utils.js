@@ -37,6 +37,10 @@ export class CabbageUtils {
         const [start, end] = value.split(',').map(v => parseInt(v.trim()));
         jsonObj['startSample'] = start || 0;
         jsonObj['endSample'] = end || 0;
+      } else if (name === 'populate') {
+        const [directory, fileType] = value.split(',').map(v => (v.trim()));
+        jsonObj['currentDirectory'] = directory || '';
+        jsonObj['fileType'] = fileType || '';
       } else if (name === 'items') {
         const items = value.split(',').map(v => v.trim()).join(', ');
         jsonObj['items'] = items;

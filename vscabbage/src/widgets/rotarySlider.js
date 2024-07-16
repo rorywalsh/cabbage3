@@ -179,7 +179,7 @@ export class RotarySlider {
     widgetDiv.innerHTML = this.getInnerHTML();
 
     const newValue = CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
-    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
     Cabbage.sendParameterUpdate(this.vscode, msg);
     
   }
