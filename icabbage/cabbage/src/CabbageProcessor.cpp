@@ -1,6 +1,6 @@
 #include "CabbageProcessor.h"
 #include "IPlug_include_in_plug_src.h"
-
+#include "../opcodes/CabbageOpcodes.h"
 //===============================================================================
 // There are two different constructors here depending on whether the instrument is loaded
 // in VS Code, or a plugin
@@ -177,85 +177,79 @@ void CabbageProcessor::timerCallback()
 #ifndef CabbageApp
     }
 #endif
-    //messages from the Cabbage opcodes can be sent when the UI is not open, or before it opens when first loaded..
-    auto** od = (moodycamel::ReaderWriterQueue<CabbageOpcodeData>**)cabbage.getCsound()->QueryGlobalVariable("cabbageOpcodeData");
-    if (od != nullptr)
+    CabbageOpcodeData data;
+    //data contains the channel and the Cabbage code that can be comprised of any number of identifiers, i.e,
+    // bounds(10, 10, 100, 100), text("hello"), etc.
+
+    //only start accessing messages from the queue when the interface is open..
+    if(allowDequeuing)
     {
-        auto cabbageOpcodeData = *od;
-        
-        //data contains the channel and the Cabbage code that can be comprised of any number of identifiers, i.e,
-        // bounds(10, 10, 100, 100), text"hello"), etc.
-        CabbageOpcodeData data;
-        //only start accessing messages from the queue when the interface is open..
-        if(allowDequeuing)
+        while (cabbage.opcodeData.try_dequeue(data))
         {
-            while (cabbageOpcodeData->try_dequeue(data))
+            if(data.type == CabbageOpcodeData::MessageType::Value)
             {
-                if(data.type == CabbageOpcodeData::MessageType::Value)
+                //if incoming data is from a value opcode update Csound...
+                cabbage.setControlChannel(data.channel, data.value);
+                for(auto &widget : cabbage.getWidgets())
                 {
-                    //if incoming data is from a value opcode update Csound...
-                    cabbage.setControlChannel(data.channel, data.value);
-                    for(auto &widget : cabbage.getWidgets())
+                    //update widget objects in case UI is closed and reopened...
+                    if(CabbageParser::removeQuotes(widget["channel"]) == data.channel)
                     {
-                        //update widget objects in case UI is closed and reopened...
-                        if(CabbageParser::removeQuotes(widget["channel"]) == data.channel)
-                        {
-                            widget["value"] = data.value;
-                        }
+                        widget["value"] = data.value;
                     }
                 }
-                else
-                {
-                    for(auto& widget : cabbage.getWidgets())
-                    {
-                        if(data.channel == CabbageParser::removeQuotes(widget["channel"]))
-                        {
-                            //this will update the widget JSON with new arguments tied to the identifier, e.g, bounds(x, y, w, h)
-                            CabbageParser::updateJsonFromSyntax(widget, data.cabbageCode);
-                        }
-                    }
-                }
-                
-#ifdef CabbageApp
-                //send data to vscode extension..
-                hostCallback(data);
-#else
-                while (cabbage.getCsound()->GetMessageCnt() > 0)
-                {
-                    std::string message(cabbage.getCsound()->GetFirstMessage());
-                    std::cout << message << std::endl;
-                    EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
-                    cabbage.getCsound()->PopFirstMessage();
-                }
-                
-                std::string message = {};
-                if(data.type == CabbageOpcodeData::MessageType::Value)
-                {
-                    message =  cabbage.getWidgetUpdateScript(data.channel, data.value);
-                    EvaluateJavaScript(message.c_str());
-                }
-                else
-                {
-                    
-                    auto widgetOpt = cabbage.getWidget(data.channel);
-                    if (widgetOpt.has_value())
-                    {
-                        auto& j = widgetOpt.value().get();
-                        if(j["type"].get<std::string>() == "gentable")
-                        {
-                            cabbage.updateFunctionTable(data, j);
-                            message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
-                        }
-                        else
-                        {
-                            CabbageParser::updateJsonFromSyntax(j, data.cabbageCode);
-                            message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
-                        }
-                    }
-                    EvaluateJavaScript(message.c_str());
-                }                
-#endif
             }
+            else
+            {
+                for(auto& widget : cabbage.getWidgets())
+                {
+                    if(data.channel == CabbageParser::removeQuotes(widget["channel"]))
+                    {
+                        //this will update the widget JSON with new arguments tied to the identifier, e.g, bounds(x, y, w, h)
+                        CabbageParser::updateJsonFromSyntax(widget, data.cabbageCode);
+                    }
+                }
+            }
+            
+#ifdef CabbageApp
+            //send data to vscode extension..
+            hostCallback(data);
+#else
+            while (cabbage.getCsound()->GetMessageCnt() > 0)
+            {
+                std::string message(cabbage.getCsound()->GetFirstMessage());
+                std::cout << message << std::endl;
+                EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
+                cabbage.getCsound()->PopFirstMessage();
+            }
+            
+            std::string message = {};
+            if(data.type == CabbageOpcodeData::MessageType::Value)
+            {
+                message =  cabbage.getWidgetUpdateScript(data.channel, data.value);
+                EvaluateJavaScript(message.c_str());
+            }
+            else
+            {
+                
+                auto widgetOpt = cabbage.getWidget(data.channel);
+                if (widgetOpt.has_value())
+                {
+                    auto& j = widgetOpt.value().get();
+                    if(j["type"].get<std::string>() == "gentable")
+                    {
+                        cabbage.updateFunctionTable(data, j);
+                        message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
+                    }
+                    else
+                    {
+                        CabbageParser::updateJsonFromSyntax(j, data.cabbageCode);
+                        message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
+                    }
+                }
+                EvaluateJavaScript(message.c_str());
+            }
+#endif
         }
     }
 }

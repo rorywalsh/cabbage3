@@ -51,6 +51,7 @@ using namespace iplug;
     IPLUG_WKWEBVIEW* webView = self; // Assuming this method is within IPLUG_WKWEBVIEW context
 
     if (![webView isLoading]) {
+        _log(script.c_str());
         [webView evaluateJavaScript:[NSString stringWithUTF8String:script.c_str()] completionHandler:^(NSString *result, NSError *error) {
             if (error != nil) {
                 NSLog(@"Error %@", error);

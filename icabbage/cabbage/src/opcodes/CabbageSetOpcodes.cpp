@@ -5,17 +5,17 @@
 //  Created by Rory on 09/02/2023.
 //
 
-
+#include "Cabbage.h"
 #include "CabbageSetOpcodes.h"
 #include "../CabbageParser.h"
+
 
 //=====================================================================================
 // cabbageSetValue "channel", xValue
 //=====================================================================================
 int CabbageSetValue::setValue(int /*pass*/)
 {
-    od = (moodycamel::ReaderWriterQueue<CabbageOpcodeData>**)csound->query_global_variable("cabbageOpcodeData");
-    moodycamel::ReaderWriterQueue<CabbageOpcodeData>* varData = CabbageOpcodes::getOpcodeDataGlobalvariable(csound, od);
+    auto* hostData = static_cast<Cabbage*>(csound->host_data());
 
     if(csound->get_csound()->GetChannelPtr(csound->get_csound(), &value, args.str_data(0).data,
                                                    CSOUND_CONTROL_CHANNEL | CSOUND_INPUT_CHANNEL) == CSOUND_SUCCESS)
@@ -31,7 +31,7 @@ int CabbageSetValue::setValue(int /*pass*/)
         CabbageOpcodeData data = getValueIdentData(args, true, 0, 1);
         data.value = args[1];
         data.type = CabbageOpcodeData::MessageType::Value;
-        varData->enqueue(data);
+        hostData->opcodeData.enqueue(data);
         kCycles = 0;
     }
     kCycles++;
@@ -45,8 +45,8 @@ int CabbageSetValue::setValue(int /*pass*/)
 //=====================================================================================
 int CabbageSetPerfString::setIdentifier(int /*pass*/)
 {
-    od = (moodycamel::ReaderWriterQueue<CabbageOpcodeData>**)csound->query_global_variable("cabbageOpcodeData");
-    moodycamel::ReaderWriterQueue<CabbageOpcodeData>* varData = CabbageOpcodes::getOpcodeDataGlobalvariable(csound, od);
+    auto* hostData = static_cast<Cabbage*>(csound->host_data());
+
     
     auto data = getIdentData(csound, args, true, 1, 2);
     data.type = CabbageOpcodeData::MessageType::Identifier;
@@ -62,10 +62,10 @@ int CabbageSetPerfString::setIdentifier(int /*pass*/)
         {
             data.type = CabbageOpcodeData::MessageType::Identifier;
             data.cabbageCode+=("(\""+std::string(args.str_data(3).data)+"\")");
-            varData->enqueue(data);
+            hostData->opcodeData.enqueue(data);
         }
     }
-    varData->enqueue(data);
+    hostData->opcodeData.enqueue(data);
 }
 
 //=====================================================================================
@@ -75,9 +75,8 @@ int CabbageSetPerfString::setIdentifier(int /*pass*/)
 int CabbageSetInitString::setIdentifier(int pass)
 {
 
-    od = (moodycamel::ReaderWriterQueue<CabbageOpcodeData>**)csound->query_global_variable("cabbageOpcodeData");
-    moodycamel::ReaderWriterQueue<CabbageOpcodeData>* varData = CabbageOpcodes::getOpcodeDataGlobalvariable(csound, od);
-
+    auto* hostData = static_cast<Cabbage*>(csound->host_data());
+    
     if(in_count() > 2)
     {
         auto data = getIdentData(csound, args, true, 0, 1);
@@ -91,13 +90,13 @@ int CabbageSetInitString::setIdentifier(int pass)
         
         data.cabbageCode+=("(\""+std::string(args.str_data(2).data)+"\")");
         
-        varData->enqueue(data);
+        hostData->opcodeData.enqueue(data);
     }
     else
     {
         auto data = getIdentData(csound, args, true, 0, 1);
         data.type = CabbageOpcodeData::MessageType::Identifier;
-        varData->enqueue(data);
+        hostData->opcodeData.enqueue(data);
     }
     
     
@@ -109,8 +108,7 @@ int CabbageSetInitString::setIdentifier(int pass)
 //=====================================================================================
 int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
 {
-    od = (moodycamel::ReaderWriterQueue<CabbageOpcodeData>**)csound->query_global_variable("cabbageOpcodeData");
-    moodycamel::ReaderWriterQueue<CabbageOpcodeData>* varData = CabbageOpcodes::getOpcodeDataGlobalvariable(csound, od);
+    auto* hostData = static_cast<Cabbage*>(csound->host_data());
     
     auto data = getIdentData(csound, args, true, 1, 2);
     data.type = CabbageOpcodeData::MessageType::Identifier;
@@ -131,12 +129,12 @@ int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
                 params += std::to_string(args[i]) + (i<in_count()-1 ? "," : "");
             }
             data.cabbageCode+=("("+params+")");
-            varData->enqueue(data);
+            hostData->opcodeData.enqueue(data);
         }
         else
             csound->init_error("Not enough input arguments\n");
     }
-    varData->enqueue(data);
+    hostData->opcodeData.enqueue(data);
 }
 
 //=====================================================================================
@@ -144,9 +142,7 @@ int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
 //=====================================================================================
 int CabbageSetInitMYFLT::setIdentifier(int /*pass*/)
 {
-
-    od = (moodycamel::ReaderWriterQueue<CabbageOpcodeData>**)csound->query_global_variable("cabbageOpcodeData");
-    moodycamel::ReaderWriterQueue<CabbageOpcodeData>* varData = CabbageOpcodes::getOpcodeDataGlobalvariable(csound, od);
+    auto* hostData = static_cast<Cabbage*>(csound->host_data());
     auto data = getIdentData(csound, args, true, 0, 1);
     data.type = CabbageOpcodeData::MessageType::Identifier;
     
@@ -159,7 +155,7 @@ int CabbageSetInitMYFLT::setIdentifier(int /*pass*/)
             params += std::to_string(args[i]) + (i<in_count()-1 ? "," : "");
         }
         data.cabbageCode+=("("+params+")");
-        varData->enqueue(data);
+        hostData->opcodeData.enqueue(data);
     }
     else
         csound->init_error("Not enough input arguments\n");

@@ -97,8 +97,6 @@ int CabbageProfilerPrint::kperf()
     else
         return NOTOK;
     
-
-    
     if(trig == 1)
     {
         std::map<std::string, std::unique_ptr<ProfilerTimer>>::iterator it;

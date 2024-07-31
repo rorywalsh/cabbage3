@@ -12,10 +12,8 @@
 #include "CabbageWidgetDescriptors.h"
 #include "CabbageUtils.h"
 #include "csound.hpp"
-#include "opcodes/CabbageSetOpcodes.h"
-#include "opcodes/CabbageGetOpcodes.h"
 #include "CabbageParser.h"
-
+#include <readerwriterqueue.h>
 //choc classes for reading audio files
 #include "../../../choc-main/audio/choc_AudioFileFormat.h"
 #include "../../../choc-main/audio/choc_AudioFileFormat_Ogg.h"
@@ -26,6 +24,7 @@
 
 
 class CabbageProcessor;
+class CabbageOpcodeData;
 
 class Cabbage {
     
@@ -139,7 +138,7 @@ public:
     static std::vector<double> readAudioFile(const std::string& filePath);
     
     void setReservedChannels();
-
+    moodycamel::ReaderWriterQueue<CabbageOpcodeData> opcodeData;
     
 private:
     void addOpcodes();

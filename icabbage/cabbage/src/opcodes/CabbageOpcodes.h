@@ -37,43 +37,12 @@ struct CabbageOpcodeData
 template <std::size_t NumInputParams>
 struct CabbageOpcodes
 {
-    moodycamel::ReaderWriterQueue<CabbageOpcodeData>** od = nullptr;
-    moodycamel::ReaderWriterQueue<CabbageOpcodeData> queue;
     std::vector<nlohmann::json>** wd = nullptr;
     char* name = NULL;
     char* identifier = NULL;
     MYFLT* value = {};
     MYFLT lastValue = 0;
     MYFLT* str = {};
-        
-    static std::vector<nlohmann::json>* getWidgetDataGlobalvariable(csnd::Csound* csound, std::vector<nlohmann::json>** wd)
-    {
-        if (wd != nullptr)
-        {
-            return *wd;
-        }
-        else
-        {
-            csound->create_global_variable("cabbageWidgetData", sizeof(std::vector<nlohmann::json>*));
-            wd = (std::vector<nlohmann::json>**)csound->query_global_variable("cabbageWidgetData");
-            return *wd;
-        }
-    }
-    
-    static moodycamel::ReaderWriterQueue<CabbageOpcodeData>* getOpcodeDataGlobalvariable(csnd::Csound* csound, moodycamel::ReaderWriterQueue<CabbageOpcodeData>** od)
-    {
-        if (od != nullptr)
-        {
-            return *od;
-        }
-        else
-        {
-            csound->create_global_variable("cabbageOpcodeData", sizeof(moodycamel::ReaderWriterQueue<CabbageOpcodeData>*));
-            od = (moodycamel::ReaderWriterQueue<CabbageOpcodeData>**)csound->query_global_variable("cabbageOpcodeData");
-            *od = new moodycamel::ReaderWriterQueue<CabbageOpcodeData>(100);
-            return *od;
-        }
-    }
     
     static bool hasNullTerminator(const char* str, size_t length)
     {

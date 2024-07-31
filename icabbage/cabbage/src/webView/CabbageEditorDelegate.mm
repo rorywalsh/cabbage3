@@ -219,11 +219,12 @@ void CabbageEditorDelegate::OnMessageFromWebView(const char* jsonStr)
 {
     auto incomingJson = nlohmann::json::parse(jsonStr, nullptr, false);
     const std::string command = incomingJson["command"];
-    auto jsonContent = nlohmann::json::parse(incomingJson["text"].get<std::string>());
+    
 
     //this is called whenever a UI parameter is updated
     if(command == "parameterChange")
     {
+        auto jsonContent = nlohmann::json::parse(incomingJson["obj"].get<std::string>());
         if(jsonContent["channelType"] == "string")
             updateStringChannelCallback(jsonContent["channel"], jsonContent["value"].get<std::string>());
         else
@@ -234,6 +235,7 @@ void CabbageEditorDelegate::OnMessageFromWebView(const char* jsonStr)
     //this is called to trigger a native OS file browser
     else if(command == "fileOpen")
     {
+        auto jsonContent = nlohmann::json::parse(incomingJson["obj"].get<std::string>());
         OpenFileBrowser();
         updateStringChannelCallback(jsonContent["channel"], selectedFilePath);
     }
@@ -242,6 +244,7 @@ void CabbageEditorDelegate::OnMessageFromWebView(const char* jsonStr)
     //and the JS widget array should always be in sync
     else if(command == "widgetStateUpdate")
     {
+        auto jsonContent = nlohmann::json::parse(incomingJson["obj"].get<std::string>());
         updateWidgetStateCallback(jsonContent);
     }
     
@@ -292,6 +295,7 @@ void CabbageEditorDelegate::OnMessageFromWebView(const char* jsonStr)
 //    }
     else if(command == "midiMessage")
     {
+        auto jsonContent = nlohmann::json::parse(incomingJson["obj"].get<std::string>());
         iplug::IMidiMsg msg {0, jsonContent["statusByte"].get<uint8_t>(),
             jsonContent["dataByte1"].get<uint8_t>(),
             jsonContent["dataByte2"].get<uint8_t>()};

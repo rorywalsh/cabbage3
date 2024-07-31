@@ -1,6 +1,7 @@
 #include "Cabbage.h"
 #include "CabbageProcessor.h"
-
+#include "opcodes/CabbageSetOpcodes.h"
+#include "opcodes/CabbageGetOpcodes.h"
 
 Cabbage::Cabbage(CabbageProcessor& p, std::string file): processor(p), csdFile(file)
 {
@@ -148,14 +149,6 @@ bool Cabbage::setupCsound()
                 }
             }
         }
-               
-        auto** wd = reinterpret_cast<std::vector<nlohmann::json>**>(getCsound()->QueryGlobalVariable("cabbageWidgetData"));
-        if (wd == nullptr) {
-            getCsound()->CreateGlobalVariable("cabbageWidgetData", sizeof(std::vector<nlohmann::json>*));
-            wd = (std::vector<nlohmann::json>**)getCsound()->QueryGlobalVariable("cabbageWidgetData");
-            *wd = &widgets;
-        }
-
                 
         return true;
     }
@@ -250,9 +243,8 @@ std::string Cabbage::getWidgetUpdateScript(std::string channel, std::string data
     result = StringFormatter::format(R"(
         window.postMessage({
             command: "widgetUpdate",
-            channel: "<>"
+            channel: "<>",
             data: `<>`
-            })
         });
     )",
     channel,
@@ -268,7 +260,6 @@ std::string Cabbage::getWidgetUpdateScript(std::string channel, float value)
             command: "widgetUpdate",
             channel: "<>",
             value: <>
-            })
         });
     )",
     channel,

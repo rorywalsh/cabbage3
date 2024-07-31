@@ -6,6 +6,7 @@
 //
 
 #include <sstream>
+#include "Cabbage.h"
 #include "CabbageGetOpcodes.h"
 #include "CabbageParser.h"
 #include "CabbageUtils.h"
@@ -131,15 +132,16 @@ int CabbageGetValueStringWithTrigger::getValue(int rate)
     return IS_OK;
 }
 
+//these opcodes access the main widget vector
 int CabbageGetMYFLT::getIdentifier(int init)
 {
-    wd = (std::vector<nlohmann::json>**)csound->query_global_variable("cabbageWidgetData");
-    std::vector<nlohmann::json>* varData = CabbageOpcodes::getWidgetDataGlobalvariable(csound, wd);
+    
+    auto* hostData = static_cast<Cabbage*>(csound->host_data());
     
     if(in_count()==2)
     {
         CabbageOpcodeData data = getIdentData(csound, inargs, true, 0, 1);
-        for(auto &widget : *varData)
+        for(auto &widget : hostData->getWidgets())
         {
             auto channel = CabbageParser::removeQuotes(widget["channel"].get<std::string>());
             if(channel == data.channel)
@@ -154,7 +156,7 @@ int CabbageGetMYFLT::getIdentifier(int init)
         //if only a channel string is passed in, then get the current value of that channel
         
         CabbageOpcodeData data = getIdentData(csound, inargs, true, 0, 0);
-        for(auto &widget : *varData)
+        for(auto &widget : hostData->getWidgets())
         {
             auto channel = CabbageParser::removeQuotes(widget["channel"].get<std::string>());
             if(channel == data.channel)
@@ -174,13 +176,12 @@ int CabbageGetMYFLT::getIdentifier(int init)
 //=========================================================================================
 int CabbageGetString::getIdentifier(int init)
 {
-    wd = (std::vector<nlohmann::json>**)csound->query_global_variable("cabbageWidgetData");
-    std::vector<nlohmann::json>* varData = CabbageOpcodes::getWidgetDataGlobalvariable(csound, wd);
+    auto* hostData = static_cast<Cabbage*>(csound->host_data());
     
     if(in_count()==2) // irate version
     {
         CabbageOpcodeData data = getIdentData(csound, inargs, true, 0, 1);
-        for(auto &widget : *varData)
+        for(auto &widget : hostData->getWidgets())
         {
             auto channel = CabbageParser::removeQuotes(widget["channel"].get<std::string>());
             if(channel == data.channel)
@@ -200,13 +201,12 @@ int CabbageGetString::getIdentifier(int init)
 
 int CabbageGetStringWithTrigger::getIdentifier(int init)
 {
-    wd = (std::vector<nlohmann::json>**)csound->query_global_variable("cabbageWidgetData");
-    std::vector<nlohmann::json>* varData = CabbageOpcodes::getWidgetDataGlobalvariable(csound, wd);
+    auto* hostData = static_cast<Cabbage*>(csound->host_data());
     
     if(in_count()==2)
     {
         CabbageOpcodeData data = getIdentData(csound, inargs, true, 0, 1);
-        for(auto &widget : *varData)
+        for(auto &widget : hostData->getWidgets())
         {
             auto channel = widget["channel"].get<std::string>();
             if(channel == data.channel)
