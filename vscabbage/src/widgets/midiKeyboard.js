@@ -14,23 +14,22 @@ export class MidiKeyboard {
       type: "keyboard", // Type of the widget (keyboard)
       colour: "#888888", // Background color of the keyboard
       channel: "keyboard", // Unique identifier for the keyboard widget
-      blackNoteColour: "#000", // Color of the black keys on the keyboard
+      blackNoteColour: "#000000", // Color of the black keys on the keyboard
       value: "36", // The leftmost note of the keyboard
       fontFamily: "Verdana", // Font family for the text displayed on the keyboard
-      whiteNoteColour: "#fff", // Color of the white keys on the keyboard
-      keySeparatorColour: "#000", // Color of the separators between keys
+      whiteNoteColour: "#ffffff", // Color of the white keys on the keyboard
+      keySeparatorColour: "#000000", // Color of the separators between keys
       arrowBackgroundColour: "#0295cf", // Background color of the arrow keys
       mouseoverKeyColour: CabbageColours.getColour('green'), // Color of keys when hovered over
       keydownColour: CabbageColours.getColour('green'), // Color of keys when pressed
-      octaveButtonColour: "#00f", // Color of the octave change buttons
       automatable: 0
     };
 
     this.panelSections = {
-      Properties: ["type"],
+      Properties: ["type", "channel"],
       Bounds: ["left", "top", "width", "height"],
       Text: ["fontFamily"],
-      Colours: ["colour", "blackNoteColour", "whiteNoteColour", "keySeparatorColour", "arrowBackgroundColour", "keydownColour", "octaveButtonColour"]
+      Colours: ["colour", "blackNoteColour", "whiteNoteColour", "keySeparatorColour", "arrowBackgroundColour", "keydownColour"]
     };
 
     this.isMouseDown = false; // Track the state of the mouse button

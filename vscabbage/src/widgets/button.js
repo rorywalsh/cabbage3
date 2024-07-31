@@ -163,7 +163,7 @@ export class Button {
 
 /*
   * File Button for file browsing @extends Button
-  */ 
+  */
 export class FileButton extends Button {
   constructor() {
     super();
@@ -202,8 +202,8 @@ export class OptionButton extends Button {
     this.props.colourOn = this.props.colourOff;
     this.props.fontColourOn = this.props.fontColourOff;
     this.props.items = "One, Two, Three", // List of items for the dropdown
-    //override following properties
-    this.props.text = "";
+      //override following properties
+      this.props.text = "";
     this.props.type = "optionbutton";
     this.props.automatable = 1;
   }
@@ -218,7 +218,7 @@ export class OptionButton extends Button {
 
     CabbageUtils.updateInnerHTML(this.props.channel, this);
     const newValue = CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
-    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
+    const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
     Cabbage.sendParameterUpdate(this.vscode, msg);
   }
 

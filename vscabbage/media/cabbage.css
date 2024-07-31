@@ -77,28 +77,25 @@
 }
 
 #LeftPanel {
-	flex-grow: 1;
-	/* border: 1px solid red; */
-	resize: horizontal;
-	overflow: auto;
-	width: 2000px;
-	height: 2000px;
-	position: absolute;
-	top: 50px;
-	left: 50px;
+    resize: horizontal;
+    overflow: auto;
+    width: 2000px; /* Example initial width */
+    height: 2000px; /* Example initial height */
+    position: absolute;
+    top: 50px;
+    left: 50px;
+    box-sizing: border-box;
 }
 
 #RightPanel {
-	flex-grow: 0;
-	padding: 0px;
-	/* border: 1px solid red; */
-	position: absolute;
-	top: 0;
-	right: 0;
-	width: 300px;
-	/* Adjust the width as needed */
-	height: 100%;
-	/* Take full height of the page */
+    padding: 0px;
+    position: fixed;
+    z-index: 9999;
+    top: 0;
+    right: 0;
+    width: 300px;
+    height: 100%;
+    box-sizing: border-box;
 }
 
 .form {
@@ -115,6 +112,7 @@
 	visibility: hidden;
 	position: absolute;
 	width: 100px;
+	z-index: 99999;
 	border-radius: 5px;
 	background: #fff;
 	padding-top: 5px;

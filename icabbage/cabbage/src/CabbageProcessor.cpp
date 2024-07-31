@@ -110,13 +110,7 @@ void CabbageProcessor::setupCallbacks()
     
     cabbageIsReadyToLoadCsdCallback = [&]()
     {
-        auto csdText = CabbageFile::getCabbageSection();
-        std::string result = StringFormatter::format(R"(
-        console.log("DOM has loaded - sending Cabbage section to JS..");
-        window.postMessage({ command: "onFileChanged", text: "<>" });
-        )", csdText);
-        
-        EvaluateJavaScript(result.c_str());
+        updateJSWidgets();
     };
     
     interfaceHasLoadedCallback = [&]()
@@ -130,8 +124,13 @@ void CabbageProcessor::setupCallbacks()
     //this ensures the JS and C++ widgets objects are in sync
     updateWidgetStateCallback = [&](nlohmann::json json)
     {
-        auto msg = cabbage.updateWidgetState(json);
-        EvaluateJavaScript(msg.c_str());
+        //auto msg = cabbage.updateWidgetState(json);
+        //EvaluateJavaScript(msg.c_str());
+        for( auto& w : cabbage.getWidgets())
+        {
+            _log(w.dump(4));
+            cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
+        }
     };
     
 }
@@ -147,6 +146,19 @@ void CabbageProcessor::interfaceHasLoaded()
     allowDequeuing = true;
 }
 
+void CabbageProcessor::updateJSWidgets()
+{
+    //iterate over all widget objects and send to webview
+    for( auto& w : cabbage.getWidgets())
+    {
+        _log(w.dump(4));
+        auto result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
+        EvaluateJavaScript(result.c_str());
+    }
+    
+    uiIsOpen = true;
+    allowDequeuing = true;
+}
 //===============================================================================
 //timer thread listens for incoming data from Csound using a lock free fifo
 void CabbageProcessor::timerCallback()

@@ -69,6 +69,7 @@ export class Checkbox {
     widgetDiv.VerticalSliderInstance = this;
   }
 
+
   getInnerHTML() {
     if (this.props.visible === 0) {
       return '';

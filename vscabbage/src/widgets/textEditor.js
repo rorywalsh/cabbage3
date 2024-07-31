@@ -38,7 +38,7 @@ export class TextEditor {
     addEventListeners(widgetDiv) {
         // Add any necessary event listeners here
     }
-
+   
     getInnerHTML() {
         if (this.props.visible === 0) {
             return '';

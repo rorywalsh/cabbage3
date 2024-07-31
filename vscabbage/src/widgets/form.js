@@ -30,6 +30,7 @@ export class Form {
   }
 
   updateSVG() {
+    console.log("updating form svg", this.props);
     // Select the parent div using the channel property
     const parentDiv = document.getElementById(this.props.channel);
     

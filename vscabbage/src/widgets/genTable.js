@@ -45,6 +45,7 @@ export class GenTable {
         this.canvas.height = this.props.height;
         this.ctx = this.canvas.getContext('2d');
     }
+
     addVsCodeEventListeners(widgetDiv, vs) {
         this.vscode = vs;
         widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));

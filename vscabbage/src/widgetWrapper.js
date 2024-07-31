@@ -45,7 +45,7 @@ export class WidgetWrapper {
             element.style.transform = `translate(${x}px, ${y}px)`;
             element.setAttribute('data-x', x);
             element.setAttribute('data-y', y);
-            this.updatePanelCallback(this.vscode, { eventType: "move", name: element.id, bounds: { x: x, y: y, w: element.offsetWidth, h: element.offsetHeight } },this.widgets);
+            this.updatePanelCallback(this.vscode, { eventType: "move", name: element.id, bounds: { x: x, y: y, w: -1, h: -1 } },this.widgets);
 
 
             // console.log(`Drag ended for element ${element.id}: x=${x}, y=${y}`); // Logging drag end details

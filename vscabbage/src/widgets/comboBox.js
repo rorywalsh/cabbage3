@@ -87,6 +87,7 @@ export class ComboBox {
         widgetDiv.ComboBoxInstance = this;
     }
 
+
     handleClickOutside(event) {
         const widgetDiv = CabbageUtils.getWidgetDiv(this.props.channel);
 

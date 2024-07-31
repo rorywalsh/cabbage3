@@ -102,7 +102,10 @@ public:
               "type": "combobox",
               "value": 0,
               "automatable": 1,
-              "active": 1
+              "active": 1,
+              "channelType": "number",
+              "currentDirectory": "",
+              "fileType": ""
             }
             )";
             return nlohmann::json::parse(jsonString);
@@ -286,9 +289,9 @@ public:
               "visible": 1,
               "selectedIndex": -1,
               "automatable": 1,
-              "value": 0,
-              "min":0,
-              "max":3
+              "channelType": "number",
+              "min": 0,
+              "max": 3
             }
             )";
             return nlohmann::json::parse(jsonString);
@@ -303,15 +306,14 @@ public:
               "type": "keyboard",
               "colour": "#888888",
               "channel": "keyboard",
-              "blackNoteColour": "#000",
+              "blackNoteColour": "#000000",
               "value": "36",
               "fontFamily": "Verdana",
-              "whiteNoteColour": "#fff",
-              "keySeparatorColour": "#000",
+              "whiteNoteColour": "#ffffff",
+              "keySeparatorColour": "#000000",
               "arrowBackgroundColour": "#0295cf",
               "mouseoverKeyColour": "#93d200",
               "keydownColour": "#93d200",
-              "octaveButtonColour": "#00f",
               "automatable": 0
             }
             )";

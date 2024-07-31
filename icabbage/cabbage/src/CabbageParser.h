@@ -74,7 +74,34 @@ public:
         return widgets;
     }
 
+    // Function to convert a number to a two-character hex string
+    static std::string toHex(int num) {
+        std::stringstream ss;
+        ss << std::setw(2) << std::setfill('0') << std::hex << num;
+        return ss.str();
+    }
 
+    // Function to convert RGB(A) values to a hex string
+    static std::string rgbToHex(const std::vector<double>& numericArgs) {
+        int r = static_cast<int>(numericArgs[0]);
+        int g = static_cast<int>(numericArgs[1]);
+        int b = static_cast<int>(numericArgs[2]);
+        int a = numericArgs.size() == 4 ? static_cast<int>(numericArgs[3]) : 255; // Default alpha to 255 if not provided
+
+        return "#" + toHex(r) + toHex(g) + toHex(b) + toHex(a);
+    }
+
+    // Function to validate and possibly adjust a hex string
+    static std::string validateHexString(const std::string& hexStr) {
+        if (hexStr[0] != '#' || (hexStr.length() != 7 && hexStr.length() != 9)) {
+            cabAssert(false, " is not a valid hex colour");
+        }
+        if (hexStr.length() == 7) {
+            return hexStr + "ff"; // Add default alpha if not provided
+        }
+        return hexStr;
+    }
+    
     static void updateJsonWithValue(nlohmann::json& jsonObj, const double value)
     {
         jsonObj["value"] = value;
@@ -196,7 +223,7 @@ public:
                         );
                         jsonObj["items"] = items;
                         jsonObj["min"] = 0;
-                        jsonObj["max"] = token.stringArgs.size();
+                        jsonObj["max"] = token.stringArgs.size()-1;
                     }
                     else
                     {
@@ -214,6 +241,27 @@ public:
                     {
                         std::cout << "The samples() identifier takes numeric parameters" << std::endl;
                     }
+                }
+                else if (toLowerCase(token.name).find("colour") != std::string::npos)
+                {
+                    std::string colourString;
+
+                    if (!token.numericArgs.empty())
+                        colourString = rgbToHex(token.numericArgs);
+
+                    else if (token.hasStringArgs()){
+                        _log(token.name); 
+                        _log("Args:" << token.stringArgs[0]);
+                        
+                        colourString = validateHexString(token.stringArgs[0]);
+                    }
+
+                    else
+                        cabAssert(false, "token does not contain valid colour information");
+
+
+                    jsonObj[token.name] = colourString;
+
                 }
                 else if (token.name == "channel")
                 {
@@ -262,6 +310,13 @@ public:
         }
     }
 
+    static std::string toLowerCase(const std::string& str) {
+        std::string lowerCaseStr = str;
+        std::transform(lowerCaseStr.begin(), lowerCaseStr.end(), lowerCaseStr.begin(),
+                       [](unsigned char c){ return std::tolower(c); });
+        return lowerCaseStr;
+    }
+    
     static std::string escapeJSON(const std::string& input)
     {
         std::ostringstream oss;

@@ -6,14 +6,16 @@ export class Cabbage {
   static sendParameterUpdate(vscode, message) {
     const msg = {
       command: "parameterChange",
-      text: JSON.stringify(message)
+      obj: JSON.stringify(message)
     };
     if (vscode != null) {
       vscode.postMessage(msg);
     }
     else {
       console.log("sending parameter change from UI", msg);
-      IPlugSendMsg(msg);
+      if(typeof IPlugSendMsg === 'function'){
+        IPlugSendMsg(msg);
+      }
     }
   }
 
@@ -27,7 +29,9 @@ export class Cabbage {
       vscode.postMessage(msg);
     }
     else {      
-      IPlugSendMsg(msg);
+      if(typeof IPlugSendMsg === 'function'){
+        IPlugSendMsg(msg);
+      }
     }
   } 
 
@@ -35,13 +39,15 @@ export class Cabbage {
     console.log("sending widget update from UI", widget.props);
     const msg = {
       command: "widgetStateUpdate",
-      text:JSON.stringify(widget.props)
+      obj:JSON.stringify(widget.props)
     };
     if (vscode != null) {
       vscode.postMessage(msg);
     }
     else {
-      IPlugSendMsg(msg);
+      if(typeof IPlugSendMsg === 'function'){
+        IPlugSendMsg(msg);
+      }
     }
   }
 
@@ -54,7 +60,7 @@ export class Cabbage {
 
     const msg = {
       command: "midiMessage",
-      text: JSON.stringify(message)
+      obj: JSON.stringify(message)
     };
 
     console.log("sending midi message from UI", message);
@@ -62,7 +68,9 @@ export class Cabbage {
       vscode.postMessage(msg);
     }
     else {
-      IPlugSendMsg(msg);
+      if(typeof IPlugSendMsg === 'function'){
+        IPlugSendMsg(msg);
+      }
     }
   }
 
@@ -83,7 +91,9 @@ export class Cabbage {
       vscode.postMessage(msg);
     }
     else {
-      IPlugSendMsg(msg);
+      if(typeof IPlugSendMsg === 'function'){
+        IPlugSendMsg(msg);
+      }
     }
   }
 

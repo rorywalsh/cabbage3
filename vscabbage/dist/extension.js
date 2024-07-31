@@ -43,31 +43,35 @@ const horizontalSlider_js_1 = __webpack_require__(5);
 // @ts-ignore
 const verticalSlider_js_1 = __webpack_require__(6);
 // @ts-ignore
-const button_js_1 = __webpack_require__(7);
+const numberSlider_js_1 = __webpack_require__(7);
 // @ts-ignore
-const checkbox_js_1 = __webpack_require__(8);
+const button_js_1 = __webpack_require__(8);
 // @ts-ignore
-const comboBox_js_1 = __webpack_require__(9);
+const checkbox_js_1 = __webpack_require__(9);
 // @ts-ignore
-const label_js_1 = __webpack_require__(10);
+const comboBox_js_1 = __webpack_require__(10);
 // @ts-ignore
-const csoundOutput_js_1 = __webpack_require__(11);
+const label_js_1 = __webpack_require__(11);
 // @ts-ignore
-const midiKeyboard_js_1 = __webpack_require__(12);
+const listBox_js_1 = __webpack_require__(12);
 // @ts-ignore
-const genTable_js_1 = __webpack_require__(13);
+const csoundOutput_js_1 = __webpack_require__(13);
 // @ts-ignore
-const textEditor_js_1 = __webpack_require__(14);
+const midiKeyboard_js_1 = __webpack_require__(14);
+// @ts-ignore
+const genTable_js_1 = __webpack_require__(15);
+// @ts-ignore
+const textEditor_js_1 = __webpack_require__(16);
 // @ts-ignore
 const utils_js_1 = __webpack_require__(3);
 // @ts-ignore
-const form_js_1 = __webpack_require__(15);
-const cp = __importStar(__webpack_require__(16));
+const form_js_1 = __webpack_require__(17);
+const cp = __importStar(__webpack_require__(18));
 let textEditor;
 let output;
 let panel = undefined;
 let dbg = false;
-const ws_1 = __importDefault(__webpack_require__(17));
+const ws_1 = __importDefault(__webpack_require__(19));
 const wss = new ws_1.default.Server({ port: 9991 });
 let websocket;
 let cabbageMode = "play";
@@ -84,8 +88,15 @@ wss.on('connection', (ws) => {
     websocket = ws;
     ws.on('message', (message) => {
         const msg = JSON.parse(message.toString());
-        if (panel) {
-            panel.webview.postMessage({ command: "widgetUpdate", text: JSON.stringify(msg["text"]) });
+        console.log(msg);
+        if (msg.hasOwnProperty("command")) {
+            //when CabbageProcessor first loads, it parses the Cabbage text and populate a vector of JSON objects.
+            //These are then sent to the webview for rendering.
+            if (msg["command"] === "widgetUpdate") {
+                if (panel) {
+                    panel.webview.postMessage({ command: "widgetUpdate", channel: msg["channel"], data: msg["data"] });
+                }
+            }
         }
     });
     ws.on('close', () => {
@@ -143,7 +154,7 @@ function activate(context) {
         onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'color-picker.css');
         const colourPickerStyles = panel.webview.asWebviewUri(onDiskPath);
         //add widget types to menu
-        const widgetTypes = ["hslider", "rslider", "texteditor", "gentable", "vslider", "keyboard", "button", "filebutton", "optionbutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
+        const widgetTypes = ["hslider", "rslider", "texteditor", "gentable", "vslider", "keyboard", "button", "filebutton", "listbox", "optionbutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
         let menuItems = "";
         widgetTypes.forEach((widget) => {
             menuItems += `
@@ -164,7 +175,13 @@ function activate(context) {
         });
         //notify webview when various updates take place in editor
         vscode.workspace.onDidSaveTextDocument(async (editor) => {
-            sendTextToWebView(editor, 'onFileChanged');
+            //sendTextToWebView(editor, 'onFileChanged');
+            if (panel) {
+                panel.webview.postMessage({ command: "onFileChanged", text: "fileChanged" });
+            }
+            else {
+                console.error("No panel found");
+            }
             cabbageMode = "play";
             const command = config.get("pathToCabbageExecutable") + '/CabbageApp.app/Contents/MacOS/CabbageApp';
             const path = vscode.Uri.file(command);
@@ -203,7 +220,7 @@ function activate(context) {
             //triggered when tab changes
             //console.log(tabs.changed.label);
         });
-        // callback for webview messages - some of these will be fired off the CabbageApp
+        // callback for webview messages - some of these will be fired off from the CabbageApp
         panel.webview.onDidReceiveMessage(message => {
             switch (message.command) {
                 case 'widgetUpdate':
@@ -212,7 +229,6 @@ function activate(context) {
                     }
                     return;
                 case 'widgetStateUpdate': //trigger when webview is open
-                    console.error("widgetStateUpdate", message["text"]);
                     firstMessages.push(message);
                     websocket.send(JSON.stringify(message));
                     break;
@@ -229,7 +245,6 @@ function activate(context) {
                     break;
                 case 'fileOpen':
                     const jsonText = JSON.parse(message.text);
-                    console.error("fileOpen", jsonText.channel);
                     vscode.window.showOpenDialog({
                         canSelectFiles: true,
                         canSelectFolders: false,
@@ -273,8 +288,14 @@ function activate(context) {
         processes.forEach((p) => {
             p?.kill("SIGKILL");
         });
-        sendTextToWebView(textEditor?.document, 'onEnterEditMode');
+        //sendTextToWebView(textEditor?.document, 'onEnterEditMode');
         cabbageMode = "draggable";
+        if (panel) {
+            panel.webview.postMessage({ command: "onEnterEditMode", text: "onEnterEditMode" });
+        }
+        else {
+            console.error("No panel found");
+        }
     }));
 }
 exports.activate = activate;
@@ -285,13 +306,23 @@ async function updateText(jsonText) {
     if (cabbageMode === "play") {
         return;
     }
-    const props = JSON.parse(jsonText);
-    // console.log(JSON.stringify(props, null, 2));
-    if (textEditor) {
-        const document = textEditor.document;
-        let lineNumber = 0;
-        //get default props so we can compare them to incoming ones and display any that are different
-        let defaultProps = {};
+    let props;
+    try {
+        props = JSON.parse(jsonText);
+    }
+    catch (error) {
+        console.error("Failed to parse JSON text:", error);
+        return;
+    }
+    console.warn(props);
+    if (!textEditor) {
+        console.error("No text editor is available.");
+        return;
+    }
+    const document = textEditor.document;
+    let lineNumber = 0;
+    let defaultProps = {};
+    try {
         switch (props.type) {
             case 'rslider':
                 defaultProps = new rotarySlider_js_1.RotarySlider().props;
@@ -302,8 +333,12 @@ async function updateText(jsonText) {
             case 'vslider':
                 defaultProps = new verticalSlider_js_1.VerticalSlider().props;
                 break;
+            case 'nslider':
+                defaultProps = new numberSlider_js_1.NumberSlider().props;
+                break;
             case 'keyboard':
                 defaultProps = new midiKeyboard_js_1.MidiKeyboard().props;
+                console.warn("Keyboard", defaultProps);
                 break;
             case 'button':
                 defaultProps = new button_js_1.Button().props;
@@ -326,6 +361,9 @@ async function updateText(jsonText) {
             case 'label':
                 defaultProps = new label_js_1.Label().props;
                 break;
+            case 'listbox':
+                defaultProps = new listBox_js_1.ListBox().props;
+                break;
             case 'form':
                 defaultProps = new form_js_1.Form().props;
                 break;
@@ -336,85 +374,80 @@ async function updateText(jsonText) {
                 defaultProps = new textEditor_js_1.TextEditor().props;
                 break;
             default:
-                break;
+                console.error("Unsupported widget type:", props.type);
+                return;
         }
-        const internalIdentifiers = ['top', 'left', 'width', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index', 'samples'];
-        if (props.type.indexOf('slider') !== -1) {
-            internalIdentifiers.push('value');
-        }
+    }
+    catch (error) {
+        console.error("Error initializing default properties for type:", props.type, error);
+        return;
+    }
+    const internalIdentifiers = ['top', 'left', 'width', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index', 'samples'];
+    if (props.type.includes('slider')) {
+        internalIdentifiers.push('value');
+    }
+    try {
         await textEditor.edit(async (editBuilder) => {
-            if (textEditor) {
-                let foundChannel = false;
-                let lines = document.getText().split(/\r?\n/);
-                for (let i = 0; i < lines.length; i++) {
-                    const tokens = utils_js_1.CabbageUtils.getTokens(lines[i]);
-                    const index = tokens.findIndex(({ token }) => token === 'channel');
-                    if (index != -1) {
-                        const channel = tokens[index].values[0].replace(/"/g, "");
-                        if (channel == props.channel) {
-                            foundChannel = true;
-                            //found entry - now update bounds
-                            const updatedIdentifiers = utils_js_1.CabbageUtils.findUpdatedIdentifiers(JSON.stringify(defaultProps), jsonText);
-                            updatedIdentifiers.forEach((ident) => {
-                                // Only want to display user-accessible identifiers...
-                                if (!internalIdentifiers.includes(ident)) {
-                                    const newIndex = tokens.findIndex(({ token }) => token === ident);
-                                    // Create the data array with the appropriate type based on props[ident]
-                                    let data = [];
-                                    if (Array.isArray(props[ident])) {
-                                        data = [...props[ident]];
-                                    }
-                                    else {
-                                        data.push(props[ident]);
-                                    }
-                                    if (newIndex === -1) {
-                                        const identifier = ident;
-                                        tokens.push({ token: identifier, values: data });
-                                    }
-                                    else {
-                                        tokens[newIndex].values = data;
-                                    }
+            let foundChannel = false;
+            const lines = document.getText().split(/\r?\n/);
+            for (let i = 0; i < lines.length; i++) {
+                const tokens = utils_js_1.CabbageUtils.getTokens(lines[i]);
+                const index = tokens.findIndex(({ token }) => token === 'channel');
+                if (index !== -1) {
+                    const channel = tokens[index].values[0].replace(/"/g, "");
+                    if (channel === props.channel) {
+                        foundChannel = true;
+                        const updatedIdentifiers = utils_js_1.CabbageUtils.findUpdatedIdentifiers(JSON.stringify(defaultProps), jsonText);
+                        updatedIdentifiers.forEach((ident) => {
+                            if (!internalIdentifiers.includes(ident)) {
+                                const newIndex = tokens.findIndex(({ token }) => token === ident);
+                                let data = Array.isArray(props[ident]) ? [...props[ident]] : [props[ident]];
+                                if (newIndex === -1) {
+                                    tokens.push({ token: ident, values: data });
                                 }
-                            });
-                            if (props.type.indexOf('slider') > -1) {
-                                const rangeIndex = tokens.findIndex(({ token }) => token === 'range');
-                                // eslint-disable-next-line eqeqeq
-                                if (rangeIndex != -1) {
-                                    tokens[rangeIndex].values = [props.min, props.max, props.defaultValue, props.skew, props.increment];
+                                else {
+                                    tokens[newIndex].values = data;
                                 }
                             }
-                            const boundsIndex = tokens.findIndex(({ token }) => token === 'bounds');
+                        });
+                        if (props.type.includes('slider')) {
+                            const rangeIndex = tokens.findIndex(({ token }) => token === 'range');
+                            if (rangeIndex !== -1) {
+                                tokens[rangeIndex].values = [props.min, props.max, props.value, props.skew, props.increment];
+                            }
+                        }
+                        const boundsIndex = tokens.findIndex(({ token }) => token === 'bounds');
+                        if (boundsIndex !== -1) {
                             tokens[boundsIndex].values = [props.left, props.top, props.width, props.height];
-                            lines[i] = `${lines[i].split(' ')[0]} ` + tokens.map(({ token, values }) => typeof values[0] === 'string' ? `${token}("${values.join(', ')}")` : `${token}(${values.join(', ')})`).join(', ');
-                            // console.log(lines[i]);
-                            await editBuilder.replace(new vscode.Range(document.lineAt(i).range.start, document.lineAt(i).range.end), lines[i]);
+                        }
+                        lines[i] = `${lines[i].split(' ')[0]} ` + tokens.map(({ token, values }) => typeof values[0] === 'string' ? `${token}("${values.join(', ')}")` : `${token}(${values.join(', ')})`).join(', ');
+                        await editBuilder.replace(new vscode.Range(document.lineAt(i).range.start, document.lineAt(i).range.end), lines[i]);
+                        if (textEditor)
                             textEditor.selection = new vscode.Selection(i, 0, i, 10000);
-                        }
-                        else {
-                        }
-                    }
-                    if (lines[i] === '</Cabbage>') {
-                        break;
                     }
                 }
-                let count = 0;
-                lines.forEach((line) => {
-                    if (line.trimStart().startsWith("</Cabbage>")) {
-                        lineNumber = count;
-                    }
-                    count++;
-                });
-                //this is called when we create a widgets from the popup menu in the UI builder
-                if (!foundChannel && props.type !== "form") {
-                    let newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${utils_js_1.CabbageUtils.getCabbageCodeFromJson(jsonText, "channel")}`;
-                    if (props.type.indexOf('slider') > -1) {
-                        newLine += ` ${utils_js_1.CabbageUtils.getCabbageCodeFromJson(jsonText, "range")}`;
-                    }
-                    editBuilder.insert(new vscode.Position(lineNumber, 0), newLine + '\n');
-                    textEditor.selection = new vscode.Selection(lineNumber, 0, lineNumber, 10000);
+                if (lines[i] === '</Cabbage>') {
+                    break;
                 }
             }
+            lines.forEach((line, count) => {
+                if (line.trimStart().startsWith("</Cabbage>")) {
+                    lineNumber = count;
+                }
+            });
+            if (!foundChannel && props.type !== "form") {
+                let newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${utils_js_1.CabbageUtils.getCabbageCodeFromJson(jsonText, "channel")}`;
+                if (props.type.includes('slider')) {
+                    newLine += ` ${utils_js_1.CabbageUtils.getCabbageCodeFromJson(jsonText, "range")}`;
+                }
+                editBuilder.insert(new vscode.Position(lineNumber, 0), newLine + '\n');
+                if (textEditor)
+                    textEditor.selection = new vscode.Selection(lineNumber, 0, lineNumber, 10000);
+            }
         });
+    }
+    catch (error) {
+        console.error("Error editing the text editor document:", error);
     }
 }
 /**
@@ -472,11 +505,7 @@ function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrap
 <path d="M230.675 348.909H227.077L218.08 349.481L213.282 348.962C177.915 346.548 139.152 335.834 110.124 315.074C69.8324 286.272 49.2547 241.867 47.1256 193.3L46.5499 186.742C46.3339 168.183 49.2547 144.15 55.1563 126.526C60.5782 110.351 67.7632 95.3805 78.271 81.811C88.6408 68.4144 96.7255 63.919 105.176 47.2314L122.833 13.2479C124.194 11.0301 128.441 2.76674 130.114 1.75916C131.817 0.727738 133.389 2.13477 134.714 3.12446C136.849 4.71036 139.776 7.36345 142.511 7.61981C145.672 7.91195 147.981 5.39599 149.684 3.11254C150.728 1.72339 151.819 -0.530244 153.93 0.232892C155.256 0.709852 157.637 3.2437 158.704 4.30494C161.919 7.49461 168.978 15.5195 173.099 16.4853C176.367 17.2544 179.234 15.2273 181.489 14.8338C184.854 14.2496 187.091 18.0712 188.776 20.4023L196.147 31.134L204.082 41.8656L215.879 59.7516C226.615 75.7596 236.409 89.2098 241.813 108.044C245.04 119.288 245.201 126.973 245.07 138.45C244.992 144.758 242.551 157.66 241.123 164.087C236.625 184.34 229.752 204.098 228.222 224.899L227.677 230.861V239.208C227.713 261.697 238.262 288.406 250.281 307.175L265.989 329.234L274.458 339.966C264.55 344.288 241.549 348.778 230.675 348.909ZM168.9 3.11254L168.301 3.70874V3.11254H168.9ZM290.051 11.4593L289.452 12.0555V11.4593H290.051ZM291.251 12.0555L290.651 12.6517V12.0555H291.251ZM292.45 12.6517L291.851 13.2479V12.6517H292.45ZM293.65 13.2479L293.05 13.8441V13.2479H293.65ZM294.849 13.8441L294.25 14.4403V13.8441H294.849ZM296.049 14.4403L295.449 15.0365V14.4403H296.049ZM297.248 15.0365L296.649 15.6327V15.0365H297.248ZM298.448 15.6327L297.848 16.2289V15.6327H298.448ZM299.647 16.2289L299.048 16.8251V16.2289H299.647ZM333.234 37.4895L345.481 47.7143C346.452 47.9766 347.79 47.8216 348.828 47.7143C358.184 48.0124 365.111 55.1072 370.161 62.1364C380.699 76.7969 386.09 93.7529 390.433 111.025C392.646 119.825 394.139 128.839 395.105 137.854C395.399 140.578 396.478 146.219 395.609 148.585C395.027 141.699 389.815 126.824 387.242 119.968C376.53 91.4039 357.788 63.0307 335.033 42.5631C328.37 36.5713 321.449 30.8597 314.042 25.7801C310.779 23.5443 303.798 19.7585 301.447 17.4213C312.068 21.9704 324.136 30.3768 333.234 37.4895ZM221.679 26.9606C223.808 27.7654 226.261 28.1231 227.677 29.9356H215.681C212.767 29.9773 206.781 31.277 204.394 29.9356C202.637 28.934 200.502 25.1839 199.488 23.3834C205.066 23.6397 216.605 25.0468 221.679 26.9606ZM231.275 26.9606L230.675 27.5568V26.9606H231.275ZM230.675 32.9226C239.852 32.9344 246.065 36.5475 254.066 40.5241C268.43 47.6666 282.165 56.4427 294.25 66.9954C300.985 72.8859 304.745 76.7314 310.491 83.5996C311.811 85.1795 315.049 88.7329 315.127 90.754C315.181 92.3936 313.226 95.3209 312.326 96.716C309.262 101.444 305.909 106.106 302.292 110.429C289.41 125.852 278.65 133.358 264.262 146.302C260.555 149.635 252.093 159.532 249.268 161.106C250.569 154.017 252.255 146.236 252.267 139.046V127.122C252.249 114.107 246.887 97.3778 240.685 85.9844L217.073 49.02C214.848 45.5143 209.102 37.2748 207.885 34.115L230.675 32.9226ZM275.657 48.4238L275.057 49.02V48.4238H275.657ZM277.456 49.6162L276.857 50.2124V49.6162H277.456ZM320.039 96.1198C327.548 107.316 334.787 120.349 339.231 133.084C330.283 135.439 325.761 135.94 317.04 140.394C297.656 150.291 282.836 169.226 276.275 189.723C263.488 229.675 283.532 276.655 324.837 290.171C333.378 292.967 338.776 293.462 347.628 293.462C344.623 298.572 336.748 305.255 332.034 309.208C320.555 318.836 309.651 325.591 296.049 331.804C291.407 333.92 286.657 336.418 281.655 337.581L272.311 326.253C264.568 316.386 256.609 305.148 250.755 294.058C234.712 263.634 231.473 233.735 239.594 200.455C241.897 191.023 243.384 179.272 248.872 171.241C267.986 143.273 301.195 128.899 318.84 96.1198H320.039Z" fill="#93D200"/>
 </svg>
 
-
 </div>
-  	<script>
-  		var vscodeMode = true; 
-	</script>
   <script type="module" src="${widgetWrapper}"></script>
   <script type="module" src="${mainJS}"></script>
 </body>
@@ -587,6 +616,7 @@ class RotarySlider {
 
     this.isMouseDown = true;
     this.startY = evt.clientY;
+    console.log(this.props.value)
     this.startValue = this.props.value;
     window.addEventListener("pointermove", this.moveListener);
     window.addEventListener("pointerup", this.upListener);
@@ -596,6 +626,7 @@ class RotarySlider {
     if (this.props.active === 0) {
       return '';
     }
+
 
     const popup = document.getElementById('popupValue');
     const form = document.getElementById('MainForm');
@@ -663,7 +694,7 @@ class RotarySlider {
     widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
     widgetDiv.RotarySliderInstance = this;
   }
-
+ 
   pointerMove({ clientY }) {
     if (this.props.active === 0) {
       return '';
@@ -680,7 +711,7 @@ class RotarySlider {
     widgetDiv.innerHTML = this.getInnerHTML();
 
     const newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
-    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
     _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
     
   }
@@ -840,6 +871,10 @@ class CabbageUtils {
         const [start, end] = value.split(',').map(v => parseInt(v.trim()));
         jsonObj['startSample'] = start || 0;
         jsonObj['endSample'] = end || 0;
+      } else if (name === 'populate') {
+        const [directory, fileType] = value.split(',').map(v => (v.trim()));
+        jsonObj['currentDirectory'] = directory || '';
+        jsonObj['fileType'] = fileType || '';
       } else if (name === 'items') {
         const items = value.split(',').map(v => v.trim()).join(', ');
         jsonObj['items'] = items;
@@ -1642,14 +1677,16 @@ class Cabbage {
   static sendParameterUpdate(vscode, message) {
     const msg = {
       command: "parameterChange",
-      text: JSON.stringify(message)
+      obj: JSON.stringify(message)
     };
     if (vscode != null) {
       vscode.postMessage(msg);
     }
     else {
       console.log("sending parameter change from UI", msg);
-      IPlugSendMsg(msg);
+      if(typeof IPlugSendMsg === 'function'){
+        IPlugSendMsg(msg);
+      }
     }
   }
 
@@ -1663,7 +1700,9 @@ class Cabbage {
       vscode.postMessage(msg);
     }
     else {      
-      IPlugSendMsg(msg);
+      if(typeof IPlugSendMsg === 'function'){
+        IPlugSendMsg(msg);
+      }
     }
   } 
 
@@ -1671,13 +1710,15 @@ class Cabbage {
     console.log("sending widget update from UI", widget.props);
     const msg = {
       command: "widgetStateUpdate",
-      text:JSON.stringify(widget.props)
+      obj:JSON.stringify(widget.props)
     };
     if (vscode != null) {
       vscode.postMessage(msg);
     }
     else {
-      IPlugSendMsg(msg);
+      if(typeof IPlugSendMsg === 'function'){
+        IPlugSendMsg(msg);
+      }
     }
   }
 
@@ -1690,7 +1731,7 @@ class Cabbage {
 
     const msg = {
       command: "midiMessage",
-      text: JSON.stringify(message)
+      obj: JSON.stringify(message)
     };
 
     console.log("sending midi message from UI", message);
@@ -1698,7 +1739,9 @@ class Cabbage {
       vscode.postMessage(msg);
     }
     else {
-      IPlugSendMsg(msg);
+      if(typeof IPlugSendMsg === 'function'){
+        IPlugSendMsg(msg);
+      }
     }
   }
 
@@ -1719,7 +1762,9 @@ class Cabbage {
       vscode.postMessage(msg);
     }
     else {
-      IPlugSendMsg(msg);
+      if(typeof IPlugSendMsg === 'function'){
+        IPlugSendMsg(msg);
+      }
     }
   }
 
@@ -2029,7 +2074,7 @@ class HorizontalSlider {
     _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
   
     // Post message if vscode is available
-    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
     _cabbage_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendParameterUpdate(this.vscode, msg);
   }
   
@@ -2218,7 +2263,7 @@ class VerticalSlider {
       _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
 
       const newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
-      const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
+      const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
       _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
     }
   }
@@ -2334,7 +2379,7 @@ class VerticalSlider {
     const widgetDiv = document.getElementById(this.props.channel);
     widgetDiv.innerHTML = this.getInnerHTML();
 
-    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue }
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
     _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
   }
 
@@ -2408,6 +2453,207 @@ class VerticalSlider {
 
 /***/ }),
 /* 7 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   NumberSlider: () => (/* binding */ NumberSlider)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
+
+
+
+class NumberSlider {
+    constructor() {
+        this.props = {
+            "top": 10,
+            "left": 10,
+            "width": 60,
+            "height": 60,
+            "channel": "nslider",
+            "min": 0,
+            "max": 1,
+            "value": 0,
+            "skew": 1,
+            "increment": 0.001,
+            "index": 0,
+            "text": "",
+            "fontFamily": "Verdana",
+            "fontSize": 0,
+            "align": "centre",
+            "textOffsetY": 0,
+            "valueTextBox": 0,
+            "colour": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"),
+            "fontColour": "#dddddd",
+            "outlineColour": "#525252",
+            "outlineWidth": 2,
+            "type": "nslider",
+            "decimalPlaces": 1,
+            "velocity": 0,
+            "popup": 1,
+            "visible": 1,
+            "automatable": 1,
+            "valuePrefix": "",
+            "valuePostfix": "",
+            "presetIgnore": 0,
+        };
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Text": ["text", "fontColour", "fontSize", "fontFamily", "align"],
+            "Colours": ["colour"]
+        };
+
+        this.isDragging = false;
+        this.startY = 0;
+        this.startValue = 0;
+        this.parameterIndex = 0;
+        this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment)
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+        widgetDiv.addEventListener("dblclick", this.doubleClick.bind(this)); // Add double-click event listener
+    }
+
+    addEventListeners(widgetDiv) {
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+        widgetDiv.addEventListener("pointermove", this.pointerMove.bind(this));
+        widgetDiv.addEventListener("pointerup", this.pointerUp.bind(this));
+        widgetDiv.addEventListener("pointerleave", this.pointerUp.bind(this));
+        widgetDiv.addEventListener("dblclick", this.doubleClick.bind(this)); // Add double-click event listener
+    }
+
+    pointerDown(event) {
+        this.isDragging = true;
+        this.startY = event.clientY;
+        this.startValue = this.props.value;
+        event.target.setPointerCapture(event.pointerId);
+    }
+
+    pointerMove(event) {
+        const inputBox = document.querySelector(`#slider-${this.props.channel} input`);
+        if (inputBox) {
+            return;
+        }
+        
+        if (this.isDragging) {
+            const dy = event.clientY - this.startY;
+            const increment = this.props.increment;
+            const steps = dy / 10; // Number of steps to move based on drag distance
+            const newValue = this.startValue - steps * increment;
+            this.props.value = Math.min(this.props.max, Math.max(this.props.min, newValue));
+            const normalValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
+            const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: normalValue };
+            _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
+            this.updateSliderValue();
+        }
+    }
+    
+
+    pointerUp(event) {
+        this.isDragging = false;
+        event.target.releasePointerCapture(event.pointerId);
+    }
+
+    doubleClick(event) {
+        const sliderDiv = event.currentTarget;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = this.props.value.toFixed(this.decimalPlaces);
+        input.style.position = 'absolute';
+        input.style.top = '50%';
+        input.style.left = '50%';
+        input.style.transform = 'translate(-50%, -50%)';
+        input.style.width = '60%'; // Adjust the width as needed
+        input.style.height = 'auto';
+        input.style.fontSize = `${Math.max(this.props.height * 0.4, 12)}px`; // Adjust font size
+        input.style.fontFamily = this.props.fontFamily;
+        input.style.textAlign = 'center'; // Center align the text inside input
+        input.style.boxSizing = 'border-box';
+    
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const newValue = parseFloat(input.value);
+                if (!isNaN(newValue) && newValue >= this.props.min && newValue <= this.props.max) {
+                    this.props.value = newValue;
+                    const normalValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
+                    const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: normalValue };
+                    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
+                    this.updateSliderValue();
+                } else {
+                    alert(`Please enter a value between ${this.props.min} and ${this.props.max}`);
+                }
+                sliderDiv.removeChild(input);
+                sliderDiv.innerHTML = this.getInnerHTML();
+            }
+        });
+    
+        sliderDiv.innerHTML = '';
+        sliderDiv.appendChild(input);
+        input.focus();
+        input.select(); // Auto-select the current text
+    }
+    
+    
+    
+    
+    
+    
+
+    updateSliderValue() {
+        const valueText = `${this.props.valuePrefix}${this.props.value.toFixed(this.decimalPlaces)}${this.props.valuePostfix}`;
+        const sliderText = document.getElementById(`slider-text-${this.props.channel}`);
+        if (sliderText) {
+            sliderText.textContent = valueText;
+        }
+    }
+
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+    
+        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.8, 12); // Ensuring font size doesn't get too small
+        const alignMap = {
+            'left': 'end',
+            'center': 'middle',
+            'centre': 'middle',
+            'right': 'start',
+        };
+        const svgAlign = alignMap[this.props.align] || 'middle';
+        const valueText = `${this.props.valuePrefix}${this.props.value.toFixed(this.decimalPlaces)}${this.props.valuePostfix}`;
+    
+        return `
+            <div id="slider-${this.props.channel}" style="position: relative; width: 100%; height: 100%;">
+                <!-- Background SVG with preserveAspectRatio="none" -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none"
+                     style="position: absolute; top: 0; left: 0;">
+                    <rect width="${this.props.width}" height="${this.props.height}" x="0" y="0" rx="${this.props.corners}" ry="${this.props.corners}" fill="${this.props.colour}" 
+                        pointer-events="all"></rect>
+                </svg>
+    
+                <!-- Text SVG with proper alignment -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet"
+                     style="position: absolute; top: 0; left: 0;">
+                    <text id="slider-text-${this.props.channel}" x="${this.props.align === 'left' ? '10%' : this.props.align === 'right' ? '90%' : '50%'}" y="50%" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+                        fill="${this.props.fontColour}" text-anchor="${svgAlign}" dominant-baseline="middle" alignment-baseline="middle" 
+                        style="pointer-events: none;">${valueText}</text>
+                </svg>
+            </div>
+        `;
+    }
+    
+    
+    
+}
+
+
+/***/ }),
+/* 8 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -2583,7 +2829,7 @@ class Button {
 
 /*
   * File Button for file browsing @extends Button
-  */ 
+  */
 class FileButton extends Button {
   constructor() {
     super();
@@ -2605,7 +2851,7 @@ class FileButton extends Button {
     console.log("pointerDown");
     this.isMouseDown = true;
     this.props.value = 1;
-
+    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.triggerFileOpenDialog(this.vscode, this.props.channel);
     _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
@@ -2622,8 +2868,8 @@ class OptionButton extends Button {
     this.props.colourOn = this.props.colourOff;
     this.props.fontColourOn = this.props.fontColourOff;
     this.props.items = "One, Two, Three", // List of items for the dropdown
-    //override following properties
-    this.props.text = "";
+      //override following properties
+      this.props.text = "";
     this.props.type = "optionbutton";
     this.props.automatable = 1;
   }
@@ -2637,7 +2883,8 @@ class OptionButton extends Button {
     this.props.value = this.props.value < this.props.items.split(",").length - 1 ? this.props.value + 1 : 0;
 
     _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: this.props.value }
+    const newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
+    const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
     _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
   }
 
@@ -2683,7 +2930,7 @@ class OptionButton extends Button {
 
 
 /***/ }),
-/* 8 */
+/* 9 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -2763,6 +3010,7 @@ class Checkbox {
     widgetDiv.VerticalSliderInstance = this;
   }
 
+
   getInnerHTML() {
     if (this.props.visible === 0) {
       return '';
@@ -2796,7 +3044,7 @@ class Checkbox {
 
 
 /***/ }),
-/* 9 */
+/* 10 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -2804,6 +3052,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   ComboBox: () => (/* binding */ ComboBox)
 /* harmony export */ });
 /* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
+
 
 
 class ComboBox {
@@ -2827,9 +3077,12 @@ class ComboBox {
             "visible": 1, // Visibility of the widget (0 for hidden, 1 for visible)
             "type": "combobox", // Type of the widget (combobox)
             "value": 0, // Value of the widget
-            "active": 1 // Whether the widget is active (0 for inactive, 1 for active)
+            "automatable": 1, // Whether the widget value can be automated (0 for no, 1 for yes)
+            "active": 1, // Whether the widget is active (0 for inactive, 1 for active)
+            "channelType": "number", // Type of the channel (number, string) - string channels cannot be automated by the host
+            "currentDirectory" : "", // Directory to point to if using populate() identifier
+            "fileType": "" // File type to filter if using populate() identifier, can use semicolon separated list with wildcard patterns, i.e, "*.txt;*.csv" 
         };
-        
 
         this.panelSections = {
             "Properties": ["type"],
@@ -2840,7 +3093,7 @@ class ComboBox {
 
         this.isMouseInside = false;
         this.isOpen = false;
-        this.selectedItem = this.props.value > 0 ? this.items[this.props.value] : this.props.text;
+        this.selectedItem = this.props.value > 0 ? this.props.items.split(",")[this.props.value] : this.props.text;
         this.parameterIndex = 0;
         this.vscode = null;
     }
@@ -2849,26 +3102,31 @@ class ComboBox {
         if (this.props.active === 0) {
             return '';
         }
-        console.log("Pointer down");
-        this.isOpen = !this.isOpen;
+
+        this.isOpen = true;//!this.isOpen;
+        console.log("Pointer down", this.isOpen);
         this.isMouseInside = true;
         _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+    }
 
-        if (this.firstOpen) {
-            this.isOpen = true;
-            this.firstOpen = false; // Update the flag after the first open
-        } else {
-            // Check if the event target is a dropdown item
-            const selectedItem = evt.target.getAttribute("data-item");
-            if (selectedItem) {
-                console.log("Item clicked:", selectedItem);
-                this.selectedItem = selectedItem;
-                this.isOpen = false;
-                const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
-                widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
-                _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-            }
+    handleItemClick(item) {
+        this.selectedItem = item.trim();
+        const items = this.props.items.split(",");
+        const index = items.indexOf(this.selectedItem);
+        const normalValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(index, 0, items.length, 0, 1);
+
+        const msg = {
+            paramIdx: this.parameterIndex, channel: this.props.channel,
+            value: this.props.channelType === "string" ? this.selectedItem : normalValue,
+            channelType: this.props.channelType
         }
+        _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
+
+
+        this.isOpen = false;
+        const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
+        widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
+        _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
     }
 
     addVsCodeEventListeners(widgetDiv, vs) {
@@ -2884,18 +3142,14 @@ class ComboBox {
         widgetDiv.ComboBoxInstance = this;
     }
 
+
     handleClickOutside(event) {
-        // Get the widget div
         const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
-    
-        // Check if the target of the click event is outside of the widget div
+
         if (!widgetDiv.contains(event.target)) {
-            // Close the dropdown menu
             this.isOpen = false;
-            // Update the HTML
-            const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
-                widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
-                _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+            widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
+            _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
         }
     }
 
@@ -2903,30 +3157,30 @@ class ComboBox {
         if (this.props.visible === 0) {
             return '';
         }
-    
+
         const alignMap = {
             'left': 'start',
             'center': 'middle',
             'centre': 'middle',
             'right': 'end',
         };
-    
+
         const svgAlign = alignMap[this.props.align] || this.props.align;
         const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
-    
+
         let totalHeight = this.props.height;
         const itemHeight = this.props.height * 0.8; // Scale back item height to 80% of the original height
         if (this.isOpen) {
             const items = this.props.items.split(",");
             totalHeight += items.length * itemHeight;
-    
+
             // Check if the dropdown will be off the bottom of the screen
             const mainForm = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv("MainForm");
             const widgetDiv = mainForm.querySelector(`#${this.props.channel}`);
             const widgetRect = widgetDiv.getBoundingClientRect();
             const mainFormRect = mainForm.getBoundingClientRect();
             const spaceBelow = mainFormRect.bottom - widgetRect.bottom;
-    
+
             if (spaceBelow < totalHeight) {
                 const adjustment = totalHeight - this.props.height * 2; // Adding 10px for some padding
                 const currentTopValue = parseInt(widgetDiv.style.top, 10) || this.props.top; // Use props.top if style.top is not set
@@ -2934,7 +3188,7 @@ class ComboBox {
                 widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + newTopValue + 'px)';
             }
         }
-    
+
         let dropdownItems = "";
         if (this.isOpen) {
             const items = this.props.items.split(",");
@@ -2955,14 +3209,12 @@ class ComboBox {
                 `;
             });
         }
-    
-        // Adjusting the position of the arrow
+
         const arrowWidth = 10; // Width of the arrow
         const arrowHeight = 6; // Height of the arrow
         const arrowX = this.props.width - arrowWidth - this.props.corners / 2 - 10; // Decreasing arrowX value to move the arrow more to the left
         const arrowY = (this.props.height - arrowHeight) / 2; // Y-coordinate of the arrow
-    
-        // Positioning the selected item text within the main rectangle
+
         let selectedItemTextX;
         if (svgAlign === 'middle') {
             selectedItemTextX = (this.props.width - arrowWidth - this.props.corners / 2) / 2;
@@ -2972,13 +3224,13 @@ class ComboBox {
             selectedItemTextX = svgAlign === 'start' ? (this.props.width - this.props.corners / 2) / 2 - selectedItemWidth / 2 + textPadding : (this.props.width - this.props.corners / 2) / 2 + selectedItemWidth / 2 + textPadding;
         }
         const selectedItemTextY = this.props.height / 2;
-    
+
         return `
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${totalHeight}" width="${this.props.width}" height="${totalHeight}" preserveAspectRatio="none">
                 <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners * 2}" fill="${this.props.colour}" stroke="${this.props.outlineColour}"
                     stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}" 
                     style="cursor: pointer;" pointer-events="all" 
-                    onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.pointerDown()"></rect>
+                    onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.pointerDown(event)"></rect>
                 ${dropdownItems}
                 <polygon points="${arrowX},${arrowY} ${arrowX + arrowWidth},${arrowY} ${arrowX + arrowWidth / 2},${arrowY + arrowHeight}"
                     fill="${this.props.outlineColour}" style="${this.isOpen ? 'display: none;' : ''} pointer-events: none;"/>
@@ -2988,18 +3240,11 @@ class ComboBox {
             </svg>
         `;
     }
-    
-
-
-
-
-
-
 }
 
 
 /***/ }),
-/* 10 */
+/* 11 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -3090,7 +3335,105 @@ class Label {
 
 
 /***/ }),
-/* 11 */
+/* 12 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   ListBox: () => (/* binding */ ListBox)
+/* harmony export */ });
+/**
+ * ListBox class
+ */
+class ListBox {
+    constructor() {
+        this.props = {
+            "top": 0,
+            "left": 0,
+            "width": 200,
+            "height": 300,
+            "type": "listbox",
+            "backgroundColour": "#ffffff",
+            "fontColour": "#000000",
+            "highlightedItemColour": "#dddddd",
+            "items": "item1, item2, item3",
+            "visible": 1,
+            "selectedIndex": -1,
+            "automatable": 1,
+            "channelType": "number",
+            "min":0,
+            "max":3
+        }
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Colours": ["backgroundColour", "fontColour", "highlightedItemColour"],
+            "Items": ["items"]
+        };
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    addEventListeners(widgetDiv) {
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    pointerDown(event) {
+        const itemElements = event.currentTarget.querySelectorAll('.list-item');
+        itemElements.forEach((itemElement, index) => {
+            const rect = itemElement.getBoundingClientRect();
+            if (event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom) {
+                this.props.selectedIndex = index;
+                this.updateListItems(itemElements);
+                console.log(`Item ${index + 1} clicked!`);
+            }
+        });
+    }
+
+    updateListItems(itemElements) {
+        itemElements.forEach((itemElement, index) => {
+            if (index === this.props.selectedIndex) {
+                itemElement.style.backgroundColor = this.props.highlightedItemColour;
+            } else {
+                itemElement.style.backgroundColor = this.props.backgroundColour;
+            }
+        });
+    }
+
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+
+        const items = this.props.items.split(',').map(item => item.trim());
+        const listItemsHTML = items.map((item, index) => `
+            <div class="list-item" style="
+                width: 100%;
+                padding: 5px;
+                box-sizing: border-box;
+                color: ${this.props.fontColour};
+                background-color: ${index === this.props.selectedIndex ? this.props.highlightedItemColour : this.props.backgroundColour};
+                cursor: pointer;
+                ">
+                ${item}
+            </div>
+        `).join('');
+
+        return `
+            <div style="position: relative; width: 100%; height: 100%; overflow-y: auto;">
+                ${listItemsHTML}
+            </div>
+        `;
+    }
+}
+
+
+/***/ }),
+/* 13 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -3179,7 +3522,7 @@ ${this.props.text}
 
 
 /***/ }),
-/* 12 */
+/* 14 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -3204,23 +3547,22 @@ class MidiKeyboard {
       type: "keyboard", // Type of the widget (keyboard)
       colour: "#888888", // Background color of the keyboard
       channel: "keyboard", // Unique identifier for the keyboard widget
-      blackNoteColour: "#000", // Color of the black keys on the keyboard
+      blackNoteColour: "#000000", // Color of the black keys on the keyboard
       value: "36", // The leftmost note of the keyboard
       fontFamily: "Verdana", // Font family for the text displayed on the keyboard
-      whiteNoteColour: "#fff", // Color of the white keys on the keyboard
-      keySeparatorColour: "#000", // Color of the separators between keys
+      whiteNoteColour: "#ffffff", // Color of the white keys on the keyboard
+      keySeparatorColour: "#000000", // Color of the separators between keys
       arrowBackgroundColour: "#0295cf", // Background color of the arrow keys
       mouseoverKeyColour: _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of keys when hovered over
       keydownColour: _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of keys when pressed
-      octaveButtonColour: "#00f", // Color of the octave change buttons
       automatable: 0
     };
 
     this.panelSections = {
-      Properties: ["type"],
+      Properties: ["type", "channel"],
       Bounds: ["left", "top", "width", "height"],
       Text: ["fontFamily"],
-      Colours: ["colour", "blackNoteColour", "whiteNoteColour", "keySeparatorColour", "arrowBackgroundColour", "keydownColour", "octaveButtonColour"]
+      Colours: ["colour", "blackNoteColour", "whiteNoteColour", "keySeparatorColour", "arrowBackgroundColour", "keydownColour"]
     };
 
     this.isMouseDown = false; // Track the state of the mouse button
@@ -3435,7 +3777,7 @@ class MidiKeyboard {
 
 
 /***/ }),
-/* 13 */
+/* 15 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -3490,6 +3832,7 @@ class GenTable {
         this.canvas.height = this.props.height;
         this.ctx = this.canvas.getContext('2d');
     }
+
     addVsCodeEventListeners(widgetDiv, vs) {
         this.vscode = vs;
         widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
@@ -3606,7 +3949,7 @@ class GenTable {
 
 
 /***/ }),
-/* 14 */
+/* 16 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -3654,7 +3997,7 @@ class TextEditor {
     addEventListeners(widgetDiv) {
         // Add any necessary event listeners here
     }
-
+   
     getInnerHTML() {
         if (this.props.visible === 0) {
             return '';
@@ -3695,7 +4038,7 @@ ${this.props.text}
 
 
 /***/ }),
-/* 15 */
+/* 17 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -3734,6 +4077,7 @@ class Form {
   }
 
   updateSVG() {
+    console.log("updating form svg", this.props);
     // Select the parent div using the channel property
     const parentDiv = document.getElementById(this.props.channel);
     
@@ -3757,23 +4101,23 @@ class Form {
 
 
 /***/ }),
-/* 16 */
+/* 18 */
 /***/ ((module) => {
 
 module.exports = require("child_process");
 
 /***/ }),
-/* 17 */
+/* 19 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const WebSocket = __webpack_require__(18);
+const WebSocket = __webpack_require__(20);
 
-WebSocket.createWebSocketStream = __webpack_require__(38);
-WebSocket.Server = __webpack_require__(39);
-WebSocket.Receiver = __webpack_require__(32);
-WebSocket.Sender = __webpack_require__(35);
+WebSocket.createWebSocketStream = __webpack_require__(40);
+WebSocket.Server = __webpack_require__(41);
+WebSocket.Receiver = __webpack_require__(34);
+WebSocket.Sender = __webpack_require__(37);
 
 WebSocket.WebSocket = WebSocket;
 WebSocket.WebSocketServer = WebSocket.Server;
@@ -3782,25 +4126,25 @@ module.exports = WebSocket;
 
 
 /***/ }),
-/* 18 */
+/* 20 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex|Readable$" }] */
 
 
 
-const EventEmitter = __webpack_require__(19);
-const https = __webpack_require__(20);
-const http = __webpack_require__(21);
-const net = __webpack_require__(22);
-const tls = __webpack_require__(23);
-const { randomBytes, createHash } = __webpack_require__(24);
-const { Duplex, Readable } = __webpack_require__(25);
-const { URL } = __webpack_require__(26);
+const EventEmitter = __webpack_require__(21);
+const https = __webpack_require__(22);
+const http = __webpack_require__(23);
+const net = __webpack_require__(24);
+const tls = __webpack_require__(25);
+const { randomBytes, createHash } = __webpack_require__(26);
+const { Duplex, Readable } = __webpack_require__(27);
+const { URL } = __webpack_require__(28);
 
-const PerMessageDeflate = __webpack_require__(27);
-const Receiver = __webpack_require__(32);
-const Sender = __webpack_require__(35);
+const PerMessageDeflate = __webpack_require__(29);
+const Receiver = __webpack_require__(34);
+const Sender = __webpack_require__(37);
 const {
   BINARY_TYPES,
   EMPTY_BUFFER,
@@ -3810,12 +4154,12 @@ const {
   kStatusCode,
   kWebSocket,
   NOOP
-} = __webpack_require__(30);
+} = __webpack_require__(32);
 const {
   EventTarget: { addEventListener, removeEventListener }
-} = __webpack_require__(36);
-const { format, parse } = __webpack_require__(37);
-const { toBuffer } = __webpack_require__(29);
+} = __webpack_require__(38);
+const { format, parse } = __webpack_require__(39);
+const { toBuffer } = __webpack_require__(31);
 
 const closeTimeout = 30 * 1000;
 const kAborted = Symbol('kAborted');
@@ -5124,64 +5468,64 @@ function socketOnError() {
 
 
 /***/ }),
-/* 19 */
+/* 21 */
 /***/ ((module) => {
 
 module.exports = require("events");
 
 /***/ }),
-/* 20 */
+/* 22 */
 /***/ ((module) => {
 
 module.exports = require("https");
 
 /***/ }),
-/* 21 */
+/* 23 */
 /***/ ((module) => {
 
 module.exports = require("http");
 
 /***/ }),
-/* 22 */
+/* 24 */
 /***/ ((module) => {
 
 module.exports = require("net");
 
 /***/ }),
-/* 23 */
+/* 25 */
 /***/ ((module) => {
 
 module.exports = require("tls");
 
 /***/ }),
-/* 24 */
+/* 26 */
 /***/ ((module) => {
 
 module.exports = require("crypto");
 
 /***/ }),
-/* 25 */
+/* 27 */
 /***/ ((module) => {
 
 module.exports = require("stream");
 
 /***/ }),
-/* 26 */
+/* 28 */
 /***/ ((module) => {
 
 module.exports = require("url");
 
 /***/ }),
-/* 27 */
+/* 29 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const zlib = __webpack_require__(28);
+const zlib = __webpack_require__(30);
 
-const bufferUtil = __webpack_require__(29);
-const Limiter = __webpack_require__(31);
-const { kStatusCode } = __webpack_require__(30);
+const bufferUtil = __webpack_require__(31);
+const Limiter = __webpack_require__(33);
+const { kStatusCode } = __webpack_require__(32);
 
 const FastBuffer = Buffer[Symbol.species];
 const TRAILER = Buffer.from([0x00, 0x00, 0xff, 0xff]);
@@ -5692,18 +6036,18 @@ function inflateOnError(err) {
 
 
 /***/ }),
-/* 28 */
+/* 30 */
 /***/ ((module) => {
 
 module.exports = require("zlib");
 
 /***/ }),
-/* 29 */
+/* 31 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { EMPTY_BUFFER } = __webpack_require__(30);
+const { EMPTY_BUFFER } = __webpack_require__(32);
 
 const FastBuffer = Buffer[Symbol.species];
 
@@ -5835,7 +6179,7 @@ if (!process.env.WS_NO_BUFFER_UTIL) {
 
 
 /***/ }),
-/* 30 */
+/* 32 */
 /***/ ((module) => {
 
 
@@ -5853,7 +6197,7 @@ module.exports = {
 
 
 /***/ }),
-/* 31 */
+/* 33 */
 /***/ ((module) => {
 
 
@@ -5914,22 +6258,22 @@ module.exports = Limiter;
 
 
 /***/ }),
-/* 32 */
+/* 34 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { Writable } = __webpack_require__(25);
+const { Writable } = __webpack_require__(27);
 
-const PerMessageDeflate = __webpack_require__(27);
+const PerMessageDeflate = __webpack_require__(29);
 const {
   BINARY_TYPES,
   EMPTY_BUFFER,
   kStatusCode,
   kWebSocket
-} = __webpack_require__(30);
-const { concat, toArrayBuffer, unmask } = __webpack_require__(29);
-const { isValidStatusCode, isValidUTF8 } = __webpack_require__(33);
+} = __webpack_require__(32);
+const { concat, toArrayBuffer, unmask } = __webpack_require__(31);
+const { isValidStatusCode, isValidUTF8 } = __webpack_require__(35);
 
 const FastBuffer = Buffer[Symbol.species];
 const promise = Promise.resolve();
@@ -6662,12 +7006,12 @@ function throwErrorNextTick(err) {
 
 
 /***/ }),
-/* 33 */
+/* 35 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { isUtf8 } = __webpack_require__(34);
+const { isUtf8 } = __webpack_require__(36);
 
 //
 // Allowed token characters:
@@ -6798,26 +7142,26 @@ if (isUtf8) {
 
 
 /***/ }),
-/* 34 */
+/* 36 */
 /***/ ((module) => {
 
 module.exports = require("buffer");
 
 /***/ }),
-/* 35 */
+/* 37 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex" }] */
 
 
 
-const { Duplex } = __webpack_require__(25);
-const { randomFillSync } = __webpack_require__(24);
+const { Duplex } = __webpack_require__(27);
+const { randomFillSync } = __webpack_require__(26);
 
-const PerMessageDeflate = __webpack_require__(27);
-const { EMPTY_BUFFER } = __webpack_require__(30);
-const { isValidStatusCode } = __webpack_require__(33);
-const { mask: applyMask, toBuffer } = __webpack_require__(29);
+const PerMessageDeflate = __webpack_require__(29);
+const { EMPTY_BUFFER } = __webpack_require__(32);
+const { isValidStatusCode } = __webpack_require__(35);
+const { mask: applyMask, toBuffer } = __webpack_require__(31);
 
 const kByteLength = Symbol('kByteLength');
 const maskBuffer = Buffer.alloc(4);
@@ -7287,12 +7631,12 @@ module.exports = Sender;
 
 
 /***/ }),
-/* 36 */
+/* 38 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { kForOnEventAttribute, kListener } = __webpack_require__(30);
+const { kForOnEventAttribute, kListener } = __webpack_require__(32);
 
 const kCode = Symbol('kCode');
 const kData = Symbol('kData');
@@ -7585,12 +7929,12 @@ function callListener(listener, thisArg, event) {
 
 
 /***/ }),
-/* 37 */
+/* 39 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { tokenChars } = __webpack_require__(33);
+const { tokenChars } = __webpack_require__(35);
 
 /**
  * Adds an offer to the map of extension offers or a parameter to the map of
@@ -7794,12 +8138,12 @@ module.exports = { format, parse };
 
 
 /***/ }),
-/* 38 */
+/* 40 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { Duplex } = __webpack_require__(25);
+const { Duplex } = __webpack_require__(27);
 
 /**
  * Emits the `'close'` event on a stream.
@@ -7959,23 +8303,23 @@ module.exports = createWebSocketStream;
 
 
 /***/ }),
-/* 39 */
+/* 41 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex$" }] */
 
 
 
-const EventEmitter = __webpack_require__(19);
-const http = __webpack_require__(21);
-const { Duplex } = __webpack_require__(25);
-const { createHash } = __webpack_require__(24);
+const EventEmitter = __webpack_require__(21);
+const http = __webpack_require__(23);
+const { Duplex } = __webpack_require__(27);
+const { createHash } = __webpack_require__(26);
 
-const extension = __webpack_require__(37);
-const PerMessageDeflate = __webpack_require__(27);
-const subprotocol = __webpack_require__(40);
-const WebSocket = __webpack_require__(18);
-const { GUID, kWebSocket } = __webpack_require__(30);
+const extension = __webpack_require__(39);
+const PerMessageDeflate = __webpack_require__(29);
+const subprotocol = __webpack_require__(42);
+const WebSocket = __webpack_require__(20);
+const { GUID, kWebSocket } = __webpack_require__(32);
 
 const keyRegex = /^[+/0-9A-Za-z]{22}==$/;
 
@@ -8504,12 +8848,12 @@ function abortHandshakeOrEmitwsClientError(server, req, socket, code, message) {
 
 
 /***/ }),
-/* 40 */
+/* 42 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { tokenChars } = __webpack_require__(33);
+const { tokenChars } = __webpack_require__(35);
 
 /**
  * Parses the `Sec-WebSocket-Protocol` header into a set of subprotocol names.

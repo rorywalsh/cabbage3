@@ -214,13 +214,13 @@ export class PropertyPanel {
         widget.props[input.id] = parsedValue;
         CabbageUtils.updateBounds(widget.props, input.id);
         const widgetDiv = CabbageUtils.getWidgetDiv(widget.props.channel);
-        
+
         if (widget.props['type'] === 'form') {
           //can't be updated innerHTML for form as it is a parent for all
           //other components
           widget.updateSVG();
         }
-        else{
+        else {
           widgetDiv.innerHTML = widget.getInnerHTML();
         }
         if (!vscode) {
@@ -261,16 +261,17 @@ export class PropertyPanel {
           if (eventType !== 'click') {
             widget.props.left = Math.floor(bounds.x);
             widget.props.top = Math.floor(bounds.y);
-            widget.props.width = Math.floor(bounds.w);
-            widget.props.height = Math.floor(bounds.h);
-
+            if (bounds.w > 0 && bounds.h > 0) {
+              widget.props.width = Math.floor(bounds.w);
+              widget.props.height = Math.floor(bounds.h);
+            }
             // gentable and form are special cases and have dedicated update methods
             if (widget.props.type == "gentable") {
               widget.updateTable();
             } else if (widget.props.type == "form") {
               widget.updateSVG();
             }
-            else{
+            else {
               const widgetDiv = CabbageUtils.getWidgetDiv(widget.props.channel);
               widgetDiv.innerHTML = widget.getInnerHTML();
             }

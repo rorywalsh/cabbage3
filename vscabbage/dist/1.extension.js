@@ -3,7 +3,7 @@ exports.id = 1;
 exports.ids = [1];
 exports.modules = {
 
-/***/ 41:
+/***/ 45:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -20,7 +20,7 @@ class WidgetWrapper {
             restriction: 'parent',
             endOnly: true
         };
-        this.snapSize = 4;
+        this.snapSize = 2;
         this.selectedElements = selectedSet;
         this.updatePanelCallback = updatePanelCallback;
         this.dragMoveListener = this.dragMoveListener.bind(this);
@@ -57,7 +57,7 @@ class WidgetWrapper {
             element.style.transform = `translate(${x}px, ${y}px)`;
             element.setAttribute('data-x', x);
             element.setAttribute('data-y', y);
-            this.updatePanelCallback(this.vscode, { eventType: "move", name: element.id, bounds: { x: x, y: y, w: element.offsetWidth, h: element.offsetHeight } },this.widgets);
+            this.updatePanelCallback(this.vscode, { eventType: "move", name: element.id, bounds: { x: x, y: y, w: -1, h: -1 } },this.widgets);
 
 
             // console.log(`Drag ended for element ${element.id}: x=${x}, y=${y}`); // Logging drag end details
@@ -105,9 +105,9 @@ class WidgetWrapper {
             },
             modifiers: [
                 interact.modifiers.restrictRect(restrictions),
-                interact.modifiers.restrictSize({
-                    min: { width: 10, height: 10 }
-                }),
+                // interact.modifiers.restrictSize({
+                //     min: { width: 10, height: 10 }
+                // }),
                 interact.modifiers.snap({
                     targets: [
                         interact.snappers.grid({ x: this.snapSize, y: this.snapSize })
@@ -165,10 +165,10 @@ class WidgetWrapper {
                 }
             },
             modifiers: [
-                interact.modifiers.restrictSize({
-                    min: { width: 50, height: 50 }, // Minimum size for the element
-                    max: { width: 1500, height: 1500 } // Maximum size for the element
-                })
+                // interact.modifiers.restrictSize({
+                //     min: { width: 10, height: 10 }, // Minimum size for the element
+                //     max: { width: 1500, height: 1500 } // Maximum size for the element
+                // })
             ],
             inertia: true
         });
@@ -191,10 +191,10 @@ interact('.draggablePanel')
     .draggable({
         inertia: true,
         autoScroll: true,
-        onmove: dragMoveListener
+        onmove: formDragMoveListener
     });
 
-function dragMoveListener(event) {
+function formDragMoveListener(event) {
 
     var target = event.target;
     if (event.shiftKey || event.altKey) {

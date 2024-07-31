@@ -41,16 +41,18 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
     
     webSocket.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg)
             {
+                auto& cabbage = cabbageProcessor->getCabbage();
                 if (msg->type == ix::WebSocketMessageType::Message)
                 {
                     try{
-                        auto& cabbage = cabbageProcessor->getCabbage();
+                        
+                        _log(msg->str);
                         auto json = nlohmann::json::parse(msg->str, nullptr, false);
                         const std::string command = json["command"];
-                        auto jsonObj = nlohmann::json::parse(json["text"].get<std::string>());
+                        auto jsonObj = nlohmann::json::parse(json["obj"].get<std::string>());
                         if(command == "parameterChange")
                         {
-                            for(int i = 0 ; i < cabbage.getNumberOfParameter() ; i++)
+                            for(int i = 0 ; i < cabbage.getNumberOfParameters() ; i++)
                             {
                                 if(cabbage.getParameterChannel(i).name == jsonObj["channel"].get<std::string>())
                                 {
@@ -85,6 +87,10 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                                 jsonObj["dataByte2"].get<uint8_t>()};
                             cabbageProcessor->SendMidiMsgFromUI(msg);
                         }
+                        else if(command == "cabbageIsReadyToLoad")
+                        {
+                        
+                        }
                         else if(command == "cabbageSetupComplete")
                         {
                             cabbageProcessor->interfaceHasLoaded();
@@ -107,7 +113,17 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                 else if (msg->type == ix::WebSocketMessageType::Open)
                 {
                     _log("Connection established" << std::flush);
-                    //if connection is open, enable dequeuing..
+                    //if connection is ope we need to send all parse jSON objects to VS-Code..
+                    for( auto& w : cabbage.getWidgets())
+                    {
+                        _log(w.dump(4));
+                        nlohmann::json msg;
+                        msg["command"] = "widgetUpdate";
+                        msg["channel"] = w["channel"];
+                        msg["data"] = w.dump();
+                        webSocket.send(msg.dump());
+
+                    }
                     cabbageProcessor->interfaceHasLoaded();
                 }
                 else if (msg->type == ix::WebSocketMessageType::Error)
@@ -133,7 +149,8 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
             
             nlohmann::json msg;
             msg["command"] = "widgetUpdate";
-            msg["text"] = j;
+            msg["channel"] = j["channel"];
+            msg["data"] = j.dump();
             webSocket.send(msg.dump());
         }
         else
@@ -146,24 +163,19 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                 if(j["type"].get<std::string>() == "gentable")
                 {
                     cabbage.updateFunctionTable(data, j);
-                    nlohmann::json json;
-                    json["channel"] = data.channel;
-                    json["data"] = j.dump();
-                    
                     nlohmann::json msg;
                     msg["command"] = "widgetUpdate";
-                    msg["text"] = json;
+                    msg["channel"] = data.channel;
+                    msg["data"] = j.dump();
                     webSocket.send(msg.dump());
                 }
                 else{
                     nlohmann::json json;
                     CabbageParser::updateJsonFromSyntax(j, data.cabbageCode);
-                    json["channel"] = data.channel;
-                    json["data"] = j.dump();
-                    
                     nlohmann::json msg;
                     msg["command"] = "widgetUpdate";
-                    msg["text"] = json;
+                    msg["channel"] = data.channel;
+                    msg["data"] = j.dump();
                     webSocket.send(msg.dump());
                 }
             }

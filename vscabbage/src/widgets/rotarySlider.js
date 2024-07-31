@@ -162,7 +162,7 @@ export class RotarySlider {
     widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
     widgetDiv.RotarySliderInstance = this;
   }
-
+ 
   pointerMove({ clientY }) {
     if (this.props.active === 0) {
       return '';

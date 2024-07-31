@@ -85,6 +85,7 @@ public:
     
     void setupCallbacks();
     void interfaceHasLoaded();
+    void updateJSWidgets();
     
 #ifdef CabbageApp
     std::function<void(CabbageOpcodeData)> hostCallback = nullptr;

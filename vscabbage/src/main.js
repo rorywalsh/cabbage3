@@ -15,6 +15,7 @@ import { MidiKeyboard } from "./widgets/midiKeyboard.js";
 import { TextEditor } from "./widgets/textEditor.js";
 //------------------------
 
+
 const widgetConstructors = {
   "rslider": RotarySlider,
   "hslider": HorizontalSlider,
@@ -58,7 +59,7 @@ const widgetsForTesting = [
   new OptionButton()
 ];
 // CabbageTestUtilities.generateIdentifierTestCsd(widgetsForTesting); // This will generate a test CSD file with the widgets
-CabbageTestUtilities.generateCabbageWidgetDescriptorsClass(widgetsForTesting); // This will generate a class with the widget descriptors 
+// CabbageTestUtilities.generateCabbageWidgetDescriptorsClass(widgetsForTesting); // This will generate a class with the widget descriptors 
 
 
 //sending a message to notify when main has been loaded - Cabbage listens for this message 
@@ -87,68 +88,81 @@ Cabbage.sendCustomCommand(vscode, 'cabbageIsReadyToLoad');
 
 
 
-let cabbageMode = 'draggable';
+let cabbageMode = 'nonDraggable';
+const leftPanel = document.getElementById('LeftPanel');
+if (leftPanel)
+  leftPanel.className = "full-height-div nonDraggable"
+
+const rightPanel = document.getElementById('RightPanel');
+if (rightPanel)
+  rightPanel.style.visibility = "hidden";
+
 //adding this messes up dragging of main form
-widgets.push(new Form());
+// widgets.push(new Form());
 
-const form = document.getElementById('MainForm');
-form.style.backgroundColor = widgets[0].props.colour;
+// const form = document.getElementById('MainForm');
+// form.style.backgroundColor = widgets[0].props.colour;
 
-CabbageUtils.showOverlay();
+
+// CabbageUtils.showOverlay();
 
 
 /**
  * called from the webview panel on startup, and when a user saves/updates or changes .csd file
  */
 window.addEventListener('message', async event => {
-
-  const message = event.data;
+  const message = (event.data);
+  const mainForm = document.getElementById('MainForm');
+  console.log("data received", message);
   switch (message.command) {
-
-    case 'onFileChanged':
-      CabbageUtils.hideOverlay();
-      cabbageMode = 'nonDraggable';
-      form.className = "form nonDraggable";
-      const leftPanel = document.getElementById('LeftPanel');
-      if (leftPanel)
-        leftPanel.className = "full-height-div nonDraggable"
-
-      const rightPanel = document.getElementById('RightPanel');
-      if (rightPanel)
-        rightPanel.style.visibility = "hidden";
-
-      try {
-        await CabbageUtils.parseCabbageCode(message.text, widgets, form, insertWidget);
-        // Additional code to execute if parseCabbageCode succeeds
-      } catch (error) {
-        console.error("An error occurred while parsing the cabbage code:", error);
-        // Handle the error appropriately, such as displaying a message to the user
-      }
-
-      //in plugin mode we need to sync with the instrument's widget array
-      widgets.forEach(w => {
-        Cabbage.sendWidgetUpdate(vscode, w);
-      });
-
-      Cabbage.sendCustomCommand(vscode, 'cabbageSetupComplete');
-      break;
-
+    //when users change the snapToSize settings
     case 'snapToSize':
       widgetWrappers.setSnapSize(parseInt(message.text));
       break;
 
+    //when the host, i.e, a Cabbage plugin, or VS-Code first loads, it will call this for each
+    //widgets. It will subsequently then call it each time a widget is updated, message contains, 
+    //'channel', 'command' and 'data'
     case 'widgetUpdate':
-      const updateMsg = JSON.parse(message.text);
+      CabbageUtils.hideOverlay();
+      const updateMsg = message;
       updateWidget(updateMsg);
+      break;
+
+    //called when a user saves a file. First we clear the widget array, then Cabbage will update it from the plugin
+    case 'onFileChanged':
+      cabbageMode = 'nonDraggable';
+
+      if (mainForm) {
+        mainForm.remove();
+      }
+      else {
+        console.error("MainForm not found");
+      }
+      // leftPanel.innerHTML = '';
+      widgets.length = 0;
       break;
 
     case 'onEnterEditMode':
       CabbageUtils.hideOverlay();
       cabbageMode = 'draggable';
+      const widgetUpdatesMessages = [];
+      widgets.forEach(widget => {
+        widgetUpdatesMessages.push({ command: "widgetUpdate", channel: widget.props.channel, data: JSON.stringify(widget.props) });
+      });
+      if (mainForm) {
+        mainForm.remove();
+      }
+      else {
+        console.error("MainForm not found");
+      }
+      widgets.length = 0;
+      widgetUpdatesMessages.forEach(msg => updateWidget(msg));
       //form.className = "form draggable";
-      CabbageUtils.parseCabbageCode(message.text, widgets, form, insertWidget);
+      //CabbageUtils.parseCabbageCode(message.text, widgets, form, insertWidget);
       break;
 
+    //called each time there are new Csound console messages to display
     case 'csoundOutputUpdate':
       // Find csoundOutput widget
       let csoundOutput = widgets.find(widget => widget.props.channel === 'csoundoutput');
@@ -172,235 +186,57 @@ window.addEventListener('message', async event => {
 */
 function updateWidget(obj) {
   const channel = obj['channel'];
+  let widgetFound = false;
   for (const widget of widgets) {
     if (widget.props.channel === channel) {
+      widgetFound = true;
       if (obj.hasOwnProperty('data')) {
-        console.log(obj["data"]);
         widget.props = JSON.parse(obj["data"]);
       } else if (obj.hasOwnProperty('value')) {
         widget.props.value = obj['value'];
+
       }
-   
+
       const widgetElement = CabbageUtils.getWidgetDiv(widget.props.channel);
       if (widgetElement) {
-        // console.log(widgetElement.id, widgetElement.parentElement.id);
-        widgetElement.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
+        // widgetElement.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
         widgetElement.setAttribute('data-x', widget.props.left);
         widgetElement.setAttribute('data-y', widget.props.top);
-        // widgetElement.style.top = widget.props.top + 'px';
-        // widgetElement.style.left = widget.props.left + 'px';
 
-        // Do not update the innerHTML of a form as it will remove all its children
         if (widget.props.type !== "form") {
+          console.log("updating value for ", widget.props.channel);
           widgetElement.innerHTML = widget.getInnerHTML();
         }
+
       }
 
-      // gentable and form are special cases and have dedicated update methods
       if (widget.props.type == "gentable") {
         widget.updateTable();
-
       } else if (widget.props.type == "form") {
         widget.updateSVG();
       }
     }
   }
-}
 
+  //the first time updateWidget is called from the host, it will populate the widgets array
+  if (!widgetFound && obj.hasOwnProperty('data')) {
+    try {
+      let p = JSON.parse(obj.data);
+      if (typeof p === 'string') {
+        p = JSON.parse(p);
+        console.log("stringed twice");
+      }
 
-const contextMenu = document.querySelector(".wrapper");
-
-/**
- * Add listener for context menu. Also keeps the current x and x positions 
- * in case a user adds a widget
- */
-if (typeof acquireVsCodeApi === 'function') {
-  let mouseDownPosition = {};
-  form.addEventListener("contextmenu", e => {
-    console.log("context menu");
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    e.stopPropagation();
-    let x = e.offsetX, y = e.offsetY,
-      winWidth = window.innerWidth,
-      winHeight = window.innerHeight,
-      cmWidth = contextMenu.offsetWidth,
-      cmHeight = contextMenu.offsetHeight;
-
-    x = x > winWidth - cmWidth ? winWidth - cmWidth - 5 : x;
-    y = y > winHeight - cmHeight ? winHeight - cmHeight - 5 : y;
-
-    contextMenu.style.left = `${x}px`;
-    contextMenu.style.top = `${y}px`;
-    mouseDownPosition = { x: x, y: y };
-    if (cabbageMode === 'draggable') { contextMenu.style.visibility = "visible"; }
-
-  });
-  document.addEventListener("click", () => contextMenu.style.visibility = "hidden");
-
-  // new PropertyPanel('slider', currentWidget, {});
-
-  /**
-   * Add a click callback listener for each item in the menu. Within the click callback
-   * a new widget is added to the form, and a new widget object is pushed to the widgets array. 
-   * Assigning class type 'editMode' gives it draggable and resizable functionality. 
-   */
-  let menuItems = document.getElementsByTagName('*');
-  for (var i = 0; i < menuItems.length; i++) {
-    if (menuItems[i].getAttribute('class') === 'menuItem') {
-      menuItems[i].addEventListener("pointerdown", async (e) => {
-        console.log('clicked');
-        e.stopImmediatePropagation();
-        e.stopPropagation();
-        const type = e.target.innerHTML.replace(/(<([^>]+)>)/ig);
-        const channel = CabbageUtils.getUniqueChannelName(type, widgets);
-        const w = await insertWidget(type, { channel: channel, top: mouseDownPosition.y - 20, left: mouseDownPosition.x - 20 });
-        if (widgets) {
-          //update text editor with last added widget
-          vscode.postMessage({
-            command: 'widgetUpdate',
-            text: JSON.stringify(w)
-          });
-        }
-
-      });
+      if (p.hasOwnProperty('type')) {
+        insertWidget(p.type, p)
+      }
+    } catch (error) {
+      console.error("Error parsing JSON data:", error, obj.data);
     }
   }
 }
 
-/*
- * Various listeners for the main form to handle grouping ans moving of multiple elements
- */
-if (form) {
-  let isSelecting = false;
-  let isDragging = false;
-  let selectionBox;
-  let startX, startY;
-  let offsetX = 0;
-  let offsetY = 0;
 
-  form.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0) { return; }
-
-    const clickedElement = event.target;
-    const formRect = form.getBoundingClientRect();
-    offsetX = formRect.left;
-    offsetY = formRect.top;
-
-    if ((event.shiftKey || event.altKey) && event.target === form) {
-      // Start selection mode
-      isSelecting = true;
-      startX = event.clientX - offsetX;
-      startY = event.clientY - offsetY;
-      selectionBox = document.createElement('div');
-      selectionBox.style.position = 'absolute';
-      selectionBox.style.border = '1px dashed #000';
-      selectionBox.style.backgroundColor = 'rgba(20, 20, 20, 0.3)';
-      selectionBox.style.left = `${startX}px`;
-      selectionBox.style.top = `${startY}px`;
-      form.appendChild(selectionBox);
-    } else if (clickedElement.classList.contains('draggable') && event.target.id !== "MainForm") {
-
-      if (!event.shiftKey && !event.altKey) {
-        // Deselect all elements if clicking on a non-selected element without Shift or Alt key
-        if (!selectedElements.has(clickedElement)) {
-          selectedElements.forEach(element => element.classList.remove('selected'));
-          selectedElements.clear();
-          selectedElements.add(clickedElement);
-        }
-        clickedElement.classList.add('selected');
-      } else {
-        // Toggle selection state if Shift or Alt key is pressed
-        clickedElement.classList.toggle('selected');
-        if (clickedElement.classList.contains('selected')) {
-          selectedElements.add(clickedElement);
-        } else {
-          selectedElements.delete(clickedElement);
-        }
-      }
-    }
-
-    if (event.target === form) {
-      // Deselect all elements if clicking on the form without Shift or Alt key
-      selectedElements.forEach(element => element.classList.remove('selected'));
-      selectedElements.clear();
-    }
-
-    if (!event.shiftKey && !event.altKey) {
-      if (cabbageMode === 'draggable') {
-        PropertyPanel.updatePanel(vscode, { eventType: "click", name: CabbageUtils.findValidId(event), bounds: {} }, widgets);
-      }
-    }
-  });
-
-  document.addEventListener('pointermove', (event) => {
-    if (isSelecting) {
-      const currentX = event.clientX - offsetX;
-      const currentY = event.clientY - offsetY;
-
-      selectionBox.style.width = `${Math.abs(currentX - startX)}px`;
-      selectionBox.style.height = `${Math.abs(currentY - startY)}px`;
-      selectionBox.style.left = `${Math.min(currentX, startX)}px`;
-      selectionBox.style.top = `${Math.min(currentY, startY)}px`;
-    }
-
-    if (isDragging && selectionBox) {
-      const currentX = event.clientX;
-      const currentY = event.clientY;
-
-      const boxWidth = selectionBox.offsetWidth;
-      const boxHeight = selectionBox.offsetHeight;
-
-      const parentWidth = form.offsetWidth;
-      const parentHeight = form.offsetHeight;
-
-      const maxX = parentWidth - boxWidth;
-      const maxY = parentHeight - boxHeight;
-
-      let newLeft = currentX - offsetX;
-      let newTop = currentY - offsetY;
-
-      newLeft = Math.max(0, Math.min(maxX, newLeft));
-      newTop = Math.max(0, Math.min(maxY, newTop));
-
-      selectionBox.style.left = `${newLeft}px`;
-      selectionBox.style.top = `${newTop}px`;
-    }
-  });
-
-  document.addEventListener('pointerup', (event) => {
-    if (isSelecting) {
-      const rect = selectionBox.getBoundingClientRect();
-      const elements = form.querySelectorAll('.draggable');
-
-      elements.forEach((element) => {
-        const elementRect = element.getBoundingClientRect();
-
-        // Check for intersection between the element and the selection box
-        if (elementRect.right >= rect.left &&
-          elementRect.left <= rect.right &&
-          elementRect.bottom >= rect.top &&
-          elementRect.top <= rect.bottom) {
-          element.classList.add('selected');
-          selectedElements.add(element);
-        }
-      });
-
-      form.removeChild(selectionBox);
-      isSelecting = false;
-    }
-
-    isDragging = false;
-  });
-  if (selectionBox) {
-    selectionBox.addEventListener('pointerdown', (event) => {
-      isDragging = true;
-      offsetX = event.clientX - selectionBox.getBoundingClientRect().left;
-      offsetY = event.clientY - selectionBox.getBoundingClientRect().top;
-      event.stopPropagation();
-    });
-  }
-}
 
 // Function to create widget dynamically based on type
 function createWidget(type) {
@@ -422,94 +258,386 @@ function createWidget(type) {
  */
 async function insertWidget(type, props) {
   const widgetDiv = document.createElement('div');
-  let widget = createWidget(type);
-  if (widget) {
-    console.log("Created widget:", widget);
-  } else {
+  widgetDiv.id = props.channel;
+
+  const widget = createWidget(type);
+  if (!widget) {
     console.error("Failed to create widget of type:", type);
+    return;
   }
 
-  if (type === "form")
-    widgetDiv.className = "resizeOnly";
-  else
-    widgetDiv.className = cabbageMode;
+  console.log("Created widget:", widget);
+  widgetDiv.className = (type === "form") ? "resizeOnly" : cabbageMode;
 
   if (cabbageMode === 'draggable') {
-    widgetDiv.addEventListener('pointerdown', (e) => {
-      if (e.altKey || e.shiftKey) {  // Use Alt key for multi-selection
-        widgetDiv.classList.toggle('selected');
-        if (widgetDiv.classList.contains('selected')) {
-          selectedElements.add(widgetDiv);
-        } else {
-          selectedElements.delete(widgetDiv);
-        }
-      } else {
-        if (!widgetDiv.classList.contains('selected')) {
-          selectedElements.forEach(element => element.classList.remove('selected'));
-          selectedElements.clear();
-          widgetDiv.classList.add('selected');
-          selectedElements.add(widgetDiv);
-        }
-      }
-    });
+    widgetDiv.addEventListener('pointerdown', (e) => handlePointerDown(e, widgetDiv));
   }
 
-  //iterate over the incoming props and assign them to the widget object
-  Object.entries(props).forEach((entry) => {
-    const [key, value] = entry;
-    widget.props[key] = value;
-  })
-
-  widgets.push(widget); // Push the new widget object into the array
-  const index = CabbageUtils.getNumberOfPluginParameters(widgets);//gets any widgets that are automatable - i.e, a parameter a host can see..
-  widget.parameterIndex = index - 1;
+  Object.assign(widget.props, props);
+  widgets.push(widget);
+  widget.parameterIndex = CabbageUtils.getNumberOfPluginParameters(widgets) - 1;
 
   if (cabbageMode === 'nonDraggable') {
-    if (typeof acquireVsCodeApi === 'function') {
-      if (!vscode) {
-        vscode = acquireVsCodeApi();
-        widget.addVsCodeEventListeners(widgetDiv, vscode);
-      }
-      else {
-        widget.addVsCodeEventListeners(widgetDiv, vscode);
-      }
-    }
-    else
-      widget.addEventListeners(widgetDiv);
+    setupNonDraggableMode(widget, widgetDiv);
   }
 
-  widgetDiv.id = widget.props.channel;
-
-  widgetDiv.innerHTML = widget.getInnerHTML();
-  if (form) {
-    form.appendChild(widgetDiv);
-  }
-
-  // gentable and form are special cases and have dedicated update methods
-  if (widget.props.type == "gentable") {
-    widget.updateTable();
-
-  } else if (widget.props.type == "form") {
-    widget.updateSVG();
-  }
-  else {
+  if (widget.props.type !== "form") {
     widgetDiv.innerHTML = widget.getInnerHTML();
+    appendToMainForm(widgetDiv);
+  } else if (widget.props.type === "form") {
+    setupFormWidget(widget);
+  } else if (widget.props.type === "gentable") {
+    widget.updateTable();
   }
 
-
-  //if (typeof acquireVsCodeApi === 'function') {
-  // console.error('this is not good - house of cards nonsense with difference in translate between plugin and vscode')
-  widgetDiv.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
-  //}
-
-  widgetDiv.setAttribute('data-x', widget.props.left);
-  widgetDiv.setAttribute('data-y', widget.props.top);
-  widgetDiv.style.width = widget.props.width + 'px'
-  widgetDiv.style.height = widget.props.height + 'px'
-
+  updateWidgetStyles(widgetDiv, widget.props);
   return widget.props;
 }
 
+function handlePointerDown(e, widgetDiv) {
+  if (e.altKey || e.shiftKey) {
+    widgetDiv.classList.toggle('selected');
+    updateSelectedElements(widgetDiv);
+  } else if (!widgetDiv.classList.contains('selected')) {
+    selectedElements.forEach(element => element.classList.remove('selected'));
+    selectedElements.clear();
+    widgetDiv.classList.add('selected');
+    selectedElements.add(widgetDiv);
+  }
+}
+
+function updateSelectedElements(widgetDiv) {
+  if (widgetDiv.classList.contains('selected')) {
+    selectedElements.add(widgetDiv);
+  } else {
+    selectedElements.delete(widgetDiv);
+  }
+}
+
+//only add listeners if we are in non-draggable mode, and they are available
+function setupNonDraggableMode(widget, widgetDiv) {
+  if (typeof acquireVsCodeApi === 'function') {
+    if (!vscode) {
+      vscode = acquireVsCodeApi();
+    }
+    if (typeof widget.addVsCodeEventListeners === 'function') {
+      widget.addVsCodeEventListeners(widgetDiv, vscode);
+    }
+  } else if (widget.props.type !== "form") {
+    console.log("adding listeners for:", widget);
+    if (typeof widget.addEventListeners === 'function') {
+      widget.addEventListeners(widgetDiv);
+    }
+  }
+}
+
+function appendToMainForm(widgetDiv) {
+  const form = document.getElementById('MainForm');
+  if (form) {
+    console.log("Appending to form");
+    form.appendChild(widgetDiv);
+  } else {
+    console.error("MainForm not found");
+  }
+}
+
+function setupFormWidget(widget) {
+  const formDiv = document.createElement('div');
+  formDiv.id = 'MainForm';
+
+  if (vscode) {
+    // New structure for vscode
+    formDiv.className = "form resizeOnly";
+
+    // Create the inner structure
+    const wrapperDiv = document.createElement('div');
+    wrapperDiv.className = 'wrapper';
+
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'content';
+    contentDiv.style.overflowY = 'auto';
+
+    const ulMenu = document.createElement('ul');
+    ulMenu.className = 'menu';
+
+    //add widget types to menu
+    const widgetTypes = ["hslider", "rslider", "texteditor", "gentable", "vslider", "keyboard", "button", "filebutton", "listbox", "optionbutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
+
+    let menuItems = "";
+    widgetTypes.forEach((widget) => {
+      menuItems += `
+			<li class="menuItem">
+			<span>${widget}</span>
+	  		</li>
+			`;
+    });
+
+    ulMenu.innerHTML = menuItems;
+
+    // Append the inner elements
+    contentDiv.appendChild(ulMenu);
+    wrapperDiv.appendChild(contentDiv);
+    formDiv.appendChild(wrapperDiv);
+
+    // Append MainForm to the LeftPanel
+    const leftPanel = document.getElementById('LeftPanel');
+    if (leftPanel) {
+      leftPanel.appendChild(formDiv);
+    } else {
+      console.error("LeftPanel not found");
+    }
+  } else {
+    // Old way for non-vscode
+    formDiv.className = "form nonDraggable";
+    document.body.appendChild(formDiv);
+  }
+
+  // Set MainForm properties and styles
+  const form = document.getElementById('MainForm');
+  if (form) {
+    form.style.width = widget.props.width + "px";
+    form.style.height = widget.props.height + "px";
+    form.style.top = '0px';
+    form.style.left = '0px';
+    console.log("updating form");
+
+    // Call widget's updateSVG method
+    if (typeof widget.updateSVG === 'function') {
+      widget.updateSVG();
+    }
+  } else {
+    console.error("MainForm not found");
+  }
+
+  // Call setupFormHandlers function
+  if (typeof setupFormHandlers === 'function') {
+    setupFormHandlers();
+  }
+}
 
 
+function updateWidgetStyles(widgetDiv, props) {
+  widgetDiv.style.position = 'absolute';
+  widgetDiv.style.transform = `translate(${props.left}px, ${props.top}px)`;
 
+  //if we use translate we need to ensure x/y are 0. 
+  widgetDiv.style.top = '0px'
+  widgetDiv.style.left = '0px'
+
+  widgetDiv.setAttribute('data-x', props.left);
+  widgetDiv.setAttribute('data-y', props.top);
+  widgetDiv.style.width = props.width + 'px';
+  widgetDiv.style.height = props.height + 'px';
+}
+
+
+/*
+* This function is called when we are in non-draggable mode. It will add a listener to the form
+* to handle selection of widgets.
+*/
+function setupFormHandlers() {
+  const contextMenu = document.querySelector(".wrapper");
+  const form = document.getElementById('MainForm');
+  /**
+   * Add listener for context menu. Also keeps the current x and x positions 
+   * in case a user adds a widget
+   */
+  if (typeof acquireVsCodeApi === 'function') {
+    let mouseDownPosition = {};
+    if (form && contextMenu) {
+      form.addEventListener("contextmenu", e => {
+        console.log("context menu");
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+        let x = e.offsetX, y = e.offsetY,
+          winWidth = window.innerWidth,
+          winHeight = window.innerHeight,
+          cmWidth = contextMenu.offsetWidth,
+          cmHeight = contextMenu.offsetHeight;
+
+        x = x > winWidth - cmWidth ? winWidth - cmWidth - 5 : x;
+        y = y > winHeight - cmHeight ? winHeight - cmHeight - 5 : y;
+
+        contextMenu.style.left = `${x}px`;
+        contextMenu.style.top = `${y}px`;
+        mouseDownPosition = { x: x, y: y };
+        if (cabbageMode === 'draggable') {
+          contextMenu.style.visibility = "visible";
+          console.log("Context menu should be visible");
+        }
+
+      });
+      document.addEventListener("click", () => {
+        console.log("Hiding context menu");
+        contextMenu.style.visibility = "hidden"
+      });
+
+      // new PropertyPanel('slider', currentWidget, {});
+
+      /**
+       * Add a click callback listener for each item in the menu. Within the click callback
+       * a new widget is added to the form, and a new widget object is pushed to the widgets array. 
+       * Assigning class type 'editMode' gives it draggable and resizable functionality. 
+       */
+      let menuItems = document.getElementsByTagName('*');
+      for (var i = 0; i < menuItems.length; i++) {
+        if (menuItems[i].getAttribute('class') === 'menuItem') {
+          menuItems[i].addEventListener("pointerdown", async (e) => {
+            console.log('clicked');
+            e.stopImmediatePropagation();
+            e.stopPropagation();
+            const type = e.target.innerHTML.replace(/(<([^>]+)>)/ig);
+            const channel = CabbageUtils.getUniqueChannelName(type, widgets);
+            const w = await insertWidget(type, { channel: channel, top: mouseDownPosition.y - 20, left: mouseDownPosition.x - 20 });
+            if (widgets) {
+              //update text editor with last added widget
+              vscode.postMessage({
+                command: 'widgetUpdateFromUI',
+                text: JSON.stringify(w)
+              });
+            }
+
+          });
+        }
+      }
+    }
+    else{
+      console.error("MainForm or contextMenu not found");
+    }
+  }
+
+  /*
+   * Various listeners for the main form to handle grouping ans moving of multiple elements
+   */
+  if (form) {
+    let isSelecting = false;
+    let isDragging = false;
+    let selectionBox;
+    let startX, startY;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    form.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) { return; }
+
+      const clickedElement = event.target;
+      const formRect = form.getBoundingClientRect();
+      offsetX = formRect.left;
+      offsetY = formRect.top;
+
+      if ((event.shiftKey || event.altKey) && event.target === form) {
+        // Start selection mode
+        isSelecting = true;
+        startX = event.clientX - offsetX;
+        startY = event.clientY - offsetY;
+        selectionBox = document.createElement('div');
+        selectionBox.style.position = 'absolute';
+        selectionBox.style.border = '1px dashed #000';
+        selectionBox.style.backgroundColor = 'rgba(20, 20, 20, 0.3)';
+        selectionBox.style.left = `${startX}px`;
+        selectionBox.style.top = `${startY}px`;
+        form.appendChild(selectionBox);
+      } else if (clickedElement.classList.contains('draggable') && event.target.id !== "MainForm") {
+
+        if (!event.shiftKey && !event.altKey) {
+          // Deselect all elements if clicking on a non-selected element without Shift or Alt key
+          if (!selectedElements.has(clickedElement)) {
+            selectedElements.forEach(element => element.classList.remove('selected'));
+            selectedElements.clear();
+            selectedElements.add(clickedElement);
+          }
+          clickedElement.classList.add('selected');
+        } else {
+          // Toggle selection cabbageSetupComplete if Shift or Alt key is pressed
+          clickedElement.classList.toggle('selected');
+          if (clickedElement.classList.contains('selected')) {
+            selectedElements.add(clickedElement);
+          } else {
+            selectedElements.delete(clickedElement);
+          }
+        }
+      }
+
+      if (event.target === form) {
+        // Deselect all elements if clicking on the form without Shift or Alt key
+        selectedElements.forEach(element => element.classList.remove('selected'));
+        selectedElements.clear();
+      }
+
+      if (!event.shiftKey && !event.altKey) {
+        if (cabbageMode === 'draggable') {
+          PropertyPanel.updatePanel(vscode, { eventType: "click", name: CabbageUtils.findValidId(event), bounds: {} }, widgets);
+        }
+      }
+    });
+
+    document.addEventListener('pointermove', (event) => {
+      if (isSelecting) {
+        const currentX = event.clientX - offsetX;
+        const currentY = event.clientY - offsetY;
+
+        selectionBox.style.width = `${Math.abs(currentX - startX)}px`;
+        selectionBox.style.height = `${Math.abs(currentY - startY)}px`;
+        selectionBox.style.left = `${Math.min(currentX, startX)}px`;
+        selectionBox.style.top = `${Math.min(currentY, startY)}px`;
+      }
+
+      if (isDragging && selectionBox) {
+        const currentX = event.clientX;
+        const currentY = event.clientY;
+
+        const boxWidth = selectionBox.offsetWidth;
+        const boxHeight = selectionBox.offsetHeight;
+
+        const parentWidth = form.offsetWidth;
+        const parentHeight = form.offsetHeight;
+
+        const maxX = parentWidth - boxWidth;
+        const maxY = parentHeight - boxHeight;
+
+        let newLeft = currentX - offsetX;
+        let newTop = currentY - offsetY;
+
+        newLeft = Math.max(0, Math.min(maxX, newLeft));
+        newTop = Math.max(0, Math.min(maxY, newTop));
+
+        selectionBox.style.left = `${newLeft}px`;
+        selectionBox.style.top = `${newTop}px`;
+      }
+    });
+
+    document.addEventListener('pointerup', (event) => {
+      if (isSelecting) {
+        const rect = selectionBox.getBoundingClientRect();
+        const elements = form.querySelectorAll('.draggable');
+
+        elements.forEach((element) => {
+          const elementRect = element.getBoundingClientRect();
+
+          // Check for intersection between the element and the selection box
+          if (elementRect.right >= rect.left &&
+            elementRect.left <= rect.right &&
+            elementRect.bottom >= rect.top &&
+            elementRect.top <= rect.bottom) {
+            element.classList.add('selected');
+            selectedElements.add(element);
+          }
+        });
+
+        form.removeChild(selectionBox);
+        isSelecting = false;
+      }
+
+      isDragging = false;
+    });
+    if (selectionBox) {
+      selectionBox.addEventListener('pointerdown', (event) => {
+        isDragging = true;
+        offsetX = event.clientX - selectionBox.getBoundingClientRect().left;
+        offsetY = event.clientY - selectionBox.getBoundingClientRect().top;
+        event.stopPropagation();
+      });
+    }
+  }
+}

@@ -106,7 +106,7 @@ bool Cabbage::setupCsound()
             if (w.contains("automatable") && w["automatable"] == 1 &&
                 (!w.contains("channelType") || w["channelType"] == "number"))
             {
-                _log(w.dump(4));
+//                _log(w.dump(4));
                 if(w["type"].get<std::string>().find("slider") != std::string::npos)
                 {
                     try{
@@ -250,9 +250,8 @@ std::string Cabbage::getWidgetUpdateScript(std::string channel, std::string data
     result = StringFormatter::format(R"(
         window.postMessage({
             command: "widgetUpdate",
-            text: JSON.stringify({
-                channel: "<>",
-                data: `<>`
+            channel: "<>"
+            data: `<>`
             })
         });
     )",
@@ -267,9 +266,8 @@ std::string Cabbage::getWidgetUpdateScript(std::string channel, float value)
     result = StringFormatter::format(R"(
         window.postMessage({
             command: "widgetUpdate",
-            text: JSON.stringify({
-                channel: "<>",
-               value: <>
+            channel: "<>",
+            value: <>
             })
         });
     )",
