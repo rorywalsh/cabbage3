@@ -7,6 +7,8 @@ import { RotarySlider } from "./widgets/rotarySlider.js";
 // @ts-ignore
 import { HorizontalSlider } from "./widgets/horizontalSlider.js";
 // @ts-ignore
+import { HorizontalRangeSlider } from "./widgets/horizontalRangeSlider.js";
+// @ts-ignore
 import { VerticalSlider } from "./widgets/verticalSlider.js";
 // @ts-ignore
 import { NumberSlider } from "./widgets/numberSlider.js";
@@ -18,6 +20,8 @@ import { Checkbox } from "./widgets/checkbox.js";
 import { ComboBox } from "./widgets/comboBox.js";
 // @ts-ignore
 import { Label } from "./widgets/label.js";
+// @ts-ignore
+import { Image } from "./widgets/image.js";
 // @ts-ignore
 import { ListBox } from "./widgets/listBox.js";
 // @ts-ignore
@@ -153,21 +157,8 @@ export function activate(context: vscode.ExtensionContext) {
 		onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'color-picker.css');
 		const colourPickerStyles = panel.webview.asWebviewUri(onDiskPath);
 
-		//add widget types to menu
-		const widgetTypes = ["hslider", "rslider", "texteditor", "gentable", "vslider", "keyboard", "button", "filebutton", "listbox", "optionbutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
-
-		let menuItems = "";
-		widgetTypes.forEach((widget) => {
-			menuItems += `
-			<li class="menuItem">
-			<span>${widget}</span>
-	  		</li>
-			`;
-		});
-
-
 		// set webview HTML content and options
-		panel.webview.html = getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrapper, colourPickerJS, colourPickerStyles, menuItems);
+		panel.webview.html = getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrapper, colourPickerJS, colourPickerStyles);
 		panel.webview.options = { enableScripts: true };
 
 		//assign current textEditor so we can track it even if focus changes to the webview
@@ -365,6 +356,9 @@ async function updateText(jsonText: string) {
 			case 'vslider':
 				defaultProps = new VerticalSlider().props;
 				break;
+			case 'hrange':
+				defaultProps = new HorizontalRangeSlider().props;
+				break;
 			case 'nslider':
 				defaultProps = new NumberSlider().props;
 				break;
@@ -392,6 +386,9 @@ async function updateText(jsonText: string) {
 				break;
 			case 'label':
 				defaultProps = new Label().props;
+				break;
+			case 'image':
+				defaultProps = new Image().props;
 				break;
 			case 'listbox':
 				defaultProps = new ListBox().props;
@@ -450,7 +447,7 @@ async function updateText(jsonText: string) {
 							}
 						});
 
-						if (props.type.includes('slider')) {
+						if (props.type.includes('slider') || props.type.includes('hrange')) {
 							const rangeIndex = tokens.findIndex(({ token }) => token === 'range');
 							if (rangeIndex !== -1) {
 								tokens[rangeIndex].values = [props.min, props.max, props.value, props.skew, props.increment];
@@ -486,7 +483,7 @@ async function updateText(jsonText: string) {
 			if (!foundChannel && props.type !== "form") {
 				let newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${CabbageUtils.getCabbageCodeFromJson(jsonText, "channel")}`;
 
-				if (props.type.includes('slider')) {
+				if (props.type.includes('slider') || props.type.includes('hrange')) {
 					newLine += ` ${CabbageUtils.getCabbageCodeFromJson(jsonText, "range")}`;
 				}
 
@@ -506,7 +503,7 @@ async function updateText(jsonText: string) {
  */
 function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri,
 	cabbageStyles: vscode.Uri, interactJS: vscode.Uri, widgetWrapper: vscode.Uri,
-	colourPickerJS: vscode.Uri, colourPickerStyles: vscode.Uri, menu: string) {
+	colourPickerJS: vscode.Uri, colourPickerStyles: vscode.Uri) {
 	return `
 <!doctype html>
 <html lang="en">
@@ -537,7 +534,6 @@ function getWebviewContent(mainJS: vscode.Uri, styles: vscode.Uri,
       <div class="wrapper">
         <div class="content" style="overflow-y: auto;">
           <ul class="menu">
-            ${menu}
           </ul>
         </div>
       </div>

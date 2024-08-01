@@ -41,37 +41,41 @@ const rotarySlider_js_1 = __webpack_require__(2);
 // @ts-ignore
 const horizontalSlider_js_1 = __webpack_require__(5);
 // @ts-ignore
-const verticalSlider_js_1 = __webpack_require__(6);
+const horizontalRangeSlider_js_1 = __webpack_require__(6);
 // @ts-ignore
-const numberSlider_js_1 = __webpack_require__(7);
+const verticalSlider_js_1 = __webpack_require__(7);
 // @ts-ignore
-const button_js_1 = __webpack_require__(8);
+const numberSlider_js_1 = __webpack_require__(8);
 // @ts-ignore
-const checkbox_js_1 = __webpack_require__(9);
+const button_js_1 = __webpack_require__(9);
 // @ts-ignore
-const comboBox_js_1 = __webpack_require__(10);
+const checkbox_js_1 = __webpack_require__(10);
 // @ts-ignore
-const label_js_1 = __webpack_require__(11);
+const comboBox_js_1 = __webpack_require__(11);
 // @ts-ignore
-const listBox_js_1 = __webpack_require__(12);
+const label_js_1 = __webpack_require__(12);
 // @ts-ignore
-const csoundOutput_js_1 = __webpack_require__(13);
+const image_js_1 = __webpack_require__(13);
 // @ts-ignore
-const midiKeyboard_js_1 = __webpack_require__(14);
+const listBox_js_1 = __webpack_require__(14);
 // @ts-ignore
-const genTable_js_1 = __webpack_require__(15);
+const csoundOutput_js_1 = __webpack_require__(15);
 // @ts-ignore
-const textEditor_js_1 = __webpack_require__(16);
+const midiKeyboard_js_1 = __webpack_require__(16);
+// @ts-ignore
+const genTable_js_1 = __webpack_require__(17);
+// @ts-ignore
+const textEditor_js_1 = __webpack_require__(18);
 // @ts-ignore
 const utils_js_1 = __webpack_require__(3);
 // @ts-ignore
-const form_js_1 = __webpack_require__(17);
-const cp = __importStar(__webpack_require__(18));
+const form_js_1 = __webpack_require__(19);
+const cp = __importStar(__webpack_require__(20));
 let textEditor;
 let output;
 let panel = undefined;
 let dbg = false;
-const ws_1 = __importDefault(__webpack_require__(19));
+const ws_1 = __importDefault(__webpack_require__(21));
 const wss = new ws_1.default.Server({ port: 9991 });
 let websocket;
 let cabbageMode = "play";
@@ -153,18 +157,8 @@ function activate(context) {
         const colourPickerJS = panel.webview.asWebviewUri(onDiskPath);
         onDiskPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'color-picker.css');
         const colourPickerStyles = panel.webview.asWebviewUri(onDiskPath);
-        //add widget types to menu
-        const widgetTypes = ["hslider", "rslider", "texteditor", "gentable", "vslider", "keyboard", "button", "filebutton", "listbox", "optionbutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
-        let menuItems = "";
-        widgetTypes.forEach((widget) => {
-            menuItems += `
-			<li class="menuItem">
-			<span>${widget}</span>
-	  		</li>
-			`;
-        });
         // set webview HTML content and options
-        panel.webview.html = getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrapper, colourPickerJS, colourPickerStyles, menuItems);
+        panel.webview.html = getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrapper, colourPickerJS, colourPickerStyles);
         panel.webview.options = { enableScripts: true };
         //assign current textEditor so we can track it even if focus changes to the webview
         panel.onDidChangeViewState(() => {
@@ -333,6 +327,9 @@ async function updateText(jsonText) {
             case 'vslider':
                 defaultProps = new verticalSlider_js_1.VerticalSlider().props;
                 break;
+            case 'hrange':
+                defaultProps = new horizontalRangeSlider_js_1.HorizontalRangeSlider().props;
+                break;
             case 'nslider':
                 defaultProps = new numberSlider_js_1.NumberSlider().props;
                 break;
@@ -360,6 +357,9 @@ async function updateText(jsonText) {
                 break;
             case 'label':
                 defaultProps = new label_js_1.Label().props;
+                break;
+            case 'image':
+                defaultProps = new image_js_1.Image().props;
                 break;
             case 'listbox':
                 defaultProps = new listBox_js_1.ListBox().props;
@@ -410,7 +410,7 @@ async function updateText(jsonText) {
                                 }
                             }
                         });
-                        if (props.type.includes('slider')) {
+                        if (props.type.includes('slider') || props.type.includes('hrange')) {
                             const rangeIndex = tokens.findIndex(({ token }) => token === 'range');
                             if (rangeIndex !== -1) {
                                 tokens[rangeIndex].values = [props.min, props.max, props.value, props.skew, props.increment];
@@ -437,7 +437,7 @@ async function updateText(jsonText) {
             });
             if (!foundChannel && props.type !== "form") {
                 let newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${utils_js_1.CabbageUtils.getCabbageCodeFromJson(jsonText, "channel")}`;
-                if (props.type.includes('slider')) {
+                if (props.type.includes('slider') || props.type.includes('hrange')) {
                     newLine += ` ${utils_js_1.CabbageUtils.getCabbageCodeFromJson(jsonText, "range")}`;
                 }
                 editBuilder.insert(new vscode.Position(lineNumber, 0), newLine + '\n');
@@ -453,7 +453,7 @@ async function updateText(jsonText) {
 /**
  * Returns html text to use in webview - various scripts get passed as vscode.Uri's
  */
-function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrapper, colourPickerJS, colourPickerStyles, menu) {
+function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrapper, colourPickerJS, colourPickerStyles) {
     return `
 <!doctype html>
 <html lang="en">
@@ -484,7 +484,6 @@ function getWebviewContent(mainJS, styles, cabbageStyles, interactJS, widgetWrap
       <div class="wrapper">
         <div class="content" style="overflow-y: auto;">
           <ul class="menu">
-            ${menu}
           </ul>
         </div>
       </div>
@@ -1352,58 +1351,74 @@ class CabbageColours {
 */
 class CabbageTestUtilities {
 
+  static createWidgetInstances(widgetConstructors) {
+    const widgetInstances = {};
+    
+    for (const [key, Constructor] of Object.entries(widgetConstructors)) {
+      widgetInstances[key] = new Constructor();
+    }
+    
+    return widgetInstances;
+  }
+
   /*
   * Generate a CabbageWidgetDescriptors class with all the identifiers for each widget type, this can be inserted
   directly into the Cabbage source code
   */
-  static generateCabbageWidgetDescriptorsClass(widgets) {
-    let widgetTypes = '{';
-    widgets.forEach((widget) => {
-      widgetTypes += `"${widget.props.type}", `;
-    });
-
-    widgetTypes = widgetTypes.slice(0, -2) + "};";
-
-    let cppCode = `
-#pragma once
-
-/* this file is generated by CabbageUtils.js */
-#include <iostream>
-#include <regex>
-#include <string>
-#include <vector>
-#include "json.hpp"
-#include "CabbageUtils.h"
-
-class CabbageWidgetDescriptors {
-public:
-    static std::vector<std::string> getWidgetTypes(){
-        return ${widgetTypes};
+  static generateCabbageWidgetDescriptorsClass(widgetConstructors) {
+    const widgets = {};
+    for (const [key, Constructor] of Object.entries(widgetConstructors)) {
+      widgets[key] = new Constructor();
+      console.log(widgets[key]);
     }
-
-    static nlohmann::json get(std::string widgetType) {
-`;
-
+  
+    let widgetTypes = '{';
+    for (const widget of Object.values(widgets)) {
+      widgetTypes += `"${widget.props.type}", `;
+    }
+    widgetTypes = widgetTypes.slice(0, -2) + "};";
+  
+    let cppCode = `
+  #pragma once
+  
+  /* this file is generated by CabbageUtils.js */
+  #include <iostream>
+  #include <regex>
+  #include <string>
+  #include <vector>
+  #include "json.hpp"
+  #include "CabbageUtils.h"
+  
+  class CabbageWidgetDescriptors {
+  public:
+      static std::vector<std::string> getWidgetTypes(){
+          return ${widgetTypes};
+      }
+  
+      static nlohmann::json get(std::string widgetType) {
+  `;
+  
     // Generate the widget descriptors for each widget type
-    widgets.forEach((widget) => {
+    for (const widget of Object.values(widgets)) {
       const jsonString = JSON.stringify(widget.props, null, 2).split('\n').map(line => `            ${line}`).join('\n');
       cppCode += `
-        if (widgetType == "${widget.props.type}") {
-            std::string jsonString = R"(
-${jsonString}
-            )";
-            return nlohmann::json::parse(jsonString);
-        }`;
-    });
-
-    cppCode += `
-        cabAssert(false, "Invalid widget type");
+          if (widgetType == "${widget.props.type}") {
+              std::string jsonString = R"(
+  ${jsonString}
+              )";
+              return nlohmann::json::parse(jsonString);
+          }`;
     }
-};
-`;
-
-    console.log(cppCode);
+  
+    cppCode += `
+          cabAssert(false, "Invalid widget type");
+      }
+  };
+  `;
+  
+    console.error(cppCode);
   }
+  
 
   /*
   * Generate a CSD file from the widgets array and tests all identifiers. For now this only tests numeric values
@@ -2166,6 +2181,303 @@ class HorizontalSlider {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   HorizontalRangeSlider: () => (/* binding */ HorizontalRangeSlider)
+/* harmony export */ });
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(4);
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(3);
+
+
+
+/**
+ * Horizontal Slider (hslider) class
+ */
+class HorizontalRangeSlider {
+  constructor() {
+    this.props = {
+      "top": 10, // Top position of the horizontal slider
+      "left": 10, // Left position of the horizontal slider
+      "width": 60, // Width of the horizontal slider
+      "height": 60, // Height of the horizontal slider
+      "channel": "rslider", // Unique identifier for the horizontal slider
+      "min": 0, // Minimum value of the slider
+      "max": 1, // Maximum value of the slider
+      "value": 0, // Current value of the slider
+      "skew": 1, // Skew factor for the slider (for non-linear scales)
+      "increment": 0.001, // Value increment/decrement when moving the slider
+      "text": "", // Text displayed next to the slider
+      "fontFamily": "Verdana", // Font family for the text
+      "fontSize": 0, // Font size for the text
+      "align": "centre", // Text alignment within the slider (center, left, right)
+      "valueTextBox": 0, // Whether to display a text box showing the current value
+      "colour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour("blue"), // Background color of the slider track
+      "trackerColour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of the slider thumb
+      "trackerBackgroundColour": "#ffffff", // Background color of the slider thumb
+      "trackerOutlineColour": "#525252", // Color of the outline around the slider thumb
+      "fontColour": "#dddddd", // Color of the text displayed next to the slider
+      "outlineColour": "#999999", // Color of the slider outline
+      "textBoxColour": "#555555", // Color of the value text box (if enabled)
+      "trackerOutlineWidth": 1, // Width of the outline around the slider thumb
+      "outlineWidth": 1, // Width of the slider outline
+      "markerThickness": 0.2, // Thickness of the slider markers
+      "markerStart": 0.1, // Start position of the slider markers
+      "markerEnd": 0.9, // End position of the slider markers
+      "type": "hslider", // Type of the slider (horizontal)
+      "decimalPlaces": 1, // Number of decimal places to display for the slider value
+      "velocity": 0, // Velocity of slider movement (for gesture-based interaction)
+      "visible": 1, // Visibility of the slider (0 for hidden, 1 for visible)
+      "popup": 1, // Whether to show a popup when interacting with the slider
+      "automatable": 1, // Whether the slider value can be automated (0 for no, 1 for yes)
+      "valuePrefix": "", // Prefix to display before the slider value
+      "valuePostfix": "", // Postfix to display after the slider value
+      "presetIgnore": 0 // Whether the slider should be ignored in presets (0 for no, 1 for yes)
+  };
+  
+
+    this.panelSections = {
+      "Info": ["type", "channel"],
+      "Bounds": ["left", "top", "width", "height"],
+      "Range": ["min", "max", "default", "skew", "increment"],
+      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
+      "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
+    };
+
+    this.parameterIndex = 0;
+    this.moveListener = this.pointerMove.bind(this);
+    this.upListener = this.pointerUp.bind(this);
+    this.startX = 0;
+    this.startValue = 0;
+    this.vscode = null;
+    this.isMouseDown = false;
+    this.decimalPlaces = 0;
+  }
+
+  pointerUp() {
+    const popup = document.getElementById('popupValue');
+    popup.classList.add('hide');
+    popup.classList.remove('show');
+    window.removeEventListener("pointermove", this.moveListener);
+    window.removeEventListener("pointerup", this.upListener);
+    this.isMouseDown = false;
+  }
+
+  pointerDown(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
+    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
+  
+    
+    if (evt.offsetX >= textWidth && evt.offsetX <= textWidth + sliderWidth && evt.target.tagName !== "INPUT") {
+      this.isMouseDown = true;
+      this.startX = evt.offsetX - textWidth;
+      this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.startX, 0, sliderWidth, this.props.min, this.props.max);
+  
+      window.addEventListener("pointermove", this.moveListener);
+      window.addEventListener("pointerup", this.upListener);
+  
+      this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
+      this.startValue = this.props.value;
+      _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+    }
+  }
+  
+
+  mouseEnter(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+    const popup = document.getElementById('popupValue');
+    const form = document.getElementById('MainForm');
+    const rect = form.getBoundingClientRect();
+    this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getDecimalPlaces(this.props.increment);
+  
+    if (popup && this.props.popup) {
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
+  
+      // Calculate the position for the popup
+      const sliderLeft = this.props.left;
+      const sliderWidth = this.props.width;
+      const formLeft = rect.left;
+      const formWidth = rect.width;
+  
+      // Determine if the popup should be on the right or left side of the slider
+      const sliderCenter = formLeft + (formWidth / 2);
+      let popupLeft;
+      if (sliderLeft + (sliderWidth) > sliderCenter) {
+        // Place popup on the left of the slider thumb
+        popupLeft = formLeft + sliderLeft - popup.offsetWidth - 10;
+        console.log("Pointer on the left");
+        popup.classList.add('right');
+      } else {
+        // Place popup on the right of the slider thumb
+        popupLeft = formLeft + sliderLeft + sliderWidth + 10;
+        console.log("Pointer on the right");
+        popup.classList.remove('right');
+      }
+  
+      const popupTop = rect.top + this.props.top; // Adjust top position relative to the form's top
+  
+      // Set the calculated position
+      popup.style.left = `${popupLeft}px`;
+      popup.style.top = `${popupTop}px`;
+      popup.style.display = 'block';
+      popup.classList.add('show');
+      popup.classList.remove('hide');
+    }
+  }
+  
+
+  mouseLeave(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+    if (!this.isMouseDown) {
+      const popup = document.getElementById('popupValue');
+      popup.classList.add('hide');
+      popup.classList.remove('show');
+    }
+  }
+
+  addVsCodeEventListeners(widgetDiv, vs) {
+    this.vscode = vs;
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.HorizontalSliderInstance = this;
+  }
+
+  addEventListeners(widgetDiv) {
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.HorizontalSliderInstance = this;
+  }
+
+  pointerMove({ clientX }) {
+    if(this.props.active === 0) {
+      return '';
+    }
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
+    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
+  
+    // Get the bounding rectangle of the slider
+    const sliderRect = document.getElementById(this.props.channel).getBoundingClientRect();
+  
+    // Calculate the relative position of the mouse pointer within the slider bounds
+    let offsetX = clientX - sliderRect.left - textWidth;
+  
+    // Clamp the mouse position to stay within the bounds of the slider
+    offsetX = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.clamp(offsetX, 0, sliderWidth);
+  
+    // Calculate the new value based on the mouse position
+    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(offsetX, 0, sliderWidth, this.props.min, this.props.max);
+    newValue = Math.round(newValue / this.props.increment) * this.props.increment; // Round to the nearest increment
+  
+    // Update the slider value
+    this.props.value = newValue;
+  
+    // Update the slider appearance
+    _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+  
+    // Post message if vscode is available
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
+    _cabbage_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendParameterUpdate(this.vscode, msg);
+  }
+  
+  handleInputChange(evt) {
+    if (evt.key === 'Enter') {
+      const inputValue = parseFloat(evt.target.value);
+      if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
+        this.props.value = inputValue;
+        _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+        widgetDiv.querySelector('input').focus();
+      }
+    }
+  }
+
+  getInnerHTML() {
+    if(this.props.visible === 0) {
+      return '';
+    }
+    const popup = document.getElementById('popupValue');
+    if (popup) {
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
+    }
+
+    const alignMap = {
+      'left': 'start',
+      'center': 'middle',
+      'centre': 'middle',
+      'right': 'end',
+    };
+
+    const svgAlign = alignMap[this.props.align] || this.props.align;
+
+    // Add padding if alignment is 'end' or 'middle'
+    const padding = (svgAlign === 'end' || svgAlign === 'middle') ? 5 : 0; // Adjust the padding value as needed
+
+    // Calculate text width and update SVG width
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = (this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth) - padding;
+    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth - padding; // Subtract padding from sliderWidth
+
+    const w = (sliderWidth > this.props.height ? this.props.height : sliderWidth) * 0.75;
+    const textY = this.props.height / 2 + (this.props.fontSize > 0 ? this.props.textOffsetY : 0) + (this.props.height * 0.25); // Adjusted for vertical centering
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.8;
+
+    textWidth += padding;
+
+    const textElement = this.props.text ? `
+      <svg x="0" y="0" width="${textWidth}" height="${this.props.height}" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <text text-anchor="${svgAlign}" x="${svgAlign === 'end' ? textWidth - padding : (svgAlign === 'middle' ? (textWidth - padding) / 2 : 0)}" y="${textY}" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">
+          ${this.props.text}
+        </text>
+      </svg>
+    ` : '';
+
+    const sliderElement = `
+      <svg x="${textWidth}" width="${sliderWidth}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="${this.props.height * .2}" width="${sliderWidth - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
+        <rect x="1" y="${this.props.height * .2}" width="${Math.max(0, _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth))}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
+        <rect x="${_utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
+      </svg>
+    `;
+
+    const valueTextElement = this.props.valueTextBox ? `
+      <foreignObject x="${textWidth + sliderWidth}" y="0" width="${valueTextBoxWidth}" height="${this.props.height}">
+        <input type="text" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
+        style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
+        onKeyDown="document.getElementById('${this.props.channel}').HorizontalSliderInstance.handleInputChange(event)"/>
+      </foreignObject>
+    ` : '';
+
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+        ${textElement}
+        ${sliderElement}
+        ${valueTextElement}
+      </svg>
+    `;
+  }
+
+  
+  
+}
+
+
+/***/ }),
+/* 7 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   VerticalSlider: () => (/* binding */ VerticalSlider)
 /* harmony export */ });
 /* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
@@ -2452,7 +2764,7 @@ class VerticalSlider {
 
 
 /***/ }),
-/* 7 */
+/* 8 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -2653,7 +2965,7 @@ class NumberSlider {
 
 
 /***/ }),
-/* 8 */
+/* 9 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -2930,7 +3242,7 @@ class OptionButton extends Button {
 
 
 /***/ }),
-/* 9 */
+/* 10 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -3044,7 +3356,7 @@ class Checkbox {
 
 
 /***/ }),
-/* 10 */
+/* 11 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -3074,6 +3386,8 @@ class ComboBox {
             "fontColour": "#dddddd", // Color of the text
             "outlineColour": "#dddddd", // Color of the outline
             "outlineWidth": 2, // Width of the outline
+            "min": 0, // Minimum value of the widget
+            "max": 3,
             "visible": 1, // Visibility of the widget (0 for hidden, 1 for visible)
             "type": "combobox", // Type of the widget (combobox)
             "value": 0, // Value of the widget
@@ -3244,7 +3558,7 @@ class ComboBox {
 
 
 /***/ }),
-/* 11 */
+/* 12 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -3262,7 +3576,7 @@ class Label {
             "width": 100,
             "height": 30,
             "type": "label",
-            "colour": "#888888",
+            "colour": "#88888800",
             "channel": "label",
             "fontColour": "#dddddd",
             "fontFamily": "Verdana",
@@ -3335,7 +3649,73 @@ class Label {
 
 
 /***/ }),
-/* 12 */
+/* 13 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Image: () => (/* binding */ Image)
+/* harmony export */ });
+/**
+ * Label class
+ */
+class Image {
+    constructor() {
+        this.props = {
+            "top": 0,
+            "left": 0,
+            "width": 100,
+            "height": 30,
+            "type": "image",
+            "colour": "#888888",
+            "channel": "image",
+            "outlineWidth": 1,
+            "outlineColour": "#000000",
+            "corners": 4,
+            "visible": 1,
+            "automatable": 0
+        }
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Colours": ["colour", "outlineColour"],
+        };
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    addEventListeners(widgetDiv) {
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    pointerDown() {
+        console.log("Label clicked!");
+    }
+
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+
+        const outlineOffset = this.props.outlineWidth / 2;
+
+        return `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none"
+                 style="position: absolute; top: 0; left: 0;">
+                <rect width="${this.props.width - this.props.outlineWidth}" height="${this.props.height - this.props.outlineWidth}" x="${outlineOffset}" y="${outlineOffset}" rx="${this.props.corners}" ry="${this.props.corners}" fill="${this.props.colour}" 
+                      stroke="${this.props.outlineColour}" stroke-width="${this.props.outlineWidth}" pointer-events="all"></rect>
+            </svg>
+        `;
+    }
+}
+
+
+/***/ }),
+/* 14 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -3433,7 +3813,7 @@ class ListBox {
 
 
 /***/ }),
-/* 13 */
+/* 15 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -3522,7 +3902,7 @@ ${this.props.text}
 
 
 /***/ }),
-/* 14 */
+/* 16 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -3535,7 +3915,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 /**
- * Form class
+ * MidiKeyboard class
  */
 class MidiKeyboard {
   constructor() {
@@ -3555,27 +3935,28 @@ class MidiKeyboard {
       arrowBackgroundColour: "#0295cf", // Background color of the arrow keys
       mouseoverKeyColour: _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of keys when hovered over
       keydownColour: _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of keys when pressed
-      automatable: 0
+      automatable: 0,
+      octaves: 5 // Default number of octaves to display
     };
 
     this.panelSections = {
       Properties: ["type", "channel"],
       Bounds: ["left", "top", "width", "height"],
       Text: ["fontFamily"],
-      Colours: ["colour", "blackNoteColour", "whiteNoteColour", "keySeparatorColour", "arrowBackgroundColour", "keydownColour"]
+      Colours: ["colour", "blackNoteColour", "whiteNoteColour", "keySeparatorColour", "arrowBackgroundColour", "keydownColour"],
+      Octaves: ["octaves"] // Add octaves to the panel sections
     };
 
     this.isMouseDown = false; // Track the state of the mouse button
     this.octaveOffset = 3;
     this.noteMap = {};
     this.activeNotes = new Set(); // Track active notes
-    const octaveCount = 6; // Adjust this value as needed
 
     // Define an array of note names
     const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
     // Loop through octaves and note names to populate the map
-    for (let octave = -2; octave <= octaveCount; octave++) {
+    for (let octave = -2; octave <= this.props.octaves + 2; octave++) {
       for (let i = 0; i < noteNames.length; i++) {
         const noteName = noteNames[i] + octave;
         const midiNote = (octave + 2) * 12 + i; // Calculate MIDI note number
@@ -3667,12 +4048,12 @@ class MidiKeyboard {
 
   addVsCodeEventListeners(widgetDiv, vscode) {
     this.vscode = vscode;
-    this.addListeners(widgetDiv)
+    this.addListeners(widgetDiv);
     _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
   addEventListeners(widgetDiv) {
-    this.addListeners(widgetDiv)
+    this.addListeners(widgetDiv);
     _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
@@ -3718,7 +4099,8 @@ class MidiKeyboard {
   getInnerHTML() {
     const scaleFactor = 0.9; // Adjusting this to fit the UI designer bounding rect
   
-    const whiteKeyWidth = (this.props.width / 21) * scaleFactor;
+    const totalWhiteKeys = this.props.octaves * 7; // Total number of white keys to display
+    const whiteKeyWidth = (this.props.width / totalWhiteKeys) * scaleFactor; // Adjust width based on total white keys
     const whiteKeyHeight = this.props.height * scaleFactor;
     const blackKeyWidth = whiteKeyWidth * 0.4;
     const blackKeyHeight = whiteKeyHeight * 0.6;
@@ -3732,7 +4114,7 @@ class MidiKeyboard {
   
     const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.1;
   
-    for (let octave = 0; octave < 3; octave++) {
+    for (let octave = 0; octave < this.props.octaves; octave++) {
       for (let i = 0; i < whiteKeys.length; i++) {
         const key = whiteKeys[i];
         const note = key + (octave + this.octaveOffset);
@@ -3756,7 +4138,7 @@ class MidiKeyboard {
     }
   
     // Calculate button width and height relative to keyboard width
-    const buttonWidth = (this.props.width / 20) * scaleFactor;
+    const buttonWidth = 25 * scaleFactor;
     const buttonHeight = this.props.height * scaleFactor;
   
     return `
@@ -3777,7 +4159,7 @@ class MidiKeyboard {
 
 
 /***/ }),
-/* 15 */
+/* 17 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -3949,7 +4331,7 @@ class GenTable {
 
 
 /***/ }),
-/* 16 */
+/* 18 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -4038,7 +4420,7 @@ ${this.props.text}
 
 
 /***/ }),
-/* 17 */
+/* 19 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -4101,23 +4483,23 @@ class Form {
 
 
 /***/ }),
-/* 18 */
+/* 20 */
 /***/ ((module) => {
 
 module.exports = require("child_process");
 
 /***/ }),
-/* 19 */
+/* 21 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const WebSocket = __webpack_require__(20);
+const WebSocket = __webpack_require__(22);
 
-WebSocket.createWebSocketStream = __webpack_require__(40);
-WebSocket.Server = __webpack_require__(41);
-WebSocket.Receiver = __webpack_require__(34);
-WebSocket.Sender = __webpack_require__(37);
+WebSocket.createWebSocketStream = __webpack_require__(42);
+WebSocket.Server = __webpack_require__(43);
+WebSocket.Receiver = __webpack_require__(36);
+WebSocket.Sender = __webpack_require__(39);
 
 WebSocket.WebSocket = WebSocket;
 WebSocket.WebSocketServer = WebSocket.Server;
@@ -4126,25 +4508,25 @@ module.exports = WebSocket;
 
 
 /***/ }),
-/* 20 */
+/* 22 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex|Readable$" }] */
 
 
 
-const EventEmitter = __webpack_require__(21);
-const https = __webpack_require__(22);
-const http = __webpack_require__(23);
-const net = __webpack_require__(24);
-const tls = __webpack_require__(25);
-const { randomBytes, createHash } = __webpack_require__(26);
-const { Duplex, Readable } = __webpack_require__(27);
-const { URL } = __webpack_require__(28);
+const EventEmitter = __webpack_require__(23);
+const https = __webpack_require__(24);
+const http = __webpack_require__(25);
+const net = __webpack_require__(26);
+const tls = __webpack_require__(27);
+const { randomBytes, createHash } = __webpack_require__(28);
+const { Duplex, Readable } = __webpack_require__(29);
+const { URL } = __webpack_require__(30);
 
-const PerMessageDeflate = __webpack_require__(29);
-const Receiver = __webpack_require__(34);
-const Sender = __webpack_require__(37);
+const PerMessageDeflate = __webpack_require__(31);
+const Receiver = __webpack_require__(36);
+const Sender = __webpack_require__(39);
 const {
   BINARY_TYPES,
   EMPTY_BUFFER,
@@ -4154,12 +4536,12 @@ const {
   kStatusCode,
   kWebSocket,
   NOOP
-} = __webpack_require__(32);
+} = __webpack_require__(34);
 const {
   EventTarget: { addEventListener, removeEventListener }
-} = __webpack_require__(38);
-const { format, parse } = __webpack_require__(39);
-const { toBuffer } = __webpack_require__(31);
+} = __webpack_require__(40);
+const { format, parse } = __webpack_require__(41);
+const { toBuffer } = __webpack_require__(33);
 
 const closeTimeout = 30 * 1000;
 const kAborted = Symbol('kAborted');
@@ -5468,64 +5850,64 @@ function socketOnError() {
 
 
 /***/ }),
-/* 21 */
+/* 23 */
 /***/ ((module) => {
 
 module.exports = require("events");
 
 /***/ }),
-/* 22 */
+/* 24 */
 /***/ ((module) => {
 
 module.exports = require("https");
 
 /***/ }),
-/* 23 */
+/* 25 */
 /***/ ((module) => {
 
 module.exports = require("http");
 
 /***/ }),
-/* 24 */
+/* 26 */
 /***/ ((module) => {
 
 module.exports = require("net");
 
 /***/ }),
-/* 25 */
+/* 27 */
 /***/ ((module) => {
 
 module.exports = require("tls");
 
 /***/ }),
-/* 26 */
+/* 28 */
 /***/ ((module) => {
 
 module.exports = require("crypto");
 
 /***/ }),
-/* 27 */
+/* 29 */
 /***/ ((module) => {
 
 module.exports = require("stream");
 
 /***/ }),
-/* 28 */
+/* 30 */
 /***/ ((module) => {
 
 module.exports = require("url");
 
 /***/ }),
-/* 29 */
+/* 31 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const zlib = __webpack_require__(30);
+const zlib = __webpack_require__(32);
 
-const bufferUtil = __webpack_require__(31);
-const Limiter = __webpack_require__(33);
-const { kStatusCode } = __webpack_require__(32);
+const bufferUtil = __webpack_require__(33);
+const Limiter = __webpack_require__(35);
+const { kStatusCode } = __webpack_require__(34);
 
 const FastBuffer = Buffer[Symbol.species];
 const TRAILER = Buffer.from([0x00, 0x00, 0xff, 0xff]);
@@ -6036,18 +6418,18 @@ function inflateOnError(err) {
 
 
 /***/ }),
-/* 30 */
+/* 32 */
 /***/ ((module) => {
 
 module.exports = require("zlib");
 
 /***/ }),
-/* 31 */
+/* 33 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { EMPTY_BUFFER } = __webpack_require__(32);
+const { EMPTY_BUFFER } = __webpack_require__(34);
 
 const FastBuffer = Buffer[Symbol.species];
 
@@ -6179,7 +6561,7 @@ if (!process.env.WS_NO_BUFFER_UTIL) {
 
 
 /***/ }),
-/* 32 */
+/* 34 */
 /***/ ((module) => {
 
 
@@ -6197,7 +6579,7 @@ module.exports = {
 
 
 /***/ }),
-/* 33 */
+/* 35 */
 /***/ ((module) => {
 
 
@@ -6258,22 +6640,22 @@ module.exports = Limiter;
 
 
 /***/ }),
-/* 34 */
+/* 36 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { Writable } = __webpack_require__(27);
+const { Writable } = __webpack_require__(29);
 
-const PerMessageDeflate = __webpack_require__(29);
+const PerMessageDeflate = __webpack_require__(31);
 const {
   BINARY_TYPES,
   EMPTY_BUFFER,
   kStatusCode,
   kWebSocket
-} = __webpack_require__(32);
-const { concat, toArrayBuffer, unmask } = __webpack_require__(31);
-const { isValidStatusCode, isValidUTF8 } = __webpack_require__(35);
+} = __webpack_require__(34);
+const { concat, toArrayBuffer, unmask } = __webpack_require__(33);
+const { isValidStatusCode, isValidUTF8 } = __webpack_require__(37);
 
 const FastBuffer = Buffer[Symbol.species];
 const promise = Promise.resolve();
@@ -7006,12 +7388,12 @@ function throwErrorNextTick(err) {
 
 
 /***/ }),
-/* 35 */
+/* 37 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { isUtf8 } = __webpack_require__(36);
+const { isUtf8 } = __webpack_require__(38);
 
 //
 // Allowed token characters:
@@ -7142,26 +7524,26 @@ if (isUtf8) {
 
 
 /***/ }),
-/* 36 */
+/* 38 */
 /***/ ((module) => {
 
 module.exports = require("buffer");
 
 /***/ }),
-/* 37 */
+/* 39 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex" }] */
 
 
 
-const { Duplex } = __webpack_require__(27);
-const { randomFillSync } = __webpack_require__(26);
+const { Duplex } = __webpack_require__(29);
+const { randomFillSync } = __webpack_require__(28);
 
-const PerMessageDeflate = __webpack_require__(29);
-const { EMPTY_BUFFER } = __webpack_require__(32);
-const { isValidStatusCode } = __webpack_require__(35);
-const { mask: applyMask, toBuffer } = __webpack_require__(31);
+const PerMessageDeflate = __webpack_require__(31);
+const { EMPTY_BUFFER } = __webpack_require__(34);
+const { isValidStatusCode } = __webpack_require__(37);
+const { mask: applyMask, toBuffer } = __webpack_require__(33);
 
 const kByteLength = Symbol('kByteLength');
 const maskBuffer = Buffer.alloc(4);
@@ -7631,12 +8013,12 @@ module.exports = Sender;
 
 
 /***/ }),
-/* 38 */
+/* 40 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { kForOnEventAttribute, kListener } = __webpack_require__(32);
+const { kForOnEventAttribute, kListener } = __webpack_require__(34);
 
 const kCode = Symbol('kCode');
 const kData = Symbol('kData');
@@ -7929,12 +8311,12 @@ function callListener(listener, thisArg, event) {
 
 
 /***/ }),
-/* 39 */
+/* 41 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { tokenChars } = __webpack_require__(35);
+const { tokenChars } = __webpack_require__(37);
 
 /**
  * Adds an offer to the map of extension offers or a parameter to the map of
@@ -8138,12 +8520,12 @@ module.exports = { format, parse };
 
 
 /***/ }),
-/* 40 */
+/* 42 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { Duplex } = __webpack_require__(27);
+const { Duplex } = __webpack_require__(29);
 
 /**
  * Emits the `'close'` event on a stream.
@@ -8303,23 +8685,23 @@ module.exports = createWebSocketStream;
 
 
 /***/ }),
-/* 41 */
+/* 43 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex$" }] */
 
 
 
-const EventEmitter = __webpack_require__(21);
-const http = __webpack_require__(23);
-const { Duplex } = __webpack_require__(27);
-const { createHash } = __webpack_require__(26);
+const EventEmitter = __webpack_require__(23);
+const http = __webpack_require__(25);
+const { Duplex } = __webpack_require__(29);
+const { createHash } = __webpack_require__(28);
 
-const extension = __webpack_require__(39);
-const PerMessageDeflate = __webpack_require__(29);
-const subprotocol = __webpack_require__(42);
-const WebSocket = __webpack_require__(20);
-const { GUID, kWebSocket } = __webpack_require__(32);
+const extension = __webpack_require__(41);
+const PerMessageDeflate = __webpack_require__(31);
+const subprotocol = __webpack_require__(44);
+const WebSocket = __webpack_require__(22);
+const { GUID, kWebSocket } = __webpack_require__(34);
 
 const keyRegex = /^[+/0-9A-Za-z]{22}==$/;
 
@@ -8848,12 +9230,12 @@ function abortHandshakeOrEmitwsClientError(server, req, socket, code, message) {
 
 
 /***/ }),
-/* 42 */
+/* 44 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { tokenChars } = __webpack_require__(35);
+const { tokenChars } = __webpack_require__(37);
 
 /**
  * Parses the `Sec-WebSocket-Protocol` header into a set of subprotocol names.

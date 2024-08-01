@@ -33,7 +33,7 @@
 #define _log(message) \
     do { \
         std::ostringstream oss; \
-        oss << "Cabbage DEBUG: " << __FILE__ << " (" << __LINE__ << ") " << __FUNCTION__ << ": " << message << std::endl; \
+        oss << "Cabbage DEBUG: " << __FILE__ << " (" << __LINE__ << ") " << __FUNCTION__ << ": " << message << " [Thread ID: " << std::this_thread::get_id() << "]" << std::endl; \
         std::cout << oss.str(); \
     } while (0)
 #else
@@ -51,6 +51,14 @@ public:
         return processTemplate(templateStr, arguments);
     }
 
+    static void removeBackticks(std::string& str) {
+        // Use std::remove to move all backticks to the end of the string
+        // and return an iterator to the new end of the string.
+        auto new_end = std::remove(str.begin(), str.end(), '`');
+        // Erase the characters from the new end to the actual end of the string
+        str.erase(new_end, str.end());
+    }
+    
     static std::string getCabbageSectionAsJSEscapedString(const std::string& input) {
         // Find the positions of <Cabbage> and </Cabbage>
         size_t start_pos = input.find("<Cabbage>");

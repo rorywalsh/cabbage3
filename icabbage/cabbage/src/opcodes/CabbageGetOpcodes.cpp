@@ -13,6 +13,7 @@
 
 int CabbageGetValue::getValue(int init)
 {
+    std::cout << " Opcode called on thread: " << std::this_thread::get_id() << std::endl;
     if(in_count() == 0)
         return NOTOK;
     if (csound->get_csound()->GetChannelPtr(csound->get_csound(), &value, inargs.str_data(0).data,

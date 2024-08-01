@@ -9,7 +9,7 @@ export class Label {
             "width": 100,
             "height": 30,
             "type": "label",
-            "colour": "#888888",
+            "colour": "#88888800",
             "channel": "label",
             "fontColour": "#dddddd",
             "fontFamily": "Verdana",

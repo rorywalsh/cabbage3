@@ -2,12 +2,14 @@
 import { Form } from "./widgets/form.js";
 import { RotarySlider } from "./widgets/rotarySlider.js";
 import { HorizontalSlider } from "./widgets/horizontalSlider.js";
+import { HorizontalRangeSlider } from "./widgets/horizontalRangeSlider.js";
 import { VerticalSlider } from "./widgets/verticalSlider.js";
 import { NumberSlider } from "./widgets/numberSlider.js";
 import { Button, FileButton, OptionButton } from "./widgets/button.js";
 import { Checkbox } from "./widgets/checkbox.js";
 import { ComboBox } from "./widgets/comboBox.js";
 import { Label } from "./widgets/label.js";
+import { Image } from "./widgets/image.js";
 import { ListBox } from "./widgets/listBox.js";
 import { GenTable } from "./widgets/genTable.js";
 import { CsoundOutput } from "./widgets/csoundOutput.js";
@@ -19,6 +21,7 @@ import { TextEditor } from "./widgets/textEditor.js";
 const widgetConstructors = {
   "rslider": RotarySlider,
   "hslider": HorizontalSlider,
+  "hrange": HorizontalRangeSlider,
   "vslider": VerticalSlider,
   "nslider": NumberSlider,
   "keyboard": MidiKeyboard,
@@ -28,6 +31,7 @@ const widgetConstructors = {
   "optionbutton": OptionButton,
   "gentable": GenTable,
   "label": Label,
+  "image": Image,
   "listbox": ListBox,
   "combobox": ComboBox,
   "checkbox": Checkbox,
@@ -39,32 +43,13 @@ import { PropertyPanel } from "./propertyPanel.js";
 import { CabbageUtils, CabbageTestUtilities } from "./utils.js";
 import { Cabbage } from "./cabbage.js";
 
-// Uncomment to generate various source code files for testing
-const widgetsForTesting = [
-  new Button(),
-  new Checkbox(),
-  new ComboBox(),
-  new CsoundOutput(),
-  new FileButton(),
-  new Form(),
-  new GenTable(),
-  new HorizontalSlider(),
-  new Label(),
-  new ListBox(),
-  new MidiKeyboard(),
-  new NumberSlider(),
-  new RotarySlider(),
-  new TextEditor(),
-  new VerticalSlider(),
-  new OptionButton()
-];
-// CabbageTestUtilities.generateIdentifierTestCsd(widgetsForTesting); // This will generate a test CSD file with the widgets
-// CabbageTestUtilities.generateCabbageWidgetDescriptorsClass(widgetsForTesting); // This will generate a class with the widget descriptors 
-
-
-//sending a message to notify when main has been loaded - Cabbage listens for this message 
-//before trying to load an interface.
 console.log("main.js loaded!")
+
+// CabbageTestUtilities.generateIdentifierTestCsd(widgetsForTesting); // This will generate a test CSD file with the widgets
+CabbageTestUtilities.generateCabbageWidgetDescriptorsClass(widgetConstructors); // This will generate a class with the widget descriptors 
+
+
+
 
 let vscode = null;
 let widgetWrappers = null;
@@ -361,7 +346,7 @@ function setupFormWidget(widget) {
     ulMenu.className = 'menu';
 
     //add widget types to menu
-    const widgetTypes = ["hslider", "rslider", "texteditor", "gentable", "vslider", "keyboard", "button", "filebutton", "listbox", "optionbutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
+    const widgetTypes = ["hslider", "rslider", "nslider", "image", "texteditor", "gentable", "vslider", "keyboard", "button", "filebutton", "listbox", "optionbutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
 
     let menuItems = "";
     widgetTypes.forEach((widget) => {

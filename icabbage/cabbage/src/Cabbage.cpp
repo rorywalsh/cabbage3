@@ -125,6 +125,7 @@ bool Cabbage::setupCsound()
                     }
                     catch (nlohmann::json::exception& e) {
                         _log(w.dump(4));
+                        _log(e.what());
                         cabAssert(false, "");
                     }
                 }
@@ -143,8 +144,9 @@ bool Cabbage::setupCsound()
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {
+                        _log(w.dump(4));
                         _log(e.what());
-                        cabAssert(false, "");
+//                        cabAssert(false, "");
                     }
                 }
             }
@@ -271,7 +273,7 @@ void Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonOb
 {
     if(data.cabbageCode.find("tableNumber") != std::string::npos)
     {
-        CabbageParser::updateJsonFromSyntax(jsonObj, data.cabbageCode);
+        CabbageParser::updateJsonFromSyntax(jsonObj, data.cabbageCode, widgets.size());
         const int tableNumber = jsonObj["tableNumber"];
         const int tableSize = getCsound()->TableLength(tableNumber);
         if(tableSize != -1)
@@ -285,7 +287,7 @@ void Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonOb
     {
         if(jsonObj["type"].get<std::string>() == "gentable")
         {
-            CabbageParser::updateJsonFromSyntax(jsonObj, data.cabbageCode);
+            CabbageParser::updateJsonFromSyntax(jsonObj, data.cabbageCode, widgets.size());
             const int tableNumber = jsonObj["tableNumber"];
             auto samples = Cabbage::readAudioFile(jsonObj["file"].get<std::string>());
             
@@ -329,6 +331,7 @@ void Cabbage::setTableJSON(std::string channel, std::vector<double> samples, nlo
 
 const std::string Cabbage::getCsoundOutputUpdateScript(std::string output)
 {
+    StringFormatter::removeBackticks(output);
     std::string result;
         result = StringFormatter::format(R"(
          window.postMessage({ command: "csoundOutputUpdate", text: `<>` });

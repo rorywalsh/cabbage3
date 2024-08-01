@@ -74,7 +74,7 @@ void CabbageProcessor::setupCallbacks()
             //update widget objects in case UI is closed and reopened...
             if(widget["type"].get<std::string>() == "form")
             {
-                Resize(widget["width"].get<int>()*2, widget["height"]);
+                Resize(widget["width"].get<int>(), widget["height"]);
             }
         }
         
@@ -151,7 +151,6 @@ void CabbageProcessor::updateJSWidgets()
     //iterate over all widget objects and send to webview
     for( auto& w : cabbage.getWidgets())
     {
-        _log(w.dump(4));
         auto result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
         EvaluateJavaScript(result.c_str());
     }
@@ -206,7 +205,7 @@ void CabbageProcessor::timerCallback()
                     if(data.channel == CabbageParser::removeQuotes(widget["channel"]))
                     {
                         //this will update the widget JSON with new arguments tied to the identifier, e.g, bounds(x, y, w, h)
-                        CabbageParser::updateJsonFromSyntax(widget, data.cabbageCode);
+                        CabbageParser::updateJsonFromSyntax(widget, data.cabbageCode, widget.size());
                     }
                 }
             }
@@ -243,7 +242,7 @@ void CabbageProcessor::timerCallback()
                     }
                     else
                     {
-                        CabbageParser::updateJsonFromSyntax(j, data.cabbageCode);
+                        CabbageParser::updateJsonFromSyntax(j, data.cabbageCode, cabbage.getWidgets().size());
                         message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
                     }
                 }
@@ -273,9 +272,7 @@ void CabbageProcessor::OnParamChange(int paramIdx)
 
 //===============================================================================
 void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outputs, int nFrames)
-{
-  
-    
+{    
     if (cabbage.csdCompiledWithoutError())
     {
         for(int i = 0; i < nFrames ; i++, ++csndIndex)

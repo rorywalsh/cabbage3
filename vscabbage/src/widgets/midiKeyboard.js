@@ -2,7 +2,7 @@ import { Cabbage } from "../cabbage.js";
 import { CabbageUtils, CabbageColours } from "../utils.js";
 
 /**
- * Form class
+ * MidiKeyboard class
  */
 export class MidiKeyboard {
   constructor() {
@@ -22,27 +22,28 @@ export class MidiKeyboard {
       arrowBackgroundColour: "#0295cf", // Background color of the arrow keys
       mouseoverKeyColour: CabbageColours.getColour('green'), // Color of keys when hovered over
       keydownColour: CabbageColours.getColour('green'), // Color of keys when pressed
-      automatable: 0
+      automatable: 0,
+      octaves: 5 // Default number of octaves to display
     };
 
     this.panelSections = {
       Properties: ["type", "channel"],
       Bounds: ["left", "top", "width", "height"],
       Text: ["fontFamily"],
-      Colours: ["colour", "blackNoteColour", "whiteNoteColour", "keySeparatorColour", "arrowBackgroundColour", "keydownColour"]
+      Colours: ["colour", "blackNoteColour", "whiteNoteColour", "keySeparatorColour", "arrowBackgroundColour", "keydownColour"],
+      Octaves: ["octaves"] // Add octaves to the panel sections
     };
 
     this.isMouseDown = false; // Track the state of the mouse button
     this.octaveOffset = 3;
     this.noteMap = {};
     this.activeNotes = new Set(); // Track active notes
-    const octaveCount = 6; // Adjust this value as needed
 
     // Define an array of note names
     const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
     // Loop through octaves and note names to populate the map
-    for (let octave = -2; octave <= octaveCount; octave++) {
+    for (let octave = -2; octave <= this.props.octaves + 2; octave++) {
       for (let i = 0; i < noteNames.length; i++) {
         const noteName = noteNames[i] + octave;
         const midiNote = (octave + 2) * 12 + i; // Calculate MIDI note number
@@ -134,12 +135,12 @@ export class MidiKeyboard {
 
   addVsCodeEventListeners(widgetDiv, vscode) {
     this.vscode = vscode;
-    this.addListeners(widgetDiv)
+    this.addListeners(widgetDiv);
     CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
   addEventListeners(widgetDiv) {
-    this.addListeners(widgetDiv)
+    this.addListeners(widgetDiv);
     CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
@@ -185,7 +186,8 @@ export class MidiKeyboard {
   getInnerHTML() {
     const scaleFactor = 0.9; // Adjusting this to fit the UI designer bounding rect
   
-    const whiteKeyWidth = (this.props.width / 21) * scaleFactor;
+    const totalWhiteKeys = this.props.octaves * 7; // Total number of white keys to display
+    const whiteKeyWidth = (this.props.width / totalWhiteKeys) * scaleFactor; // Adjust width based on total white keys
     const whiteKeyHeight = this.props.height * scaleFactor;
     const blackKeyWidth = whiteKeyWidth * 0.4;
     const blackKeyHeight = whiteKeyHeight * 0.6;
@@ -199,7 +201,7 @@ export class MidiKeyboard {
   
     const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.1;
   
-    for (let octave = 0; octave < 3; octave++) {
+    for (let octave = 0; octave < this.props.octaves; octave++) {
       for (let i = 0; i < whiteKeys.length; i++) {
         const key = whiteKeys[i];
         const note = key + (octave + this.octaveOffset);
@@ -223,7 +225,7 @@ export class MidiKeyboard {
     }
   
     // Calculate button width and height relative to keyboard width
-    const buttonWidth = (this.props.width / 20) * scaleFactor;
+    const buttonWidth = 25 * scaleFactor;
     const buttonHeight = this.props.height * scaleFactor;
   
     return `

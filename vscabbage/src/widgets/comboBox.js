@@ -19,6 +19,8 @@ export class ComboBox {
             "fontColour": "#dddddd", // Color of the text
             "outlineColour": "#dddddd", // Color of the outline
             "outlineWidth": 2, // Width of the outline
+            "min": 0, // Minimum value of the widget
+            "max": 3,
             "visible": 1, // Visibility of the widget (0 for hidden, 1 for visible)
             "type": "combobox", // Type of the widget (combobox)
             "value": 0, // Value of the widget
