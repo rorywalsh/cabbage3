@@ -23,6 +23,8 @@ export class Image {
             "Bounds": ["left", "top", "width", "height"],
             "Colours": ["colour", "outlineColour"],
         };
+
+        this.children = {};
     }
 
     addVsCodeEventListeners(widgetDiv, vs) {

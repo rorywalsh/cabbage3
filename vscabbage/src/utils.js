@@ -466,6 +466,80 @@ export class CabbageUtils {
 }
 
 export class CabbageColours {
+
+  static changeSelectedBorderColor(newColor) {
+    // Loop through all stylesheets
+    for (let i = 0; i < document.styleSheets.length; i++) {
+      const styleSheet = document.styleSheets[i];
+      
+      try {
+        // Loop through all rules in the stylesheet
+        for (let j = 0; j < styleSheet.cssRules.length; j++) {
+          const rule = styleSheet.cssRules[j];
+          console.warn(rule)
+          
+          if (rule.selectorText && rule.selectorText.trim() === '.selected') {
+            // Modify the border color
+            rule.style.borderColor = newColor;
+            return; // Exit once the rule is found and updated
+          }
+        }
+      } catch (e) {
+        // Catch and ignore SecurityError: The operation is insecure.
+        if (e.name !== 'SecurityError') throw e;
+      }
+    }
+  }
+
+  static invertColor(hex) {
+    // Remove the hash at the start if it's there
+    hex = hex.replace('#', '');
+
+    // Parse the r, g, b values
+    let r = parseInt(hex.substring(0, 2), 16);
+    let g = parseInt(hex.substring(2, 4), 16);
+    let b = parseInt(hex.substring(4, 6), 16);
+
+    // Invert the colors
+    r = 255 - r;
+    g = 255 - g;
+    b = 255 - b;
+
+    // Convert back to hex
+    const invertedHex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase()}`;
+
+    return invertedHex;
+  }
+
+  /**
+   * Adjusts the alpha value of a hex color.
+   * @param {string} hex - The original hex color (e.g., '#RRGGBB' or '#RRGGBBAA').
+   * @param {number} alpha - The alpha value (0 to 1).
+   * @return {string} The new hex color with the specified alpha value.
+   */
+  static adjustAlpha(hex, alpha) {
+  // Ensure hex is in the format '#RRGGBB' or '#RRGGBBAA'
+  hex = hex.replace('#', '');
+
+  if (hex.length === 3) {
+    hex = hex.split('').map(c => c + c).join(''); // Convert shorthand '#RGB' to '#RRGGBB'
+  }
+
+  // Ensure alpha is within the valid range
+  alpha = Math.min(1, Math.max(0, alpha));
+
+  // Convert alpha to a two-digit hex value
+  const alphaHex = Math.round(alpha * 255).toString(16).padStart(2, '0');
+
+  // Return the new hex color
+  if (hex.length === 6) {
+    return `#${hex}${alphaHex}`;
+  } else if (hex.length === 8) {
+    return `#${hex.slice(0, 6)}${alphaHex}`;
+  } else {
+    throw new Error('Invalid hex color format');
+  }
+}
   static getColour(colourName) {
     const colourMap = {
       "blue": "#0295cf",

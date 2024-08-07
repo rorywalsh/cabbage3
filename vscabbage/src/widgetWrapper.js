@@ -45,6 +45,7 @@ export class WidgetWrapper {
             element.style.transform = `translate(${x}px, ${y}px)`;
             element.setAttribute('data-x', x);
             element.setAttribute('data-y', y);
+            console.log("element.id",element.id);
             this.updatePanelCallback(this.vscode, { eventType: "move", name: element.id, bounds: { x: x, y: y, w: -1, h: -1 } },this.widgets);
 
 

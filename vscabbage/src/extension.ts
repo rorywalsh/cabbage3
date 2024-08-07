@@ -334,7 +334,6 @@ async function updateText(jsonText: string) {
 		return;
 	}
 
-	console.warn(props);
 
 	if (!textEditor) {
 		console.error("No text editor is available.");

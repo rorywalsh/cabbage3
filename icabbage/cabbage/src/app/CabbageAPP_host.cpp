@@ -14,7 +14,7 @@
 #include <sys/stat.h>
 #endif
 
-
+#include "opcodes/CabbageOpcodes.h"
 #include "IPlugLogger.h"
 
 using namespace iplug;
@@ -171,7 +171,7 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                 }
                 else{
                     nlohmann::json json;
-                    CabbageParser::updateJsonFromSyntax(j, data.cabbageCode);
+                    CabbageParser::updateJsonFromSyntax(j, data.cabbageCode, cabbage.getWidgets().size());
                     nlohmann::json msg;
                     msg["command"] = "widgetUpdate";
                     msg["channel"] = data.channel;

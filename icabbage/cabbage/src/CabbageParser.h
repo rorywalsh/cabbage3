@@ -136,7 +136,7 @@ public:
         };
 
         // Check if the input is a CSS color name
-        auto it = cssColorMap.find(hexStr);
+        auto it = cssColorMap.find(toLowerCase(hexStr));
         if (it != cssColorMap.end()) {
             std::string hexValue = it->second;
             return hexValue + "ff"; // Add default alpha

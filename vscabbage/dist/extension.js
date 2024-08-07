@@ -308,7 +308,6 @@ async function updateText(jsonText) {
         console.error("Failed to parse JSON text:", error);
         return;
     }
-    console.warn(props);
     if (!textEditor) {
         console.error("No text editor is available.");
         return;
@@ -1299,6 +1298,80 @@ class CabbageUtils {
 }
 
 class CabbageColours {
+
+  static changeSelectedBorderColor(newColor) {
+    // Loop through all stylesheets
+    for (let i = 0; i < document.styleSheets.length; i++) {
+      const styleSheet = document.styleSheets[i];
+      
+      try {
+        // Loop through all rules in the stylesheet
+        for (let j = 0; j < styleSheet.cssRules.length; j++) {
+          const rule = styleSheet.cssRules[j];
+          console.warn(rule)
+          
+          if (rule.selectorText && rule.selectorText.trim() === '.selected') {
+            // Modify the border color
+            rule.style.borderColor = newColor;
+            return; // Exit once the rule is found and updated
+          }
+        }
+      } catch (e) {
+        // Catch and ignore SecurityError: The operation is insecure.
+        if (e.name !== 'SecurityError') throw e;
+      }
+    }
+  }
+
+  static invertColor(hex) {
+    // Remove the hash at the start if it's there
+    hex = hex.replace('#', '');
+
+    // Parse the r, g, b values
+    let r = parseInt(hex.substring(0, 2), 16);
+    let g = parseInt(hex.substring(2, 4), 16);
+    let b = parseInt(hex.substring(4, 6), 16);
+
+    // Invert the colors
+    r = 255 - r;
+    g = 255 - g;
+    b = 255 - b;
+
+    // Convert back to hex
+    const invertedHex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase()}`;
+
+    return invertedHex;
+  }
+
+  /**
+   * Adjusts the alpha value of a hex color.
+   * @param {string} hex - The original hex color (e.g., '#RRGGBB' or '#RRGGBBAA').
+   * @param {number} alpha - The alpha value (0 to 1).
+   * @return {string} The new hex color with the specified alpha value.
+   */
+  static adjustAlpha(hex, alpha) {
+  // Ensure hex is in the format '#RRGGBB' or '#RRGGBBAA'
+  hex = hex.replace('#', '');
+
+  if (hex.length === 3) {
+    hex = hex.split('').map(c => c + c).join(''); // Convert shorthand '#RGB' to '#RRGGBB'
+  }
+
+  // Ensure alpha is within the valid range
+  alpha = Math.min(1, Math.max(0, alpha));
+
+  // Convert alpha to a two-digit hex value
+  const alphaHex = Math.round(alpha * 255).toString(16).padStart(2, '0');
+
+  // Return the new hex color
+  if (hex.length === 6) {
+    return `#${hex}${alphaHex}`;
+  } else if (hex.length === 8) {
+    return `#${hex.slice(0, 6)}${alphaHex}`;
+  } else {
+    throw new Error('Invalid hex color format');
+  }
+}
   static getColour(colourName) {
     const colourMap = {
       "blue": "#0295cf",
@@ -3269,7 +3342,7 @@ class Checkbox {
         "text": "On/Off", // Text displayed next to the checkbox
         "fontFamily": "Verdana", // Font family for the text
         "fontColour": "#dddddd", // Color of the text
-        "fontSize": 14, // Font size for the text
+        "fontSize": 0, // Font size for the text
         "align": "left", // Text alignment within the checkbox (left, center, right)
         "colourOn": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("green"), // Background color of the checkbox in the 'On' state
         "colourOff": "#ffffff", // Background color of the checkbox in the 'Off' state
@@ -3336,11 +3409,12 @@ class Checkbox {
     };
   
     const svgAlign = alignMap[this.props.align] || this.props.align;
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
+    console.warn(this.props.fontSize)
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.8;
   
     const checkboxSize = this.props.height * 0.8;
     const checkboxX = this.props.align === 'right' ? this.props.width - checkboxSize - this.props.corners : this.props.corners;
-    const textX = this.props.align === 'right' ? checkboxX - 10 : checkboxX + checkboxSize + 10; // Add more padding to prevent overlap
+    const textX = this.props.align === 'right' ? checkboxX - 10 : checkboxX + checkboxSize + 4; // Add more padding to prevent overlap
   
     const adjustedTextAnchor = this.props.align === 'right' ? 'end' : 'start';
   
@@ -3376,16 +3450,15 @@ class ComboBox {
             "width": 100, // Width of the widget
             "height": 30, // Height of the widget
             "channel": "comboBox", // Unique identifier for the widget
-            "corners": 4, // Radius of the corners of the widget rectangle
+            "corners": 2, // Radius of the corners of the widget rectangle
             "fontFamily": "Verdana", // Font family for the text
             "fontSize": 14, // Font size for the text
             "align": "center", // Text alignment within the widget (left, center, right)
             "colour": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the widget
             "items": "One, Two, Three", // List of items for the dropdown
-            "text": "Select", // Default text displayed when no item is selected
             "fontColour": "#dddddd", // Color of the text
             "outlineColour": "#dddddd", // Color of the outline
-            "outlineWidth": 2, // Width of the outline
+            "outlineWidth": 0, // Width of the outline
             "min": 0, // Minimum value of the widget
             "max": 3,
             "visible": 1, // Visibility of the widget (0 for hidden, 1 for visible)
@@ -3394,20 +3467,20 @@ class ComboBox {
             "automatable": 1, // Whether the widget value can be automated (0 for no, 1 for yes)
             "active": 1, // Whether the widget is active (0 for inactive, 1 for active)
             "channelType": "number", // Type of the channel (number, string) - string channels cannot be automated by the host
-            "currentDirectory" : "", // Directory to point to if using populate() identifier
+            "currentDirectory": "", // Directory to point to if using populate() identifier
             "fileType": "" // File type to filter if using populate() identifier, can use semicolon separated list with wildcard patterns, i.e, "*.txt;*.csv" 
         };
 
         this.panelSections = {
             "Properties": ["type"],
             "Bounds": ["top", "left", "width", "height"],
-            "Text": ["text", "items", "fontFamily", "align", "fontSize", "fontColour"],
+            "Text": ["items", "fontFamily", "align", "fontSize", "fontColour"],
             "Colours": ["colour", "outlineColour"]
         };
 
         this.isMouseInside = false;
         this.isOpen = false;
-        this.selectedItem = this.props.value > 0 ? this.props.items.split(",")[this.props.value] : this.props.text;
+        this.selectedItem = this.props.value > 0 ? this.props.items.split(",")[this.props.value] : this.props.items.split(",")[0];
         this.parameterIndex = 0;
         this.vscode = null;
     }
@@ -3484,44 +3557,38 @@ class ComboBox {
 
         let totalHeight = this.props.height;
         const itemHeight = this.props.height * 0.8; // Scale back item height to 80% of the original height
+        let dropdownItems = "";
+
         if (this.isOpen) {
             const items = this.props.items.split(",");
-            totalHeight += items.length * itemHeight;
+            items.forEach((item, index) => {
+                dropdownItems += `
+                    <div style="height:${itemHeight}px; display:flex; align-items:center; justify-content:center; cursor:pointer; background-color:${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)};"
+                        onmouseover="this.style.backgroundColor='${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.lighter(this.props.colour, 0.2)}'"
+                        onmouseout="this.style.backgroundColor='${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}'"
+                        onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.handleItemClick('${item}')">
+                        <span style="font-family:${this.props.fontFamily}; font-size:${this.props.fontSize}px; color:${this.props.fontColour};">${item.trim()}</span>
+                    </div>
+                `;
+            });
 
-            // Check if the dropdown will be off the bottom of the screen
+            // Calculate the total dropdown height
+            const dropdownHeight = items.length * itemHeight;
+            totalHeight += dropdownHeight;
+
+            // Check available space
             const mainForm = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv("MainForm");
             const widgetDiv = mainForm.querySelector(`#${this.props.channel}`);
             const widgetRect = widgetDiv.getBoundingClientRect();
             const mainFormRect = mainForm.getBoundingClientRect();
             const spaceBelow = mainFormRect.bottom - widgetRect.bottom;
+            const spaceAbove = widgetRect.top - mainFormRect.top;
 
-            if (spaceBelow < totalHeight) {
-                const adjustment = totalHeight - this.props.height * 2; // Adding 10px for some padding
-                const currentTopValue = parseInt(widgetDiv.style.top, 10) || this.props.top; // Use props.top if style.top is not set
-                const newTopValue = currentTopValue - adjustment;
-                widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + newTopValue + 'px)';
-            }
-        }
+            // Determine max height for the dropdown
+            const maxDropdownHeight = Math.min(dropdownHeight, Math.max(spaceBelow, spaceAbove));
 
-        let dropdownItems = "";
-        if (this.isOpen) {
-            const items = this.props.items.split(",");
-            items.forEach((item, index) => {
-                dropdownItems += `
-                    <rect x="0" y="${index * itemHeight}" width="${this.props.width}" height="${itemHeight}"
-                        fill="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}" rx="0" ry="0"
-                        style="cursor: pointer;" pointer-events="all" data-item="${item}"
-                        onmouseover="this.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.lighter(this.props.colour, 0.2)}')"
-                        onmouseout="this.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}')"></rect>
-                    <text x="${(this.props.width - this.props.corners / 2) / 2}" y="${(index + 1) * itemHeight - itemHeight / 2}"
-                        font-family="${this.props.fontFamily}" font-size="${this.props.fontSize}" fill="${this.props.fontColour}"
-                        text-anchor="middle" alignment-baseline="middle" data-item="${item}"
-                        style="cursor: pointer;" pointer-events="all"
-                        onmouseover="this.previousElementSibling.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.lighter(this.props.colour, 0.2)}')"
-                        onmouseout="this.previousElementSibling.setAttribute('fill', '${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}')"
-                        onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.handleItemClick('${item}')">${item}</text>
-                `;
-            });
+            // Adjust total height
+            totalHeight = this.props.height + maxDropdownHeight;
         }
 
         const arrowWidth = 10; // Width of the arrow
@@ -3545,7 +3612,25 @@ class ComboBox {
                     stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}" 
                     style="cursor: pointer;" pointer-events="all" 
                     onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.pointerDown(event)"></rect>
-                ${dropdownItems}
+                ${this.isOpen ? `
+                    <foreignObject x="0" y="${this.props.height}" width="${this.props.width}" height="${totalHeight - this.props.height}">
+                        <div xmlns="http://www.w3.org/1999/xhtml" style="max-height:${totalHeight - this.props.height}px; overflow-y:auto; scrollbar-width: thin; scrollbar-color: ${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)} ${this.props.colour};">
+                            <style>
+                                /* Custom scrollbar for Webkit browsers */
+                                div::-webkit-scrollbar {
+                                    width: 8px;
+                                }
+                                div::-webkit-scrollbar-track {
+                                    background: ${this.props.colour};
+                                }
+                                div::-webkit-scrollbar-thumb {
+                                    background-color: ${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)};
+                                    border-radius: 4px;
+                                }
+                            </style>
+                            ${dropdownItems}
+                        </div>
+                    </foreignObject>` : ''}
                 <polygon points="${arrowX},${arrowY} ${arrowX + arrowWidth},${arrowY} ${arrowX + arrowWidth / 2},${arrowY + arrowHeight}"
                     fill="${this.props.outlineColour}" style="${this.isOpen ? 'display: none;' : ''} pointer-events: none;"/>
                 <text x="${selectedItemTextX}" y="${selectedItemTextY}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
@@ -3554,6 +3639,7 @@ class ComboBox {
             </svg>
         `;
     }
+
 }
 
 
@@ -3614,7 +3700,7 @@ class Label {
             return '';
         }
         
-        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.8, 12); // Ensuring font size doesn't get too small
+        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height, 12); // Ensuring font size doesn't get too small
         const alignMap = {
             'left': 'end',
             'center': 'middle',
@@ -3681,6 +3767,8 @@ class Image {
             "Bounds": ["left", "top", "width", "height"],
             "Colours": ["colour", "outlineColour"],
         };
+
+        this.children = {};
     }
 
     addVsCodeEventListeners(widgetDiv, vs) {
@@ -4453,7 +4541,7 @@ class Form {
   getInnerHTML() {
     return `
       <svg class="widget-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none" style="position: relative; z-index: 0;">
-        <rect width="${this.props.width}" height="${this.props.height}" x="0" y="0" rx="2" ry="2" fill="${this.props.colour}" />
+        <rect id="MainForm" width="${this.props.width}" height="${this.props.height}" x="0" y="0" rx="2" ry="2" fill="${this.props.colour}" />
       </svg>
     `;
   }

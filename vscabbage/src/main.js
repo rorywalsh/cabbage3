@@ -40,7 +40,7 @@ const widgetConstructors = {
 };
 
 import { PropertyPanel } from "./propertyPanel.js";
-import { CabbageUtils, CabbageTestUtilities } from "./utils.js";
+import { CabbageUtils, CabbageTestUtilities, CabbageColours } from "./utils.js";
 import { Cabbage } from "./cabbage.js";
 
 console.log("main.js loaded!")
@@ -117,7 +117,6 @@ window.addEventListener('message', async event => {
     //called when a user saves a file. First we clear the widget array, then Cabbage will update it from the plugin
     case 'onFileChanged':
       cabbageMode = 'nonDraggable';
-
       if (mainForm) {
         mainForm.remove();
       }
@@ -198,6 +197,7 @@ function updateWidget(obj) {
       if (widget.props.type == "gentable") {
         widget.updateTable();
       } else if (widget.props.type == "form") {
+        console.log("updating form svg from widgetUpdate");
         widget.updateSVG();
       }
     }
@@ -388,7 +388,10 @@ function setupFormWidget(widget) {
 
     // Call widget's updateSVG method
     if (typeof widget.updateSVG === 'function') {
+      console.log("updating form svg whilst setting up form widget");
       widget.updateSVG();
+      const selectionColour = CabbageColours.invertColor(widget.props.colour);
+      CabbageColours.changeSelectedBorderColor(selectionColour);
     }
   } else {
     console.error("MainForm not found");
@@ -421,6 +424,48 @@ function updateWidgetStyles(widgetDiv, props) {
 * to handle selection of widgets.
 */
 function setupFormHandlers() {
+  // Create context menu dynamically
+  const groupContextMenu = document.createElement("div");
+  groupContextMenu.id = "dynamicContextMenu";
+  groupContextMenu.style.position = "absolute";
+  groupContextMenu.style.visibility = "hidden";
+  groupContextMenu.style.backgroundColor = "#fff";
+  groupContextMenu.style.border = "1px solid #ccc";
+  groupContextMenu.style.boxShadow = "0 2px 10px rgba(0,0,0,0.2)";
+  groupContextMenu.style.zIndex = 10000; // Ensure it's on top
+
+  // Create menu items
+  const groupOption = document.createElement("div");
+  groupOption.innerText = "Group";
+  groupOption.style.padding = "8px";
+  groupOption.style.cursor = "pointer";
+
+  const unGroupOption = document.createElement("div");
+  unGroupOption.innerText = "Ungroup";
+  unGroupOption.style.padding = "8px";
+  unGroupOption.style.cursor = "pointer";
+
+  // Append items to the context menu
+  groupContextMenu.appendChild(groupOption);
+  groupContextMenu.appendChild(unGroupOption);
+
+  // Append context menu to the document body
+  document.body.appendChild(groupContextMenu);
+
+  // Add event listeners for the menu options
+  groupOption.addEventListener("click", () => {
+    console.log("Group option clicked");
+    contextMenu.style.visibility = "hidden";
+    // Add your "Group" functionality here
+  });
+
+  unGroupOption.addEventListener("click", () => {
+    console.log("Ungroup option clicked");
+    contextMenu.style.visibility = "hidden";
+    // Add your "Ungroup" functionality here
+  });
+
+
   const contextMenu = document.querySelector(".wrapper");
   const form = document.getElementById('MainForm');
   /**
@@ -435,6 +480,8 @@ function setupFormHandlers() {
         e.preventDefault();
         e.stopImmediatePropagation();
         e.stopPropagation();
+
+        //widgetsContentMenu
         let x = e.offsetX, y = e.offsetY,
           winWidth = window.innerWidth,
           winHeight = window.innerHeight,
@@ -446,17 +493,30 @@ function setupFormHandlers() {
 
         contextMenu.style.left = `${x}px`;
         contextMenu.style.top = `${y}px`;
+
+        
+        //groupContextMenu
+        x = e.clientX, y = e.clientY;
+        x = x > winWidth - cmWidth ? winWidth - cmWidth - 5 : x;
+        y = y > winHeight - cmHeight ? winHeight - cmHeight - 5 : y;
+        groupContextMenu.style.left = `${x}px`; 
+        groupContextMenu.style.top = `${y}px`;
+
         mouseDownPosition = { x: x, y: y };
-        if (cabbageMode === 'draggable') {
+        if (cabbageMode === 'draggable' && e.target.id === "MainForm") {
           contextMenu.style.visibility = "visible";
-          console.log("Context menu should be visible");
+        } else {
+          groupContextMenu.style.visibility="visible";
         }
+          
 
       });
-      document.addEventListener("click", () => {
-        console.log("Hiding context menu");
-        contextMenu.style.visibility = "hidden"
-      });
+
+      // form.addEventListener("click", () => {
+      //   console.log("Hiding context menu");
+      //   contextMenu.style.visibility = "hidden"
+      //   groupContextMenu.style.visibility = "hidden"
+      // });
 
       // new PropertyPanel('slider', currentWidget, {});
 
@@ -487,7 +547,7 @@ function setupFormHandlers() {
         }
       }
     }
-    else{
+    else {
       console.error("MainForm or contextMenu not found");
     }
   }
@@ -504,14 +564,24 @@ function setupFormHandlers() {
     let offsetY = 0;
 
     form.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0) { return; }
+
+      if (event.button !== 0) {
+        return;
+      }
+      else{
+        contextMenu.style.visibility = "hidden"
+        groupContextMenu.style.visibility = "hidden"
+      }
+
 
       const clickedElement = event.target;
+      const selectionColour = CabbageColours.invertColor(event.target.getAttribute('fill'));
+
       const formRect = form.getBoundingClientRect();
       offsetX = formRect.left;
       offsetY = formRect.top;
 
-      if ((event.shiftKey || event.altKey) && event.target === form) {
+      if ((event.shiftKey || event.altKey) && event.target.id === "MainForm") {
         // Start selection mode
         isSelecting = true;
         startX = event.clientX - offsetX;
@@ -519,12 +589,14 @@ function setupFormHandlers() {
         selectionBox = document.createElement('div');
         selectionBox.style.position = 'absolute';
         selectionBox.style.border = '1px dashed #000';
-        selectionBox.style.backgroundColor = 'rgba(20, 20, 20, 0.3)';
+        selectionBox.style.borderColor = `${selectionColour}`
+        selectionBox.style.backgroundColor = `${CabbageColours.adjustAlpha(selectionColour, .4)}`;
+        selectionBox.style.zIndex = 9999;
+
         selectionBox.style.left = `${startX}px`;
         selectionBox.style.top = `${startY}px`;
         form.appendChild(selectionBox);
       } else if (clickedElement.classList.contains('draggable') && event.target.id !== "MainForm") {
-
         if (!event.shiftKey && !event.altKey) {
           // Deselect all elements if clicking on a non-selected element without Shift or Alt key
           if (!selectedElements.has(clickedElement)) {
@@ -544,7 +616,7 @@ function setupFormHandlers() {
         }
       }
 
-      if (event.target === form) {
+      if (event.target.id === "MainForm") {
         // Deselect all elements if clicking on the form without Shift or Alt key
         selectedElements.forEach(element => element.classList.remove('selected'));
         selectedElements.clear();

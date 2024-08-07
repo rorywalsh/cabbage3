@@ -16,7 +16,7 @@ export class Checkbox {
         "text": "On/Off", // Text displayed next to the checkbox
         "fontFamily": "Verdana", // Font family for the text
         "fontColour": "#dddddd", // Color of the text
-        "fontSize": 14, // Font size for the text
+        "fontSize": 0, // Font size for the text
         "align": "left", // Text alignment within the checkbox (left, center, right)
         "colourOn": CabbageColours.getColour("green"), // Background color of the checkbox in the 'On' state
         "colourOff": "#ffffff", // Background color of the checkbox in the 'Off' state
@@ -83,11 +83,12 @@ export class Checkbox {
     };
   
     const svgAlign = alignMap[this.props.align] || this.props.align;
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
+    console.warn(this.props.fontSize)
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.8;
   
     const checkboxSize = this.props.height * 0.8;
     const checkboxX = this.props.align === 'right' ? this.props.width - checkboxSize - this.props.corners : this.props.corners;
-    const textX = this.props.align === 'right' ? checkboxX - 10 : checkboxX + checkboxSize + 10; // Add more padding to prevent overlap
+    const textX = this.props.align === 'right' ? checkboxX - 10 : checkboxX + checkboxSize + 4; // Add more padding to prevent overlap
   
     const adjustedTextAnchor = this.props.align === 'right' ? 'end' : 'start';
   

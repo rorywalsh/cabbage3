@@ -47,7 +47,7 @@ export class Label {
             return '';
         }
         
-        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.8, 12); // Ensuring font size doesn't get too small
+        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height, 12); // Ensuring font size doesn't get too small
         const alignMap = {
             'left': 'end',
             'center': 'middle',
