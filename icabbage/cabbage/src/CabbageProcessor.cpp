@@ -119,16 +119,14 @@ void CabbageProcessor::setupCallbacks()
         allowDequeuing = true;
     };
     
-    //this is called by the webview when it first opens and will update
-    //the widgets array with the state of the widgets after it first loads;
-    //this ensures the JS and C++ widgets objects are in sync
+    //called whenever the state of a widget is updated in the UI - the C++ widget array
+    //and the JS widget array should always be in sync
     updateWidgetStateCallback = [&](nlohmann::json json)
     {
         //auto msg = cabbage.updateWidgetState(json);
         //EvaluateJavaScript(msg.c_str());
         for( auto& w : cabbage.getWidgets())
         {
-            _log(w.dump(4));
             cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
         }
     };
@@ -205,7 +203,7 @@ void CabbageProcessor::timerCallback()
                     if(data.channel == CabbageParser::removeQuotes(widget["channel"]))
                     {
                         //this will update the widget JSON with new arguments tied to the identifier, e.g, bounds(x, y, w, h)
-                        CabbageParser::updateJsonFromSyntax(widget, data.cabbageCode, widget.size());
+                        CabbageParser::updateJson(widget, data.cabbageJson, widget.size());
                     }
                 }
             }
@@ -242,7 +240,7 @@ void CabbageProcessor::timerCallback()
                     }
                     else
                     {
-                        CabbageParser::updateJsonFromSyntax(j, data.cabbageCode, cabbage.getWidgets().size());
+                        CabbageParser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
                         message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
                     }
                 }

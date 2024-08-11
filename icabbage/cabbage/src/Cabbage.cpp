@@ -271,9 +271,9 @@ std::string Cabbage::getWidgetUpdateScript(std::string channel, float value)
 
 void Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonObj)
 {
-    if(data.cabbageCode.find("tableNumber") != std::string::npos)
+    if(data.cabbageJson.contains("tableNumber"))
     {
-        CabbageParser::updateJsonFromSyntax(jsonObj, data.cabbageCode, widgets.size());
+        CabbageParser::updateJson(jsonObj, data.cabbageJson, widgets.size());
         const int tableNumber = jsonObj["tableNumber"];
         const int tableSize = getCsound()->TableLength(tableNumber);
         if(tableSize != -1)
@@ -283,11 +283,11 @@ void Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonOb
             setTableJSON(data.channel, temp, jsonObj);
         }
     }
-    else if(data.cabbageCode.find("file") != std::string::npos)
+    else if(data.cabbageJson.contains("file"))
     {
         if(jsonObj["type"].get<std::string>() == "gentable")
         {
-            CabbageParser::updateJsonFromSyntax(jsonObj, data.cabbageCode, widgets.size());
+            CabbageParser::updateJson(jsonObj, data.cabbageJson, widgets.size());
             const int tableNumber = jsonObj["tableNumber"];
             auto samples = Cabbage::readAudioFile(jsonObj["file"].get<std::string>());
             

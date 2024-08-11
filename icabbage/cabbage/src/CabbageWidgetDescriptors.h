@@ -306,6 +306,7 @@ public:
             "min": 0,
             "max": 1,
             "value": 0,
+            "text": "Load file",
             "textOn": "Off",
             "textOff": "Off",
             "fontFamily": "Verdana",

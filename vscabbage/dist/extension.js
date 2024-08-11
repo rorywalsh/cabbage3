@@ -67,8 +67,6 @@ const genTable_js_1 = __webpack_require__(17);
 // @ts-ignore
 const textEditor_js_1 = __webpack_require__(18);
 // @ts-ignore
-const utils_js_1 = __webpack_require__(3);
-// @ts-ignore
 const form_js_1 = __webpack_require__(19);
 const cp = __importStar(__webpack_require__(20));
 let textEditor;
@@ -107,10 +105,76 @@ wss.on('connection', (ws) => {
         console.log('Client disconnected');
     });
 });
+function formatText(text) {
+    const lines = text.split('\n');
+    let indents = 0;
+    let formattedText = '';
+    lines.forEach((line, index) => {
+        // Trim leading whitespace from non-empty lines
+        const trimmedLine = line.trim().length > 0 ? line.trimStart() : line;
+        // Increase indentation level for specific keywords
+        if (index > 0 && (lines[index - 1].trim().startsWith("if ") ||
+            lines[index - 1].trim().startsWith("if(") ||
+            lines[index - 1].trim().startsWith("instr") ||
+            lines[index - 1].trim().startsWith("opcode") ||
+            lines[index - 1].trim().startsWith("else") ||
+            lines[index - 1].trim().startsWith("while"))) {
+            indents++;
+        }
+        // Decrease indentation level for end keywords
+        if (trimmedLine.startsWith("endif") ||
+            trimmedLine.startsWith("endin") ||
+            trimmedLine.startsWith("endop") ||
+            trimmedLine.startsWith("od") ||
+            trimmedLine.startsWith("else") ||
+            trimmedLine.startsWith("enduntil")) {
+            indents = Math.max(0, indents - 1);
+        }
+        // Add indentation
+        const indentText = '\t'.repeat(indents);
+        formattedText += indentText + trimmedLine + '\n';
+    });
+    return formattedText;
+}
 let processes = [];
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 function activate(context) {
+    context.subscriptions.push(vscode.commands.registerCommand('cabbage.formatCabbageJSON', async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            return; // No open text editor
+        }
+        const document = editor.document;
+        const text = document.getText();
+        // Find the <Cabbage> and </Cabbage> tags
+        const startTag = '<Cabbage>';
+        const endTag = '</Cabbage>';
+        const startIndex = text.indexOf(startTag);
+        const endIndex = text.indexOf(endTag);
+        if (startIndex === -1 || endIndex === -1 || startIndex > endIndex) {
+            vscode.window.showErrorMessage("Cabbage section not found or is invalid.");
+            return;
+        }
+        // Calculate the positions in the document
+        const startPos = document.positionAt(startIndex + startTag.length);
+        const endPos = document.positionAt(endIndex);
+        const range = new vscode.Range(startPos, endPos);
+        const cabbageContent = document.getText(range).trim();
+        try {
+            // Parse the JSON content to ensure it's valid
+            const jsonObject = JSON.parse(cabbageContent);
+            // Re-stringify the JSON content with formatting (4 spaces for indentation)
+            const formattedJson = JSON.stringify(jsonObject, null, 4);
+            // Replace the original Cabbage section with the formatted text
+            editor.edit(editBuilder => {
+                editBuilder.replace(range, '\n' + formattedJson + '\n');
+            });
+        }
+        catch (error) {
+            vscode.window.showErrorMessage("Failed to parse and format JSON content.");
+        }
+    }));
     if (output === undefined) {
         output = vscode.window.createOutputChannel("Cabbage output");
     }
@@ -133,6 +197,16 @@ function activate(context) {
             }
         }
     }
+    vscode.commands.registerCommand('cabbage.formatDocument', async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor)
+            return;
+        const text = editor.document.getText();
+        const formattedText = formatText(text); // Your formatting logic
+        const edit = new vscode.WorkspaceEdit();
+        edit.replace(editor.document.uri, new vscode.Range(0, 0, editor.document.lineCount, 0), formattedText);
+        await vscode.workspace.applyEdit(edit);
+    });
     context.subscriptions.push(vscode.commands.registerCommand('cabbage.launchUIEditor', () => {
         // The code you place here will be executed every time your command is executed
         panel = vscode.window.createWebviewPanel('cabbageUIEditor', 'Cabbage UI Editor', 
@@ -313,8 +387,10 @@ async function updateText(jsonText) {
         return;
     }
     const document = textEditor.document;
-    let lineNumber = 0;
+    const originalText = document.getText();
+    console.warn("originalText", originalText);
     let defaultProps = {};
+    // Determine the default properties for the widget
     try {
         switch (props.type) {
             case 'rslider':
@@ -334,7 +410,6 @@ async function updateText(jsonText) {
                 break;
             case 'keyboard':
                 defaultProps = new midiKeyboard_js_1.MidiKeyboard().props;
-                console.warn("Keyboard", defaultProps);
                 break;
             case 'button':
                 defaultProps = new button_js_1.Button().props;
@@ -381,73 +456,114 @@ async function updateText(jsonText) {
         console.error("Error initializing default properties for type:", props.type, error);
         return;
     }
-    const internalIdentifiers = ['top', 'left', 'width', 'name', 'height', 'increment', 'min', 'max', 'skew', 'index', 'samples'];
-    if (props.type.includes('slider')) {
-        internalIdentifiers.push('value');
-    }
-    try {
-        await textEditor.edit(async (editBuilder) => {
-            let foundChannel = false;
-            const lines = document.getText().split(/\r?\n/);
-            for (let i = 0; i < lines.length; i++) {
-                const tokens = utils_js_1.CabbageUtils.getTokens(lines[i]);
-                const index = tokens.findIndex(({ token }) => token === 'channel');
-                if (index !== -1) {
-                    const channel = tokens[index].values[0].replace(/"/g, "");
-                    if (channel === props.channel) {
-                        foundChannel = true;
-                        const updatedIdentifiers = utils_js_1.CabbageUtils.findUpdatedIdentifiers(JSON.stringify(defaultProps), jsonText);
-                        updatedIdentifiers.forEach((ident) => {
-                            if (!internalIdentifiers.includes(ident)) {
-                                const newIndex = tokens.findIndex(({ token }) => token === ident);
-                                let data = Array.isArray(props[ident]) ? [...props[ident]] : [props[ident]];
-                                if (newIndex === -1) {
-                                    tokens.push({ token: ident, values: data });
-                                }
-                                else {
-                                    tokens[newIndex].values = data;
+    const internalIdentifiers = ['top', 'left', 'width', 'height', 'increment', 'min', 'max', 'skew', 'value'];
+    const transformProps = (props) => {
+        if (props.left !== undefined && props.top !== undefined && props.width !== undefined && props.height !== undefined) {
+            props.bounds = [props.left, props.top, props.width, props.height];
+            delete props.left;
+            delete props.top;
+            delete props.width;
+            delete props.height;
+        }
+        if (props.type.includes("slider")) {
+            if (props.min !== undefined && props.max !== undefined && props.skew !== undefined && props.increment !== undefined) {
+                props.range = [props.min, props.max, props.value, props.skew, props.increment];
+                delete props.min;
+                delete props.max;
+                delete props.skew;
+                delete props.increment;
+                delete props.value;
+            }
+        }
+        return props;
+    };
+    const updatedProps = transformProps(props);
+    const lines = document.getText().split(/\r?\n/);
+    let foundChannel = false;
+    const ensureTypeFirst = (obj) => {
+        const { type, ...rest } = obj;
+        return { type, ...rest };
+    };
+    const formatObject = (obj) => {
+        const formattedObj = ensureTypeFirst(obj);
+        return JSON.stringify(formattedObj)
+            .replace(/"([^"]+)":/g, '"$1": ')
+            .replace(/,(?!\s*?[\{\[\"\'\w])/g, ''); // remove trailing commas if any
+    };
+    await textEditor.edit(async (editBuilder) => {
+        let jsonObjectLines = [];
+        let isInObject = false;
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+            // Check if the line starts a JSON object
+            if (line.startsWith('{')) {
+                isInObject = true;
+            }
+            // Accumulate lines for the JSON object
+            if (isInObject) {
+                jsonObjectLines.push(line);
+                // Check if the line ends a JSON object
+                if (line.endsWith('},') || line.endsWith('}') || line.endsWith(']')) {
+                    // Combine accumulated lines into a single string
+                    const jsonObjectString = jsonObjectLines.join(' ');
+                    try {
+                        // Remove trailing comma or closing bracket before parsing
+                        const parsedLine = JSON.parse(jsonObjectString.replace(/[\],]$/, ''));
+                        if (parsedLine.channel === props.channel) {
+                            foundChannel = true;
+                            let newObject = { ...parsedLine, ...updatedProps };
+                            // Remove unchanged properties except 'type'
+                            for (let key in defaultProps) {
+                                if (newObject[key] === defaultProps[key]) {
+                                    if (key !== 'type') {
+                                        delete newObject[key];
+                                    }
                                 }
                             }
-                        });
-                        if (props.type.includes('slider') || props.type.includes('hrange')) {
-                            const rangeIndex = tokens.findIndex(({ token }) => token === 'range');
-                            if (rangeIndex !== -1) {
-                                tokens[rangeIndex].values = [props.min, props.max, props.value, props.skew, props.increment];
-                            }
+                            // Ensure the type is preserved and positioned first
+                            newObject = ensureTypeFirst(newObject);
+                            const newLine = formatObject(newObject) + (line.endsWith('},') ? ',' : '');
+                            const range = new vscode.Range(new vscode.Position(i - jsonObjectLines.length + 1, 0), new vscode.Position(i, lines[i].length));
+                            editBuilder.replace(range, newLine);
+                            break;
                         }
-                        const boundsIndex = tokens.findIndex(({ token }) => token === 'bounds');
-                        if (boundsIndex !== -1) {
-                            tokens[boundsIndex].values = [props.left, props.top, props.width, props.height];
-                        }
-                        lines[i] = `${lines[i].split(' ')[0]} ` + tokens.map(({ token, values }) => typeof values[0] === 'string' ? `${token}("${values.join(', ')}")` : `${token}(${values.join(', ')})`).join(', ');
-                        await editBuilder.replace(new vscode.Range(document.lineAt(i).range.start, document.lineAt(i).range.end), lines[i]);
-                        if (textEditor)
-                            textEditor.selection = new vscode.Selection(i, 0, i, 10000);
                     }
+                    catch (error) {
+                        console.error("Error parsing JSON object:", error);
+                    }
+                    // Reset state after processing the object
+                    jsonObjectLines = [];
+                    isInObject = false;
                 }
-                if (lines[i] === '</Cabbage>') {
+            }
+        }
+        if (!foundChannel) {
+            // Find the closing bracket of the JSON array
+            for (let i = lines.length - 1; i >= 0; i--) {
+                if (lines[i].trim() === ']') {
+                    // Check if the last object has a comma, if not, add it
+                    if (lines[i - 1].trim().endsWith('}')) {
+                        editBuilder.insert(new vscode.Position(i - 1, lines[i - 1].length), ',');
+                    }
+                    let newObject = transformProps(props);
+                    // Remove unchanged properties except 'type'
+                    for (let key in defaultProps) {
+                        if (newObject[key] === defaultProps[key]) {
+                            if (key !== 'type') {
+                                delete newObject[key];
+                            }
+                        }
+                    }
+                    // Ensure the type is preserved and positioned first
+                    newObject = ensureTypeFirst(newObject);
+                    const newLine = formatObject(newObject);
+                    // Insert the new object just before the closing bracket
+                    editBuilder.insert(new vscode.Position(i, 0), `\n${newLine}\n`);
                     break;
                 }
             }
-            lines.forEach((line, count) => {
-                if (line.trimStart().startsWith("</Cabbage>")) {
-                    lineNumber = count;
-                }
-            });
-            if (!foundChannel && props.type !== "form") {
-                let newLine = `${props.type} bounds(${props.left}, ${props.top}, ${props.width}, ${props.height}), ${utils_js_1.CabbageUtils.getCabbageCodeFromJson(jsonText, "channel")}`;
-                if (props.type.includes('slider') || props.type.includes('hrange')) {
-                    newLine += ` ${utils_js_1.CabbageUtils.getCabbageCodeFromJson(jsonText, "range")}`;
-                }
-                editBuilder.insert(new vscode.Position(lineNumber, 0), newLine + '\n');
-                if (textEditor)
-                    textEditor.selection = new vscode.Selection(lineNumber, 0, lineNumber, 10000);
-            }
-        });
-    }
-    catch (error) {
-        console.error("Error editing the text editor document:", error);
-    }
+        }
+    });
 }
 /**
  * Returns html text to use in webview - various scripts get passed as vscode.Uri's
@@ -1844,7 +1960,7 @@ class Cabbage {
 
     const msg = {
       command: "fileOpen",
-      text: JSON.stringify(message)
+      obj: JSON.stringify(message)
     };
     if (vscode != null) {
       vscode.postMessage(msg);
@@ -3198,7 +3314,7 @@ class Button {
     } else {
       textX = this.props.width / 2;
     }
-
+    const buttonText = this.props.type === "filebutton" ? this.props.text : (this.props.value === 1 ? this.props.textOn : this.props.textOff);
     const stateColour = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.value === 1 ? this.props.colourOn : this.props.colourOff, this.isMouseInside ? 0.2 : 0);
     const currentColour = this.isMouseDown ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.lighter(this.props.colourOn, 0.2) : stateColour;
     return `
@@ -3206,7 +3322,7 @@ class Button {
           <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners}" fill="${currentColour}" stroke="${this.props.outlineColour}"
             stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
           <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
-            fill="${this.props.value === 1 ? this.props.fontColourOn : this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${this.props.value === 1 ? this.props.textOn : this.props.textOff}</text>
+            fill="${this.props.value === 1 ? this.props.fontColourOn : this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${buttonText}</text>
       </svg>
     `;
   }
@@ -3219,12 +3335,16 @@ class FileButton extends Button {
   constructor() {
     super();
     this.props.channel = "fileButton";
-    this.props.textOn = this.props.textOff;
+
     this.props.colourOn = this.props.colourOff;
     this.props.fontColourOn = this.props.fontColourOff;
     this.props.mode = "file";
+    delete this.props.textOff;
+    delete this.props.textOn;
     //override following properties
     this.props.text = "Choose File";
+    this.props.textOn = this.props.text;
+    this.props.textOff = this.props.text;
     this.props.type = "filebutton";
     this.props.automatable = 0;
   }

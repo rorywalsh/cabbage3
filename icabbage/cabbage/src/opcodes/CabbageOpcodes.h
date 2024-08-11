@@ -27,7 +27,7 @@ struct CabbageOpcodeData
     };
         
     
-    std::string cabbageCode = {};
+    nlohmann::json cabbageJson = {};
     std::string channel = {};
     MessageType type;
     MYFLT value = 0;
@@ -114,7 +114,7 @@ struct CabbageOpcodes
                 name = args.str_data(nameIndex).data;
         }
 
-        data.cabbageCode = "value";
+        data.cabbageJson = "value";
         data.channel = name;
         return data;
     }
@@ -149,6 +149,19 @@ struct CabbageOpcodes
         return false;
     }
     
+    nlohmann::json parseAndFormatJson(const std::string& jsonString) {
+        try {
+            // Parse the JSON string
+            nlohmann::json jsonObj = nlohmann::json::parse("{" + jsonString + "}");
+
+            // Ensure the JSON object is valid
+            return jsonObj;
+        } catch (const nlohmann::json::parse_error& e) {
+            std::cerr << "JSON parse error: " << e.what() << std::endl;
+            return nlohmann::json(); // Return an empty JSON object in case of error
+        }
+    }
+    
     CabbageOpcodeData getIdentData(csnd::Csound* csound, csnd::Param<NumInputParams>& args, bool init, int channelIndex, int identIndex)
     {
         CabbageOpcodeData data;
@@ -174,7 +187,12 @@ struct CabbageOpcodes
         }
         
         data.channel = name;
-        data.cabbageCode = sanitiseString(identifier);
+        try {
+            data.cabbageJson = parseAndFormatJson(identifier);
+        }
+        catch (const nlohmann::json::parse_error& e){
+            std::cerr << "JSON parse error: " << e.what() << std::endl;
+        }
 
         return data;
     }

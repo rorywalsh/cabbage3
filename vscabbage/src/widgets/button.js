@@ -147,7 +147,7 @@ export class Button {
     } else {
       textX = this.props.width / 2;
     }
-
+    const buttonText = this.props.type === "filebutton" ? this.props.text : (this.props.value === 1 ? this.props.textOn : this.props.textOff);
     const stateColour = CabbageColours.darker(this.props.value === 1 ? this.props.colourOn : this.props.colourOff, this.isMouseInside ? 0.2 : 0);
     const currentColour = this.isMouseDown ? CabbageColours.lighter(this.props.colourOn, 0.2) : stateColour;
     return `
@@ -155,7 +155,7 @@ export class Button {
           <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners}" fill="${currentColour}" stroke="${this.props.outlineColour}"
             stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
           <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
-            fill="${this.props.value === 1 ? this.props.fontColourOn : this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${this.props.value === 1 ? this.props.textOn : this.props.textOff}</text>
+            fill="${this.props.value === 1 ? this.props.fontColourOn : this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${buttonText}</text>
       </svg>
     `;
   }
@@ -168,12 +168,16 @@ export class FileButton extends Button {
   constructor() {
     super();
     this.props.channel = "fileButton";
-    this.props.textOn = this.props.textOff;
+
     this.props.colourOn = this.props.colourOff;
     this.props.fontColourOn = this.props.fontColourOff;
     this.props.mode = "file";
+    delete this.props.textOff;
+    delete this.props.textOn;
     //override following properties
     this.props.text = "Choose File";
+    this.props.textOn = this.props.text;
+    this.props.textOff = this.props.text;
     this.props.type = "filebutton";
     this.props.automatable = 0;
   }

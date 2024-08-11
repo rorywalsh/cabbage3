@@ -225,11 +225,12 @@ void CabbageEditorDelegate::OnMessageFromWebView(const char* jsonStr)
     if(command == "parameterChange")
     {
         auto jsonContent = nlohmann::json::parse(incomingJson["obj"].get<std::string>());
+        
         if(jsonContent["channelType"] == "string")
             updateStringChannelCallback(jsonContent["channel"], jsonContent["value"].get<std::string>());
         else
             SendParameterValueFromUI(jsonContent["paramIdx"], jsonContent["value"]);
-//        updateWidgetStateCallback(jsonContent);
+        
     }
     
     //this is called to trigger a native OS file browser

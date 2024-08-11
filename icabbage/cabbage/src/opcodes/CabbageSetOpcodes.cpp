@@ -61,7 +61,7 @@ int CabbageSetPerfString::setIdentifier(int /*pass*/)
         if(in_count() > 3)
         {
             data.type = CabbageOpcodeData::MessageType::Identifier;
-            data.cabbageCode+=("(\""+std::string(args.str_data(3).data)+"\")");
+            data.cabbageJson+=("(\""+std::string(args.str_data(3).data)+"\")");
             hostData->opcodeData.enqueue(data);
         }
     }
@@ -83,12 +83,11 @@ int CabbageSetInitString::setIdentifier(int pass)
         data.type = CabbageOpcodeData::MessageType::Identifier;
         if(containsIllegalChars(args.str_data(2).data))
         {
-            _log(args.str_data(2).data);
             csound->message("Cabbage Warning: Ill-formatted arguments passed to channel:\""+data.channel+"\" Check for brackets within strings..");
             return IS_OK;
         }
         
-        data.cabbageCode+=("(\""+std::string(args.str_data(2).data)+"\")");
+        data.cabbageJson+=("(\""+std::string(args.str_data(2).data)+"\")");
         
         hostData->opcodeData.enqueue(data);
     }
@@ -128,7 +127,7 @@ int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
             {
                 params += std::to_string(args[i]) + (i<in_count()-1 ? "," : "");
             }
-            data.cabbageCode+=("("+params+")");
+            data.cabbageJson+=("("+params+")");
             hostData->opcodeData.enqueue(data);
         }
         else
@@ -154,7 +153,7 @@ int CabbageSetInitMYFLT::setIdentifier(int /*pass*/)
         {
             params += std::to_string(args[i]) + (i<in_count()-1 ? "," : "");
         }
-        data.cabbageCode+=("("+params+")");
+        data.cabbageJson+=("("+params+")");
         hostData->opcodeData.enqueue(data);
     }
     else

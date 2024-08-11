@@ -188,7 +188,7 @@ function updateWidget(obj) {
         widgetElement.setAttribute('data-y', widget.props.top);
 
         if (widget.props.type !== "form") {
-          console.log("updating value for ", widget.props.channel);
+          console.log("updating ", widget.props.channel);
           widgetElement.innerHTML = widget.getInnerHTML();
         }
 
@@ -533,12 +533,14 @@ function setupFormHandlers() {
             e.stopImmediatePropagation();
             e.stopPropagation();
             const type = e.target.innerHTML.replace(/(<([^>]+)>)/ig);
+            console.warn("Adding widget of type:", type);
+            contextMenu.style.visibility = "hidden";
             const channel = CabbageUtils.getUniqueChannelName(type, widgets);
             const w = await insertWidget(type, { channel: channel, top: mouseDownPosition.y - 20, left: mouseDownPosition.x - 20 });
             if (widgets) {
               //update text editor with last added widget
               vscode.postMessage({
-                command: 'widgetUpdateFromUI',
+                command: 'widgetUpdate',
                 text: JSON.stringify(w)
               });
             }

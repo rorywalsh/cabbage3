@@ -17,7 +17,7 @@ nchnls = 2
 instr 1
    SFile, kTriggerLoad cabbageGetValue "filebutton1"
    kAutoUpdate cabbageGetValue "autoUpdateTable"
-   cabbageSet kTriggerLoad, "gentable1", sprintfk({{file("%s")}},SFile)
+   cabbageSet kTriggerLoad, "gentable1", sprintfk({{"file":"%s"}},SFile)
 
     k1 jspline 200, 0.01, 2
     k2 jspline 200, 0.02, 3

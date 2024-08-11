@@ -85,7 +85,7 @@ export class Cabbage {
 
     const msg = {
       command: "fileOpen",
-      text: JSON.stringify(message)
+      obj: JSON.stringify(message)
     };
     if (vscode != null) {
       vscode.postMessage(msg);

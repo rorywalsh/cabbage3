@@ -60,8 +60,8 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                                     auto widgetOpt = cabbage.getWidget(jsonObj["channel"]);
                                     if (widgetOpt.has_value())
                                     {
-                                        auto& j = widgetOpt.value().get();
-                                        CabbageParser::updateJsonWithValue(j, jsonObj["value"].get<double>());
+                                        auto& widgetObj = widgetOpt.value().get();
+                                        widgetObj["value"] = jsonObj["value"].get<double>();
                                     }
                                     cabbageProcessor->SetParameterValue (i, jsonObj["value"].get<double>());
                                 }
@@ -171,7 +171,7 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                 }
                 else{
                     nlohmann::json json;
-                    CabbageParser::updateJsonFromSyntax(j, data.cabbageCode, cabbage.getWidgets().size());
+                    CabbageParser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
                     nlohmann::json msg;
                     msg["command"] = "widgetUpdate";
                     msg["channel"] = data.channel;
