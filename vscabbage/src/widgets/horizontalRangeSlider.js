@@ -92,6 +92,7 @@ export class HorizontalRangeSlider {
       window.addEventListener("pointermove", this.moveListener);
       window.addEventListener("pointerup", this.upListener);
   
+
       this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
       this.startValue = this.props.value;
       CabbageUtils.updateInnerHTML(this.props.channel, this);
@@ -198,8 +199,11 @@ export class HorizontalRangeSlider {
     // Update the slider appearance
     CabbageUtils.updateInnerHTML(this.props.channel, this);
   
+    //values sent to Cabbage should be normalized between 0 and 1
+    const normValue = CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
+    console.log("Norm value: " + normValue);
     // Post message if vscode is available
-    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: normValue, channelType: "number" }
     Cabbage.sendParameterUpdate(this.vscode, msg);
   }
   

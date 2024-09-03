@@ -9,8 +9,8 @@ export class HorizontalSlider {
     this.props = {
       "top": 10, // Top position of the horizontal slider
       "left": 10, // Left position of the horizontal slider
-      "width": 60, // Width of the horizontal slider
-      "height": 60, // Height of the horizontal slider
+      "width": 160, // Width of the horizontal slider
+      "height": 20, // Height of the horizontal slider
       "channel": "rslider", // Unique identifier for the horizontal slider
       "min": 0, // Minimum value of the slider
       "max": 1, // Maximum value of the slider
@@ -197,9 +197,12 @@ export class HorizontalSlider {
   
     // Update the slider appearance
     CabbageUtils.updateInnerHTML(this.props.channel, this);
-  
+
+    //get normalised value
+    const normValue = CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
     // Post message if vscode is available
-    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: normValue, channelType: "number" }
+    console.log(newValue);
     Cabbage.sendParameterUpdate(this.vscode, msg);
   }
   

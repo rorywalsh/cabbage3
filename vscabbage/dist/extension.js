@@ -39,41 +39,52 @@ const vscode = __importStar(__webpack_require__(1));
 // @ts-ignore
 const rotarySlider_js_1 = __webpack_require__(2);
 // @ts-ignore
-const horizontalSlider_js_1 = __webpack_require__(5);
+const horizontalSlider_js_1 = __webpack_require__(32);
 // @ts-ignore
-const horizontalRangeSlider_js_1 = __webpack_require__(6);
+const horizontalRangeSlider_js_1 = __webpack_require__(33);
 // @ts-ignore
-const verticalSlider_js_1 = __webpack_require__(7);
+const verticalSlider_js_1 = __webpack_require__(34);
 // @ts-ignore
-const numberSlider_js_1 = __webpack_require__(8);
+const numberSlider_js_1 = __webpack_require__(35);
 // @ts-ignore
-const button_js_1 = __webpack_require__(9);
+const button_js_1 = __webpack_require__(36);
 // @ts-ignore
-const checkbox_js_1 = __webpack_require__(10);
+const checkbox_js_1 = __webpack_require__(37);
 // @ts-ignore
-const comboBox_js_1 = __webpack_require__(11);
+const comboBox_js_1 = __webpack_require__(38);
 // @ts-ignore
-const label_js_1 = __webpack_require__(12);
+const label_js_1 = __webpack_require__(39);
 // @ts-ignore
-const image_js_1 = __webpack_require__(13);
+const image_js_1 = __webpack_require__(40);
 // @ts-ignore
-const listBox_js_1 = __webpack_require__(14);
+const listBox_js_1 = __webpack_require__(41);
 // @ts-ignore
-const csoundOutput_js_1 = __webpack_require__(15);
+const csoundOutput_js_1 = __webpack_require__(42);
 // @ts-ignore
-const midiKeyboard_js_1 = __webpack_require__(16);
+const midiKeyboard_js_1 = __webpack_require__(43);
 // @ts-ignore
-const genTable_js_1 = __webpack_require__(17);
+const genTable_js_1 = __webpack_require__(44);
 // @ts-ignore
-const textEditor_js_1 = __webpack_require__(18);
+const textEditor_js_1 = __webpack_require__(45);
 // @ts-ignore
-const form_js_1 = __webpack_require__(19);
-const cp = __importStar(__webpack_require__(20));
+const form_js_1 = __webpack_require__(46);
+const cp = __importStar(__webpack_require__(5));
+const path_1 = __importDefault(__webpack_require__(7));
+let isCabbageSingleLine = true;
 let textEditor;
+let highlightDecorationType;
 let output;
 let panel = undefined;
 let dbg = false;
-const ws_1 = __importDefault(__webpack_require__(21));
+// Define a function to initialize or update highlightDecorationType
+function initialiseHighlightDecorationType() {
+    if (!highlightDecorationType) {
+        highlightDecorationType = vscode.window.createTextEditorDecorationType({
+            backgroundColor: 'rgba(0, 0, 0, 0.1)'
+        });
+    }
+}
+const ws_1 = __importDefault(__webpack_require__(8));
 const wss = new ws_1.default.Server({ port: 9991 });
 let websocket;
 let cabbageMode = "play";
@@ -105,42 +116,92 @@ wss.on('connection', (ws) => {
         console.log('Client disconnected');
     });
 });
-function formatText(text) {
+function formatText(text, indentSpaces = 4) {
     const lines = text.split('\n');
     let indents = 0;
     let formattedText = '';
+    let insideCabbage = false;
+    let cabbageContent = '';
+    // Create a string with the specified number of spaces
+    const indentString = ' '.repeat(indentSpaces);
     lines.forEach((line, index) => {
-        // Trim leading whitespace from non-empty lines
-        const trimmedLine = line.trim().length > 0 ? line.trimStart() : line;
-        // Increase indentation level for specific keywords
-        if (index > 0 && (lines[index - 1].trim().startsWith("if ") ||
-            lines[index - 1].trim().startsWith("if(") ||
-            lines[index - 1].trim().startsWith("instr") ||
-            lines[index - 1].trim().startsWith("opcode") ||
-            lines[index - 1].trim().startsWith("else") ||
-            lines[index - 1].trim().startsWith("while"))) {
-            indents++;
+        const trimmedLine = line.trim();
+        // Detect the start of the <Cabbage> block
+        if (trimmedLine.startsWith('<Cabbage>')) {
+            insideCabbage = true;
+            formattedText += line + '\n';
+            return;
         }
-        // Decrease indentation level for end keywords
-        if (trimmedLine.startsWith("endif") ||
-            trimmedLine.startsWith("endin") ||
-            trimmedLine.startsWith("endop") ||
-            trimmedLine.startsWith("od") ||
-            trimmedLine.startsWith("else") ||
-            trimmedLine.startsWith("enduntil")) {
-            indents = Math.max(0, indents - 1);
+        // Detect the end of the </Cabbage> block
+        if (trimmedLine.startsWith('</Cabbage>')) {
+            insideCabbage = false;
+            // Process and format the JSON content
+            try {
+                const jsonArray = JSON.parse(cabbageContent);
+                const formattedJson = formatJsonObjects(jsonArray, '');
+                formattedText += formattedJson + '\n';
+            }
+            catch (error) {
+                formattedText += cabbageContent + '\n'; // If parsing fails, keep the original content
+            }
+            formattedText += line + '\n';
+            cabbageContent = ''; // Reset the Cabbage content
+            return;
         }
-        // Add indentation
-        const indentText = '\t'.repeat(indents);
-        formattedText += indentText + trimmedLine + '\n';
+        if (insideCabbage) {
+            // Collect Cabbage content
+            cabbageContent += line.trim();
+        }
+        else {
+            // Continue with the regular Csound formatting logic
+            // Trim leading whitespace from non-empty lines
+            const trimmedLine = line.trim().length > 0 ? line.trimStart() : line;
+            // Increase indentation level for specific keywords
+            if (index > 0 && (lines[index - 1].trim().startsWith("if ") ||
+                lines[index - 1].trim().startsWith("if(") ||
+                lines[index - 1].trim().startsWith("instr") ||
+                lines[index - 1].trim().startsWith("opcode") ||
+                lines[index - 1].trim().startsWith("else") ||
+                lines[index - 1].trim().startsWith("while"))) {
+                indents++;
+            }
+            // Decrease indentation level for end keywords
+            if (trimmedLine.startsWith("endif") ||
+                trimmedLine.startsWith("endin") ||
+                trimmedLine.startsWith("endop") ||
+                trimmedLine.startsWith("od") ||
+                trimmedLine.startsWith("else") ||
+                trimmedLine.startsWith("enduntil")) {
+                indents = Math.max(0, indents - 1);
+            }
+            // Add indentation
+            const indentText = indentString.repeat(indents);
+            formattedText += indentText + trimmedLine + '\n';
+        }
     });
     return formattedText;
+}
+// Helper function to format JSON objects on single lines within the array
+function formatJsonObjects(jsonArray, indentString) {
+    const formattedLines = [];
+    formattedLines.push("["); // Opening bracket on its own line
+    jsonArray.forEach((obj, index) => {
+        const formattedObject = JSON.stringify(obj);
+        if (index < jsonArray.length - 1) {
+            formattedLines.push(indentString + formattedObject + ','); // Add comma for all but the last object
+        }
+        else {
+            formattedLines.push(indentString + formattedObject); // Last object without a comma
+        }
+    });
+    formattedLines.push("]"); // Closing bracket on its own line
+    return formattedLines.join('\n');
 }
 let processes = [];
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 function activate(context) {
-    context.subscriptions.push(vscode.commands.registerCommand('cabbage.formatCabbageJSON', async () => {
+    context.subscriptions.push(vscode.commands.registerCommand('cabbage.expandCabbageJSON', async () => {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
             return; // No open text editor
@@ -170,6 +231,7 @@ function activate(context) {
             editor.edit(editBuilder => {
                 editBuilder.replace(range, '\n' + formattedJson + '\n');
             });
+            isCabbageSingleLine = false;
         }
         catch (error) {
             vscode.window.showErrorMessage("Failed to parse and format JSON content.");
@@ -207,7 +269,7 @@ function activate(context) {
         edit.replace(editor.document.uri, new vscode.Range(0, 0, editor.document.lineCount, 0), formattedText);
         await vscode.workspace.applyEdit(edit);
     });
-    context.subscriptions.push(vscode.commands.registerCommand('cabbage.launchUIEditor', () => {
+    context.subscriptions.push(vscode.commands.registerCommand('cabbage.launch', () => {
         // The code you place here will be executed every time your command is executed
         panel = vscode.window.createWebviewPanel('cabbageUIEditor', 'Cabbage UI Editor', 
         //load in second column, I guess this could be controlled by settings
@@ -267,18 +329,26 @@ function activate(context) {
                 p?.kill("SIGKILL");
             });
             if (!dbg) {
-                const process = cp.spawn(command, [editor.fileName], {});
-                processes.push(process);
-                process.stdout.on("data", (data) => {
-                    // I've seen spurious 'ANSI reset color' sequences in some csound output
-                    // which doesn't render correctly in this context. Stripping that out here.
-                    output.append(data.toString().replace(/\x1b\[m/g, ""));
-                });
-                process.stderr.on("data", (data) => {
-                    // It looks like all csound output is written to stderr, actually.
-                    // If you want your changes to show up, change this one.
-                    output.append(data.toString().replace(/\x1b\[m/g, ""));
-                });
+                if (editor.fileName.endsWith(".csd")) {
+                    // Replace the extension by slicing and concatenating the new extension - we're only interested in opening CSD files
+                    const process = cp.spawn(command, [editor.fileName], {});
+                    processes.push(process);
+                    process.stdout.on("data", (data) => {
+                        // I've seen spurious 'ANSI reset color' sequences in some csound output
+                        // which doesn't render correctly in this context. Stripping that out here.
+                        output.append(data.toString().replace(/\x1b\[m/g, ""));
+                    });
+                    process.stderr.on("data", (data) => {
+                        // It looks like all csound output is written to stderr, actually.
+                        // If you want your changes to show up, change this one.
+                        output.append(data.toString().replace(/\x1b\[m/g, ""));
+                    });
+                }
+                else {
+                    // If no extension is found or the file name starts with a dot (hidden files), handle appropriately
+                    console.error('Invalid file name or no extension found');
+                    output.append('Invalid file name or no extension found. Cabbage can only compile .csd file types.');
+                }
             }
         });
         vscode.workspace.onDidOpenTextDocument((editor) => {
@@ -367,9 +437,208 @@ function activate(context) {
     }));
 }
 exports.activate = activate;
-/**
- * This function will update the text associated with a widget
- */
+async function initializeDefaultProps(type) {
+    switch (type) {
+        case 'rslider':
+            return new rotarySlider_js_1.RotarySlider().props;
+        case 'hslider':
+            return new horizontalSlider_js_1.HorizontalSlider().props;
+        case 'vslider':
+            return new verticalSlider_js_1.VerticalSlider().props;
+        case 'hrange':
+            return new horizontalRangeSlider_js_1.HorizontalRangeSlider().props;
+        case 'nslider':
+            return new numberSlider_js_1.NumberSlider().props;
+        case 'keyboard':
+            return new midiKeyboard_js_1.MidiKeyboard().props;
+        case 'button':
+            return new button_js_1.Button().props;
+        case 'gentable':
+            return new genTable_js_1.GenTable().props;
+        case 'filebutton':
+            return new button_js_1.FileButton().props;
+        case 'optionbutton':
+            return new button_js_1.OptionButton().props;
+        case 'checkbox':
+            return new checkbox_js_1.Checkbox().props;
+        case 'combobox':
+            return new comboBox_js_1.ComboBox().props;
+        case 'label':
+            return new label_js_1.Label().props;
+        case 'image':
+            return new image_js_1.Image().props;
+        case 'listbox':
+            return new listBox_js_1.ListBox().props;
+        case 'form':
+            return new form_js_1.Form().props;
+        case 'csoundoutput':
+            return new csoundOutput_js_1.CsoundOutput().props;
+        case 'texteditor':
+            return new textEditor_js_1.TextEditor().props;
+        default:
+            console.error("Unsupported widget type:", type);
+            return null;
+    }
+}
+function transformProps(props) {
+    if (props.left !== undefined && props.top !== undefined && props.width !== undefined && props.height !== undefined) {
+        props.bounds = [props.left, props.top, props.width, props.height];
+        delete props.left;
+        delete props.top;
+        delete props.width;
+        delete props.height;
+    }
+    if (props.type.includes("slider")) {
+        if (props.min !== undefined && props.max !== undefined && props.skew !== undefined && props.increment !== undefined) {
+            props.range = [props.min, props.max, props.value, props.skew, props.increment];
+            delete props.min;
+            delete props.max;
+            delete props.skew;
+            delete props.increment;
+            delete props.value;
+        }
+    }
+    return props;
+}
+function ensureTypeFirst(obj) {
+    const { type, ...rest } = obj;
+    return { type, ...rest };
+}
+function formatObject(obj) {
+    const formattedObj = ensureTypeFirst(obj);
+    return JSON.stringify(formattedObj)
+        .replace(/"([^"]+)":/g, '"$1": ')
+        .replace(/,(?!\s*?[\{\[\"\'\w])/g, ''); // remove trailing commas if any
+}
+async function openOrShowTextDocument(filePath) {
+    try {
+        // Find the current .csd file's view column, defaulting to ViewColumn.One if not found
+        const csdEditor = vscode.window.visibleTextEditors.find(editor => editor.document.fileName.endsWith('.csd'));
+        // Default to ViewColumn.One if the .csd file's view column is not found
+        const viewColumn = csdEditor ? csdEditor.viewColumn : vscode.ViewColumn.One;
+        // Check if the file is already open in an editor
+        const existingEditor = vscode.window.visibleTextEditors.find(editor => editor.document.fileName === filePath);
+        if (existingEditor) {
+            // If already open, return the existing editor without changing focus
+            return existingEditor;
+        }
+        // Open the document without immediately showing it in the editor
+        const document = await vscode.workspace.openTextDocument(filePath);
+        // Show the document in the specified view column without bringing it to the front
+        return vscode.window.showTextDocument(document, { preview: false, viewColumn, preserveFocus: true });
+    }
+    catch (error) {
+        console.error(`Failed to open document: ${filePath}`, error);
+        return null;
+    }
+}
+async function updateExternalJsonFile(editor, props, defaultProps) {
+    const document = editor.document;
+    const jsonArray = JSON.parse(document.getText());
+    const updatedArray = updateJsonArray(jsonArray, props, defaultProps);
+    const updatedContent = JSON.stringify(updatedArray, null, 2);
+    await editor.edit(editBuilder => {
+        const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
+        editBuilder.replace(entireRange, updatedContent);
+    });
+}
+function updateJsonArray(jsonArray, props, defaultProps) {
+    let foundChannel = false;
+    let foundForm = false;
+    for (let i = 0; i < jsonArray.length; i++) {
+        let jsonObject = jsonArray[i];
+        if (jsonObject.type === 'form') {
+            foundForm = true;
+        }
+        if (jsonObject.channel === props.channel) {
+            foundChannel = true;
+            let newObject = { ...jsonObject, ...props };
+            for (let key in defaultProps) {
+                if (newObject[key] === defaultProps[key] && key !== 'type') {
+                    delete newObject[key];
+                }
+            }
+            jsonArray[i] = ensureTypeFirst(newObject);
+            break;
+        }
+    }
+    if (!foundChannel && props.type !== 'form') {
+        let newObject = transformProps(props);
+        for (let key in defaultProps) {
+            if (newObject[key] === defaultProps[key] && key !== 'type') {
+                delete newObject[key];
+            }
+        }
+        jsonArray.push(ensureTypeFirst(newObject));
+    }
+    return jsonArray;
+}
+function getExternalJsonFileName(cabbageContent, csdFilePath) {
+    // Regular expression to find the include statement
+    const includeRegex = /#include\s*"([^"]+\.json)"/;
+    const includeMatch = includeRegex.exec(cabbageContent);
+    if (includeMatch && includeMatch[1]) {
+        const includeFilename = includeMatch[1];
+        // Check if the path is relative, if so resolve it relative to the csd file
+        if (!path_1.default.isAbsolute(includeFilename)) {
+            return path_1.default.resolve(path_1.default.dirname(csdFilePath), includeFilename);
+        }
+        return includeFilename; // Absolute path
+    }
+    // Fallback: use the same name as the .csd file but with a .json extension
+    const fallbackJsonFile = csdFilePath.replace(/\.csd$/, '.json');
+    // Check if the fallback file exists
+    if ((__webpack_require__(6).existsSync)(fallbackJsonFile)) {
+        return fallbackJsonFile;
+    }
+    // Return an empty string if no external JSON file is found
+    return '';
+}
+function highlightAndScrollToUpdatedObject(updatedProps, cabbageStartIndex, isSingleLine) {
+    if (!textEditor) {
+        return;
+    }
+    const document = textEditor.document;
+    const documentText = document.getText();
+    const lines = documentText.split('\n');
+    // Ensure highlightDecorationType is initialized
+    initialiseHighlightDecorationType();
+    // Clear previous decorations
+    if (highlightDecorationType) {
+        textEditor.setDecorations(highlightDecorationType, []);
+    }
+    if (isSingleLine) {
+        // Define regex pattern to match the line containing the "channel" property
+        const channelPattern = new RegExp(`"channel":\\s*"${updatedProps.channel}"`, 'i');
+        // Find the line number using the regex pattern
+        const lineNumber = lines.findIndex(line => channelPattern.test(line));
+        if (lineNumber >= 0) {
+            const start = new vscode.Position(lineNumber, 0);
+            const end = new vscode.Position(lineNumber, lines[lineNumber].length);
+            textEditor.setDecorations(highlightDecorationType, [
+                { range: new vscode.Range(start, end) }
+            ]);
+            textEditor.revealRange(new vscode.Range(start, end), vscode.TextEditorRevealType.InCenter);
+        }
+    }
+    else {
+        // Handling for multi-line objects
+        // Improved regex pattern to match a JSON object containing the specified channel
+        const pattern = new RegExp(`\\{(?:[^{}]|\\{[^{}]*\\})*?"channel":\\s*"${updatedProps.channel}"(?:[^{}]|\\{[^{}]*\\})*?\\}`, 's');
+        const match = pattern.exec(documentText);
+        if (match) {
+            const objectText = match[0];
+            const objectStartIndex = documentText.indexOf(objectText);
+            const objectEndIndex = objectStartIndex + objectText.length;
+            const startPos = document.positionAt(objectStartIndex);
+            const endPos = document.positionAt(objectEndIndex);
+            textEditor.setDecorations(highlightDecorationType, [
+                { range: new vscode.Range(startPos, endPos) }
+            ]);
+            textEditor.revealRange(new vscode.Range(startPos, endPos), vscode.TextEditorRevealType.InCenter);
+        }
+    }
+}
 async function updateText(jsonText) {
     if (cabbageMode === "play") {
         return;
@@ -380,6 +649,7 @@ async function updateText(jsonText) {
     }
     catch (error) {
         console.error("Failed to parse JSON text:", error);
+        output.append(`Failed to parse JSON text: ${error}`);
         return;
     }
     if (!textEditor) {
@@ -388,182 +658,59 @@ async function updateText(jsonText) {
     }
     const document = textEditor.document;
     const originalText = document.getText();
-    console.warn("originalText", originalText);
-    let defaultProps = {};
-    // Determine the default properties for the widget
-    try {
-        switch (props.type) {
-            case 'rslider':
-                defaultProps = new rotarySlider_js_1.RotarySlider().props;
-                break;
-            case 'hslider':
-                defaultProps = new horizontalSlider_js_1.HorizontalSlider().props;
-                break;
-            case 'vslider':
-                defaultProps = new verticalSlider_js_1.VerticalSlider().props;
-                break;
-            case 'hrange':
-                defaultProps = new horizontalRangeSlider_js_1.HorizontalRangeSlider().props;
-                break;
-            case 'nslider':
-                defaultProps = new numberSlider_js_1.NumberSlider().props;
-                break;
-            case 'keyboard':
-                defaultProps = new midiKeyboard_js_1.MidiKeyboard().props;
-                break;
-            case 'button':
-                defaultProps = new button_js_1.Button().props;
-                break;
-            case 'gentable':
-                defaultProps = new genTable_js_1.GenTable().props;
-                break;
-            case 'filebutton':
-                defaultProps = new button_js_1.FileButton().props;
-                break;
-            case 'optionbutton':
-                defaultProps = new button_js_1.OptionButton().props;
-                break;
-            case 'checkbox':
-                defaultProps = new checkbox_js_1.Checkbox().props;
-                break;
-            case 'combobox':
-                defaultProps = new comboBox_js_1.ComboBox().props;
-                break;
-            case 'label':
-                defaultProps = new label_js_1.Label().props;
-                break;
-            case 'image':
-                defaultProps = new image_js_1.Image().props;
-                break;
-            case 'listbox':
-                defaultProps = new listBox_js_1.ListBox().props;
-                break;
-            case 'form':
-                defaultProps = new form_js_1.Form().props;
-                break;
-            case 'csoundoutput':
-                defaultProps = new csoundOutput_js_1.CsoundOutput().props;
-                break;
-            case 'texteditor':
-                defaultProps = new textEditor_js_1.TextEditor().props;
-                break;
-            default:
-                console.error("Unsupported widget type:", props.type);
-                return;
-        }
-    }
-    catch (error) {
-        console.error("Error initializing default properties for type:", props.type, error);
+    const defaultProps = await initializeDefaultProps(props.type);
+    if (!defaultProps) {
         return;
     }
-    const internalIdentifiers = ['top', 'left', 'width', 'height', 'increment', 'min', 'max', 'skew', 'value'];
-    const transformProps = (props) => {
-        if (props.left !== undefined && props.top !== undefined && props.width !== undefined && props.height !== undefined) {
-            props.bounds = [props.left, props.top, props.width, props.height];
-            delete props.left;
-            delete props.top;
-            delete props.width;
-            delete props.height;
-        }
-        if (props.type.includes("slider")) {
-            if (props.min !== undefined && props.max !== undefined && props.skew !== undefined && props.increment !== undefined) {
-                props.range = [props.min, props.max, props.value, props.skew, props.increment];
-                delete props.min;
-                delete props.max;
-                delete props.skew;
-                delete props.increment;
-                delete props.value;
-            }
-        }
-        return props;
-    };
     const updatedProps = transformProps(props);
-    const lines = document.getText().split(/\r?\n/);
-    let foundChannel = false;
-    const ensureTypeFirst = (obj) => {
-        const { type, ...rest } = obj;
-        return { type, ...rest };
-    };
-    const formatObject = (obj) => {
-        const formattedObj = ensureTypeFirst(obj);
-        return JSON.stringify(formattedObj)
-            .replace(/"([^"]+)":/g, '"$1": ')
-            .replace(/,(?!\s*?[\{\[\"\'\w])/g, ''); // remove trailing commas if any
-    };
-    await textEditor.edit(async (editBuilder) => {
-        let jsonObjectLines = [];
-        let isInObject = false;
-        for (let i = 0; i < lines.length; i++) {
-            let line = lines[i].trim();
-            // Check if the line starts a JSON object
-            if (line.startsWith('{')) {
-                isInObject = true;
+    const cabbageRegex = /<Cabbage>([\s\S]*?)<\/Cabbage>/;
+    const cabbageMatch = originalText.match(cabbageRegex);
+    let externalFile = '';
+    if (cabbageMatch) {
+        const cabbageContent = cabbageMatch[1].trim();
+        try {
+            // Attempt to parse the existing JSON array
+            const cabbageJsonArray = JSON.parse(cabbageContent);
+            // Check if there's a "form" type object in the parsed JSON array
+            const hasFormType = cabbageJsonArray.some(obj => obj.type === 'form');
+            // Only search for an external file if there isn't a "form" type
+            if (!hasFormType) {
+                externalFile = getExternalJsonFileName(cabbageContent, document.fileName);
             }
-            // Accumulate lines for the JSON object
-            if (isInObject) {
-                jsonObjectLines.push(line);
-                // Check if the line ends a JSON object
-                if (line.endsWith('},') || line.endsWith('}') || line.endsWith(']')) {
-                    // Combine accumulated lines into a single string
-                    const jsonObjectString = jsonObjectLines.join(' ');
-                    try {
-                        // Remove trailing comma or closing bracket before parsing
-                        const parsedLine = JSON.parse(jsonObjectString.replace(/[\],]$/, ''));
-                        if (parsedLine.channel === props.channel) {
-                            foundChannel = true;
-                            let newObject = { ...parsedLine, ...updatedProps };
-                            // Remove unchanged properties except 'type'
-                            for (let key in defaultProps) {
-                                if (newObject[key] === defaultProps[key]) {
-                                    if (key !== 'type') {
-                                        delete newObject[key];
-                                    }
-                                }
-                            }
-                            // Ensure the type is preserved and positioned first
-                            newObject = ensureTypeFirst(newObject);
-                            const newLine = formatObject(newObject) + (line.endsWith('},') ? ',' : '');
-                            const range = new vscode.Range(new vscode.Position(i - jsonObjectLines.length + 1, 0), new vscode.Position(i, lines[i].length));
-                            editBuilder.replace(range, newLine);
-                            break;
-                        }
-                    }
-                    catch (error) {
-                        console.error("Error parsing JSON object:", error);
-                    }
-                    // Reset state after processing the object
-                    jsonObjectLines = [];
-                    isInObject = false;
-                }
+            if (!externalFile) {
+                // Update the existing JSON array with the new props
+                const updatedJsonArray = updateJsonArray(cabbageJsonArray, updatedProps, defaultProps);
+                // Access configuration settings for JSON formatting
+                const config = vscode.workspace.getConfiguration("cabbage");
+                const isSingleLine = config.get("defaultJsonFormatting") === 'Single line objects';
+                // Format the JSON array based on the user's configuration
+                const formattedArray = isSingleLine
+                    ? formatJsonObjects(updatedJsonArray, '    ') // Single-line formatting
+                    : JSON.stringify(updatedJsonArray, null, 4); // Multi-line formatting with indentation
+                // Recreate the Cabbage section with the formatted array
+                const updatedCabbageSection = `<Cabbage>${formattedArray}</Cabbage>`;
+                await textEditor.edit(editBuilder => {
+                    editBuilder.replace(new vscode.Range(document.positionAt(cabbageMatch.index), document.positionAt(cabbageMatch.index + cabbageMatch[0].length)), updatedCabbageSection);
+                });
+                // Call the separate function to handle highlighting
+                highlightAndScrollToUpdatedObject(updatedProps, cabbageMatch.index, isSingleLine);
             }
         }
-        if (!foundChannel) {
-            // Find the closing bracket of the JSON array
-            for (let i = lines.length - 1; i >= 0; i--) {
-                if (lines[i].trim() === ']') {
-                    // Check if the last object has a comma, if not, add it
-                    if (lines[i - 1].trim().endsWith('}')) {
-                        editBuilder.insert(new vscode.Position(i - 1, lines[i - 1].length), ',');
-                    }
-                    let newObject = transformProps(props);
-                    // Remove unchanged properties except 'type'
-                    for (let key in defaultProps) {
-                        if (newObject[key] === defaultProps[key]) {
-                            if (key !== 'type') {
-                                delete newObject[key];
-                            }
-                        }
-                    }
-                    // Ensure the type is preserved and positioned first
-                    newObject = ensureTypeFirst(newObject);
-                    const newLine = formatObject(newObject);
-                    // Insert the new object just before the closing bracket
-                    editBuilder.insert(new vscode.Position(i, 0), `\n${newLine}\n`);
-                    break;
-                }
-            }
+        catch (parseError) {
+            // console.error("Failed to parse Cabbage content as JSON:", parseError);
+            // output.append(`Failed to parse Cabbage content as JSON: ${parseError}`);
+            return;
         }
-    });
+    }
+    if (externalFile) {
+        const externalEditor = await openOrShowTextDocument(externalFile);
+        if (externalEditor) {
+            await updateExternalJsonFile(externalEditor, updatedProps, defaultProps);
+        }
+        else {
+            output.append(`Failed to open the external JSON file: ${externalFile}`);
+        }
+    }
 }
 /**
  * Returns html text to use in webview - various scripts get passed as vscode.Uri's
@@ -824,6 +971,7 @@ class RotarySlider {
     const widgetDiv = document.getElementById(this.props.channel);
     widgetDiv.innerHTML = this.getInnerHTML();
 
+    //values sent to Cabbage should be normalized between 0 and 1
     const newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
     const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
     _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
@@ -2069,2645 +2217,34 @@ function SPVFUI(paramIdx, value) {
 
 /***/ }),
 /* 5 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   HorizontalSlider: () => (/* binding */ HorizontalSlider)
-/* harmony export */ });
-/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(4);
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(3);
-
-
-
-/**
- * Horizontal Slider (hslider) class
- */
-class HorizontalSlider {
-  constructor() {
-    this.props = {
-      "top": 10, // Top position of the horizontal slider
-      "left": 10, // Left position of the horizontal slider
-      "width": 60, // Width of the horizontal slider
-      "height": 60, // Height of the horizontal slider
-      "channel": "rslider", // Unique identifier for the horizontal slider
-      "min": 0, // Minimum value of the slider
-      "max": 1, // Maximum value of the slider
-      "value": 0, // Current value of the slider
-      "skew": 1, // Skew factor for the slider (for non-linear scales)
-      "increment": 0.001, // Value increment/decrement when moving the slider
-      "text": "", // Text displayed next to the slider
-      "fontFamily": "Verdana", // Font family for the text
-      "fontSize": 0, // Font size for the text
-      "align": "centre", // Text alignment within the slider (center, left, right)
-      "valueTextBox": 0, // Whether to display a text box showing the current value
-      "colour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour("blue"), // Background color of the slider track
-      "trackerColour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of the slider thumb
-      "trackerBackgroundColour": "#ffffff", // Background color of the slider thumb
-      "trackerOutlineColour": "#525252", // Color of the outline around the slider thumb
-      "fontColour": "#dddddd", // Color of the text displayed next to the slider
-      "outlineColour": "#999999", // Color of the slider outline
-      "textBoxColour": "#555555", // Color of the value text box (if enabled)
-      "trackerOutlineWidth": 1, // Width of the outline around the slider thumb
-      "outlineWidth": 1, // Width of the slider outline
-      "markerThickness": 0.2, // Thickness of the slider markers
-      "markerStart": 0.1, // Start position of the slider markers
-      "markerEnd": 0.9, // End position of the slider markers
-      "type": "hslider", // Type of the slider (horizontal)
-      "decimalPlaces": 1, // Number of decimal places to display for the slider value
-      "velocity": 0, // Velocity of slider movement (for gesture-based interaction)
-      "visible": 1, // Visibility of the slider (0 for hidden, 1 for visible)
-      "popup": 1, // Whether to show a popup when interacting with the slider
-      "automatable": 1, // Whether the slider value can be automated (0 for no, 1 for yes)
-      "valuePrefix": "", // Prefix to display before the slider value
-      "valuePostfix": "", // Postfix to display after the slider value
-      "presetIgnore": 0 // Whether the slider should be ignored in presets (0 for no, 1 for yes)
-  };
-  
-
-    this.panelSections = {
-      "Info": ["type", "channel"],
-      "Bounds": ["left", "top", "width", "height"],
-      "Range": ["min", "max", "default", "skew", "increment"],
-      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
-      "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
-    };
-
-    this.parameterIndex = 0;
-    this.moveListener = this.pointerMove.bind(this);
-    this.upListener = this.pointerUp.bind(this);
-    this.startX = 0;
-    this.startValue = 0;
-    this.vscode = null;
-    this.isMouseDown = false;
-    this.decimalPlaces = 0;
-  }
-
-  pointerUp() {
-    const popup = document.getElementById('popupValue');
-    popup.classList.add('hide');
-    popup.classList.remove('show');
-    window.removeEventListener("pointermove", this.moveListener);
-    window.removeEventListener("pointerup", this.upListener);
-    this.isMouseDown = false;
-  }
-
-  pointerDown(evt) {
-    if(this.props.active === 0) {
-      return '';
-    }
-
-    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
-    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
-    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
-    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
-  
-    
-    if (evt.offsetX >= textWidth && evt.offsetX <= textWidth + sliderWidth && evt.target.tagName !== "INPUT") {
-      this.isMouseDown = true;
-      this.startX = evt.offsetX - textWidth;
-      this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.startX, 0, sliderWidth, this.props.min, this.props.max);
-  
-      window.addEventListener("pointermove", this.moveListener);
-      window.addEventListener("pointerup", this.upListener);
-  
-      this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
-      this.startValue = this.props.value;
-      _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-    }
-  }
-  
-
-  mouseEnter(evt) {
-    if(this.props.active === 0) {
-      return '';
-    }
-    const popup = document.getElementById('popupValue');
-    const form = document.getElementById('MainForm');
-    const rect = form.getBoundingClientRect();
-    this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getDecimalPlaces(this.props.increment);
-  
-    if (popup && this.props.popup) {
-      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
-  
-      // Calculate the position for the popup
-      const sliderLeft = this.props.left;
-      const sliderWidth = this.props.width;
-      const formLeft = rect.left;
-      const formWidth = rect.width;
-  
-      // Determine if the popup should be on the right or left side of the slider
-      const sliderCenter = formLeft + (formWidth / 2);
-      let popupLeft;
-      if (sliderLeft + (sliderWidth) > sliderCenter) {
-        // Place popup on the left of the slider thumb
-        popupLeft = formLeft + sliderLeft - popup.offsetWidth - 10;
-        console.log("Pointer on the left");
-        popup.classList.add('right');
-      } else {
-        // Place popup on the right of the slider thumb
-        popupLeft = formLeft + sliderLeft + sliderWidth + 10;
-        console.log("Pointer on the right");
-        popup.classList.remove('right');
-      }
-  
-      const popupTop = rect.top + this.props.top; // Adjust top position relative to the form's top
-  
-      // Set the calculated position
-      popup.style.left = `${popupLeft}px`;
-      popup.style.top = `${popupTop}px`;
-      popup.style.display = 'block';
-      popup.classList.add('show');
-      popup.classList.remove('hide');
-    }
-  }
-  
-
-  mouseLeave(evt) {
-    if(this.props.active === 0) {
-      return '';
-    }
-    if (!this.isMouseDown) {
-      const popup = document.getElementById('popupValue');
-      popup.classList.add('hide');
-      popup.classList.remove('show');
-    }
-  }
-
-  addVsCodeEventListeners(widgetDiv, vs) {
-    this.vscode = vs;
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
-    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
-    widgetDiv.HorizontalSliderInstance = this;
-  }
-
-  addEventListeners(widgetDiv) {
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
-    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
-    widgetDiv.HorizontalSliderInstance = this;
-  }
-
-  pointerMove({ clientX }) {
-    if(this.props.active === 0) {
-      return '';
-    }
-    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
-    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
-    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
-    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
-  
-    // Get the bounding rectangle of the slider
-    const sliderRect = document.getElementById(this.props.channel).getBoundingClientRect();
-  
-    // Calculate the relative position of the mouse pointer within the slider bounds
-    let offsetX = clientX - sliderRect.left - textWidth;
-  
-    // Clamp the mouse position to stay within the bounds of the slider
-    offsetX = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.clamp(offsetX, 0, sliderWidth);
-  
-    // Calculate the new value based on the mouse position
-    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(offsetX, 0, sliderWidth, this.props.min, this.props.max);
-    newValue = Math.round(newValue / this.props.increment) * this.props.increment; // Round to the nearest increment
-  
-    // Update the slider value
-    this.props.value = newValue;
-  
-    // Update the slider appearance
-    _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-  
-    // Post message if vscode is available
-    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
-    _cabbage_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendParameterUpdate(this.vscode, msg);
-  }
-  
-  handleInputChange(evt) {
-    if (evt.key === 'Enter') {
-      const inputValue = parseFloat(evt.target.value);
-      if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
-        this.props.value = inputValue;
-        _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-        widgetDiv.querySelector('input').focus();
-      }
-    }
-  }
-
-  getInnerHTML() {
-    if(this.props.visible === 0) {
-      return '';
-    }
-    const popup = document.getElementById('popupValue');
-    if (popup) {
-      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
-    }
-
-    const alignMap = {
-      'left': 'start',
-      'center': 'middle',
-      'centre': 'middle',
-      'right': 'end',
-    };
-
-    const svgAlign = alignMap[this.props.align] || this.props.align;
-
-    // Add padding if alignment is 'end' or 'middle'
-    const padding = (svgAlign === 'end' || svgAlign === 'middle') ? 5 : 0; // Adjust the padding value as needed
-
-    // Calculate text width and update SVG width
-    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
-    textWidth = (this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth) - padding;
-    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
-    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth - padding; // Subtract padding from sliderWidth
-
-    const w = (sliderWidth > this.props.height ? this.props.height : sliderWidth) * 0.75;
-    const textY = this.props.height / 2 + (this.props.fontSize > 0 ? this.props.textOffsetY : 0) + (this.props.height * 0.25); // Adjusted for vertical centering
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.8;
-
-    textWidth += padding;
-
-    const textElement = this.props.text ? `
-      <svg x="0" y="0" width="${textWidth}" height="${this.props.height}" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
-        <text text-anchor="${svgAlign}" x="${svgAlign === 'end' ? textWidth - padding : (svgAlign === 'middle' ? (textWidth - padding) / 2 : 0)}" y="${textY}" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">
-          ${this.props.text}
-        </text>
-      </svg>
-    ` : '';
-
-    const sliderElement = `
-      <svg x="${textWidth}" width="${sliderWidth}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="1" y="${this.props.height * .2}" width="${sliderWidth - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
-        <rect x="1" y="${this.props.height * .2}" width="${Math.max(0, _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth))}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
-        <rect x="${_utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
-      </svg>
-    `;
-
-    const valueTextElement = this.props.valueTextBox ? `
-      <foreignObject x="${textWidth + sliderWidth}" y="0" width="${valueTextBoxWidth}" height="${this.props.height}">
-        <input type="text" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
-        style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
-        onKeyDown="document.getElementById('${this.props.channel}').HorizontalSliderInstance.handleInputChange(event)"/>
-      </foreignObject>
-    ` : '';
-
-    return `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-        ${textElement}
-        ${sliderElement}
-        ${valueTextElement}
-      </svg>
-    `;
-  }
-
-  
-  
-}
-
-
-/***/ }),
-/* 6 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   HorizontalRangeSlider: () => (/* binding */ HorizontalRangeSlider)
-/* harmony export */ });
-/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(4);
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(3);
-
-
-
-/**
- * Horizontal Slider (hslider) class
- */
-class HorizontalRangeSlider {
-  constructor() {
-    this.props = {
-      "top": 10, // Top position of the horizontal slider
-      "left": 10, // Left position of the horizontal slider
-      "width": 60, // Width of the horizontal slider
-      "height": 60, // Height of the horizontal slider
-      "channel": "rslider", // Unique identifier for the horizontal slider
-      "min": 0, // Minimum value of the slider
-      "max": 1, // Maximum value of the slider
-      "value": 0, // Current value of the slider
-      "skew": 1, // Skew factor for the slider (for non-linear scales)
-      "increment": 0.001, // Value increment/decrement when moving the slider
-      "text": "", // Text displayed next to the slider
-      "fontFamily": "Verdana", // Font family for the text
-      "fontSize": 0, // Font size for the text
-      "align": "centre", // Text alignment within the slider (center, left, right)
-      "valueTextBox": 0, // Whether to display a text box showing the current value
-      "colour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour("blue"), // Background color of the slider track
-      "trackerColour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of the slider thumb
-      "trackerBackgroundColour": "#ffffff", // Background color of the slider thumb
-      "trackerOutlineColour": "#525252", // Color of the outline around the slider thumb
-      "fontColour": "#dddddd", // Color of the text displayed next to the slider
-      "outlineColour": "#999999", // Color of the slider outline
-      "textBoxColour": "#555555", // Color of the value text box (if enabled)
-      "trackerOutlineWidth": 1, // Width of the outline around the slider thumb
-      "outlineWidth": 1, // Width of the slider outline
-      "markerThickness": 0.2, // Thickness of the slider markers
-      "markerStart": 0.1, // Start position of the slider markers
-      "markerEnd": 0.9, // End position of the slider markers
-      "type": "hslider", // Type of the slider (horizontal)
-      "decimalPlaces": 1, // Number of decimal places to display for the slider value
-      "velocity": 0, // Velocity of slider movement (for gesture-based interaction)
-      "visible": 1, // Visibility of the slider (0 for hidden, 1 for visible)
-      "popup": 1, // Whether to show a popup when interacting with the slider
-      "automatable": 1, // Whether the slider value can be automated (0 for no, 1 for yes)
-      "valuePrefix": "", // Prefix to display before the slider value
-      "valuePostfix": "", // Postfix to display after the slider value
-      "presetIgnore": 0 // Whether the slider should be ignored in presets (0 for no, 1 for yes)
-  };
-  
-
-    this.panelSections = {
-      "Info": ["type", "channel"],
-      "Bounds": ["left", "top", "width", "height"],
-      "Range": ["min", "max", "default", "skew", "increment"],
-      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
-      "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
-    };
-
-    this.parameterIndex = 0;
-    this.moveListener = this.pointerMove.bind(this);
-    this.upListener = this.pointerUp.bind(this);
-    this.startX = 0;
-    this.startValue = 0;
-    this.vscode = null;
-    this.isMouseDown = false;
-    this.decimalPlaces = 0;
-  }
-
-  pointerUp() {
-    const popup = document.getElementById('popupValue');
-    popup.classList.add('hide');
-    popup.classList.remove('show');
-    window.removeEventListener("pointermove", this.moveListener);
-    window.removeEventListener("pointerup", this.upListener);
-    this.isMouseDown = false;
-  }
-
-  pointerDown(evt) {
-    if(this.props.active === 0) {
-      return '';
-    }
-
-    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
-    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
-    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
-    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
-  
-    
-    if (evt.offsetX >= textWidth && evt.offsetX <= textWidth + sliderWidth && evt.target.tagName !== "INPUT") {
-      this.isMouseDown = true;
-      this.startX = evt.offsetX - textWidth;
-      this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.startX, 0, sliderWidth, this.props.min, this.props.max);
-  
-      window.addEventListener("pointermove", this.moveListener);
-      window.addEventListener("pointerup", this.upListener);
-  
-      this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
-      this.startValue = this.props.value;
-      _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-    }
-  }
-  
-
-  mouseEnter(evt) {
-    if(this.props.active === 0) {
-      return '';
-    }
-    const popup = document.getElementById('popupValue');
-    const form = document.getElementById('MainForm');
-    const rect = form.getBoundingClientRect();
-    this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getDecimalPlaces(this.props.increment);
-  
-    if (popup && this.props.popup) {
-      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
-  
-      // Calculate the position for the popup
-      const sliderLeft = this.props.left;
-      const sliderWidth = this.props.width;
-      const formLeft = rect.left;
-      const formWidth = rect.width;
-  
-      // Determine if the popup should be on the right or left side of the slider
-      const sliderCenter = formLeft + (formWidth / 2);
-      let popupLeft;
-      if (sliderLeft + (sliderWidth) > sliderCenter) {
-        // Place popup on the left of the slider thumb
-        popupLeft = formLeft + sliderLeft - popup.offsetWidth - 10;
-        console.log("Pointer on the left");
-        popup.classList.add('right');
-      } else {
-        // Place popup on the right of the slider thumb
-        popupLeft = formLeft + sliderLeft + sliderWidth + 10;
-        console.log("Pointer on the right");
-        popup.classList.remove('right');
-      }
-  
-      const popupTop = rect.top + this.props.top; // Adjust top position relative to the form's top
-  
-      // Set the calculated position
-      popup.style.left = `${popupLeft}px`;
-      popup.style.top = `${popupTop}px`;
-      popup.style.display = 'block';
-      popup.classList.add('show');
-      popup.classList.remove('hide');
-    }
-  }
-  
-
-  mouseLeave(evt) {
-    if(this.props.active === 0) {
-      return '';
-    }
-    if (!this.isMouseDown) {
-      const popup = document.getElementById('popupValue');
-      popup.classList.add('hide');
-      popup.classList.remove('show');
-    }
-  }
-
-  addVsCodeEventListeners(widgetDiv, vs) {
-    this.vscode = vs;
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
-    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
-    widgetDiv.HorizontalSliderInstance = this;
-  }
-
-  addEventListeners(widgetDiv) {
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
-    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
-    widgetDiv.HorizontalSliderInstance = this;
-  }
-
-  pointerMove({ clientX }) {
-    if(this.props.active === 0) {
-      return '';
-    }
-    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
-    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
-    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
-    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
-  
-    // Get the bounding rectangle of the slider
-    const sliderRect = document.getElementById(this.props.channel).getBoundingClientRect();
-  
-    // Calculate the relative position of the mouse pointer within the slider bounds
-    let offsetX = clientX - sliderRect.left - textWidth;
-  
-    // Clamp the mouse position to stay within the bounds of the slider
-    offsetX = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.clamp(offsetX, 0, sliderWidth);
-  
-    // Calculate the new value based on the mouse position
-    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(offsetX, 0, sliderWidth, this.props.min, this.props.max);
-    newValue = Math.round(newValue / this.props.increment) * this.props.increment; // Round to the nearest increment
-  
-    // Update the slider value
-    this.props.value = newValue;
-  
-    // Update the slider appearance
-    _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-  
-    // Post message if vscode is available
-    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
-    _cabbage_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendParameterUpdate(this.vscode, msg);
-  }
-  
-  handleInputChange(evt) {
-    if (evt.key === 'Enter') {
-      const inputValue = parseFloat(evt.target.value);
-      if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
-        this.props.value = inputValue;
-        _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-        widgetDiv.querySelector('input').focus();
-      }
-    }
-  }
-
-  getInnerHTML() {
-    if(this.props.visible === 0) {
-      return '';
-    }
-    const popup = document.getElementById('popupValue');
-    if (popup) {
-      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
-    }
-
-    const alignMap = {
-      'left': 'start',
-      'center': 'middle',
-      'centre': 'middle',
-      'right': 'end',
-    };
-
-    const svgAlign = alignMap[this.props.align] || this.props.align;
-
-    // Add padding if alignment is 'end' or 'middle'
-    const padding = (svgAlign === 'end' || svgAlign === 'middle') ? 5 : 0; // Adjust the padding value as needed
-
-    // Calculate text width and update SVG width
-    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
-    textWidth = (this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth) - padding;
-    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
-    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth - padding; // Subtract padding from sliderWidth
-
-    const w = (sliderWidth > this.props.height ? this.props.height : sliderWidth) * 0.75;
-    const textY = this.props.height / 2 + (this.props.fontSize > 0 ? this.props.textOffsetY : 0) + (this.props.height * 0.25); // Adjusted for vertical centering
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.8;
-
-    textWidth += padding;
-
-    const textElement = this.props.text ? `
-      <svg x="0" y="0" width="${textWidth}" height="${this.props.height}" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
-        <text text-anchor="${svgAlign}" x="${svgAlign === 'end' ? textWidth - padding : (svgAlign === 'middle' ? (textWidth - padding) / 2 : 0)}" y="${textY}" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">
-          ${this.props.text}
-        </text>
-      </svg>
-    ` : '';
-
-    const sliderElement = `
-      <svg x="${textWidth}" width="${sliderWidth}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="1" y="${this.props.height * .2}" width="${sliderWidth - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
-        <rect x="1" y="${this.props.height * .2}" width="${Math.max(0, _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth))}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
-        <rect x="${_utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
-      </svg>
-    `;
-
-    const valueTextElement = this.props.valueTextBox ? `
-      <foreignObject x="${textWidth + sliderWidth}" y="0" width="${valueTextBoxWidth}" height="${this.props.height}">
-        <input type="text" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
-        style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
-        onKeyDown="document.getElementById('${this.props.channel}').HorizontalSliderInstance.handleInputChange(event)"/>
-      </foreignObject>
-    ` : '';
-
-    return `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-        ${textElement}
-        ${sliderElement}
-        ${valueTextElement}
-      </svg>
-    `;
-  }
-
-  
-  
-}
-
-
-/***/ }),
-/* 7 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   VerticalSlider: () => (/* binding */ VerticalSlider)
-/* harmony export */ });
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
-/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
-
-
-
-class VerticalSlider {
-  constructor() {
-    this.props = {
-      "top": 10, // Top position of the vertical slider widget
-      "left": 10, // Left position of the vertical slider widget
-      "width": 60, // Width of the vertical slider widget
-      "height": 60, // Height of the vertical slider widget
-      "channel": "vslider", // Unique identifier for the vertical slider widget
-      "min": 0, // Minimum value of the slider
-      "max": 1, // Maximum value of the slider
-      "value": 0, // Current value of the slider
-      "skew": 1, // Skew factor for the slider
-      "increment": 0.001, // Incremental value change per step
-      "text": "", // Text displayed on the slider
-      "fontFamily": "Verdana", // Font family for the text displayed on the slider
-      "fontSize": 0, // Font size for the text displayed on the slider
-      "align": "centre", // Alignment of the text on the slider
-      "valueTextBox": 0, // Display a textbox showing the current value
-      "colour": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the slider
-      "trackerColour": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour('green'), // Color of the slider tracker
-      "trackerBackgroundColour": "#ffffff", // Background color of the slider tracker
-      "trackerOutlineColour": "#525252", // Outline color of the slider tracker
-      "fontColour": "#dddddd", // Font color for the text displayed on the slider
-      "outlineColour": "#999999", // Color of the slider outline
-      "textBoxColour": "#555555", // Background color of the value textbox
-      "trackerOutlineWidth": 1, // Outline width of the slider tracker
-      "outlineWidth": 1, // Width of the slider outline
-      "type": "vslider", // Type of the widget (vertical slider)
-      "decimalPlaces": 1, // Number of decimal places in the slider value
-      "velocity": 0, // Velocity value for the slider
-      "visible": 1, // Visibility of the slider
-      "popup": 1, // Display a popup when the slider is clicked
-      "automatable": 1, // Ability to automate the slider
-      "valuePrefix": "", // Prefix to be displayed before the slider value
-      "valuePostfix": "", // Postfix to be displayed after the slider value
-      "presetIgnore": 0, // Ignore preset value for the slider
-    };
-
-
-    this.panelSections = {
-      "Info": ["type", "channel"],
-      "Bounds": ["left", "top", "width", "height"],
-      "Range": ["min", "max", "default", "skew", "increment"],
-      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetX", "align"],
-      "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
-    };
-
-    this.moveListener = this.pointerMove.bind(this);
-    this.upListener = this.pointerUp.bind(this);
-    this.startY = 0; // Changed from startX to startY for vertical slider
-    this.startValue = 0;
-    this.vscode = null;
-    this.isMouseDown = false;
-    this.decimalPlaces = 0;
-    this.parameterIndex = 0;
-  }
-
-  pointerUp() {
-    if (this.props.active === 0) {
-      return '';
-    }
-    const popup = document.getElementById('popupValue');
-    popup.classList.add('hide');
-    popup.classList.remove('show');
-    window.removeEventListener("pointermove", this.moveListener);
-    window.removeEventListener("pointerup", this.upListener);
-    this.isMouseDown = false;
-  }
-
-  pointerDown(evt) {
-    if (this.props.active === 0) {
-      return '';
-    }
-    let textHeight = this.props.text ? this.props.height * 0.1 : 0;
-    const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
-    const sliderHeight = this.props.height - textHeight - valueTextBoxHeight;
-
-    const sliderTop = this.props.valueTextBox ? textHeight : 0; // Adjust slider top position if valueTextBox is present
-
-    if (evt.offsetY >= sliderTop && evt.offsetY <= sliderTop + sliderHeight) {
-      this.isMouseDown = true;
-      this.startY = evt.offsetY - sliderTop;
-      this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.startY, 5, sliderHeight, this.props.max, this.props.min);
-      this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
-      this.startValue = this.props.value;
-      window.addEventListener("pointermove", this.moveListener);
-      window.addEventListener("pointerup", this.upListener);
-      _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-
-      const newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
-      const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
-      _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
-    }
-  }
-
-
-  mouseEnter(evt) {
-    if (this.props.active === 0) {
-      return '';
-    }
-
-    const popup = document.getElementById('popupValue');
-    const form = document.getElementById('MainForm');
-    const rect = form.getBoundingClientRect();
-    this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment);
-
-    if (popup) {
-      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
-
-      // Calculate the position for the popup
-      const sliderLeft = this.props.left;
-      const sliderWidth = this.props.width;
-      const formLeft = rect.left;
-      const formWidth = rect.width;
-
-      // Determine if the popup should be on the right or left side of the slider
-      const sliderCenter = formLeft + (formWidth / 2);
-      let popupLeft;
-      if (sliderLeft + (sliderWidth) > sliderCenter) {
-        // Place popup on the left of the slider thumb
-        popupLeft = formLeft + sliderLeft - popup.offsetWidth - 10;
-        console.log("Pointer on the left");
-        popup.classList.add('right');
-      } else {
-        // Place popup on the right of the slider thumb
-        popupLeft = formLeft + sliderLeft + sliderWidth + 10;
-        console.log("Pointer on the right");
-        popup.classList.remove('right');
-      }
-
-      const popupTop = rect.top + this.props.top + this.props.height * .45; // Adjust top position relative to the form's top
-
-      // Set the calculated position
-      popup.style.left = `${popupLeft}px`;
-      popup.style.top = `${popupTop}px`;
-      popup.style.display = 'block';
-      popup.classList.add('show');
-      popup.classList.remove('hide');
-    }
-  }
-
-
-  mouseLeave(evt) {
-    if (!this.isMouseDown) {
-      const popup = document.getElementById('popupValue');
-      popup.classList.add('hide');
-      popup.classList.remove('show');
-    }
-  }
-
-  addVsCodeEventListeners(widgetDiv, vs) {
-    this.vscode = vs;
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
-    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
-    widgetDiv.VerticalSliderInstance = this;
-  }
-
-  addEventListeners(widgetDiv) {
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
-    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
-    widgetDiv.VerticalSliderInstance = this;
-  }
-
-  handleInputChange(evt) {
-    if (evt.key === 'Enter') {
-      const inputValue = parseFloat(evt.target.value);
-      if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
-        this.props.value = inputValue;
-        const widgetDiv = document.getElementById(this.props.channel);
-        widgetDiv.innerHTML = this.getInnerHTML();
-        widgetDiv.querySelector('input').focus();
-      }
-    }
-  }
-
-  pointerMove({ clientY }) {
-    if (this.props.active === 0) {
-      return '';
-    }
-
-    let textHeight = this.props.text ? this.props.height * 0.1 : 0;
-    const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
-    const sliderHeight = this.props.height - textHeight - valueTextBoxHeight;
-
-    // Get the bounding rectangle of the slider
-    const sliderRect = document.getElementById(this.props.channel).getBoundingClientRect();
-
-    // Calculate the relative position of the mouse pointer within the slider bounds
-    let offsetY = sliderRect.bottom - clientY - textHeight;
-
-    // Clamp the mouse position to stay within the bounds of the slider
-    offsetY = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(offsetY, 0, sliderHeight);
-
-    // Calculate the new value based on the mouse position
-    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(offsetY, 0, sliderHeight, this.props.min, this.props.max);
-    newValue = Math.round(newValue / this.props.increment) * this.props.increment;
-
-    // Update the slider value
-    this.props.value = newValue;
-
-    // Update the slider appearance
-    const widgetDiv = document.getElementById(this.props.channel);
-    widgetDiv.innerHTML = this.getInnerHTML();
-
-    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
-    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
-  }
-
-  getInnerHTML() {
-    if (this.props.visible === 0) {
-      return '';
-    }
-
-    const popup = document.getElementById('popupValue');
-    if (popup) {
-      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
-    }
-
-    const alignMap = {
-      'left': 'start',
-      'center': 'middle',
-      'centre': 'middle',
-      'right': 'end',
-    };
-
-    const svgAlign = alignMap[this.props.align] || this.props.align;
-
-    // Calculate text height
-    let textHeight = this.props.text ? this.props.height * 0.1 : 0;
-    const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
-    const sliderHeight = this.props.height - textHeight - valueTextBoxHeight * 1.1;
-
-    const textX = this.props.width / 2;
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.width * 0.3;
-
-    const thumbHeight = sliderHeight * 0.05;
-
-    const textElement = this.props.text ? `
-    <svg x="0" y="${this.props.valueTextBox ? 0 : this.props.height - textHeight}" width="${this.props.width}" height="${textHeight + 5}" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
-      <text text-anchor="${svgAlign}" x="${textX}" y="${textHeight}" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">
-        ${this.props.text}
-      </text>
-    </svg>
-  ` : '';
-
-    const sliderElement = `
-    <svg x="0" y="${this.props.valueTextBox ? textHeight + 2 : 0}" width="${this.props.width}" height="${sliderHeight}" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="${this.props.width * 0.4}" y="1" width="${this.props.width * 0.2}" height="${sliderHeight * 0.95}" rx="2" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
-      <rect x="${this.props.width * 0.4}" y="${sliderHeight - _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderHeight * 0.95) - 1}" height="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) * sliderHeight * 0.95}" width="${this.props.width * 0.2}" rx="2" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
-      <rect x="${this.props.width * 0.3}" y="${sliderHeight - _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, thumbHeight + 1, sliderHeight - 1)}" width="${this.props.width * 0.4}" height="${thumbHeight}" rx="2" fill="${this.props.colour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
-    </svg>
-  `;
-
-    const valueTextElement = this.props.valueTextBox ? `
-    <foreignObject x="0" y="${this.props.height - valueTextBoxHeight + 2}" width="${this.props.width}" height="${valueTextBoxHeight}">
-      <input type="text" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
-      style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
-      onKeyDown="document.getElementById('${this.props.channel}').VerticalSliderInstance.handleInputChange(event)"/>
-    </foreignObject>
-  ` : '';
-
-    return `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-      ${textElement}
-      ${sliderElement}
-      ${valueTextElement}
-    </svg>
-  `;
-  }
-
-
-
-
-}
-
-
-/***/ }),
-/* 8 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   NumberSlider: () => (/* binding */ NumberSlider)
-/* harmony export */ });
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
-/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
-
-
-
-class NumberSlider {
-    constructor() {
-        this.props = {
-            "top": 10,
-            "left": 10,
-            "width": 60,
-            "height": 60,
-            "channel": "nslider",
-            "min": 0,
-            "max": 1,
-            "value": 0,
-            "skew": 1,
-            "increment": 0.001,
-            "index": 0,
-            "text": "",
-            "fontFamily": "Verdana",
-            "fontSize": 0,
-            "align": "centre",
-            "textOffsetY": 0,
-            "valueTextBox": 0,
-            "colour": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"),
-            "fontColour": "#dddddd",
-            "outlineColour": "#525252",
-            "outlineWidth": 2,
-            "type": "nslider",
-            "decimalPlaces": 1,
-            "velocity": 0,
-            "popup": 1,
-            "visible": 1,
-            "automatable": 1,
-            "valuePrefix": "",
-            "valuePostfix": "",
-            "presetIgnore": 0,
-        };
-
-        this.panelSections = {
-            "Properties": ["type"],
-            "Bounds": ["left", "top", "width", "height"],
-            "Text": ["text", "fontColour", "fontSize", "fontFamily", "align"],
-            "Colours": ["colour"]
-        };
-
-        this.isDragging = false;
-        this.startY = 0;
-        this.startValue = 0;
-        this.parameterIndex = 0;
-        this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment)
-    }
-
-    addVsCodeEventListeners(widgetDiv, vs) {
-        this.vscode = vs;
-        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-        widgetDiv.addEventListener("dblclick", this.doubleClick.bind(this)); // Add double-click event listener
-    }
-
-    addEventListeners(widgetDiv) {
-        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-        widgetDiv.addEventListener("pointermove", this.pointerMove.bind(this));
-        widgetDiv.addEventListener("pointerup", this.pointerUp.bind(this));
-        widgetDiv.addEventListener("pointerleave", this.pointerUp.bind(this));
-        widgetDiv.addEventListener("dblclick", this.doubleClick.bind(this)); // Add double-click event listener
-    }
-
-    pointerDown(event) {
-        this.isDragging = true;
-        this.startY = event.clientY;
-        this.startValue = this.props.value;
-        event.target.setPointerCapture(event.pointerId);
-    }
-
-    pointerMove(event) {
-        const inputBox = document.querySelector(`#slider-${this.props.channel} input`);
-        if (inputBox) {
-            return;
-        }
-        
-        if (this.isDragging) {
-            const dy = event.clientY - this.startY;
-            const increment = this.props.increment;
-            const steps = dy / 10; // Number of steps to move based on drag distance
-            const newValue = this.startValue - steps * increment;
-            this.props.value = Math.min(this.props.max, Math.max(this.props.min, newValue));
-            const normalValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
-            const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: normalValue };
-            _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
-            this.updateSliderValue();
-        }
-    }
-    
-
-    pointerUp(event) {
-        this.isDragging = false;
-        event.target.releasePointerCapture(event.pointerId);
-    }
-
-    doubleClick(event) {
-        const sliderDiv = event.currentTarget;
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.value = this.props.value.toFixed(this.decimalPlaces);
-        input.style.position = 'absolute';
-        input.style.top = '50%';
-        input.style.left = '50%';
-        input.style.transform = 'translate(-50%, -50%)';
-        input.style.width = '60%'; // Adjust the width as needed
-        input.style.height = 'auto';
-        input.style.fontSize = `${Math.max(this.props.height * 0.4, 12)}px`; // Adjust font size
-        input.style.fontFamily = this.props.fontFamily;
-        input.style.textAlign = 'center'; // Center align the text inside input
-        input.style.boxSizing = 'border-box';
-    
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                const newValue = parseFloat(input.value);
-                if (!isNaN(newValue) && newValue >= this.props.min && newValue <= this.props.max) {
-                    this.props.value = newValue;
-                    const normalValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
-                    const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: normalValue };
-                    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
-                    this.updateSliderValue();
-                } else {
-                    alert(`Please enter a value between ${this.props.min} and ${this.props.max}`);
-                }
-                sliderDiv.removeChild(input);
-                sliderDiv.innerHTML = this.getInnerHTML();
-            }
-        });
-    
-        sliderDiv.innerHTML = '';
-        sliderDiv.appendChild(input);
-        input.focus();
-        input.select(); // Auto-select the current text
-    }
-    
-    
-    
-    
-    
-    
-
-    updateSliderValue() {
-        const valueText = `${this.props.valuePrefix}${this.props.value.toFixed(this.decimalPlaces)}${this.props.valuePostfix}`;
-        const sliderText = document.getElementById(`slider-text-${this.props.channel}`);
-        if (sliderText) {
-            sliderText.textContent = valueText;
-        }
-    }
-
-    getInnerHTML() {
-        if (this.props.visible === 0) {
-            return '';
-        }
-    
-        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.8, 12); // Ensuring font size doesn't get too small
-        const alignMap = {
-            'left': 'end',
-            'center': 'middle',
-            'centre': 'middle',
-            'right': 'start',
-        };
-        const svgAlign = alignMap[this.props.align] || 'middle';
-        const valueText = `${this.props.valuePrefix}${this.props.value.toFixed(this.decimalPlaces)}${this.props.valuePostfix}`;
-    
-        return `
-            <div id="slider-${this.props.channel}" style="position: relative; width: 100%; height: 100%;">
-                <!-- Background SVG with preserveAspectRatio="none" -->
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none"
-                     style="position: absolute; top: 0; left: 0;">
-                    <rect width="${this.props.width}" height="${this.props.height}" x="0" y="0" rx="${this.props.corners}" ry="${this.props.corners}" fill="${this.props.colour}" 
-                        pointer-events="all"></rect>
-                </svg>
-    
-                <!-- Text SVG with proper alignment -->
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet"
-                     style="position: absolute; top: 0; left: 0;">
-                    <text id="slider-text-${this.props.channel}" x="${this.props.align === 'left' ? '10%' : this.props.align === 'right' ? '90%' : '50%'}" y="50%" font-family="${this.props.fontFamily}" font-size="${fontSize}"
-                        fill="${this.props.fontColour}" text-anchor="${svgAlign}" dominant-baseline="middle" alignment-baseline="middle" 
-                        style="pointer-events: none;">${valueText}</text>
-                </svg>
-            </div>
-        `;
-    }
-    
-    
-    
-}
-
-
-/***/ }),
-/* 9 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   Button: () => (/* binding */ Button),
-/* harmony export */   FileButton: () => (/* binding */ FileButton),
-/* harmony export */   OptionButton: () => (/* binding */ OptionButton)
-/* harmony export */ });
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
-/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
-
-
-
-class Button {
-  constructor() {
-    this.props = {
-      "top": 10, // Top position of the button
-      "left": 10, // Left position of the button
-      "width": 80, // Width of the button
-      "height": 30, // Height of the button
-      "channel": "button", // Unique identifier for the button
-      "corners": 2, // Radius of the corners of the button rectangle
-      "min": 0, // Minimum value for the button (for sliders)
-      "max": 1, // Maximum value for the button (for sliders)
-      "value": 0, // Current value of the button (for sliders)
-      "textOn": "On", // Text displayed when button is in the 'On' state
-      "textOff": "Off", // Text displayed when button is in the 'Off' state
-      "fontFamily": "Verdana", // Font family for the text
-      "fontSize": 0, // Font size for the text (0 for automatic)
-      "align": "centre", // Text alignment within the button (left, center, right)
-      "colourOn": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the button in the 'On' state
-      "colourOff": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the button in the 'Off' state
-      "fontColourOn": "#dddddd", // Color of the text in the 'On' state
-      "fontColourOff": "#dddddd", // Color of the text in the 'Off' state
-      "outlineColour": "#dddddd", // Color of the outline
-      "outlineWidth": 2, // Width of the outline
-      "name": "", // Name of the button
-      "value": 0, // Value of the button (0 for off, 1 for on)
-      "type": "button", // Type of the button (button)
-      "visible": 1, // Visibility of the button (0 for hidden, 1 for visible)
-      "automatable": 1, // Whether the button value can be automated (0 for no, 1 for yes)
-      "presetIgnore": 0 // Whether the button should be ignored in presets (0 for no, 1 for yes)
-    };
-
-
-    this.panelSections = {
-      "Info": ["type", "channel"],
-      "Bounds": ["left", "top", "width", "height"],
-      "Text": ["textOn", "textOff", "fontSize", "fontFamily", "fontColourOn", "fontColourOff", "align"], // Changed from textOffsetY to textOffsetX for vertical slider
-      "Colours": ["colourOn", "colourOff", "outlineColour"]
-    };
-
-    this.vscode = null;
-    this.isMouseDown = false;
-    this.isMouseInside = false;
-    this.parameterIndex = 0;
-  }
-
-  pointerUp() {
-    if (this.props.active === 0) {
-      return '';
-    }
-    this.isMouseDown = false;
-    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-  }
-
-  pointerDown(evt) {
-    if (this.props.active === 0) {
-      return '';
-    }
-    console.log("pointerDown");
-    this.isMouseDown = true;
-    this.props.value = (this.props.value === 0 ? 1 : 0);
-
-    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-    const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: this.props.value }
-    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
-  }
-
-
-  pointerEnter(evt) {
-    if (this.props.active === 0) {
-      return '';
-    }
-    this.isMouseOver = true;
-    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-
-  }
-
-
-  pointerLeave(evt) {
-    if (this.props.active === 0) {
-      return '';
-    }
-    this.isMouseOver = false;
-    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-  }
-
-  //adding this at the window level to check if the mouse is inside the widget
-  handleMouseMove(evt) {
-    const rect = document.getElementById(this.props.channel).getBoundingClientRect();
-    const isInside = (
-      evt.clientX >= rect.left &&
-      evt.clientX <= rect.right &&
-      evt.clientY >= rect.top &&
-      evt.clientY <= rect.bottom
-    );
-
-    if (!isInside) {
-      this.isMouseInside = false;
-    } else {
-      this.isMouseInside = true;
-    }
-
-    // console.log("pointerEnter", this.props);
-    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-  }
-
-
-  addVsCodeEventListeners(widgetDiv, vs) {
-    console.log("addVsCodeEventListeners");
-    this.vscode = vs;
-    widgetDiv.addEventListener("pointerdown", this.pointerUp.bind(this));
-    widgetDiv.addEventListener("pointerup", this.pointerDown.bind(this));
-    window.addEventListener("mousemove", this.handleMouseMove.bind(this));
-    widgetDiv.VerticalSliderInstance = this;
-  }
-
-  addEventListeners(widgetDiv) {
-    widgetDiv.addEventListener("pointerup", this.pointerUp.bind(this));
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    window.addEventListener("mousemove", this.handleMouseMove.bind(this));
-    widgetDiv.VerticalSliderInstance = this;
-  }
-
-  getInnerHTML() {
-    if (this.props.visible === 0) {
-      return '';
-    }
-
-    const alignMap = {
-      'left': 'start',
-      'center': 'middle',
-      'centre': 'middle',
-      'right': 'end',
-    };
-
-    const svgAlign = alignMap[this.props.align] || this.props.align;
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
-    const padding = 5;
-
-    let textX;
-    if (this.props.align === 'left') {
-      textX = this.props.corners; // Add padding for left alignment
-    } else if (this.props.align === 'right') {
-      textX = this.props.width - this.props.corners - padding; // Add padding for right alignment
-    } else {
-      textX = this.props.width / 2;
-    }
-    const buttonText = this.props.type === "filebutton" ? this.props.text : (this.props.value === 1 ? this.props.textOn : this.props.textOff);
-    const stateColour = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.value === 1 ? this.props.colourOn : this.props.colourOff, this.isMouseInside ? 0.2 : 0);
-    const currentColour = this.isMouseDown ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.lighter(this.props.colourOn, 0.2) : stateColour;
-    return `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-          <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners}" fill="${currentColour}" stroke="${this.props.outlineColour}"
-            stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
-          <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
-            fill="${this.props.value === 1 ? this.props.fontColourOn : this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${buttonText}</text>
-      </svg>
-    `;
-  }
-}
-
-/*
-  * File Button for file browsing @extends Button
-  */
-class FileButton extends Button {
-  constructor() {
-    super();
-    this.props.channel = "fileButton";
-
-    this.props.colourOn = this.props.colourOff;
-    this.props.fontColourOn = this.props.fontColourOff;
-    this.props.mode = "file";
-    delete this.props.textOff;
-    delete this.props.textOn;
-    //override following properties
-    this.props.text = "Choose File";
-    this.props.textOn = this.props.text;
-    this.props.textOff = this.props.text;
-    this.props.type = "filebutton";
-    this.props.automatable = 0;
-  }
-
-  pointerDown(evt) {
-    if (this.props.active === 0) {
-      return '';
-    }
-    console.log("pointerDown");
-    this.isMouseDown = true;
-    this.props.value = 1;
-    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.triggerFileOpenDialog(this.vscode, this.props.channel);
-    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-  }
-
-}
-
-/*
-  * Option Button for multi-item button @extends Button
-  */
-class OptionButton extends Button {
-  constructor() {
-    super();
-    this.props.channel = "fileButton";
-    this.props.textOn = this.props.textOff;
-    this.props.colourOn = this.props.colourOff;
-    this.props.fontColourOn = this.props.fontColourOff;
-    this.props.items = "One, Two, Three", // List of items for the dropdown
-      //override following properties
-      this.props.text = "";
-    this.props.type = "optionbutton";
-    this.props.automatable = 1;
-  }
-
-  pointerDown(evt) {
-    if (this.props.active === 0) {
-      return '';
-    }
-    console.log("pointerDown");
-    this.isMouseDown = true;
-    this.props.value = this.props.value < this.props.items.split(",").length - 1 ? this.props.value + 1 : 0;
-
-    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-    const newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
-    const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
-    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
-  }
-
-  getInnerHTML() {
-    if (this.props.visible === 0) {
-      return '';
-    }
-
-    const alignMap = {
-      'left': 'start',
-      'center': 'middle',
-      'centre': 'middle',
-      'right': 'end',
-    };
-
-    const svgAlign = alignMap[this.props.align] || this.props.align;
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
-    const padding = 5;
-    const items = this.props.items.split(",");
-
-    let textX;
-    if (this.props.align === 'left') {
-      textX = this.props.corners; // Add padding for left alignment
-    } else if (this.props.align === 'right') {
-      textX = this.props.width - this.props.corners - padding; // Add padding for right alignment
-    } else {
-      textX = this.props.width / 2;
-    }
-
-    const stateColour = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.value === 1 ? this.props.colourOn : this.props.colourOff, this.isMouseInside ? 0.2 : 0);
-    const currentColour = this.isMouseDown ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.lighter(this.props.colourOn, 0.2) : stateColour;
-    return `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-          <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners}" fill="${currentColour}" stroke="${this.props.outlineColour}"
-            stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
-          <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
-            fill="${this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${items[this.props.value]}</text>
-      </svg>
-    `;
-  }
-
-}
-
-
-/***/ }),
-/* 10 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   Checkbox: () => (/* binding */ Checkbox)
-/* harmony export */ });
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
-/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
-
-
-
-class Checkbox {
-  constructor() {
-    this.props = {
-        "top": 10, // Top position of the checkbox
-        "left": 10, // Left position of the checkbox
-        "width": 100, // Width of the checkbox
-        "height": 30, // Height of the checkbox
-        "channel": "checkbox", // Unique identifier for the checkbox
-        "corners": 2, // Radius of the corners of the checkbox rectangle
-        "min": 0, // Minimum value for the checkbox (for sliders)
-        "max": 1, // Maximum value for the checkbox (for sliders)
-        "value": 0, // Current value of the checkbox (for sliders)
-        "text": "On/Off", // Text displayed next to the checkbox
-        "fontFamily": "Verdana", // Font family for the text
-        "fontColour": "#dddddd", // Color of the text
-        "fontSize": 0, // Font size for the text
-        "align": "left", // Text alignment within the checkbox (left, center, right)
-        "colourOn": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("green"), // Background color of the checkbox in the 'On' state
-        "colourOff": "#ffffff", // Background color of the checkbox in the 'Off' state
-        "fontColourOn": "#dddddd", // Color of the text in the 'On' state
-        "fontColourOff": "#000000", // Color of the text in the 'Off' state
-        "outlineColour": "#999999", // Color of the outline
-        "outlineWidth": 1, // Width of the outline
-        "value": 0, // Value of the checkbox (0 for off, 1 for on)
-        "type": "checkbox", // Type of the checkbox (checkbox)
-        "visible": 1, // Visibility of the checkbox (0 for hidden, 1 for visible)
-        "automatable": 1, // Whether the checkbox value can be automated (0 for no, 1 for yes)
-        "presetIgnore": 0 // Whether the checkbox should be ignored in presets (0 for no, 1 for yes)
-    };
-    
-    this.panelSections = {
-        "Info": ["type", "channel"],
-        "Bounds": ["left", "top", "width", "height"],
-        "Text": ["text", "fontSize", "fontFamily", "fontColour", "align"], // Changed from textOffsetY to textOffsetX for vertical slider
-        "Colours": ["colourOn", "colourOff", "outlineColour"]
-      };
-
-    this.vscode = null;
-    this.parameterIndex = 0;
-  }
-
-  toggle() {
-    if (this.props.active === 0) {
-      return '';
-    }
-    this.props.value = (this.props.value === 0) ? 1 : 0;
-    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-    const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: this.props.value }
-    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
-  }
-
-
-
-  pointerDown(evt) {
-    this.toggle();
-  }
-
-  addVsCodeEventListeners(widgetDiv, vscode) {
-    this.vscode = vscode;
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.VerticalSliderInstance = this;
-  }
-
-  addEventListeners(widgetDiv) {
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.VerticalSliderInstance = this;
-  }
-
-
-  getInnerHTML() {
-    if (this.props.visible === 0) {
-      return '';
-    }
-  
-    const alignMap = {
-      'left': 'start',
-      'center': 'middle',
-      'centre': 'middle',
-      'right': 'end',
-    };
-  
-    const svgAlign = alignMap[this.props.align] || this.props.align;
-    console.warn(this.props.fontSize)
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.8;
-  
-    const checkboxSize = this.props.height * 0.8;
-    const checkboxX = this.props.align === 'right' ? this.props.width - checkboxSize - this.props.corners : this.props.corners;
-    const textX = this.props.align === 'right' ? checkboxX - 10 : checkboxX + checkboxSize + 4; // Add more padding to prevent overlap
-  
-    const adjustedTextAnchor = this.props.align === 'right' ? 'end' : 'start';
-  
-    return `
-      <svg id="${this.props.channel}-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-        <rect x="${checkboxX}" y="${(this.props.height - checkboxSize) / 2}" width="${checkboxSize}" height="${checkboxSize}" fill="${this.props.value === 1 ? this.props.colourOn : this.props.colourOff}" stroke="${this.props.outlineColour}" stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
-        <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}" fill="${this.props.fontColour}" text-anchor="${adjustedTextAnchor}" alignment-baseline="middle">${this.props.text}</text>
-      </svg>
-    `;
-  }
-  
-}
-
-
-/***/ }),
-/* 11 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   ComboBox: () => (/* binding */ ComboBox)
-/* harmony export */ });
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
-/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
-
-
-
-class ComboBox {
-    constructor() {
-        this.props = {
-            "top": 10, // Top position of the widget
-            "left": 10, // Left position of the widget
-            "width": 100, // Width of the widget
-            "height": 30, // Height of the widget
-            "channel": "comboBox", // Unique identifier for the widget
-            "corners": 2, // Radius of the corners of the widget rectangle
-            "fontFamily": "Verdana", // Font family for the text
-            "fontSize": 14, // Font size for the text
-            "align": "center", // Text alignment within the widget (left, center, right)
-            "colour": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the widget
-            "items": "One, Two, Three", // List of items for the dropdown
-            "fontColour": "#dddddd", // Color of the text
-            "outlineColour": "#dddddd", // Color of the outline
-            "outlineWidth": 0, // Width of the outline
-            "min": 0, // Minimum value of the widget
-            "max": 3,
-            "visible": 1, // Visibility of the widget (0 for hidden, 1 for visible)
-            "type": "combobox", // Type of the widget (combobox)
-            "value": 0, // Value of the widget
-            "automatable": 1, // Whether the widget value can be automated (0 for no, 1 for yes)
-            "active": 1, // Whether the widget is active (0 for inactive, 1 for active)
-            "channelType": "number", // Type of the channel (number, string) - string channels cannot be automated by the host
-            "currentDirectory": "", // Directory to point to if using populate() identifier
-            "fileType": "" // File type to filter if using populate() identifier, can use semicolon separated list with wildcard patterns, i.e, "*.txt;*.csv" 
-        };
-
-        this.panelSections = {
-            "Properties": ["type"],
-            "Bounds": ["top", "left", "width", "height"],
-            "Text": ["items", "fontFamily", "align", "fontSize", "fontColour"],
-            "Colours": ["colour", "outlineColour"]
-        };
-
-        this.isMouseInside = false;
-        this.isOpen = false;
-        this.selectedItem = this.props.value > 0 ? this.props.items.split(",")[this.props.value] : this.props.items.split(",")[0];
-        this.parameterIndex = 0;
-        this.vscode = null;
-    }
-
-    pointerDown(evt) {
-        if (this.props.active === 0) {
-            return '';
-        }
-
-        this.isOpen = true;//!this.isOpen;
-        console.log("Pointer down", this.isOpen);
-        this.isMouseInside = true;
-        _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-    }
-
-    handleItemClick(item) {
-        this.selectedItem = item.trim();
-        const items = this.props.items.split(",");
-        const index = items.indexOf(this.selectedItem);
-        const normalValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(index, 0, items.length, 0, 1);
-
-        const msg = {
-            paramIdx: this.parameterIndex, channel: this.props.channel,
-            value: this.props.channelType === "string" ? this.selectedItem : normalValue,
-            channelType: this.props.channelType
-        }
-        _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
-
-
-        this.isOpen = false;
-        const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
-        widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
-        _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-    }
-
-    addVsCodeEventListeners(widgetDiv, vs) {
-        this.vscode = vs;
-        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-        document.body.addEventListener("click", this.handleClickOutside.bind(this));
-        widgetDiv.ComboBoxInstance = this;
-    }
-
-    addEventListeners(widgetDiv) {
-        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-        document.body.addEventListener("click", this.handleClickOutside.bind(this));
-        widgetDiv.ComboBoxInstance = this;
-    }
-
-
-    handleClickOutside(event) {
-        const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
-
-        if (!widgetDiv.contains(event.target)) {
-            this.isOpen = false;
-            widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
-            _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-        }
-    }
-
-    getInnerHTML() {
-        if (this.props.visible === 0) {
-            return '';
-        }
-
-        const alignMap = {
-            'left': 'start',
-            'center': 'middle',
-            'centre': 'middle',
-            'right': 'end',
-        };
-
-        const svgAlign = alignMap[this.props.align] || this.props.align;
-        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
-
-        let totalHeight = this.props.height;
-        const itemHeight = this.props.height * 0.8; // Scale back item height to 80% of the original height
-        let dropdownItems = "";
-
-        if (this.isOpen) {
-            const items = this.props.items.split(",");
-            items.forEach((item, index) => {
-                dropdownItems += `
-                    <div style="height:${itemHeight}px; display:flex; align-items:center; justify-content:center; cursor:pointer; background-color:${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)};"
-                        onmouseover="this.style.backgroundColor='${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.lighter(this.props.colour, 0.2)}'"
-                        onmouseout="this.style.backgroundColor='${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}'"
-                        onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.handleItemClick('${item}')">
-                        <span style="font-family:${this.props.fontFamily}; font-size:${this.props.fontSize}px; color:${this.props.fontColour};">${item.trim()}</span>
-                    </div>
-                `;
-            });
-
-            // Calculate the total dropdown height
-            const dropdownHeight = items.length * itemHeight;
-            totalHeight += dropdownHeight;
-
-            // Check available space
-            const mainForm = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv("MainForm");
-            const widgetDiv = mainForm.querySelector(`#${this.props.channel}`);
-            const widgetRect = widgetDiv.getBoundingClientRect();
-            const mainFormRect = mainForm.getBoundingClientRect();
-            const spaceBelow = mainFormRect.bottom - widgetRect.bottom;
-            const spaceAbove = widgetRect.top - mainFormRect.top;
-
-            // Determine max height for the dropdown
-            const maxDropdownHeight = Math.min(dropdownHeight, Math.max(spaceBelow, spaceAbove));
-
-            // Adjust total height
-            totalHeight = this.props.height + maxDropdownHeight;
-        }
-
-        const arrowWidth = 10; // Width of the arrow
-        const arrowHeight = 6; // Height of the arrow
-        const arrowX = this.props.width - arrowWidth - this.props.corners / 2 - 10; // Decreasing arrowX value to move the arrow more to the left
-        const arrowY = (this.props.height - arrowHeight) / 2; // Y-coordinate of the arrow
-
-        let selectedItemTextX;
-        if (svgAlign === 'middle') {
-            selectedItemTextX = (this.props.width - arrowWidth - this.props.corners / 2) / 2;
-        } else {
-            const selectedItemWidth = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.selectedItem, this.props);
-            const textPadding = svgAlign === 'start' ? - this.props.width * .1 : - this.props.width * .05;
-            selectedItemTextX = svgAlign === 'start' ? (this.props.width - this.props.corners / 2) / 2 - selectedItemWidth / 2 + textPadding : (this.props.width - this.props.corners / 2) / 2 + selectedItemWidth / 2 + textPadding;
-        }
-        const selectedItemTextY = this.props.height / 2;
-
-        return `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${totalHeight}" width="${this.props.width}" height="${totalHeight}" preserveAspectRatio="none">
-                <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners * 2}" fill="${this.props.colour}" stroke="${this.props.outlineColour}"
-                    stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}" 
-                    style="cursor: pointer;" pointer-events="all" 
-                    onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.pointerDown(event)"></rect>
-                ${this.isOpen ? `
-                    <foreignObject x="0" y="${this.props.height}" width="${this.props.width}" height="${totalHeight - this.props.height}">
-                        <div xmlns="http://www.w3.org/1999/xhtml" style="max-height:${totalHeight - this.props.height}px; overflow-y:auto; scrollbar-width: thin; scrollbar-color: ${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)} ${this.props.colour};">
-                            <style>
-                                /* Custom scrollbar for Webkit browsers */
-                                div::-webkit-scrollbar {
-                                    width: 8px;
-                                }
-                                div::-webkit-scrollbar-track {
-                                    background: ${this.props.colour};
-                                }
-                                div::-webkit-scrollbar-thumb {
-                                    background-color: ${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)};
-                                    border-radius: 4px;
-                                }
-                            </style>
-                            ${dropdownItems}
-                        </div>
-                    </foreignObject>` : ''}
-                <polygon points="${arrowX},${arrowY} ${arrowX + arrowWidth},${arrowY} ${arrowX + arrowWidth / 2},${arrowY + arrowHeight}"
-                    fill="${this.props.outlineColour}" style="${this.isOpen ? 'display: none;' : ''} pointer-events: none;"/>
-                <text x="${selectedItemTextX}" y="${selectedItemTextY}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
-                    fill="${this.props.fontColour}" text-anchor="${svgAlign}" alignment-baseline="middle" style="${this.isOpen ? 'display: none;' : ''}"
-                    style="pointer-events: none;">${this.selectedItem}</text>
-            </svg>
-        `;
-    }
-
-}
-
-
-/***/ }),
-/* 12 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   Label: () => (/* binding */ Label)
-/* harmony export */ });
-/**
- * Label class
- */
-class Label {
-    constructor() {
-        this.props = {
-            "top": 0,
-            "left": 0,
-            "width": 100,
-            "height": 30,
-            "type": "label",
-            "colour": "#88888800",
-            "channel": "label",
-            "fontColour": "#dddddd",
-            "fontFamily": "Verdana",
-            "fontSize": 0,
-            "corners": 4,
-            "align": "centre",
-            "visible": 1,
-            "text": "Default Label",
-            "automatable": 0
-        }
-
-        this.panelSections = {
-            "Properties": ["type"],
-            "Bounds": ["left", "top", "width", "height"],
-            "Text": ["text", "fontColour", "fontSize", "fontFamily", "align"],
-            "Colours": ["colour"]
-        };
-    }
-
-    addVsCodeEventListeners(widgetDiv, vs) {
-        this.vscode = vs;
-        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    }
-
-    addEventListeners(widgetDiv) {
-        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    }
-
-    pointerDown() {
-        console.log("Label clicked!");
-    }
-
-    getInnerHTML() {
-        if (this.props.visible === 0) {
-            return '';
-        }
-        
-        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height, 12); // Ensuring font size doesn't get too small
-        const alignMap = {
-            'left': 'end',
-            'center': 'middle',
-            'centre': 'middle',
-            'right': 'start',
-        };
-        const svgAlign = alignMap[this.props.align] || 'middle';
-    
-        return `
-            <div style="position: relative; width: 100%; height: 100%;">
-                <!-- Background SVG with preserveAspectRatio="none" -->
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none"
-                     style="position: absolute; top: 0; left: 0;">
-                    <rect width="${this.props.width}" height="${this.props.height}" x="0" y="0" rx="${this.props.corners}" ry="${this.props.corners}" fill="${this.props.colour}" 
-                        pointer-events="all"></rect>
-                </svg>
-    
-                <!-- Text SVG with proper alignment -->
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet"
-                     style="position: absolute; top: 0; left: 0;">
-                    <text x="${this.props.align === 'left' ? '10%' : this.props.align === 'right' ? '90%' : '50%'}" y="50%" font-family="${this.props.fontFamily}" font-size="${fontSize}"
-                        fill="${this.props.fontColour}" text-anchor="${svgAlign}" dominant-baseline="middle" alignment-baseline="middle" 
-                        style="pointer-events: none;">${this.props.text}</text>
-                </svg>
-            </div>
-        `;
-    }
-    
-    
-    
-}
-
-
-/***/ }),
-/* 13 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   Image: () => (/* binding */ Image)
-/* harmony export */ });
-/**
- * Label class
- */
-class Image {
-    constructor() {
-        this.props = {
-            "top": 0,
-            "left": 0,
-            "width": 100,
-            "height": 30,
-            "type": "image",
-            "colour": "#888888",
-            "channel": "image",
-            "outlineWidth": 1,
-            "outlineColour": "#000000",
-            "corners": 4,
-            "visible": 1,
-            "automatable": 0
-        }
-
-        this.panelSections = {
-            "Properties": ["type"],
-            "Bounds": ["left", "top", "width", "height"],
-            "Colours": ["colour", "outlineColour"],
-        };
-
-        this.children = {};
-    }
-
-    addVsCodeEventListeners(widgetDiv, vs) {
-        this.vscode = vs;
-        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    }
-
-    addEventListeners(widgetDiv) {
-        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    }
-
-    pointerDown() {
-        console.log("Label clicked!");
-    }
-
-    getInnerHTML() {
-        if (this.props.visible === 0) {
-            return '';
-        }
-
-        const outlineOffset = this.props.outlineWidth / 2;
-
-        return `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none"
-                 style="position: absolute; top: 0; left: 0;">
-                <rect width="${this.props.width - this.props.outlineWidth}" height="${this.props.height - this.props.outlineWidth}" x="${outlineOffset}" y="${outlineOffset}" rx="${this.props.corners}" ry="${this.props.corners}" fill="${this.props.colour}" 
-                      stroke="${this.props.outlineColour}" stroke-width="${this.props.outlineWidth}" pointer-events="all"></rect>
-            </svg>
-        `;
-    }
-}
-
-
-/***/ }),
-/* 14 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   ListBox: () => (/* binding */ ListBox)
-/* harmony export */ });
-/**
- * ListBox class
- */
-class ListBox {
-    constructor() {
-        this.props = {
-            "top": 0,
-            "left": 0,
-            "width": 200,
-            "height": 300,
-            "type": "listbox",
-            "backgroundColour": "#ffffff",
-            "fontColour": "#000000",
-            "highlightedItemColour": "#dddddd",
-            "items": "item1, item2, item3",
-            "visible": 1,
-            "selectedIndex": -1,
-            "automatable": 1,
-            "channelType": "number",
-            "min":0,
-            "max":3
-        }
-
-        this.panelSections = {
-            "Properties": ["type"],
-            "Bounds": ["left", "top", "width", "height"],
-            "Colours": ["backgroundColour", "fontColour", "highlightedItemColour"],
-            "Items": ["items"]
-        };
-    }
-
-    addVsCodeEventListeners(widgetDiv, vs) {
-        this.vscode = vs;
-        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    }
-
-    addEventListeners(widgetDiv) {
-        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    }
-
-    pointerDown(event) {
-        const itemElements = event.currentTarget.querySelectorAll('.list-item');
-        itemElements.forEach((itemElement, index) => {
-            const rect = itemElement.getBoundingClientRect();
-            if (event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom) {
-                this.props.selectedIndex = index;
-                this.updateListItems(itemElements);
-                console.log(`Item ${index + 1} clicked!`);
-            }
-        });
-    }
-
-    updateListItems(itemElements) {
-        itemElements.forEach((itemElement, index) => {
-            if (index === this.props.selectedIndex) {
-                itemElement.style.backgroundColor = this.props.highlightedItemColour;
-            } else {
-                itemElement.style.backgroundColor = this.props.backgroundColour;
-            }
-        });
-    }
-
-    getInnerHTML() {
-        if (this.props.visible === 0) {
-            return '';
-        }
-
-        const items = this.props.items.split(',').map(item => item.trim());
-        const listItemsHTML = items.map((item, index) => `
-            <div class="list-item" style="
-                width: 100%;
-                padding: 5px;
-                box-sizing: border-box;
-                color: ${this.props.fontColour};
-                background-color: ${index === this.props.selectedIndex ? this.props.highlightedItemColour : this.props.backgroundColour};
-                cursor: pointer;
-                ">
-                ${item}
-            </div>
-        `).join('');
-
-        return `
-            <div style="position: relative; width: 100%; height: 100%; overflow-y: auto;">
-                ${listItemsHTML}
-            </div>
-        `;
-    }
-}
-
-
-/***/ }),
-/* 15 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   CsoundOutput: () => (/* binding */ CsoundOutput)
-/* harmony export */ });
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
-
-
-/**
- * CsoundOutput class
- */
-class CsoundOutput {
-    constructor() {
-        this.props = {
-            "top": 0,
-            "left": 0,
-            "width": 200,
-            "height": 300,
-            "type": "csoundoutput",
-            "colour": "#000000",
-            "channel": "csoundoutput",
-            "fontColour": "#dddddd",
-            "fontFamily": "Verdana",
-            "fontSize": 14,
-            "corners": 4,
-            "align": "left",
-            "visible": 1,
-            "text": "Csound Output\n",
-            "automatable": 0
-        };
-
-        this.panelSections = {
-            "Properties": ["type"],
-            "Bounds": ["left", "top", "width", "height"],
-            "Text": ["text", "fontColour", "fontSize", "fontFamily", "align"],
-            "Colours": ["colour"]
-        };
-    }
-
-    addVsCodeEventListeners(widgetDiv, vs) {
-        this.vscode = vs;
-    }
-
-    addEventListeners(widgetDiv) {
-        // Add any necessary event listeners here
-    }
-
-    getInnerHTML() {
-        if (this.props.visible === 0) {
-            return '';
-        }
-
-        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.8, 12); // Ensuring font size doesn't get too small
-        const alignMap = {
-            'left': 'start',
-            'center': 'center',
-            'centre': 'center',
-            'right': 'end',
-        };
-        const textAlign = alignMap[this.props.align] || 'start';
-
-        return `
-                <textarea style="width: 100%; height: 100%; background-color: ${this.props.colour}; 
-                color: ${this.props.fontColour}; font-family: ${this.props.fontFamily}; font-size: ${fontSize}px; 
-                text-align: ${textAlign}; padding: 10px; box-sizing: border-box; border: none; resize: none;">
-${this.props.text}
-                </textarea>
-        `;
-    }
-
-    appendText(newText) {
-        this.props.text += newText + '\n';
-        const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
-
-        if (widgetDiv) {
-            const textarea = widgetDiv.querySelector('textarea');
-            if (textarea) {
-                textarea.value += newText + '\n';
-                console.log(textarea.value);
-                textarea.scrollTop = textarea.scrollHeight; // Scroll to the bottom
-            }
-        }
-    }
-}
-
-
-/***/ }),
-/* 16 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   MidiKeyboard: () => (/* binding */ MidiKeyboard)
-/* harmony export */ });
-/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(4);
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(3);
-
-
-
-/**
- * MidiKeyboard class
- */
-class MidiKeyboard {
-  constructor() {
-    this.props = {
-      top: 0, // Top position of the keyboard widget
-      left: 0, // Left position of the keyboard widget
-      width: 600, // Width of the keyboard widget
-      height: 300, // Height of the keyboard widget
-      type: "keyboard", // Type of the widget (keyboard)
-      colour: "#888888", // Background color of the keyboard
-      channel: "keyboard", // Unique identifier for the keyboard widget
-      blackNoteColour: "#000000", // Color of the black keys on the keyboard
-      value: "36", // The leftmost note of the keyboard
-      fontFamily: "Verdana", // Font family for the text displayed on the keyboard
-      whiteNoteColour: "#ffffff", // Color of the white keys on the keyboard
-      keySeparatorColour: "#000000", // Color of the separators between keys
-      arrowBackgroundColour: "#0295cf", // Background color of the arrow keys
-      mouseoverKeyColour: _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of keys when hovered over
-      keydownColour: _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of keys when pressed
-      automatable: 0,
-      octaves: 5 // Default number of octaves to display
-    };
-
-    this.panelSections = {
-      Properties: ["type", "channel"],
-      Bounds: ["left", "top", "width", "height"],
-      Text: ["fontFamily"],
-      Colours: ["colour", "blackNoteColour", "whiteNoteColour", "keySeparatorColour", "arrowBackgroundColour", "keydownColour"],
-      Octaves: ["octaves"] // Add octaves to the panel sections
-    };
-
-    this.isMouseDown = false; // Track the state of the mouse button
-    this.octaveOffset = 3;
-    this.noteMap = {};
-    this.activeNotes = new Set(); // Track active notes
-
-    // Define an array of note names
-    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-
-    // Loop through octaves and note names to populate the map
-    for (let octave = -2; octave <= this.props.octaves + 2; octave++) {
-      for (let i = 0; i < noteNames.length; i++) {
-        const noteName = noteNames[i] + octave;
-        const midiNote = (octave + 2) * 12 + i; // Calculate MIDI note number
-        this.noteMap[noteName] = midiNote;
-      }
-    }
-  }
-
-  pointerDown(e) {
-    if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
-      this.isMouseDown = true;
-      this.noteOn(e.target);
-    }
-  }
-
-  pointerUp(e) {
-    if (this.isMouseDown) {
-      this.isMouseDown = false;
-      this.noteOff(e.target);
-    }
-  }
-
-  pointerMove(e) {
-    if (this.isMouseDown) {
-      if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
-        if (!this.activeNotes.has(e.target.dataset.note)) {
-          this.noteOn(e.target);
-        }
-      } else {
-        this.noteOffLastKey();
-      }
-    }
-  }
-
-  pointerEnter(e) {
-    if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
-      this.noteOn(e.target);
-    }
-  }
-
-  pointerLeave(e) {
-    if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
-      this.noteOff(e.target);
-    }
-  }
-
-  noteOn(keyElement) {
-    const note = keyElement.dataset.note;
-    if (!this.activeNotes.has(note)) {
-      this.activeNotes.add(note);
-      keyElement.setAttribute('fill', this.props.keydownColour);
-      console.log(`Key down: ${this.noteMap[note]}`);
-      _cabbage_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendMidiMessageFromUI(this.vscode, 0x90, this.noteMap[note], 127);
-    }
-  }
-
-  noteOff(keyElement) {
-    const note = keyElement.dataset.note;
-    if (this.activeNotes.has(note)) {
-      this.activeNotes.delete(note);
-      keyElement.setAttribute('fill', keyElement.classList.contains('white-key') ? this.props.whiteNoteColour : this.props.blackNoteColour);
-      console.log(`Key up: ${this.noteMap[note]}`);
-      _cabbage_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendMidiMessageFromUI(this.vscode, 0x80, this.noteMap[note], 0);
-    }
-  }
-
-  noteOffLastKey() {
-    if (this.activeNotes.size > 0) {
-      const lastNote = Array.from(this.activeNotes).pop();
-      const keyElement = document.querySelector(`[data-note="${lastNote}"]`);
-      this.noteOff(keyElement);
-    }
-  }
-
-  octaveUpPointerDown(e) {
-    console.log('octaveUpPointerDown');
-  }
-
-  octaveDownPointerDown(e) {
-    console.log('octaveDownPointerDown');
-  }
-
-  changeOctave(offset) {
-    this.octaveOffset += offset;
-    if (this.octaveOffset < 1) this.octaveOffset = 1; // Limit lower octave bound
-    if (this.octaveOffset > 7) this.octaveOffset = 7; // Limit upper octave bound
-    _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-  }
-
-  addVsCodeEventListeners(widgetDiv, vscode) {
-    this.vscode = vscode;
-    this.addListeners(widgetDiv);
-    _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-  }
-
-  addEventListeners(widgetDiv) {
-    this.addListeners(widgetDiv);
-    _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
-  }
-
-  midiMessageListener(event) {
-    console.log("Midi message listener");
-    const detail = event.detail;
-    const midiData = JSON.parse(detail.data);
-    console.log("Midi message listener", midiData);
-    if (midiData.status == 144) {
-      const note = midiData.data1;
-      // const velocity = midiData.data2;
-      const noteName = Object.keys(this.noteMap).find(key => this.noteMap[key] === note);
-      const key = document.querySelector(`[data-note="${noteName}"]`);
-      key.setAttribute('fill', this.props.keydownColour);
-      console.log(`Key down: ${note} ${noteName}`);
-    } else if (midiData.status == 128) {
-      const note = midiData.data1;
-      const noteName = Object.keys(this.noteMap).find(key => this.noteMap[key] === note);
-      const key = document.querySelector(`[data-note="${noteName}"]`);
-      key.setAttribute('fill', key.classList.contains('white-key') ? 'white' : 'black');
-      console.log(`Key up: ${note} ${noteName}`);
-    }
-  }
-
-  addListeners(widgetDiv) {
-    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    widgetDiv.addEventListener("pointerup", this.pointerUp.bind(this));
-    widgetDiv.addEventListener("pointermove", this.pointerMove.bind(this));
-    widgetDiv.addEventListener("pointerenter", this.pointerEnter.bind(this), true);
-    widgetDiv.addEventListener("pointerleave", this.pointerLeave.bind(this), true);
-    document.addEventListener("midiEvent", this.midiMessageListener.bind(this));
-    widgetDiv.OctaveButton = this;
-  }
-
-  handleClickEvent(e) {
-    if (e.target.id == "octave-up") {
-      this.changeOctave(1);
-    } else {
-      this.changeOctave(-1);
-    }
-  }
-
-  getInnerHTML() {
-    const scaleFactor = 0.9; // Adjusting this to fit the UI designer bounding rect
-  
-    const totalWhiteKeys = this.props.octaves * 7; // Total number of white keys to display
-    const whiteKeyWidth = (this.props.width / totalWhiteKeys) * scaleFactor; // Adjust width based on total white keys
-    const whiteKeyHeight = this.props.height * scaleFactor;
-    const blackKeyWidth = whiteKeyWidth * 0.4;
-    const blackKeyHeight = whiteKeyHeight * 0.6;
-    const strokeWidth = 0.5 * scaleFactor;
-  
-    const whiteKeys = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-    const blackKeys = { 'C': 'C#', 'D': 'D#', 'F': 'F#', 'G': 'G#', 'A': 'A#' };
-  
-    let whiteSvgKeys = '';
-    let blackSvgKeys = '';
-  
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.1;
-  
-    for (let octave = 0; octave < this.props.octaves; octave++) {
-      for (let i = 0; i < whiteKeys.length; i++) {
-        const key = whiteKeys[i];
-        const note = key + (octave + this.octaveOffset);
-        const width = whiteKeyWidth - strokeWidth;
-        const height = whiteKeyHeight - strokeWidth;
-        const xOffset = octave * whiteKeys.length * whiteKeyWidth + i * whiteKeyWidth;
-  
-        whiteSvgKeys += `<rect x="${xOffset}" y="0" width="${width}" height="${height}" fill="${this.props.whiteNoteColour}" stroke="${this.props.keySeparatorColour}" stroke-width="${strokeWidth}" data-note="${note}" class="white-key" style="height: ${whiteKeyHeight}px;" />`;
-  
-        if (blackKeys[key]) {
-          const note = blackKeys[key] + (octave + this.octaveOffset);
-          blackSvgKeys += `<rect x="${xOffset + whiteKeyWidth * 0.75 - strokeWidth / 2}" y="${strokeWidth / 2}" width="${blackKeyWidth}" height="${blackKeyHeight + strokeWidth}" fill="${this.props.blackNoteColour}" stroke="${this.props.keySeparatorColour}"  stroke-width="${strokeWidth}" data-note="${note}" class="black-key" />`;
-        }
-  
-        if (i === 0) { // First white key of the octave
-          const textX = xOffset + whiteKeyWidth / 2; // Position text in the middle of the white key
-          const textY = whiteKeyHeight * 0.8; // Position text in the middle vertically
-          whiteSvgKeys += `<text x="${textX}" y="${textY}" text-anchor="middle"  font-family="${this.props.fontFamily}" dominant-baseline="middle" font-size="${fontSize}" fill="${this.props.blackNoteColour}" style="pointer-events: none;">${note}</text>`;
-        }
-      }
-    }
-  
-    // Calculate button width and height relative to keyboard width
-    const buttonWidth = 25 * scaleFactor;
-    const buttonHeight = this.props.height * scaleFactor;
-  
-    return `
-      <div id="${this.props.channel}" style="display: flex; align-items: center; height: ${this.props.height * scaleFactor}px;">
-        <button id="octave-down" style="width: ${buttonWidth}px; height: ${buttonHeight}px; background-color: ${this.props.arrowBackgroundColour};" onclick="document.getElementById('${this.props.channel}').OctaveButton.handleClickEvent(event)">-</button>
-        <div id="${this.props.channel}" style="flex-grow: 1; height: 100%;">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width * scaleFactor} ${this.props.height * scaleFactor}" width="100%" height="100%" preserveAspectRatio="none">
-            ${whiteSvgKeys}
-            ${blackSvgKeys}
-          </svg>
-        </div>
-        <button id="octave-up" style="width: ${buttonWidth}px; height: ${buttonHeight}px; background-color: ${this.props.arrowBackgroundColour};" onclick="document.getElementById('${this.props.channel}').OctaveButton.handleClickEvent(event)">+</button>
-      </div>
-    `;
-  }
-  
-}
-
-
-/***/ }),
-/* 17 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   GenTable: () => (/* binding */ GenTable)
-/* harmony export */ });
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
-
-
-class GenTable {
-    constructor() {
-        console.log("Creating GenTable widget");
-        this.props = {
-            "top": 0,
-            "left": 0,
-            "width": 200,
-            "height": 100,
-            "type": "gentable",
-            "colour": "#888888", // Color between 0 and sample value
-            "outlineColour": "#dddddd", // Outline color
-            "outlineWidth": 1,
-            "channel": "gentable",
-            "backgroundColour": "#a8d388",
-            "fontColour": "#dddddd",
-            "fontFamily": "Verdana",
-            "startSample": -1,
-            "endSample": -1,
-            "file": "",
-            "fontSize": 0,
-            "corners": 4, // Radius of the background rectangle
-            "align": "left",
-            "visible": 1,
-            "text": "",
-            "tableNumber": 1,
-            "samples": [],
-            "automatable": 0
-        };
-
-        
-        this.panelSections = {
-            "Info": ["type", "channel"],
-            "Bounds": ["left", "top", "width", "height"],
-            "Text": ["text", "fontSize", "fontFamily", "fontColour", "align"],
-            "Colours": ["colour", "backgroundColour", "outlineColour"]
-        };
-    }
-
-    createCanvas(){
-        // Create canvas element during initialization
-        this.canvas = document.createElement('canvas');
-        this.canvas.width = this.props.width;
-        this.canvas.height = this.props.height;
-        this.ctx = this.canvas.getContext('2d');
-    }
-
-    addVsCodeEventListeners(widgetDiv, vs) {
-        this.vscode = vs;
-        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    }
-
-    addEventListeners(widgetDiv) {
-        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
-    }
-
-    pointerDown() {
-        console.log("Canvas clicked!");
-    }
-
-    getInnerHTML() {
-        return ``;
-    }
-
-    updateTable() {
-        this.canvas.width = this.props.width;
-        this.canvas.height = this.props.height;
-        // Clear canvas
-        this.ctx.clearRect(0, 0, this.props.width, this.props.height);
-
-        // Draw background with rounded corners
-        this.ctx.fillStyle = this.props.backgroundColour;
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.props.corners, 0);
-        this.ctx.arcTo(this.props.width, 0, this.props.width, this.props.height, this.props.corners);
-        this.ctx.arcTo(this.props.width, this.props.height, 0, this.props.height, this.props.corners);
-        this.ctx.arcTo(0, this.props.height, 0, 0, this.props.corners);
-        this.ctx.arcTo(0, 0, this.props.width, 0, this.props.corners);
-        this.ctx.closePath();
-        this.ctx.fill();
-
-        // Draw waveform
-        this.ctx.strokeStyle = this.props.outlineColour;
-        this.ctx.lineWidth = this.props.outlineWidth;
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, this.props.height / 2);
-
-        const sampleIncrement = Math.floor(this.props.samples.length / this.props.width);
-
-        if (!Array.isArray(this.props.samples) || this.props.samples.length === 0) {
-            console.warn('No samples to draw.');
-        } else {
-            for (let i = 0; i < this.props.samples.length; i += sampleIncrement) {
-                const x = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(i, 0, this.props.samples.length, 0, this.props.width);
-                const y = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.samples[i], -1, 1, this.props.height, 0);
-                // Draw line to sample value
-                this.ctx.strokeStyle = this.props.colour;
-                this.ctx.beginPath();
-                this.ctx.moveTo(x, this.props.height / 2);
-                this.ctx.lineTo(x, y);
-                this.ctx.stroke();
-
-                // Draw vertical lines for outline
-                if (i > 0) {
-                    this.ctx.strokeStyle = this.props.outlineColour;
-                    this.ctx.lineWidth = this.props.outlineWidth;
-                    this.ctx.lineTo(x, y);
-                }
-            }
-        }
-
-        this.ctx.closePath();
-
-        // Draw text
-        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.1, 12);
-        const alignMap = {
-            'left': 'start',
-            'center': 'center',
-            'centre': 'center',
-            'right': 'end',
-        };
-        const canvasAlignMap = {
-            'left': 'left',
-            'center': 'center',
-            'centre': 'center',
-            'right': 'right',
-        };
-        const svgAlign = alignMap[this.props.align] || 'start';
-        const textAlign = canvasAlignMap[this.props.align] || 'left';
-        this.ctx.font = `${fontSize}px ${this.props.fontFamily}`;
-        this.ctx.fillStyle = this.props.fontColour;
-        this.ctx.textAlign = textAlign;
-        this.ctx.textBaseline = 'bottom';
-
-        
-        const textX = this.props.align === 'right' ? this.props.width - 10 : this.props.align === 'center' || this.props.align === 'centre' ? this.props.width / 2 : 10;
-        const textY = this.props.height - 10;
-        this.ctx.fillText(this.props.text, textX, textY);
-        
-
-        // Update DOM with the canvas
-        const widgetElement = document.getElementById(this.props.channel);
-        if (widgetElement) {
-            widgetElement.style.transform = `translate(${this.props.left}px, ${this.props.top}px)`;
-            // widgetElement.setAttribute('data-x', this.props.left);
-            // widgetElement.setAttribute('data-y', this.props.top);
-            // widgetElement.style.top = `${this.props.top}px`;
-            // widgetElement.style.left = `${this.props.left}px`;
-            widgetElement.style.padding = '0';
-            widgetElement.style.margin = '0';
-            widgetElement.innerHTML = ''; // Clear existing content
-            widgetElement.appendChild(this.canvas); // Append canvas
-
-            // Add event listeners
-            this.addEventListeners(widgetElement);
-        } else {
-            console.log(`Element: ${this.props.channel} not found.`);
-        }
-    }
-}
-
-
-/***/ }),
-/* 18 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   TextEditor: () => (/* binding */ TextEditor)
-/* harmony export */ });
-/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
-
-
-/**
- * CsoundOutput class
- */
-class TextEditor {
-    constructor() {
-        this.props = {
-            "top": 0,
-            "left": 0,
-            "width": 200,
-            "height": 300,
-            "type": "texteditor",
-            "colour": "#dddddd",
-            "channel": "texteditor",
-            "fontColour": "#222222",
-            "fontFamily": "Verdana",
-            "fontSize": 14,
-            "corners": 4,
-            "align": "left",
-            "visible": 1,
-            "text": "",
-            "automatable": 0
-        };
-
-        this.panelSections = {
-            "Properties": ["type"],
-            "Bounds": ["left", "top", "width", "height"],
-            "Text": ["text", "fontColour", "fontSize", "fontFamily", "align"],
-            "Colours": ["colour"]
-        };
-    }
-
-    addVsCodeEventListeners(widgetDiv, vs) {
-        this.vscode = vs;
-    }
-
-    addEventListeners(widgetDiv) {
-        // Add any necessary event listeners here
-    }
-   
-    getInnerHTML() {
-        if (this.props.visible === 0) {
-            return '';
-        }
-
-        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.8, 12); // Ensuring font size doesn't get too small
-        const alignMap = {
-            'left': 'start',
-            'center': 'center',
-            'centre': 'center',
-            'right': 'end',
-        };
-        const textAlign = alignMap[this.props.align] || 'start';
-
-        return `
-                <textarea style="width: 100%; height: 100%; background-color: ${this.props.colour}; 
-                color: ${this.props.fontColour}; font-family: ${this.props.fontFamily}; font-size: ${fontSize}px; 
-                text-align: ${textAlign}; padding: 10px; box-sizing: border-box; border: none; resize: none; position:absolute">
-${this.props.text}
-                </textarea>
-        `;
-    }
-
-    // appendText(newText) {
-    //     this.props.text += newText + '\n';
-    //     const widgetDiv = CabbageUtils.getWidgetDiv(this.props.channel);
-
-    //     if (widgetDiv) {
-    //         const textarea = widgetDiv.querySelector('textarea');
-    //         if (textarea) {
-    //             textarea.value += newText + '\n';
-    //             console.log(textarea.value);
-    //             textarea.scrollTop = textarea.scrollHeight; // Scroll to the bottom
-    //         }
-    //     }
-    // }
-}
-
-
-/***/ }),
-/* 19 */
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   Form: () => (/* binding */ Form)
-/* harmony export */ });
-/**
- * Form class
- */
-class Form {
-  constructor() {
-    this.props = {
-      "width": 600,
-      "height": 300,
-      "caption": "",
-      "type": "form",
-      "colour": "#888888",
-      "channel": "MainForm"
-    }
-
-    this.panelSections = {
-      "Properties": ["type"],
-      "Bounds": ["width", "height"],
-      "Text": ["caption"],
-      "Colours": ["colour"]
-    };
-  }
-
-
-  getInnerHTML() {
-    return `
-      <svg class="widget-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none" style="position: relative; z-index: 0;">
-        <rect id="MainForm" width="${this.props.width}" height="${this.props.height}" x="0" y="0" rx="2" ry="2" fill="${this.props.colour}" />
-      </svg>
-    `;
-  }
-
-  updateSVG() {
-    console.log("updating form svg", this.props);
-    // Select the parent div using the channel property
-    const parentDiv = document.getElementById(this.props.channel);
-    
-    if (!parentDiv) {
-      console.error(`Parent div with id ${this.props.channel} not found.`);
-      return;
-    }
-
-    // Check if an SVG element with the class 'widget-svg' already exists
-    let svgElement = parentDiv.querySelector('.widget-svg');
-    
-    if (svgElement) {
-      // Update the existing SVG element's outerHTML
-      svgElement.outerHTML = this.getInnerHTML();
-    } else {
-      // Append the new SVG element if it doesn't exist
-      parentDiv.insertAdjacentHTML('beforeend', this.getInnerHTML());
-    }
-  }
-}
-
-
-/***/ }),
-/* 20 */
 /***/ ((module) => {
 
 module.exports = require("child_process");
 
 /***/ }),
-/* 21 */
+/* 6 */
+/***/ ((module) => {
+
+module.exports = require("fs");
+
+/***/ }),
+/* 7 */
+/***/ ((module) => {
+
+module.exports = require("path");
+
+/***/ }),
+/* 8 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const WebSocket = __webpack_require__(22);
+const WebSocket = __webpack_require__(9);
 
-WebSocket.createWebSocketStream = __webpack_require__(42);
-WebSocket.Server = __webpack_require__(43);
-WebSocket.Receiver = __webpack_require__(36);
-WebSocket.Sender = __webpack_require__(39);
+WebSocket.createWebSocketStream = __webpack_require__(29);
+WebSocket.Server = __webpack_require__(30);
+WebSocket.Receiver = __webpack_require__(23);
+WebSocket.Sender = __webpack_require__(26);
 
 WebSocket.WebSocket = WebSocket;
 WebSocket.WebSocketServer = WebSocket.Server;
@@ -4716,25 +2253,25 @@ module.exports = WebSocket;
 
 
 /***/ }),
-/* 22 */
+/* 9 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex|Readable$" }] */
 
 
 
-const EventEmitter = __webpack_require__(23);
-const https = __webpack_require__(24);
-const http = __webpack_require__(25);
-const net = __webpack_require__(26);
-const tls = __webpack_require__(27);
-const { randomBytes, createHash } = __webpack_require__(28);
-const { Duplex, Readable } = __webpack_require__(29);
-const { URL } = __webpack_require__(30);
+const EventEmitter = __webpack_require__(10);
+const https = __webpack_require__(11);
+const http = __webpack_require__(12);
+const net = __webpack_require__(13);
+const tls = __webpack_require__(14);
+const { randomBytes, createHash } = __webpack_require__(15);
+const { Duplex, Readable } = __webpack_require__(16);
+const { URL } = __webpack_require__(17);
 
-const PerMessageDeflate = __webpack_require__(31);
-const Receiver = __webpack_require__(36);
-const Sender = __webpack_require__(39);
+const PerMessageDeflate = __webpack_require__(18);
+const Receiver = __webpack_require__(23);
+const Sender = __webpack_require__(26);
 const {
   BINARY_TYPES,
   EMPTY_BUFFER,
@@ -4744,12 +2281,12 @@ const {
   kStatusCode,
   kWebSocket,
   NOOP
-} = __webpack_require__(34);
+} = __webpack_require__(21);
 const {
   EventTarget: { addEventListener, removeEventListener }
-} = __webpack_require__(40);
-const { format, parse } = __webpack_require__(41);
-const { toBuffer } = __webpack_require__(33);
+} = __webpack_require__(27);
+const { format, parse } = __webpack_require__(28);
+const { toBuffer } = __webpack_require__(20);
 
 const closeTimeout = 30 * 1000;
 const kAborted = Symbol('kAborted');
@@ -6058,64 +3595,64 @@ function socketOnError() {
 
 
 /***/ }),
-/* 23 */
+/* 10 */
 /***/ ((module) => {
 
 module.exports = require("events");
 
 /***/ }),
-/* 24 */
+/* 11 */
 /***/ ((module) => {
 
 module.exports = require("https");
 
 /***/ }),
-/* 25 */
+/* 12 */
 /***/ ((module) => {
 
 module.exports = require("http");
 
 /***/ }),
-/* 26 */
+/* 13 */
 /***/ ((module) => {
 
 module.exports = require("net");
 
 /***/ }),
-/* 27 */
+/* 14 */
 /***/ ((module) => {
 
 module.exports = require("tls");
 
 /***/ }),
-/* 28 */
+/* 15 */
 /***/ ((module) => {
 
 module.exports = require("crypto");
 
 /***/ }),
-/* 29 */
+/* 16 */
 /***/ ((module) => {
 
 module.exports = require("stream");
 
 /***/ }),
-/* 30 */
+/* 17 */
 /***/ ((module) => {
 
 module.exports = require("url");
 
 /***/ }),
-/* 31 */
+/* 18 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const zlib = __webpack_require__(32);
+const zlib = __webpack_require__(19);
 
-const bufferUtil = __webpack_require__(33);
-const Limiter = __webpack_require__(35);
-const { kStatusCode } = __webpack_require__(34);
+const bufferUtil = __webpack_require__(20);
+const Limiter = __webpack_require__(22);
+const { kStatusCode } = __webpack_require__(21);
 
 const FastBuffer = Buffer[Symbol.species];
 const TRAILER = Buffer.from([0x00, 0x00, 0xff, 0xff]);
@@ -6626,18 +4163,18 @@ function inflateOnError(err) {
 
 
 /***/ }),
-/* 32 */
+/* 19 */
 /***/ ((module) => {
 
 module.exports = require("zlib");
 
 /***/ }),
-/* 33 */
+/* 20 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { EMPTY_BUFFER } = __webpack_require__(34);
+const { EMPTY_BUFFER } = __webpack_require__(21);
 
 const FastBuffer = Buffer[Symbol.species];
 
@@ -6769,7 +4306,7 @@ if (!process.env.WS_NO_BUFFER_UTIL) {
 
 
 /***/ }),
-/* 34 */
+/* 21 */
 /***/ ((module) => {
 
 
@@ -6787,7 +4324,7 @@ module.exports = {
 
 
 /***/ }),
-/* 35 */
+/* 22 */
 /***/ ((module) => {
 
 
@@ -6848,22 +4385,22 @@ module.exports = Limiter;
 
 
 /***/ }),
-/* 36 */
+/* 23 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { Writable } = __webpack_require__(29);
+const { Writable } = __webpack_require__(16);
 
-const PerMessageDeflate = __webpack_require__(31);
+const PerMessageDeflate = __webpack_require__(18);
 const {
   BINARY_TYPES,
   EMPTY_BUFFER,
   kStatusCode,
   kWebSocket
-} = __webpack_require__(34);
-const { concat, toArrayBuffer, unmask } = __webpack_require__(33);
-const { isValidStatusCode, isValidUTF8 } = __webpack_require__(37);
+} = __webpack_require__(21);
+const { concat, toArrayBuffer, unmask } = __webpack_require__(20);
+const { isValidStatusCode, isValidUTF8 } = __webpack_require__(24);
 
 const FastBuffer = Buffer[Symbol.species];
 const promise = Promise.resolve();
@@ -7596,12 +5133,12 @@ function throwErrorNextTick(err) {
 
 
 /***/ }),
-/* 37 */
+/* 24 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { isUtf8 } = __webpack_require__(38);
+const { isUtf8 } = __webpack_require__(25);
 
 //
 // Allowed token characters:
@@ -7732,26 +5269,26 @@ if (isUtf8) {
 
 
 /***/ }),
-/* 38 */
+/* 25 */
 /***/ ((module) => {
 
 module.exports = require("buffer");
 
 /***/ }),
-/* 39 */
+/* 26 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex" }] */
 
 
 
-const { Duplex } = __webpack_require__(29);
-const { randomFillSync } = __webpack_require__(28);
+const { Duplex } = __webpack_require__(16);
+const { randomFillSync } = __webpack_require__(15);
 
-const PerMessageDeflate = __webpack_require__(31);
-const { EMPTY_BUFFER } = __webpack_require__(34);
-const { isValidStatusCode } = __webpack_require__(37);
-const { mask: applyMask, toBuffer } = __webpack_require__(33);
+const PerMessageDeflate = __webpack_require__(18);
+const { EMPTY_BUFFER } = __webpack_require__(21);
+const { isValidStatusCode } = __webpack_require__(24);
+const { mask: applyMask, toBuffer } = __webpack_require__(20);
 
 const kByteLength = Symbol('kByteLength');
 const maskBuffer = Buffer.alloc(4);
@@ -8221,12 +5758,12 @@ module.exports = Sender;
 
 
 /***/ }),
-/* 40 */
+/* 27 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { kForOnEventAttribute, kListener } = __webpack_require__(34);
+const { kForOnEventAttribute, kListener } = __webpack_require__(21);
 
 const kCode = Symbol('kCode');
 const kData = Symbol('kData');
@@ -8519,12 +6056,12 @@ function callListener(listener, thisArg, event) {
 
 
 /***/ }),
-/* 41 */
+/* 28 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { tokenChars } = __webpack_require__(37);
+const { tokenChars } = __webpack_require__(24);
 
 /**
  * Adds an offer to the map of extension offers or a parameter to the map of
@@ -8728,12 +6265,12 @@ module.exports = { format, parse };
 
 
 /***/ }),
-/* 42 */
+/* 29 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { Duplex } = __webpack_require__(29);
+const { Duplex } = __webpack_require__(16);
 
 /**
  * Emits the `'close'` event on a stream.
@@ -8893,23 +6430,23 @@ module.exports = createWebSocketStream;
 
 
 /***/ }),
-/* 43 */
+/* 30 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^Duplex$" }] */
 
 
 
-const EventEmitter = __webpack_require__(23);
-const http = __webpack_require__(25);
-const { Duplex } = __webpack_require__(29);
-const { createHash } = __webpack_require__(28);
+const EventEmitter = __webpack_require__(10);
+const http = __webpack_require__(12);
+const { Duplex } = __webpack_require__(16);
+const { createHash } = __webpack_require__(15);
 
-const extension = __webpack_require__(41);
-const PerMessageDeflate = __webpack_require__(31);
-const subprotocol = __webpack_require__(44);
-const WebSocket = __webpack_require__(22);
-const { GUID, kWebSocket } = __webpack_require__(34);
+const extension = __webpack_require__(28);
+const PerMessageDeflate = __webpack_require__(18);
+const subprotocol = __webpack_require__(31);
+const WebSocket = __webpack_require__(9);
+const { GUID, kWebSocket } = __webpack_require__(21);
 
 const keyRegex = /^[+/0-9A-Za-z]{22}==$/;
 
@@ -9438,12 +6975,12 @@ function abortHandshakeOrEmitwsClientError(server, req, socket, code, message) {
 
 
 /***/ }),
-/* 44 */
+/* 31 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-const { tokenChars } = __webpack_require__(37);
+const { tokenChars } = __webpack_require__(24);
 
 /**
  * Parses the `Sec-WebSocket-Protocol` header into a set of subprotocol names.
@@ -9503,6 +7040,2637 @@ function parse(header) {
 }
 
 module.exports = { parse };
+
+
+/***/ }),
+/* 32 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   HorizontalSlider: () => (/* binding */ HorizontalSlider)
+/* harmony export */ });
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(4);
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(3);
+
+
+
+/**
+ * Horizontal Slider (hslider) class
+ */
+class HorizontalSlider {
+  constructor() {
+    this.props = {
+      "top": 10, // Top position of the horizontal slider
+      "left": 10, // Left position of the horizontal slider
+      "width": 160, // Width of the horizontal slider
+      "height": 20, // Height of the horizontal slider
+      "channel": "rslider", // Unique identifier for the horizontal slider
+      "min": 0, // Minimum value of the slider
+      "max": 1, // Maximum value of the slider
+      "value": 0, // Current value of the slider
+      "skew": 1, // Skew factor for the slider (for non-linear scales)
+      "increment": 0.001, // Value increment/decrement when moving the slider
+      "text": "", // Text displayed next to the slider
+      "fontFamily": "Verdana", // Font family for the text
+      "fontSize": 0, // Font size for the text
+      "align": "centre", // Text alignment within the slider (center, left, right)
+      "valueTextBox": 0, // Whether to display a text box showing the current value
+      "colour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour("blue"), // Background color of the slider track
+      "trackerColour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of the slider thumb
+      "trackerBackgroundColour": "#ffffff", // Background color of the slider thumb
+      "trackerOutlineColour": "#525252", // Color of the outline around the slider thumb
+      "fontColour": "#dddddd", // Color of the text displayed next to the slider
+      "outlineColour": "#999999", // Color of the slider outline
+      "textBoxColour": "#555555", // Color of the value text box (if enabled)
+      "trackerOutlineWidth": 1, // Width of the outline around the slider thumb
+      "outlineWidth": 1, // Width of the slider outline
+      "markerThickness": 0.2, // Thickness of the slider markers
+      "markerStart": 0.1, // Start position of the slider markers
+      "markerEnd": 0.9, // End position of the slider markers
+      "type": "hslider", // Type of the slider (horizontal)
+      "decimalPlaces": 1, // Number of decimal places to display for the slider value
+      "velocity": 0, // Velocity of slider movement (for gesture-based interaction)
+      "visible": 1, // Visibility of the slider (0 for hidden, 1 for visible)
+      "popup": 1, // Whether to show a popup when interacting with the slider
+      "automatable": 1, // Whether the slider value can be automated (0 for no, 1 for yes)
+      "valuePrefix": "", // Prefix to display before the slider value
+      "valuePostfix": "", // Postfix to display after the slider value
+      "presetIgnore": 0 // Whether the slider should be ignored in presets (0 for no, 1 for yes)
+  };
+  
+
+    this.panelSections = {
+      "Info": ["type", "channel"],
+      "Bounds": ["left", "top", "width", "height"],
+      "Range": ["min", "max", "default", "skew", "increment"],
+      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
+      "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
+    };
+
+    this.parameterIndex = 0;
+    this.moveListener = this.pointerMove.bind(this);
+    this.upListener = this.pointerUp.bind(this);
+    this.startX = 0;
+    this.startValue = 0;
+    this.vscode = null;
+    this.isMouseDown = false;
+    this.decimalPlaces = 0;
+  }
+
+  pointerUp() {
+    const popup = document.getElementById('popupValue');
+    popup.classList.add('hide');
+    popup.classList.remove('show');
+    window.removeEventListener("pointermove", this.moveListener);
+    window.removeEventListener("pointerup", this.upListener);
+    this.isMouseDown = false;
+  }
+
+  pointerDown(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
+    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
+  
+    
+    if (evt.offsetX >= textWidth && evt.offsetX <= textWidth + sliderWidth && evt.target.tagName !== "INPUT") {
+      this.isMouseDown = true;
+      this.startX = evt.offsetX - textWidth;
+      this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.startX, 0, sliderWidth, this.props.min, this.props.max);
+  
+      window.addEventListener("pointermove", this.moveListener);
+      window.addEventListener("pointerup", this.upListener);
+  
+      this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
+      this.startValue = this.props.value;
+      _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+    }
+  }
+  
+
+  mouseEnter(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+    const popup = document.getElementById('popupValue');
+    const form = document.getElementById('MainForm');
+    const rect = form.getBoundingClientRect();
+    this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getDecimalPlaces(this.props.increment);
+  
+    if (popup && this.props.popup) {
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
+  
+      // Calculate the position for the popup
+      const sliderLeft = this.props.left;
+      const sliderWidth = this.props.width;
+      const formLeft = rect.left;
+      const formWidth = rect.width;
+  
+      // Determine if the popup should be on the right or left side of the slider
+      const sliderCenter = formLeft + (formWidth / 2);
+      let popupLeft;
+      if (sliderLeft + (sliderWidth) > sliderCenter) {
+        // Place popup on the left of the slider thumb
+        popupLeft = formLeft + sliderLeft - popup.offsetWidth - 10;
+        console.log("Pointer on the left");
+        popup.classList.add('right');
+      } else {
+        // Place popup on the right of the slider thumb
+        popupLeft = formLeft + sliderLeft + sliderWidth + 10;
+        console.log("Pointer on the right");
+        popup.classList.remove('right');
+      }
+  
+      const popupTop = rect.top + this.props.top; // Adjust top position relative to the form's top
+  
+      // Set the calculated position
+      popup.style.left = `${popupLeft}px`;
+      popup.style.top = `${popupTop}px`;
+      popup.style.display = 'block';
+      popup.classList.add('show');
+      popup.classList.remove('hide');
+    }
+  }
+  
+
+  mouseLeave(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+    if (!this.isMouseDown) {
+      const popup = document.getElementById('popupValue');
+      popup.classList.add('hide');
+      popup.classList.remove('show');
+    }
+  }
+
+  addVsCodeEventListeners(widgetDiv, vs) {
+    this.vscode = vs;
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.HorizontalSliderInstance = this;
+  }
+
+  addEventListeners(widgetDiv) {
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.HorizontalSliderInstance = this;
+  }
+
+  pointerMove({ clientX }) {
+    if(this.props.active === 0) {
+      return '';
+    }
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
+    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
+  
+    // Get the bounding rectangle of the slider
+    const sliderRect = document.getElementById(this.props.channel).getBoundingClientRect();
+  
+    // Calculate the relative position of the mouse pointer within the slider bounds
+    let offsetX = clientX - sliderRect.left - textWidth;
+  
+    // Clamp the mouse position to stay within the bounds of the slider
+    offsetX = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.clamp(offsetX, 0, sliderWidth);
+  
+    // Calculate the new value based on the mouse position
+    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(offsetX, 0, sliderWidth, this.props.min, this.props.max);
+    newValue = Math.round(newValue / this.props.increment) * this.props.increment; // Round to the nearest increment
+  
+    // Update the slider value
+    this.props.value = newValue;
+  
+    // Update the slider appearance
+    _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+
+    //get normalised value
+    const normValue = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
+    // Post message if vscode is available
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: normValue, channelType: "number" }
+    console.log(newValue);
+    _cabbage_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendParameterUpdate(this.vscode, msg);
+  }
+  
+  handleInputChange(evt) {
+    if (evt.key === 'Enter') {
+      const inputValue = parseFloat(evt.target.value);
+      if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
+        this.props.value = inputValue;
+        _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+        widgetDiv.querySelector('input').focus();
+      }
+    }
+  }
+
+  getInnerHTML() {
+    if(this.props.visible === 0) {
+      return '';
+    }
+    const popup = document.getElementById('popupValue');
+    if (popup) {
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
+    }
+
+    const alignMap = {
+      'left': 'start',
+      'center': 'middle',
+      'centre': 'middle',
+      'right': 'end',
+    };
+
+    const svgAlign = alignMap[this.props.align] || this.props.align;
+
+    // Add padding if alignment is 'end' or 'middle'
+    const padding = (svgAlign === 'end' || svgAlign === 'middle') ? 5 : 0; // Adjust the padding value as needed
+
+    // Calculate text width and update SVG width
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = (this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth) - padding;
+    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth - padding; // Subtract padding from sliderWidth
+
+    const w = (sliderWidth > this.props.height ? this.props.height : sliderWidth) * 0.75;
+    const textY = this.props.height / 2 + (this.props.fontSize > 0 ? this.props.textOffsetY : 0) + (this.props.height * 0.25); // Adjusted for vertical centering
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.8;
+
+    textWidth += padding;
+
+    const textElement = this.props.text ? `
+      <svg x="0" y="0" width="${textWidth}" height="${this.props.height}" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <text text-anchor="${svgAlign}" x="${svgAlign === 'end' ? textWidth - padding : (svgAlign === 'middle' ? (textWidth - padding) / 2 : 0)}" y="${textY}" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">
+          ${this.props.text}
+        </text>
+      </svg>
+    ` : '';
+
+    const sliderElement = `
+      <svg x="${textWidth}" width="${sliderWidth}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="${this.props.height * .2}" width="${sliderWidth - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
+        <rect x="1" y="${this.props.height * .2}" width="${Math.max(0, _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth))}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
+        <rect x="${_utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
+      </svg>
+    `;
+
+    const valueTextElement = this.props.valueTextBox ? `
+      <foreignObject x="${textWidth + sliderWidth}" y="0" width="${valueTextBoxWidth}" height="${this.props.height}">
+        <input type="text" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
+        style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
+        onKeyDown="document.getElementById('${this.props.channel}').HorizontalSliderInstance.handleInputChange(event)"/>
+      </foreignObject>
+    ` : '';
+
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+        ${textElement}
+        ${sliderElement}
+        ${valueTextElement}
+      </svg>
+    `;
+  }
+
+  
+  
+}
+
+
+/***/ }),
+/* 33 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   HorizontalRangeSlider: () => (/* binding */ HorizontalRangeSlider)
+/* harmony export */ });
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(4);
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(3);
+
+
+
+/**
+ * Horizontal Slider (hslider) class
+ */
+class HorizontalRangeSlider {
+  constructor() {
+    this.props = {
+      "top": 10, // Top position of the horizontal slider
+      "left": 10, // Left position of the horizontal slider
+      "width": 60, // Width of the horizontal slider
+      "height": 60, // Height of the horizontal slider
+      "channel": "rslider", // Unique identifier for the horizontal slider
+      "min": 0, // Minimum value of the slider
+      "max": 1, // Maximum value of the slider
+      "value": 0, // Current value of the slider
+      "skew": 1, // Skew factor for the slider (for non-linear scales)
+      "increment": 0.001, // Value increment/decrement when moving the slider
+      "text": "", // Text displayed next to the slider
+      "fontFamily": "Verdana", // Font family for the text
+      "fontSize": 0, // Font size for the text
+      "align": "centre", // Text alignment within the slider (center, left, right)
+      "valueTextBox": 0, // Whether to display a text box showing the current value
+      "colour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour("blue"), // Background color of the slider track
+      "trackerColour": _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of the slider thumb
+      "trackerBackgroundColour": "#ffffff", // Background color of the slider thumb
+      "trackerOutlineColour": "#525252", // Color of the outline around the slider thumb
+      "fontColour": "#dddddd", // Color of the text displayed next to the slider
+      "outlineColour": "#999999", // Color of the slider outline
+      "textBoxColour": "#555555", // Color of the value text box (if enabled)
+      "trackerOutlineWidth": 1, // Width of the outline around the slider thumb
+      "outlineWidth": 1, // Width of the slider outline
+      "markerThickness": 0.2, // Thickness of the slider markers
+      "markerStart": 0.1, // Start position of the slider markers
+      "markerEnd": 0.9, // End position of the slider markers
+      "type": "hslider", // Type of the slider (horizontal)
+      "decimalPlaces": 1, // Number of decimal places to display for the slider value
+      "velocity": 0, // Velocity of slider movement (for gesture-based interaction)
+      "visible": 1, // Visibility of the slider (0 for hidden, 1 for visible)
+      "popup": 1, // Whether to show a popup when interacting with the slider
+      "automatable": 1, // Whether the slider value can be automated (0 for no, 1 for yes)
+      "valuePrefix": "", // Prefix to display before the slider value
+      "valuePostfix": "", // Postfix to display after the slider value
+      "presetIgnore": 0 // Whether the slider should be ignored in presets (0 for no, 1 for yes)
+  };
+  
+
+    this.panelSections = {
+      "Info": ["type", "channel"],
+      "Bounds": ["left", "top", "width", "height"],
+      "Range": ["min", "max", "default", "skew", "increment"],
+      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetY", "align"],
+      "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
+    };
+
+    this.parameterIndex = 0;
+    this.moveListener = this.pointerMove.bind(this);
+    this.upListener = this.pointerUp.bind(this);
+    this.startX = 0;
+    this.startValue = 0;
+    this.vscode = null;
+    this.isMouseDown = false;
+    this.decimalPlaces = 0;
+  }
+
+  pointerUp() {
+    const popup = document.getElementById('popupValue');
+    popup.classList.add('hide');
+    popup.classList.remove('show');
+    window.removeEventListener("pointermove", this.moveListener);
+    window.removeEventListener("pointerup", this.upListener);
+    this.isMouseDown = false;
+  }
+
+  pointerDown(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
+    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
+  
+    
+    if (evt.offsetX >= textWidth && evt.offsetX <= textWidth + sliderWidth && evt.target.tagName !== "INPUT") {
+      this.isMouseDown = true;
+      this.startX = evt.offsetX - textWidth;
+      this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.startX, 0, sliderWidth, this.props.min, this.props.max);
+  
+      window.addEventListener("pointermove", this.moveListener);
+      window.addEventListener("pointerup", this.upListener);
+  
+
+      this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
+      this.startValue = this.props.value;
+      _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+    }
+  }
+  
+
+  mouseEnter(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+    const popup = document.getElementById('popupValue');
+    const form = document.getElementById('MainForm');
+    const rect = form.getBoundingClientRect();
+    this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getDecimalPlaces(this.props.increment);
+  
+    if (popup && this.props.popup) {
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
+  
+      // Calculate the position for the popup
+      const sliderLeft = this.props.left;
+      const sliderWidth = this.props.width;
+      const formLeft = rect.left;
+      const formWidth = rect.width;
+  
+      // Determine if the popup should be on the right or left side of the slider
+      const sliderCenter = formLeft + (formWidth / 2);
+      let popupLeft;
+      if (sliderLeft + (sliderWidth) > sliderCenter) {
+        // Place popup on the left of the slider thumb
+        popupLeft = formLeft + sliderLeft - popup.offsetWidth - 10;
+        console.log("Pointer on the left");
+        popup.classList.add('right');
+      } else {
+        // Place popup on the right of the slider thumb
+        popupLeft = formLeft + sliderLeft + sliderWidth + 10;
+        console.log("Pointer on the right");
+        popup.classList.remove('right');
+      }
+  
+      const popupTop = rect.top + this.props.top; // Adjust top position relative to the form's top
+  
+      // Set the calculated position
+      popup.style.left = `${popupLeft}px`;
+      popup.style.top = `${popupTop}px`;
+      popup.style.display = 'block';
+      popup.classList.add('show');
+      popup.classList.remove('hide');
+    }
+  }
+  
+
+  mouseLeave(evt) {
+    if(this.props.active === 0) {
+      return '';
+    }
+    if (!this.isMouseDown) {
+      const popup = document.getElementById('popupValue');
+      popup.classList.add('hide');
+      popup.classList.remove('show');
+    }
+  }
+
+  addVsCodeEventListeners(widgetDiv, vs) {
+    this.vscode = vs;
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.HorizontalSliderInstance = this;
+  }
+
+  addEventListeners(widgetDiv) {
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.HorizontalSliderInstance = this;
+  }
+
+  pointerMove({ clientX }) {
+    if(this.props.active === 0) {
+      return '';
+    }
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth;
+    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth;
+  
+    // Get the bounding rectangle of the slider
+    const sliderRect = document.getElementById(this.props.channel).getBoundingClientRect();
+  
+    // Calculate the relative position of the mouse pointer within the slider bounds
+    let offsetX = clientX - sliderRect.left - textWidth;
+  
+    // Clamp the mouse position to stay within the bounds of the slider
+    offsetX = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.clamp(offsetX, 0, sliderWidth);
+  
+    // Calculate the new value based on the mouse position
+    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(offsetX, 0, sliderWidth, this.props.min, this.props.max);
+    newValue = Math.round(newValue / this.props.increment) * this.props.increment; // Round to the nearest increment
+  
+    // Update the slider value
+    this.props.value = newValue;
+  
+    // Update the slider appearance
+    _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+  
+    //values sent to Cabbage should be normalized between 0 and 1
+    const normValue = _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
+    console.log("Norm value: " + normValue);
+    // Post message if vscode is available
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: normValue, channelType: "number" }
+    _cabbage_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendParameterUpdate(this.vscode, msg);
+  }
+  
+  handleInputChange(evt) {
+    if (evt.key === 'Enter') {
+      const inputValue = parseFloat(evt.target.value);
+      if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
+        this.props.value = inputValue;
+        _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+        widgetDiv.querySelector('input').focus();
+      }
+    }
+  }
+
+  getInnerHTML() {
+    if(this.props.visible === 0) {
+      return '';
+    }
+    const popup = document.getElementById('popupValue');
+    if (popup) {
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
+    }
+
+    const alignMap = {
+      'left': 'start',
+      'center': 'middle',
+      'centre': 'middle',
+      'right': 'end',
+    };
+
+    const svgAlign = alignMap[this.props.align] || this.props.align;
+
+    // Add padding if alignment is 'end' or 'middle'
+    const padding = (svgAlign === 'end' || svgAlign === 'middle') ? 5 : 0; // Adjust the padding value as needed
+
+    // Calculate text width and update SVG width
+    let textWidth = this.props.text ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getStringWidth(this.props.text, this.props) : 0;
+    textWidth = (this.props.sliderOffsetX > 0 ? this.props.sliderOffsetX : textWidth) - padding;
+    const valueTextBoxWidth = this.props.valueTextBox ? _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getNumberBoxWidth(this.props) : 0;
+    const sliderWidth = this.props.width - textWidth - valueTextBoxWidth - padding; // Subtract padding from sliderWidth
+
+    const w = (sliderWidth > this.props.height ? this.props.height : sliderWidth) * 0.75;
+    const textY = this.props.height / 2 + (this.props.fontSize > 0 ? this.props.textOffsetY : 0) + (this.props.height * 0.25); // Adjusted for vertical centering
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.8;
+
+    textWidth += padding;
+
+    const textElement = this.props.text ? `
+      <svg x="0" y="0" width="${textWidth}" height="${this.props.height}" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <text text-anchor="${svgAlign}" x="${svgAlign === 'end' ? textWidth - padding : (svgAlign === 'middle' ? (textWidth - padding) / 2 : 0)}" y="${textY}" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">
+          ${this.props.text}
+        </text>
+      </svg>
+    ` : '';
+
+    const sliderElement = `
+      <svg x="${textWidth}" width="${sliderWidth}" height="${this.props.height}" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="${this.props.height * .2}" width="${sliderWidth - 2}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
+        <rect x="1" y="${this.props.height * .2}" width="${Math.max(0, _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth))}" height="${this.props.height * .6}" rx="4" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
+        <rect x="${_utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderWidth - sliderWidth * .05 - 1) + 1}" y="0" width="${sliderWidth * .05 - 1}" height="${this.props.height}" rx="4" fill="${this.props.colour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
+      </svg>
+    `;
+
+    const valueTextElement = this.props.valueTextBox ? `
+      <foreignObject x="${textWidth + sliderWidth}" y="0" width="${valueTextBoxWidth}" height="${this.props.height}">
+        <input type="text" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
+        style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
+        onKeyDown="document.getElementById('${this.props.channel}').HorizontalSliderInstance.handleInputChange(event)"/>
+      </foreignObject>
+    ` : '';
+
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+        ${textElement}
+        ${sliderElement}
+        ${valueTextElement}
+      </svg>
+    `;
+  }
+
+  
+  
+}
+
+
+/***/ }),
+/* 34 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   VerticalSlider: () => (/* binding */ VerticalSlider)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
+
+
+
+class VerticalSlider {
+  constructor() {
+    this.props = {
+      "top": 10, // Top position of the vertical slider widget
+      "left": 10, // Left position of the vertical slider widget
+      "width": 60, // Width of the vertical slider widget
+      "height": 60, // Height of the vertical slider widget
+      "channel": "vslider", // Unique identifier for the vertical slider widget
+      "min": 0, // Minimum value of the slider
+      "max": 1, // Maximum value of the slider
+      "value": 0, // Current value of the slider
+      "skew": 1, // Skew factor for the slider
+      "increment": 0.001, // Incremental value change per step
+      "text": "", // Text displayed on the slider
+      "fontFamily": "Verdana", // Font family for the text displayed on the slider
+      "fontSize": 0, // Font size for the text displayed on the slider
+      "align": "centre", // Alignment of the text on the slider
+      "valueTextBox": 0, // Display a textbox showing the current value
+      "colour": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the slider
+      "trackerColour": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour('green'), // Color of the slider tracker
+      "trackerBackgroundColour": "#ffffff", // Background color of the slider tracker
+      "trackerOutlineColour": "#525252", // Outline color of the slider tracker
+      "fontColour": "#dddddd", // Font color for the text displayed on the slider
+      "outlineColour": "#999999", // Color of the slider outline
+      "textBoxColour": "#555555", // Background color of the value textbox
+      "trackerOutlineWidth": 1, // Outline width of the slider tracker
+      "outlineWidth": 1, // Width of the slider outline
+      "type": "vslider", // Type of the widget (vertical slider)
+      "decimalPlaces": 1, // Number of decimal places in the slider value
+      "velocity": 0, // Velocity value for the slider
+      "visible": 1, // Visibility of the slider
+      "popup": 1, // Display a popup when the slider is clicked
+      "automatable": 1, // Ability to automate the slider
+      "valuePrefix": "", // Prefix to be displayed before the slider value
+      "valuePostfix": "", // Postfix to be displayed after the slider value
+      "presetIgnore": 0, // Ignore preset value for the slider
+    };
+
+
+    this.panelSections = {
+      "Info": ["type", "channel"],
+      "Bounds": ["left", "top", "width", "height"],
+      "Range": ["min", "max", "default", "skew", "increment"],
+      "Text": ["text", "fontSize", "fontFamily", "fontColour", "textOffsetX", "align"],
+      "Colours": ["colour", "trackerBackgroundColour", "trackerStrokeColour", "outlineColour", "textBoxOutlineColour", "textBoxColour"]
+    };
+
+    this.moveListener = this.pointerMove.bind(this);
+    this.upListener = this.pointerUp.bind(this);
+    this.startY = 0; // Changed from startX to startY for vertical slider
+    this.startValue = 0;
+    this.vscode = null;
+    this.isMouseDown = false;
+    this.decimalPlaces = 0;
+    this.parameterIndex = 0;
+  }
+
+  pointerUp() {
+    if (this.props.active === 0) {
+      return '';
+    }
+    const popup = document.getElementById('popupValue');
+    popup.classList.add('hide');
+    popup.classList.remove('show');
+    window.removeEventListener("pointermove", this.moveListener);
+    window.removeEventListener("pointerup", this.upListener);
+    this.isMouseDown = false;
+  }
+
+  pointerDown(evt) {
+    if (this.props.active === 0) {
+      return '';
+    }
+    let textHeight = this.props.text ? this.props.height * 0.1 : 0;
+    const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
+    const sliderHeight = this.props.height - textHeight - valueTextBoxHeight;
+
+    const sliderTop = this.props.valueTextBox ? textHeight : 0; // Adjust slider top position if valueTextBox is present
+
+    if (evt.offsetY >= sliderTop && evt.offsetY <= sliderTop + sliderHeight) {
+      this.isMouseDown = true;
+      this.startY = evt.offsetY - sliderTop;
+      this.props.value = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.startY, 5, sliderHeight, this.props.max, this.props.min);
+      this.props.value = Math.round(this.props.value / this.props.increment) * this.props.increment;
+      this.startValue = this.props.value;
+      window.addEventListener("pointermove", this.moveListener);
+      window.addEventListener("pointerup", this.upListener);
+      _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+
+      const newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
+      const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
+      _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
+    }
+  }
+
+
+  mouseEnter(evt) {
+    if (this.props.active === 0) {
+      return '';
+    }
+
+    const popup = document.getElementById('popupValue');
+    const form = document.getElementById('MainForm');
+    const rect = form.getBoundingClientRect();
+    this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment);
+
+    if (popup) {
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
+
+      // Calculate the position for the popup
+      const sliderLeft = this.props.left;
+      const sliderWidth = this.props.width;
+      const formLeft = rect.left;
+      const formWidth = rect.width;
+
+      // Determine if the popup should be on the right or left side of the slider
+      const sliderCenter = formLeft + (formWidth / 2);
+      let popupLeft;
+      if (sliderLeft + (sliderWidth) > sliderCenter) {
+        // Place popup on the left of the slider thumb
+        popupLeft = formLeft + sliderLeft - popup.offsetWidth - 10;
+        console.log("Pointer on the left");
+        popup.classList.add('right');
+      } else {
+        // Place popup on the right of the slider thumb
+        popupLeft = formLeft + sliderLeft + sliderWidth + 10;
+        console.log("Pointer on the right");
+        popup.classList.remove('right');
+      }
+
+      const popupTop = rect.top + this.props.top + this.props.height * .45; // Adjust top position relative to the form's top
+
+      // Set the calculated position
+      popup.style.left = `${popupLeft}px`;
+      popup.style.top = `${popupTop}px`;
+      popup.style.display = 'block';
+      popup.classList.add('show');
+      popup.classList.remove('hide');
+    }
+  }
+
+
+  mouseLeave(evt) {
+    if (!this.isMouseDown) {
+      const popup = document.getElementById('popupValue');
+      popup.classList.add('hide');
+      popup.classList.remove('show');
+    }
+  }
+
+  addVsCodeEventListeners(widgetDiv, vs) {
+    this.vscode = vs;
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.VerticalSliderInstance = this;
+  }
+
+  addEventListeners(widgetDiv) {
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("mouseenter", this.mouseEnter.bind(this));
+    widgetDiv.addEventListener("mouseleave", this.mouseLeave.bind(this));
+    widgetDiv.VerticalSliderInstance = this;
+  }
+
+  handleInputChange(evt) {
+    if (evt.key === 'Enter') {
+      const inputValue = parseFloat(evt.target.value);
+      if (!isNaN(inputValue) && inputValue >= this.props.min && inputValue <= this.props.max) {
+        this.props.value = inputValue;
+        const widgetDiv = document.getElementById(this.props.channel);
+        widgetDiv.innerHTML = this.getInnerHTML();
+        widgetDiv.querySelector('input').focus();
+      }
+    }
+  }
+
+  pointerMove({ clientY }) {
+    if (this.props.active === 0) {
+      return '';
+    }
+
+    let textHeight = this.props.text ? this.props.height * 0.1 : 0;
+    const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
+    const sliderHeight = this.props.height - textHeight - valueTextBoxHeight;
+
+    // Get the bounding rectangle of the slider
+    const sliderRect = document.getElementById(this.props.channel).getBoundingClientRect();
+
+    // Calculate the relative position of the mouse pointer within the slider bounds
+    let offsetY = sliderRect.bottom - clientY - textHeight;
+
+    // Clamp the mouse position to stay within the bounds of the slider
+    offsetY = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.clamp(offsetY, 0, sliderHeight);
+
+    // Calculate the new value based on the mouse position
+    let newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(offsetY, 0, sliderHeight, this.props.min, this.props.max);
+    newValue = Math.round(newValue / this.props.increment) * this.props.increment;
+
+    // Update the slider value
+    this.props.value = newValue;
+
+    // Update the slider appearance
+    const widgetDiv = document.getElementById(this.props.channel);
+    widgetDiv.innerHTML = this.getInnerHTML();
+    //values sent to Cabbage should be normalized between 0 and 1
+    const normValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: normValue, channelType: "number" }
+    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
+  }
+
+  getInnerHTML() {
+    if (this.props.visible === 0) {
+      return '';
+    }
+
+    const popup = document.getElementById('popupValue');
+    if (popup) {
+      popup.textContent = this.props.valuePrefix + parseFloat(this.props.value).toFixed(this.decimalPlaces) + this.props.valuePostfix;
+    }
+
+    const alignMap = {
+      'left': 'start',
+      'center': 'middle',
+      'centre': 'middle',
+      'right': 'end',
+    };
+
+    const svgAlign = alignMap[this.props.align] || this.props.align;
+
+    // Calculate text height
+    let textHeight = this.props.text ? this.props.height * 0.1 : 0;
+    const valueTextBoxHeight = this.props.valueTextBox ? this.props.height * 0.1 : 0;
+    const sliderHeight = this.props.height - textHeight - valueTextBoxHeight * 1.1;
+
+    const textX = this.props.width / 2;
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.width * 0.3;
+
+    const thumbHeight = sliderHeight * 0.05;
+
+    const textElement = this.props.text ? `
+    <svg x="0" y="${this.props.valueTextBox ? 0 : this.props.height - textHeight}" width="${this.props.width}" height="${textHeight + 5}" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
+      <text text-anchor="${svgAlign}" x="${textX}" y="${textHeight}" font-size="${fontSize}px" font-family="${this.props.fontFamily}" stroke="none" fill="${this.props.fontColour}">
+        ${this.props.text}
+      </text>
+    </svg>
+  ` : '';
+
+    const sliderElement = `
+    <svg x="0" y="${this.props.valueTextBox ? textHeight + 2 : 0}" width="${this.props.width}" height="${sliderHeight}" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="${this.props.width * 0.4}" y="1" width="${this.props.width * 0.2}" height="${sliderHeight * 0.95}" rx="2" fill="${this.props.trackerBackgroundColour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
+      <rect x="${this.props.width * 0.4}" y="${sliderHeight - _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, sliderHeight * 0.95) - 1}" height="${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1) * sliderHeight * 0.95}" width="${this.props.width * 0.2}" rx="2" fill="${this.props.trackerColour}" stroke-width="${this.props.trackerOutlineWidth}" stroke="${this.props.trackerOutlineColour}"/> 
+      <rect x="${this.props.width * 0.3}" y="${sliderHeight - _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, thumbHeight + 1, sliderHeight - 1)}" width="${this.props.width * 0.4}" height="${thumbHeight}" rx="2" fill="${this.props.colour}" stroke-width="${this.props.outlineWidth}" stroke="black"/>
+    </svg>
+  `;
+
+    const valueTextElement = this.props.valueTextBox ? `
+    <foreignObject x="0" y="${this.props.height - valueTextBoxHeight + 2}" width="${this.props.width}" height="${valueTextBoxHeight}">
+      <input type="text" value="${this.props.value.toFixed(_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment))}"
+      style="width:100%; outline: none; height:100%; text-align:center; font-size:${fontSize}px; font-family:${this.props.fontFamily}; color:${this.props.fontColour}; background:none; border:none; padding:0; margin:0;"
+      onKeyDown="document.getElementById('${this.props.channel}').VerticalSliderInstance.handleInputChange(event)"/>
+    </foreignObject>
+  ` : '';
+
+    return `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+      ${textElement}
+      ${sliderElement}
+      ${valueTextElement}
+    </svg>
+  `;
+  }
+
+
+
+
+}
+
+
+/***/ }),
+/* 35 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   NumberSlider: () => (/* binding */ NumberSlider)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
+
+
+
+class NumberSlider {
+    constructor() {
+        this.props = {
+            "top": 10,
+            "left": 10,
+            "width": 60,
+            "height": 60,
+            "channel": "nslider",
+            "min": 0,
+            "max": 1,
+            "value": 0,
+            "skew": 1,
+            "increment": 0.001,
+            "index": 0,
+            "text": "",
+            "fontFamily": "Verdana",
+            "fontSize": 0,
+            "align": "centre",
+            "textOffsetY": 0,
+            "valueTextBox": 0,
+            "colour": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"),
+            "fontColour": "#dddddd",
+            "outlineColour": "#525252",
+            "outlineWidth": 2,
+            "type": "nslider",
+            "decimalPlaces": 1,
+            "velocity": 0,
+            "popup": 1,
+            "visible": 1,
+            "automatable": 1,
+            "valuePrefix": "",
+            "valuePostfix": "",
+            "presetIgnore": 0,
+        };
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Text": ["text", "fontColour", "fontSize", "fontFamily", "align"],
+            "Colours": ["colour"]
+        };
+
+        this.isDragging = false;
+        this.startY = 0;
+        this.startValue = 0;
+        this.parameterIndex = 0;
+        this.decimalPlaces = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getDecimalPlaces(this.props.increment)
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+        widgetDiv.addEventListener("dblclick", this.doubleClick.bind(this)); // Add double-click event listener
+    }
+
+    addEventListeners(widgetDiv) {
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+        widgetDiv.addEventListener("pointermove", this.pointerMove.bind(this));
+        widgetDiv.addEventListener("pointerup", this.pointerUp.bind(this));
+        widgetDiv.addEventListener("pointerleave", this.pointerUp.bind(this));
+        widgetDiv.addEventListener("dblclick", this.doubleClick.bind(this)); // Add double-click event listener
+    }
+
+    pointerDown(event) {
+        this.isDragging = true;
+        this.startY = event.clientY;
+        this.startValue = this.props.value;
+        event.target.setPointerCapture(event.pointerId);
+    }
+
+    pointerMove(event) {
+        const inputBox = document.querySelector(`#slider-${this.props.channel} input`);
+        if (inputBox) {
+            return;
+        }
+        
+        if (this.isDragging) {
+            const dy = event.clientY - this.startY;
+            const increment = this.props.increment;
+            const steps = dy / 10; // Number of steps to move based on drag distance
+            const newValue = this.startValue - steps * increment;
+            this.props.value = Math.min(this.props.max, Math.max(this.props.min, newValue));
+            const normalValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
+            const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: normalValue };
+            _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
+            this.updateSliderValue();
+        }
+    }
+    
+
+    pointerUp(event) {
+        this.isDragging = false;
+        event.target.releasePointerCapture(event.pointerId);
+    }
+
+    doubleClick(event) {
+        const sliderDiv = event.currentTarget;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = this.props.value.toFixed(this.decimalPlaces);
+        input.style.position = 'absolute';
+        input.style.top = '50%';
+        input.style.left = '50%';
+        input.style.transform = 'translate(-50%, -50%)';
+        input.style.width = '60%'; // Adjust the width as needed
+        input.style.height = 'auto';
+        input.style.fontSize = `${Math.max(this.props.height * 0.4, 12)}px`; // Adjust font size
+        input.style.fontFamily = this.props.fontFamily;
+        input.style.textAlign = 'center'; // Center align the text inside input
+        input.style.boxSizing = 'border-box';
+    
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const newValue = parseFloat(input.value);
+                if (!isNaN(newValue) && newValue >= this.props.min && newValue <= this.props.max) {
+                    this.props.value = newValue;
+                    const normalValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
+                    const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: normalValue };
+                    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
+                    this.updateSliderValue();
+                } else {
+                    alert(`Please enter a value between ${this.props.min} and ${this.props.max}`);
+                }
+                sliderDiv.removeChild(input);
+                sliderDiv.innerHTML = this.getInnerHTML();
+            }
+        });
+    
+        sliderDiv.innerHTML = '';
+        sliderDiv.appendChild(input);
+        input.focus();
+        input.select(); // Auto-select the current text
+    }
+    
+    
+    
+    
+    
+    
+
+    updateSliderValue() {
+        const valueText = `${this.props.valuePrefix}${this.props.value.toFixed(this.decimalPlaces)}${this.props.valuePostfix}`;
+        const sliderText = document.getElementById(`slider-text-${this.props.channel}`);
+        if (sliderText) {
+            sliderText.textContent = valueText;
+        }
+    }
+
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+    
+        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.8, 12); // Ensuring font size doesn't get too small
+        const alignMap = {
+            'left': 'end',
+            'center': 'middle',
+            'centre': 'middle',
+            'right': 'start',
+        };
+        const svgAlign = alignMap[this.props.align] || 'middle';
+        const valueText = `${this.props.valuePrefix}${this.props.value.toFixed(this.decimalPlaces)}${this.props.valuePostfix}`;
+    
+        return `
+            <div id="slider-${this.props.channel}" style="position: relative; width: 100%; height: 100%;">
+                <!-- Background SVG with preserveAspectRatio="none" -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none"
+                     style="position: absolute; top: 0; left: 0;">
+                    <rect width="${this.props.width}" height="${this.props.height}" x="0" y="0" rx="${this.props.corners}" ry="${this.props.corners}" fill="${this.props.colour}" 
+                        pointer-events="all"></rect>
+                </svg>
+    
+                <!-- Text SVG with proper alignment -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet"
+                     style="position: absolute; top: 0; left: 0;">
+                    <text id="slider-text-${this.props.channel}" x="${this.props.align === 'left' ? '10%' : this.props.align === 'right' ? '90%' : '50%'}" y="50%" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+                        fill="${this.props.fontColour}" text-anchor="${svgAlign}" dominant-baseline="middle" alignment-baseline="middle" 
+                        style="pointer-events: none;">${valueText}</text>
+                </svg>
+            </div>
+        `;
+    }
+    
+    
+    
+}
+
+
+/***/ }),
+/* 36 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Button: () => (/* binding */ Button),
+/* harmony export */   FileButton: () => (/* binding */ FileButton),
+/* harmony export */   OptionButton: () => (/* binding */ OptionButton)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
+
+
+
+class Button {
+  constructor() {
+    this.props = {
+      "top": 10, // Top position of the button
+      "left": 10, // Left position of the button
+      "width": 80, // Width of the button
+      "height": 30, // Height of the button
+      "channel": "button", // Unique identifier for the button
+      "corners": 2, // Radius of the corners of the button rectangle
+      "min": 0, // Minimum value for the button (for sliders)
+      "max": 1, // Maximum value for the button (for sliders)
+      "value": 0, // Current value of the button (for sliders)
+      "textOn": "On", // Text displayed when button is in the 'On' state
+      "textOff": "Off", // Text displayed when button is in the 'Off' state
+      "fontFamily": "Verdana", // Font family for the text
+      "fontSize": 0, // Font size for the text (0 for automatic)
+      "align": "centre", // Text alignment within the button (left, center, right)
+      "colourOn": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the button in the 'On' state
+      "colourOff": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the button in the 'Off' state
+      "fontColourOn": "#dddddd", // Color of the text in the 'On' state
+      "fontColourOff": "#dddddd", // Color of the text in the 'Off' state
+      "outlineColour": "#dddddd", // Color of the outline
+      "outlineWidth": 2, // Width of the outline
+      "name": "", // Name of the button
+      "value": 0, // Value of the button (0 for off, 1 for on)
+      "type": "button", // Type of the button (button)
+      "visible": 1, // Visibility of the button (0 for hidden, 1 for visible)
+      "automatable": 1, // Whether the button value can be automated (0 for no, 1 for yes)
+      "presetIgnore": 0 // Whether the button should be ignored in presets (0 for no, 1 for yes)
+    };
+
+
+    this.panelSections = {
+      "Info": ["type", "channel"],
+      "Bounds": ["left", "top", "width", "height"],
+      "Text": ["textOn", "textOff", "fontSize", "fontFamily", "fontColourOn", "fontColourOff", "align"], // Changed from textOffsetY to textOffsetX for vertical slider
+      "Colours": ["colourOn", "colourOff", "outlineColour"]
+    };
+
+    this.vscode = null;
+    this.isMouseDown = false;
+    this.isMouseInside = false;
+    this.parameterIndex = 0;
+  }
+
+  pointerUp() {
+    if (this.props.active === 0) {
+      return '';
+    }
+    this.isMouseDown = false;
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+  }
+
+  pointerDown(evt) {
+    if (this.props.active === 0) {
+      return '';
+    }
+    console.log("pointerDown");
+    this.isMouseDown = true;
+    this.props.value = (this.props.value === 0 ? 1 : 0);
+
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+    const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: this.props.value }
+    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
+  }
+
+
+  pointerEnter(evt) {
+    if (this.props.active === 0) {
+      return '';
+    }
+    this.isMouseOver = true;
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+
+  }
+
+
+  pointerLeave(evt) {
+    if (this.props.active === 0) {
+      return '';
+    }
+    this.isMouseOver = false;
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+  }
+
+  //adding this at the window level to check if the mouse is inside the widget
+  handleMouseMove(evt) {
+    const rect = document.getElementById(this.props.channel).getBoundingClientRect();
+    const isInside = (
+      evt.clientX >= rect.left &&
+      evt.clientX <= rect.right &&
+      evt.clientY >= rect.top &&
+      evt.clientY <= rect.bottom
+    );
+
+    if (!isInside) {
+      this.isMouseInside = false;
+    } else {
+      this.isMouseInside = true;
+    }
+
+    // console.log("pointerEnter", this.props);
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+  }
+
+
+  addVsCodeEventListeners(widgetDiv, vs) {
+    console.log("addVsCodeEventListeners");
+    this.vscode = vs;
+    widgetDiv.addEventListener("pointerdown", this.pointerUp.bind(this));
+    widgetDiv.addEventListener("pointerup", this.pointerDown.bind(this));
+    window.addEventListener("mousemove", this.handleMouseMove.bind(this));
+    widgetDiv.VerticalSliderInstance = this;
+  }
+
+  addEventListeners(widgetDiv) {
+    widgetDiv.addEventListener("pointerup", this.pointerUp.bind(this));
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    window.addEventListener("mousemove", this.handleMouseMove.bind(this));
+    widgetDiv.VerticalSliderInstance = this;
+  }
+
+  getInnerHTML() {
+    if (this.props.visible === 0) {
+      return '';
+    }
+
+    const alignMap = {
+      'left': 'start',
+      'center': 'middle',
+      'centre': 'middle',
+      'right': 'end',
+    };
+
+    const svgAlign = alignMap[this.props.align] || this.props.align;
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
+    const padding = 5;
+
+    let textX;
+    if (this.props.align === 'left') {
+      textX = this.props.corners; // Add padding for left alignment
+    } else if (this.props.align === 'right') {
+      textX = this.props.width - this.props.corners - padding; // Add padding for right alignment
+    } else {
+      textX = this.props.width / 2;
+    }
+    const buttonText = this.props.type === "filebutton" ? this.props.text : (this.props.value === 1 ? this.props.textOn : this.props.textOff);
+    const stateColour = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.value === 1 ? this.props.colourOn : this.props.colourOff, this.isMouseInside ? 0.2 : 0);
+    const currentColour = this.isMouseDown ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.lighter(this.props.colourOn, 0.2) : stateColour;
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+          <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners}" fill="${currentColour}" stroke="${this.props.outlineColour}"
+            stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
+          <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+            fill="${this.props.value === 1 ? this.props.fontColourOn : this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${buttonText}</text>
+      </svg>
+    `;
+  }
+}
+
+/*
+  * File Button for file browsing @extends Button
+  */
+class FileButton extends Button {
+  constructor() {
+    super();
+    this.props.channel = "fileButton";
+
+    this.props.colourOn = this.props.colourOff;
+    this.props.fontColourOn = this.props.fontColourOff;
+    this.props.mode = "file";
+    delete this.props.textOff;
+    delete this.props.textOn;
+    //override following properties
+    this.props.text = "Choose File";
+    this.props.textOn = this.props.text;
+    this.props.textOff = this.props.text;
+    this.props.type = "filebutton";
+    this.props.automatable = 0;
+  }
+
+  pointerDown(evt) {
+    if (this.props.active === 0) {
+      return '';
+    }
+    console.log("pointerDown");
+    this.isMouseDown = true;
+    this.props.value = 1;
+    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.triggerFileOpenDialog(this.vscode, this.props.channel);
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+  }
+
+}
+
+/*
+  * Option Button for multi-item button @extends Button
+  */
+class OptionButton extends Button {
+  constructor() {
+    super();
+    this.props.channel = "fileButton";
+    this.props.textOn = this.props.textOff;
+    this.props.colourOn = this.props.colourOff;
+    this.props.fontColourOn = this.props.fontColourOff;
+    this.props.items = "One, Two, Three", // List of items for the dropdown
+      //override following properties
+      this.props.text = "";
+    this.props.type = "optionbutton";
+    this.props.automatable = 1;
+  }
+
+  pointerDown(evt) {
+    if (this.props.active === 0) {
+      return '';
+    }
+    console.log("pointerDown");
+    this.isMouseDown = true;
+    this.props.value = this.props.value < this.props.items.split(",").length - 1 ? this.props.value + 1 : 0;
+
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+    const newValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
+    const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
+    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
+  }
+
+  getInnerHTML() {
+    if (this.props.visible === 0) {
+      return '';
+    }
+
+    const alignMap = {
+      'left': 'start',
+      'center': 'middle',
+      'centre': 'middle',
+      'right': 'end',
+    };
+
+    const svgAlign = alignMap[this.props.align] || this.props.align;
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
+    const padding = 5;
+    const items = this.props.items.split(",");
+
+    let textX;
+    if (this.props.align === 'left') {
+      textX = this.props.corners; // Add padding for left alignment
+    } else if (this.props.align === 'right') {
+      textX = this.props.width - this.props.corners - padding; // Add padding for right alignment
+    } else {
+      textX = this.props.width / 2;
+    }
+
+    const stateColour = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.value === 1 ? this.props.colourOn : this.props.colourOff, this.isMouseInside ? 0.2 : 0);
+    const currentColour = this.isMouseDown ? _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.lighter(this.props.colourOn, 0.2) : stateColour;
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+          <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners}" fill="${currentColour}" stroke="${this.props.outlineColour}"
+            stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
+          <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+            fill="${this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${items[this.props.value]}</text>
+      </svg>
+    `;
+  }
+
+}
+
+
+/***/ }),
+/* 37 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Checkbox: () => (/* binding */ Checkbox)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
+
+
+
+class Checkbox {
+  constructor() {
+    this.props = {
+        "top": 10, // Top position of the checkbox
+        "left": 10, // Left position of the checkbox
+        "width": 100, // Width of the checkbox
+        "height": 30, // Height of the checkbox
+        "channel": "checkbox", // Unique identifier for the checkbox
+        "corners": 2, // Radius of the corners of the checkbox rectangle
+        "min": 0, // Minimum value for the checkbox (for sliders)
+        "max": 1, // Maximum value for the checkbox (for sliders)
+        "value": 0, // Current value of the checkbox (for sliders)
+        "text": "On/Off", // Text displayed next to the checkbox
+        "fontFamily": "Verdana", // Font family for the text
+        "fontColour": "#dddddd", // Color of the text
+        "fontSize": 0, // Font size for the text
+        "align": "left", // Text alignment within the checkbox (left, center, right)
+        "colourOn": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("green"), // Background color of the checkbox in the 'On' state
+        "colourOff": "#ffffff", // Background color of the checkbox in the 'Off' state
+        "fontColourOn": "#dddddd", // Color of the text in the 'On' state
+        "fontColourOff": "#000000", // Color of the text in the 'Off' state
+        "outlineColour": "#999999", // Color of the outline
+        "outlineWidth": 1, // Width of the outline
+        "value": 0, // Value of the checkbox (0 for off, 1 for on)
+        "type": "checkbox", // Type of the checkbox (checkbox)
+        "visible": 1, // Visibility of the checkbox (0 for hidden, 1 for visible)
+        "automatable": 1, // Whether the checkbox value can be automated (0 for no, 1 for yes)
+        "presetIgnore": 0 // Whether the checkbox should be ignored in presets (0 for no, 1 for yes)
+    };
+    
+    this.panelSections = {
+        "Info": ["type", "channel"],
+        "Bounds": ["left", "top", "width", "height"],
+        "Text": ["text", "fontSize", "fontFamily", "fontColour", "align"], // Changed from textOffsetY to textOffsetX for vertical slider
+        "Colours": ["colourOn", "colourOff", "outlineColour"]
+      };
+
+    this.vscode = null;
+    this.parameterIndex = 0;
+  }
+
+  toggle() {
+    if (this.props.active === 0) {
+      return '';
+    }
+    this.props.value = (this.props.value === 0) ? 1 : 0;
+    _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+    const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: this.props.value }
+    _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
+  }
+
+
+
+  pointerDown(evt) {
+    this.toggle();
+  }
+
+  addVsCodeEventListeners(widgetDiv, vscode) {
+    this.vscode = vscode;
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.VerticalSliderInstance = this;
+  }
+
+  addEventListeners(widgetDiv) {
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.VerticalSliderInstance = this;
+  }
+
+
+  getInnerHTML() {
+    if (this.props.visible === 0) {
+      return '';
+    }
+  
+    const alignMap = {
+      'left': 'start',
+      'center': 'middle',
+      'centre': 'middle',
+      'right': 'end',
+    };
+  
+    const svgAlign = alignMap[this.props.align] || this.props.align;
+    console.warn(this.props.fontSize)
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.8;
+  
+    const checkboxSize = this.props.height * 0.8;
+    const checkboxX = this.props.align === 'right' ? this.props.width - checkboxSize - this.props.corners : this.props.corners;
+    const textX = this.props.align === 'right' ? checkboxX - 10 : checkboxX + checkboxSize + 4; // Add more padding to prevent overlap
+  
+    const adjustedTextAnchor = this.props.align === 'right' ? 'end' : 'start';
+  
+    return `
+      <svg id="${this.props.channel}-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
+        <rect x="${checkboxX}" y="${(this.props.height - checkboxSize) / 2}" width="${checkboxSize}" height="${checkboxSize}" fill="${this.props.value === 1 ? this.props.colourOn : this.props.colourOff}" stroke="${this.props.outlineColour}" stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
+        <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}" fill="${this.props.fontColour}" text-anchor="${adjustedTextAnchor}" alignment-baseline="middle">${this.props.text}</text>
+      </svg>
+    `;
+  }
+  
+}
+
+
+/***/ }),
+/* 38 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   ComboBox: () => (/* binding */ ComboBox)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
+
+
+
+class ComboBox {
+    constructor() {
+        this.props = {
+            "top": 10, // Top position of the widget
+            "left": 10, // Left position of the widget
+            "width": 100, // Width of the widget
+            "height": 30, // Height of the widget
+            "channel": "comboBox", // Unique identifier for the widget
+            "corners": 2, // Radius of the corners of the widget rectangle
+            "fontFamily": "Verdana", // Font family for the text
+            "fontSize": 14, // Font size for the text
+            "align": "center", // Text alignment within the widget (left, center, right)
+            "colour": _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.getColour("blue"), // Background color of the widget
+            "items": "One, Two, Three", // List of items for the dropdown
+            "fontColour": "#dddddd", // Color of the text
+            "outlineColour": "#dddddd", // Color of the outline
+            "outlineWidth": 0, // Width of the outline
+            "min": 0, // Minimum value of the widget
+            "max": 3,
+            "visible": 1, // Visibility of the widget (0 for hidden, 1 for visible)
+            "type": "combobox", // Type of the widget (combobox)
+            "value": 0, // Value of the widget
+            "automatable": 1, // Whether the widget value can be automated (0 for no, 1 for yes)
+            "active": 1, // Whether the widget is active (0 for inactive, 1 for active)
+            "channelType": "number", // Type of the channel (number, string) - string channels cannot be automated by the host
+            "currentDirectory": "", // Directory to point to if using populate() identifier
+            "fileType": "" // File type to filter if using populate() identifier, can use semicolon separated list with wildcard patterns, i.e, "*.txt;*.csv" 
+        };
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Bounds": ["top", "left", "width", "height"],
+            "Text": ["items", "fontFamily", "align", "fontSize", "fontColour"],
+            "Colours": ["colour", "outlineColour"]
+        };
+
+        this.isMouseInside = false;
+        this.isOpen = false;
+        this.selectedItem = this.props.value > 0 ? this.props.items.split(",")[this.props.value] : this.props.items.split(",")[0];
+        this.parameterIndex = 0;
+        this.vscode = null;
+    }
+
+    pointerDown(evt) {
+        if (this.props.active === 0) {
+            return '';
+        }
+
+        this.isOpen = true;//!this.isOpen;
+        console.log("Pointer down", this.isOpen);
+        this.isMouseInside = true;
+        _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+    }
+
+    handleItemClick(item) {
+        this.selectedItem = item.trim();
+        const items = this.props.items.split(",");
+        const index = items.indexOf(this.selectedItem);
+        const normalValue = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(index, 0, items.length, 0, 1);
+
+        const msg = {
+            paramIdx: this.parameterIndex, channel: this.props.channel,
+            value: this.props.channelType === "string" ? this.selectedItem : normalValue,
+            channelType: this.props.channelType
+        }
+        _cabbage_js__WEBPACK_IMPORTED_MODULE_1__.Cabbage.sendParameterUpdate(this.vscode, msg);
+
+
+        this.isOpen = false;
+        const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
+        widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
+        _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+        document.body.addEventListener("click", this.handleClickOutside.bind(this));
+        widgetDiv.ComboBoxInstance = this;
+    }
+
+    addEventListeners(widgetDiv) {
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+        document.body.addEventListener("click", this.handleClickOutside.bind(this));
+        widgetDiv.ComboBoxInstance = this;
+    }
+
+
+    handleClickOutside(event) {
+        const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
+
+        if (!widgetDiv.contains(event.target)) {
+            this.isOpen = false;
+            widgetDiv.style.transform = 'translate(' + this.props.left + 'px,' + this.props.top + 'px)';
+            _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+        }
+    }
+
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+
+        const alignMap = {
+            'left': 'start',
+            'center': 'middle',
+            'centre': 'middle',
+            'right': 'end',
+        };
+
+        const svgAlign = alignMap[this.props.align] || this.props.align;
+        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
+
+        let totalHeight = this.props.height;
+        const itemHeight = this.props.height * 0.8; // Scale back item height to 80% of the original height
+        let dropdownItems = "";
+
+        if (this.isOpen) {
+            const items = this.props.items.split(",");
+            items.forEach((item, index) => {
+                dropdownItems += `
+                    <div style="height:${itemHeight}px; display:flex; align-items:center; justify-content:center; cursor:pointer; background-color:${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)};"
+                        onmouseover="this.style.backgroundColor='${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.lighter(this.props.colour, 0.2)}'"
+                        onmouseout="this.style.backgroundColor='${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)}'"
+                        onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.handleItemClick('${item}')">
+                        <span style="font-family:${this.props.fontFamily}; font-size:${this.props.fontSize}px; color:${this.props.fontColour};">${item.trim()}</span>
+                    </div>
+                `;
+            });
+
+            // Calculate the total dropdown height
+            const dropdownHeight = items.length * itemHeight;
+            totalHeight += dropdownHeight;
+
+            // Check available space
+            const mainForm = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv("MainForm");
+            const widgetDiv = mainForm.querySelector(`#${this.props.channel}`);
+            const widgetRect = widgetDiv.getBoundingClientRect();
+            const mainFormRect = mainForm.getBoundingClientRect();
+            const spaceBelow = mainFormRect.bottom - widgetRect.bottom;
+            const spaceAbove = widgetRect.top - mainFormRect.top;
+
+            // Determine max height for the dropdown
+            const maxDropdownHeight = Math.min(dropdownHeight, Math.max(spaceBelow, spaceAbove));
+
+            // Adjust total height
+            totalHeight = this.props.height + maxDropdownHeight;
+        }
+
+        const arrowWidth = 10; // Width of the arrow
+        const arrowHeight = 6; // Height of the arrow
+        const arrowX = this.props.width - arrowWidth - this.props.corners / 2 - 10; // Decreasing arrowX value to move the arrow more to the left
+        const arrowY = (this.props.height - arrowHeight) / 2; // Y-coordinate of the arrow
+
+        let selectedItemTextX;
+        if (svgAlign === 'middle') {
+            selectedItemTextX = (this.props.width - arrowWidth - this.props.corners / 2) / 2;
+        } else {
+            const selectedItemWidth = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getStringWidth(this.selectedItem, this.props);
+            const textPadding = svgAlign === 'start' ? - this.props.width * .1 : - this.props.width * .05;
+            selectedItemTextX = svgAlign === 'start' ? (this.props.width - this.props.corners / 2) / 2 - selectedItemWidth / 2 + textPadding : (this.props.width - this.props.corners / 2) / 2 + selectedItemWidth / 2 + textPadding;
+        }
+        const selectedItemTextY = this.props.height / 2;
+
+        return `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${totalHeight}" width="${this.props.width}" height="${totalHeight}" preserveAspectRatio="none">
+                <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners * 2}" fill="${this.props.colour}" stroke="${this.props.outlineColour}"
+                    stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}" 
+                    style="cursor: pointer;" pointer-events="all" 
+                    onmousedown="document.getElementById('${this.props.channel}').ComboBoxInstance.pointerDown(event)"></rect>
+                ${this.isOpen ? `
+                    <foreignObject x="0" y="${this.props.height}" width="${this.props.width}" height="${totalHeight - this.props.height}">
+                        <div xmlns="http://www.w3.org/1999/xhtml" style="max-height:${totalHeight - this.props.height}px; overflow-y:auto; scrollbar-width: thin; scrollbar-color: ${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)} ${this.props.colour};">
+                            <style>
+                                /* Custom scrollbar for Webkit browsers */
+                                div::-webkit-scrollbar {
+                                    width: 8px;
+                                }
+                                div::-webkit-scrollbar-track {
+                                    background: ${this.props.colour};
+                                }
+                                div::-webkit-scrollbar-thumb {
+                                    background-color: ${_utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageColours.darker(this.props.colour, 0.2)};
+                                    border-radius: 4px;
+                                }
+                            </style>
+                            ${dropdownItems}
+                        </div>
+                    </foreignObject>` : ''}
+                <polygon points="${arrowX},${arrowY} ${arrowX + arrowWidth},${arrowY} ${arrowX + arrowWidth / 2},${arrowY + arrowHeight}"
+                    fill="${this.props.outlineColour}" style="${this.isOpen ? 'display: none;' : ''} pointer-events: none;"/>
+                <text x="${selectedItemTextX}" y="${selectedItemTextY}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+                    fill="${this.props.fontColour}" text-anchor="${svgAlign}" alignment-baseline="middle" style="${this.isOpen ? 'display: none;' : ''}"
+                    style="pointer-events: none;">${this.selectedItem}</text>
+            </svg>
+        `;
+    }
+
+}
+
+
+/***/ }),
+/* 39 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Label: () => (/* binding */ Label)
+/* harmony export */ });
+/**
+ * Label class
+ */
+class Label {
+    constructor() {
+        this.props = {
+            "top": 0,
+            "left": 0,
+            "width": 100,
+            "height": 30,
+            "type": "label",
+            "colour": "#88888800",
+            "channel": "label",
+            "fontColour": "#dddddd",
+            "fontFamily": "Verdana",
+            "fontSize": 0,
+            "corners": 4,
+            "align": "centre",
+            "visible": 1,
+            "text": "Default Label",
+            "automatable": 0
+        }
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Text": ["text", "fontColour", "fontSize", "fontFamily", "align"],
+            "Colours": ["colour"]
+        };
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    addEventListeners(widgetDiv) {
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    pointerDown() {
+        console.log("Label clicked!");
+    }
+
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+        
+        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height, 12); // Ensuring font size doesn't get too small
+        const alignMap = {
+            'left': 'end',
+            'center': 'middle',
+            'centre': 'middle',
+            'right': 'start',
+        };
+        const svgAlign = alignMap[this.props.align] || 'middle';
+    
+        return `
+            <div style="position: relative; width: 100%; height: 100%;">
+                <!-- Background SVG with preserveAspectRatio="none" -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none"
+                     style="position: absolute; top: 0; left: 0;">
+                    <rect width="${this.props.width}" height="${this.props.height}" x="0" y="0" rx="${this.props.corners}" ry="${this.props.corners}" fill="${this.props.colour}" 
+                        pointer-events="all"></rect>
+                </svg>
+    
+                <!-- Text SVG with proper alignment -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet"
+                     style="position: absolute; top: 0; left: 0;">
+                    <text x="${this.props.align === 'left' ? '10%' : this.props.align === 'right' ? '90%' : '50%'}" y="50%" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+                        fill="${this.props.fontColour}" text-anchor="${svgAlign}" dominant-baseline="middle" alignment-baseline="middle" 
+                        style="pointer-events: none;">${this.props.text}</text>
+                </svg>
+            </div>
+        `;
+    }
+    
+    
+    
+}
+
+
+/***/ }),
+/* 40 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Image: () => (/* binding */ Image)
+/* harmony export */ });
+/**
+ * Label class
+ */
+class Image {
+    constructor() {
+        this.props = {
+            "top": 0,
+            "left": 0,
+            "width": 100,
+            "height": 30,
+            "type": "image",
+            "colour": "#888888",
+            "channel": "image",
+            "outlineWidth": 1,
+            "outlineColour": "#000000",
+            "corners": 4,
+            "visible": 1,
+            "automatable": 0
+        }
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Colours": ["colour", "outlineColour"],
+        };
+
+        this.children = {};
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    addEventListeners(widgetDiv) {
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    pointerDown() {
+        console.log("Label clicked!");
+    }
+
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+
+        const outlineOffset = this.props.outlineWidth / 2;
+
+        return `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none"
+                 style="position: absolute; top: 0; left: 0;">
+                <rect width="${this.props.width - this.props.outlineWidth}" height="${this.props.height - this.props.outlineWidth}" x="${outlineOffset}" y="${outlineOffset}" rx="${this.props.corners}" ry="${this.props.corners}" fill="${this.props.colour}" 
+                      stroke="${this.props.outlineColour}" stroke-width="${this.props.outlineWidth}" pointer-events="all"></rect>
+            </svg>
+        `;
+    }
+}
+
+
+/***/ }),
+/* 41 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   ListBox: () => (/* binding */ ListBox)
+/* harmony export */ });
+/**
+ * ListBox class
+ */
+class ListBox {
+    constructor() {
+        this.props = {
+            "top": 0,
+            "left": 0,
+            "width": 200,
+            "height": 300,
+            "type": "listbox",
+            "backgroundColour": "#ffffff",
+            "fontColour": "#000000",
+            "highlightedItemColour": "#dddddd",
+            "items": "item1, item2, item3",
+            "visible": 1,
+            "selectedIndex": -1,
+            "automatable": 1,
+            "channelType": "number",
+            "min":0,
+            "max":3
+        }
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Colours": ["backgroundColour", "fontColour", "highlightedItemColour"],
+            "Items": ["items"]
+        };
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    addEventListeners(widgetDiv) {
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    pointerDown(event) {
+        const itemElements = event.currentTarget.querySelectorAll('.list-item');
+        itemElements.forEach((itemElement, index) => {
+            const rect = itemElement.getBoundingClientRect();
+            if (event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom) {
+                this.props.selectedIndex = index;
+                this.updateListItems(itemElements);
+                console.log(`Item ${index + 1} clicked!`);
+            }
+        });
+    }
+
+    updateListItems(itemElements) {
+        itemElements.forEach((itemElement, index) => {
+            if (index === this.props.selectedIndex) {
+                itemElement.style.backgroundColor = this.props.highlightedItemColour;
+            } else {
+                itemElement.style.backgroundColor = this.props.backgroundColour;
+            }
+        });
+    }
+
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+
+        const items = this.props.items.split(',').map(item => item.trim());
+        const listItemsHTML = items.map((item, index) => `
+            <div class="list-item" style="
+                width: 100%;
+                padding: 5px;
+                box-sizing: border-box;
+                color: ${this.props.fontColour};
+                background-color: ${index === this.props.selectedIndex ? this.props.highlightedItemColour : this.props.backgroundColour};
+                cursor: pointer;
+                ">
+                ${item}
+            </div>
+        `).join('');
+
+        return `
+            <div style="position: relative; width: 100%; height: 100%; overflow-y: auto;">
+                ${listItemsHTML}
+            </div>
+        `;
+    }
+}
+
+
+/***/ }),
+/* 42 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   CsoundOutput: () => (/* binding */ CsoundOutput)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+
+
+/**
+ * CsoundOutput class
+ */
+class CsoundOutput {
+    constructor() {
+        this.props = {
+            "top": 0,
+            "left": 0,
+            "width": 200,
+            "height": 300,
+            "type": "csoundoutput",
+            "colour": "#000000",
+            "channel": "csoundoutput",
+            "fontColour": "#dddddd",
+            "fontFamily": "Verdana",
+            "fontSize": 14,
+            "corners": 4,
+            "align": "left",
+            "visible": 1,
+            "text": "Csound Output\n",
+            "automatable": 0
+        };
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Text": ["text", "fontColour", "fontSize", "fontFamily", "align"],
+            "Colours": ["colour"]
+        };
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+    }
+
+    addEventListeners(widgetDiv) {
+        // Add any necessary event listeners here
+    }
+
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+
+        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.8, 12); // Ensuring font size doesn't get too small
+        const alignMap = {
+            'left': 'start',
+            'center': 'center',
+            'centre': 'center',
+            'right': 'end',
+        };
+        const textAlign = alignMap[this.props.align] || 'start';
+
+        return `
+                <textarea style="width: 100%; height: 100%; background-color: ${this.props.colour}; 
+                color: ${this.props.fontColour}; font-family: ${this.props.fontFamily}; font-size: ${fontSize}px; 
+                text-align: ${textAlign}; padding: 10px; box-sizing: border-box; border: none; resize: none;">
+${this.props.text}
+                </textarea>
+        `;
+    }
+
+    appendText(newText) {
+        this.props.text += newText + '\n';
+        const widgetDiv = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.getWidgetDiv(this.props.channel);
+
+        if (widgetDiv) {
+            const textarea = widgetDiv.querySelector('textarea');
+            if (textarea) {
+                textarea.value += newText + '\n';
+                console.log(textarea.value);
+                textarea.scrollTop = textarea.scrollHeight; // Scroll to the bottom
+            }
+        }
+    }
+}
+
+
+/***/ }),
+/* 43 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   MidiKeyboard: () => (/* binding */ MidiKeyboard)
+/* harmony export */ });
+/* harmony import */ var _cabbage_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(4);
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(3);
+
+
+
+/**
+ * MidiKeyboard class
+ */
+class MidiKeyboard {
+  constructor() {
+    this.props = {
+      top: 0, // Top position of the keyboard widget
+      left: 0, // Left position of the keyboard widget
+      width: 600, // Width of the keyboard widget
+      height: 300, // Height of the keyboard widget
+      type: "keyboard", // Type of the widget (keyboard)
+      colour: "#888888", // Background color of the keyboard
+      channel: "keyboard", // Unique identifier for the keyboard widget
+      blackNoteColour: "#000000", // Color of the black keys on the keyboard
+      value: "36", // The leftmost note of the keyboard
+      fontFamily: "Verdana", // Font family for the text displayed on the keyboard
+      whiteNoteColour: "#ffffff", // Color of the white keys on the keyboard
+      keySeparatorColour: "#000000", // Color of the separators between keys
+      arrowBackgroundColour: "#0295cf", // Background color of the arrow keys
+      mouseoverKeyColour: _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of keys when hovered over
+      keydownColour: _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageColours.getColour('green'), // Color of keys when pressed
+      automatable: 0,
+      octaves: 5 // Default number of octaves to display
+    };
+
+    this.panelSections = {
+      Properties: ["type", "channel"],
+      Bounds: ["left", "top", "width", "height"],
+      Text: ["fontFamily"],
+      Colours: ["colour", "blackNoteColour", "whiteNoteColour", "keySeparatorColour", "arrowBackgroundColour", "keydownColour"],
+      Octaves: ["octaves"] // Add octaves to the panel sections
+    };
+
+    this.isMouseDown = false; // Track the state of the mouse button
+    this.octaveOffset = 3;
+    this.noteMap = {};
+    this.activeNotes = new Set(); // Track active notes
+
+    // Define an array of note names
+    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+    // Loop through octaves and note names to populate the map
+    for (let octave = -2; octave <= this.props.octaves + 2; octave++) {
+      for (let i = 0; i < noteNames.length; i++) {
+        const noteName = noteNames[i] + octave;
+        const midiNote = (octave + 2) * 12 + i; // Calculate MIDI note number
+        this.noteMap[noteName] = midiNote;
+      }
+    }
+  }
+
+  pointerDown(e) {
+    if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
+      this.isMouseDown = true;
+      this.noteOn(e.target);
+    }
+  }
+
+  pointerUp(e) {
+    if (this.isMouseDown) {
+      this.isMouseDown = false;
+      this.noteOff(e.target);
+    }
+  }
+
+  pointerMove(e) {
+    if (this.isMouseDown) {
+      if (e.target.classList.contains('white-key') || e.target.classList.contains('black-key')) {
+        if (!this.activeNotes.has(e.target.dataset.note)) {
+          this.noteOn(e.target);
+        }
+      } else {
+        this.noteOffLastKey();
+      }
+    }
+  }
+
+  pointerEnter(e) {
+    if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
+      this.noteOn(e.target);
+    }
+  }
+
+  pointerLeave(e) {
+    if (this.isMouseDown && (e.target.classList.contains('white-key') || e.target.classList.contains('black-key'))) {
+      this.noteOff(e.target);
+    }
+  }
+
+  noteOn(keyElement) {
+    const note = keyElement.dataset.note;
+    if (!this.activeNotes.has(note)) {
+      this.activeNotes.add(note);
+      keyElement.setAttribute('fill', this.props.keydownColour);
+      console.log(`Key down: ${this.noteMap[note]}`);
+      _cabbage_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendMidiMessageFromUI(this.vscode, 0x90, this.noteMap[note], 127);
+    }
+  }
+
+  noteOff(keyElement) {
+    const note = keyElement.dataset.note;
+    if (this.activeNotes.has(note)) {
+      this.activeNotes.delete(note);
+      keyElement.setAttribute('fill', keyElement.classList.contains('white-key') ? this.props.whiteNoteColour : this.props.blackNoteColour);
+      console.log(`Key up: ${this.noteMap[note]}`);
+      _cabbage_js__WEBPACK_IMPORTED_MODULE_0__.Cabbage.sendMidiMessageFromUI(this.vscode, 0x80, this.noteMap[note], 0);
+    }
+  }
+
+  noteOffLastKey() {
+    if (this.activeNotes.size > 0) {
+      const lastNote = Array.from(this.activeNotes).pop();
+      const keyElement = document.querySelector(`[data-note="${lastNote}"]`);
+      this.noteOff(keyElement);
+    }
+  }
+
+  octaveUpPointerDown(e) {
+    console.log('octaveUpPointerDown');
+  }
+
+  octaveDownPointerDown(e) {
+    console.log('octaveDownPointerDown');
+  }
+
+  changeOctave(offset) {
+    this.octaveOffset += offset;
+    if (this.octaveOffset < 1) this.octaveOffset = 1; // Limit lower octave bound
+    if (this.octaveOffset > 7) this.octaveOffset = 7; // Limit upper octave bound
+    _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+  }
+
+  addVsCodeEventListeners(widgetDiv, vscode) {
+    this.vscode = vscode;
+    this.addListeners(widgetDiv);
+    _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+  }
+
+  addEventListeners(widgetDiv) {
+    this.addListeners(widgetDiv);
+    _utils_js__WEBPACK_IMPORTED_MODULE_1__.CabbageUtils.updateInnerHTML(this.props.channel, this);
+  }
+
+  midiMessageListener(event) {
+    console.log("Midi message listener");
+    const detail = event.detail;
+    const midiData = JSON.parse(detail.data);
+    console.log("Midi message listener", midiData);
+    if (midiData.status == 144) {
+      const note = midiData.data1;
+      // const velocity = midiData.data2;
+      const noteName = Object.keys(this.noteMap).find(key => this.noteMap[key] === note);
+      const key = document.querySelector(`[data-note="${noteName}"]`);
+      key.setAttribute('fill', this.props.keydownColour);
+      console.log(`Key down: ${note} ${noteName}`);
+    } else if (midiData.status == 128) {
+      const note = midiData.data1;
+      const noteName = Object.keys(this.noteMap).find(key => this.noteMap[key] === note);
+      const key = document.querySelector(`[data-note="${noteName}"]`);
+      key.setAttribute('fill', key.classList.contains('white-key') ? 'white' : 'black');
+      console.log(`Key up: ${note} ${noteName}`);
+    }
+  }
+
+  addListeners(widgetDiv) {
+    widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    widgetDiv.addEventListener("pointerup", this.pointerUp.bind(this));
+    widgetDiv.addEventListener("pointermove", this.pointerMove.bind(this));
+    widgetDiv.addEventListener("pointerenter", this.pointerEnter.bind(this), true);
+    widgetDiv.addEventListener("pointerleave", this.pointerLeave.bind(this), true);
+    document.addEventListener("midiEvent", this.midiMessageListener.bind(this));
+    widgetDiv.OctaveButton = this;
+  }
+
+  handleClickEvent(e) {
+    if (e.target.id == "octave-up") {
+      this.changeOctave(1);
+    } else {
+      this.changeOctave(-1);
+    }
+  }
+
+  getInnerHTML() {
+    const scaleFactor = 0.9; // Adjusting this to fit the UI designer bounding rect
+  
+    const totalWhiteKeys = this.props.octaves * 7; // Total number of white keys to display
+    const whiteKeyWidth = (this.props.width / totalWhiteKeys) * scaleFactor; // Adjust width based on total white keys
+    const whiteKeyHeight = this.props.height * scaleFactor;
+    const blackKeyWidth = whiteKeyWidth * 0.4;
+    const blackKeyHeight = whiteKeyHeight * 0.6;
+    const strokeWidth = 0.5 * scaleFactor;
+  
+    const whiteKeys = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+    const blackKeys = { 'C': 'C#', 'D': 'D#', 'F': 'F#', 'G': 'G#', 'A': 'A#' };
+  
+    let whiteSvgKeys = '';
+    let blackSvgKeys = '';
+  
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.1;
+  
+    for (let octave = 0; octave < this.props.octaves; octave++) {
+      for (let i = 0; i < whiteKeys.length; i++) {
+        const key = whiteKeys[i];
+        const note = key + (octave + this.octaveOffset);
+        const width = whiteKeyWidth - strokeWidth;
+        const height = whiteKeyHeight - strokeWidth;
+        const xOffset = octave * whiteKeys.length * whiteKeyWidth + i * whiteKeyWidth;
+  
+        whiteSvgKeys += `<rect x="${xOffset}" y="0" width="${width}" height="${height}" fill="${this.props.whiteNoteColour}" stroke="${this.props.keySeparatorColour}" stroke-width="${strokeWidth}" data-note="${note}" class="white-key" style="height: ${whiteKeyHeight}px;" />`;
+  
+        if (blackKeys[key]) {
+          const note = blackKeys[key] + (octave + this.octaveOffset);
+          blackSvgKeys += `<rect x="${xOffset + whiteKeyWidth * 0.75 - strokeWidth / 2}" y="${strokeWidth / 2}" width="${blackKeyWidth}" height="${blackKeyHeight + strokeWidth}" fill="${this.props.blackNoteColour}" stroke="${this.props.keySeparatorColour}"  stroke-width="${strokeWidth}" data-note="${note}" class="black-key" />`;
+        }
+  
+        if (i === 0) { // First white key of the octave
+          const textX = xOffset + whiteKeyWidth / 2; // Position text in the middle of the white key
+          const textY = whiteKeyHeight * 0.8; // Position text in the middle vertically
+          whiteSvgKeys += `<text x="${textX}" y="${textY}" text-anchor="middle"  font-family="${this.props.fontFamily}" dominant-baseline="middle" font-size="${fontSize}" fill="${this.props.blackNoteColour}" style="pointer-events: none;">${note}</text>`;
+        }
+      }
+    }
+  
+    // Calculate button width and height relative to keyboard width
+    const buttonWidth = 25 * scaleFactor;
+    const buttonHeight = this.props.height * scaleFactor;
+  
+    return `
+      <div id="${this.props.channel}" style="display: flex; align-items: center; height: ${this.props.height * scaleFactor}px;">
+        <button id="octave-down" style="width: ${buttonWidth}px; height: ${buttonHeight}px; background-color: ${this.props.arrowBackgroundColour};" onclick="document.getElementById('${this.props.channel}').OctaveButton.handleClickEvent(event)">-</button>
+        <div id="${this.props.channel}" style="flex-grow: 1; height: 100%;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width * scaleFactor} ${this.props.height * scaleFactor}" width="100%" height="100%" preserveAspectRatio="none">
+            ${whiteSvgKeys}
+            ${blackSvgKeys}
+          </svg>
+        </div>
+        <button id="octave-up" style="width: ${buttonWidth}px; height: ${buttonHeight}px; background-color: ${this.props.arrowBackgroundColour};" onclick="document.getElementById('${this.props.channel}').OctaveButton.handleClickEvent(event)">+</button>
+      </div>
+    `;
+  }
+  
+}
+
+
+/***/ }),
+/* 44 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   GenTable: () => (/* binding */ GenTable)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+
+
+class GenTable {
+    constructor() {
+        console.log("Creating GenTable widget");
+        this.props = {
+            "top": 0,
+            "left": 0,
+            "width": 200,
+            "height": 100,
+            "type": "gentable",
+            "colour": "#888888", // Color between 0 and sample value
+            "outlineColour": "#dddddd", // Outline color
+            "outlineWidth": 1,
+            "channel": "gentable",
+            "backgroundColour": "#a8d388",
+            "fontColour": "#dddddd",
+            "fontFamily": "Verdana",
+            "startSample": -1,
+            "endSample": -1,
+            "file": "",
+            "fontSize": 0,
+            "corners": 4, // Radius of the background rectangle
+            "align": "left",
+            "visible": 1,
+            "text": "",
+            "tableNumber": 1,
+            "samples": [],
+            "automatable": 0
+        };
+
+        
+        this.panelSections = {
+            "Info": ["type", "channel"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Text": ["text", "fontSize", "fontFamily", "fontColour", "align"],
+            "Colours": ["colour", "backgroundColour", "outlineColour"]
+        };
+    }
+
+    createCanvas(){
+        // Create canvas element during initialization
+        this.canvas = document.createElement('canvas');
+        this.canvas.width = this.props.width;
+        this.canvas.height = this.props.height;
+        this.ctx = this.canvas.getContext('2d');
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    addEventListeners(widgetDiv) {
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    pointerDown() {
+        console.log("Canvas clicked!");
+    }
+
+    getInnerHTML() {
+        return ``;
+    }
+
+    updateTable() {
+        this.canvas.width = this.props.width;
+        this.canvas.height = this.props.height;
+        // Clear canvas
+        this.ctx.clearRect(0, 0, this.props.width, this.props.height);
+
+        // Draw background with rounded corners
+        this.ctx.fillStyle = this.props.backgroundColour;
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.props.corners, 0);
+        this.ctx.arcTo(this.props.width, 0, this.props.width, this.props.height, this.props.corners);
+        this.ctx.arcTo(this.props.width, this.props.height, 0, this.props.height, this.props.corners);
+        this.ctx.arcTo(0, this.props.height, 0, 0, this.props.corners);
+        this.ctx.arcTo(0, 0, this.props.width, 0, this.props.corners);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Draw waveform
+        this.ctx.strokeStyle = this.props.outlineColour;
+        this.ctx.lineWidth = this.props.outlineWidth;
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, this.props.height / 2);
+
+        const sampleIncrement = Math.floor(this.props.samples.length / this.props.width);
+
+        if (!Array.isArray(this.props.samples) || this.props.samples.length === 0) {
+            console.warn('No samples to draw.');
+        } else {
+            for (let i = 0; i < this.props.samples.length; i += sampleIncrement) {
+                const x = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(i, 0, this.props.samples.length, 0, this.props.width);
+                const y = _utils_js__WEBPACK_IMPORTED_MODULE_0__.CabbageUtils.map(this.props.samples[i], -1, 1, this.props.height, 0);
+                // Draw line to sample value
+                this.ctx.strokeStyle = this.props.colour;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, this.props.height / 2);
+                this.ctx.lineTo(x, y);
+                this.ctx.stroke();
+
+                // Draw vertical lines for outline
+                if (i > 0) {
+                    this.ctx.strokeStyle = this.props.outlineColour;
+                    this.ctx.lineWidth = this.props.outlineWidth;
+                    this.ctx.lineTo(x, y);
+                }
+            }
+        }
+
+        this.ctx.closePath();
+
+        // Draw text
+        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.1, 12);
+        const alignMap = {
+            'left': 'start',
+            'center': 'center',
+            'centre': 'center',
+            'right': 'end',
+        };
+        const canvasAlignMap = {
+            'left': 'left',
+            'center': 'center',
+            'centre': 'center',
+            'right': 'right',
+        };
+        const svgAlign = alignMap[this.props.align] || 'start';
+        const textAlign = canvasAlignMap[this.props.align] || 'left';
+        this.ctx.font = `${fontSize}px ${this.props.fontFamily}`;
+        this.ctx.fillStyle = this.props.fontColour;
+        this.ctx.textAlign = textAlign;
+        this.ctx.textBaseline = 'bottom';
+
+        
+        const textX = this.props.align === 'right' ? this.props.width - 10 : this.props.align === 'center' || this.props.align === 'centre' ? this.props.width / 2 : 10;
+        const textY = this.props.height - 10;
+        this.ctx.fillText(this.props.text, textX, textY);
+        
+
+        // Update DOM with the canvas
+        const widgetElement = document.getElementById(this.props.channel);
+        if (widgetElement) {
+            widgetElement.style.transform = `translate(${this.props.left}px, ${this.props.top}px)`;
+            // widgetElement.setAttribute('data-x', this.props.left);
+            // widgetElement.setAttribute('data-y', this.props.top);
+            // widgetElement.style.top = `${this.props.top}px`;
+            // widgetElement.style.left = `${this.props.left}px`;
+            widgetElement.style.padding = '0';
+            widgetElement.style.margin = '0';
+            widgetElement.innerHTML = ''; // Clear existing content
+            widgetElement.appendChild(this.canvas); // Append canvas
+
+            // Add event listeners
+            this.addEventListeners(widgetElement);
+        } else {
+            console.log(`Element: ${this.props.channel} not found.`);
+        }
+    }
+}
+
+
+/***/ }),
+/* 45 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   TextEditor: () => (/* binding */ TextEditor)
+/* harmony export */ });
+/* harmony import */ var _utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+
+
+/**
+ * CsoundOutput class
+ */
+class TextEditor {
+    constructor() {
+        this.props = {
+            "top": 0,
+            "left": 0,
+            "width": 200,
+            "height": 300,
+            "type": "texteditor",
+            "colour": "#dddddd",
+            "channel": "texteditor",
+            "fontColour": "#222222",
+            "fontFamily": "Verdana",
+            "fontSize": 14,
+            "corners": 4,
+            "align": "left",
+            "visible": 1,
+            "text": "",
+            "automatable": 0
+        };
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Text": ["text", "fontColour", "fontSize", "fontFamily", "align"],
+            "Colours": ["colour"]
+        };
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+    }
+
+    addEventListeners(widgetDiv) {
+        // Add any necessary event listeners here
+    }
+   
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+
+        const fontSize = this.props.fontSize > 0 ? this.props.fontSize : Math.max(this.props.height * 0.8, 12); // Ensuring font size doesn't get too small
+        const alignMap = {
+            'left': 'start',
+            'center': 'center',
+            'centre': 'center',
+            'right': 'end',
+        };
+        const textAlign = alignMap[this.props.align] || 'start';
+
+        return `
+                <textarea style="width: 100%; height: 100%; background-color: ${this.props.colour}; 
+                color: ${this.props.fontColour}; font-family: ${this.props.fontFamily}; font-size: ${fontSize}px; 
+                text-align: ${textAlign}; padding: 10px; box-sizing: border-box; border: none; resize: none; position:absolute">
+${this.props.text}
+                </textarea>
+        `;
+    }
+
+    // appendText(newText) {
+    //     this.props.text += newText + '\n';
+    //     const widgetDiv = CabbageUtils.getWidgetDiv(this.props.channel);
+
+    //     if (widgetDiv) {
+    //         const textarea = widgetDiv.querySelector('textarea');
+    //         if (textarea) {
+    //             textarea.value += newText + '\n';
+    //             console.log(textarea.value);
+    //             textarea.scrollTop = textarea.scrollHeight; // Scroll to the bottom
+    //         }
+    //     }
+    // }
+}
+
+
+/***/ }),
+/* 46 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Form: () => (/* binding */ Form)
+/* harmony export */ });
+/**
+ * Form class
+ */
+class Form {
+  constructor() {
+    this.props = {
+      "width": 600,
+      "height": 300,
+      "caption": "",
+      "type": "form",
+      "colour": "#888888",
+      "channel": "MainForm"
+    }
+
+    this.panelSections = {
+      "Properties": ["type"],
+      "Bounds": ["width", "height"],
+      "Text": ["caption"],
+      "Colours": ["colour"]
+    };
+  }
+
+
+  getInnerHTML() {
+    return `
+      <svg class="widget-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="100%" height="100%" preserveAspectRatio="none" style="position: relative; z-index: 0;">
+        <rect id="MainForm" width="${this.props.width}" height="${this.props.height}" x="0" y="0" rx="2" ry="2" fill="${this.props.colour}" />
+      </svg>
+    `;
+  }
+
+  updateSVG() {
+    console.log("updating form svg", this.props);
+    // Select the parent div using the channel property
+    const parentDiv = document.getElementById(this.props.channel);
+    
+    if (!parentDiv) {
+      console.error(`Parent div with id ${this.props.channel} not found.`);
+      return;
+    }
+
+    // Check if an SVG element with the class 'widget-svg' already exists
+    let svgElement = parentDiv.querySelector('.widget-svg');
+    
+    if (svgElement) {
+      // Update the existing SVG element's outerHTML
+      svgElement.outerHTML = this.getInnerHTML();
+    } else {
+      // Append the new SVG element if it doesn't exist
+      parentDiv.insertAdjacentHTML('beforeend', this.getInnerHTML());
+    }
+  }
+}
 
 
 /***/ })

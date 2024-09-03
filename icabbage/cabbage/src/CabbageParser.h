@@ -33,10 +33,9 @@ public:
 
         // Read the content of the CSD file
         std::ifstream file(csdFile);
-
         if (!file.is_open())
         {
-            std::cerr << "Error opening file: " << csdFile << std::endl;
+            std::cerr << "Error opening Csd file: " << csdFile << std::endl;
             return widgets;
         }
 
@@ -45,44 +44,48 @@ public:
         std::string content = buffer.str();
 
         // Regular expression to extract the content between <Cabbage> and </Cabbage>
-        std::regex regex(R"(<Cabbage>([\s\S]*?)</Cabbage>)");
-        std::smatch match;
+        std::regex cabbageRegex(R"(<Cabbage>([\s\S]*?)</Cabbage>)");
+        std::smatch cabbageMatch;
 
-        if (std::regex_search(content, match, regex))
+        if (std::regex_search(content, cabbageMatch, cabbageRegex))
         {
-            std::string jsonStr = match[1].str();
+            std::string cabbageContent = cabbageMatch[1].str();
 
-            try
+            // Check for form widget
+            std::regex formRegex(R"("type"\s*:\s*"form")");
+            bool foundFormWidget = std::regex_search(cabbageContent, formRegex);
+
+            if (foundFormWidget)
             {
-                auto jsonArray = nlohmann::json::parse(jsonStr);
+                parseContent(cabbageContent, widgets);
+            }
+            else
+            {
+                // Check for #include "filename.json"
+                std::regex includeRegex(R"(#include\s*\"([^\"]+\.json)\")");
+                std::smatch includeMatch;
 
-                if (jsonArray.is_array())
+                if (std::regex_search(cabbageContent, includeMatch, includeRegex))
                 {
-                    for (auto& item : jsonArray)
+                    std::string includeFilename = includeMatch[1].str();
+                    std::filesystem::path includePath(includeFilename);
+
+                    // If the path is not absolute, construct a new path based on the CSD file's directory
+                    if (!includePath.is_absolute())
                     {
-                        if (item.is_object())
-                        {
-                            //Set up default widget object
-                            auto j = CabbageWidgetDescriptors::get(item["type"]);
-                            // Enhance object with additional properties read from <Cabbage></Cabbage>
-                            updateJson(j, item, widgets.size());
-                            _log(j.dump(4));
-                            widgets.push_back(j);
-                        }
-                        else
-                        {
-                            std::cerr << "Encountered non-object in JSON array" << std::endl;
-                        }
+                        std::filesystem::path csdPath(csdFile);
+                        includePath = csdPath.parent_path() / includePath;
                     }
+
+                    // Convert the path to a string and parse the JSON file
+                    parseJsonFile(includePath.string(), widgets);
                 }
                 else
                 {
-                    std::cerr << "JSON content is not an array" << std::endl;
+                    // Use a .json file with the same base name as the CSD file
+                    std::string fallbackJsonFile = csdFile.substr(0, csdFile.find_last_of('.')) + ".json";
+                    parseJsonFile(fallbackJsonFile, widgets);
                 }
-            }
-            catch (const nlohmann::json::parse_error& e)
-            {
-                std::cerr << "JSON parse error: " << e.what() << std::endl;
             }
         }
         else
@@ -91,6 +94,55 @@ public:
         }
 
         return widgets;
+    }
+
+    // Helper function to parse content as JSON and add to widgets
+    static void parseContent(const std::string& content, std::vector<nlohmann::json>& widgets)
+    {
+        try
+        {
+            auto jsonArray = nlohmann::json::parse(content);
+            if (jsonArray.is_array())
+            {
+                for (auto& item : jsonArray)
+                {
+                    if (item.is_object())
+                    {
+                        auto j = CabbageWidgetDescriptors::get(item["type"]);
+                        updateJson(j, item, widgets.size());
+                        _log(j.dump(4));
+                        widgets.push_back(j);
+                    }
+                    else
+                    {
+                        std::cerr << "Encountered non-object in JSON array" << std::endl;
+                    }
+                }
+            }
+            else
+            {
+                std::cerr << "JSON content is not an array" << std::endl;
+            }
+        }
+        catch (const nlohmann::json::parse_error& e)
+        {
+            std::cerr << "JSON parse error: " << e.what() << std::endl;
+        }
+    }
+
+    // Helper function to parse a JSON file and add to widgets
+    static void parseJsonFile(const std::string& filename, std::vector<nlohmann::json>& widgets)
+    {
+        std::ifstream jsonFile(filename);
+        if (!jsonFile.is_open())
+        {
+            std::cerr << "Error opening JSON file: " << filename << std::endl;
+            return;
+        }
+
+        std::stringstream buffer;
+        buffer << jsonFile.rdbuf();
+        parseContent(buffer.str(), widgets);
     }
 
     static void updateJson(nlohmann::json& jsonObj, const nlohmann::json& incomingJson, size_t numWidgets)

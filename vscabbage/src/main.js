@@ -46,7 +46,7 @@ import { Cabbage } from "./cabbage.js";
 console.log("main.js loaded!")
 
 // CabbageTestUtilities.generateIdentifierTestCsd(widgetsForTesting); // This will generate a test CSD file with the widgets
-CabbageTestUtilities.generateCabbageWidgetDescriptorsClass(widgetConstructors); // This will generate a class with the widget descriptors 
+// CabbageTestUtilities.generateCabbageWidgetDescriptorsClass(widgetConstructors); // This will generate a class with the widget descriptors 
 
 
 
@@ -82,14 +82,12 @@ const rightPanel = document.getElementById('RightPanel');
 if (rightPanel)
   rightPanel.style.visibility = "hidden";
 
-//adding this messes up dragging of main form
-// widgets.push(new Form());
 
 // const form = document.getElementById('MainForm');
 // form.style.backgroundColor = widgets[0].props.colour;
 
 
-// CabbageUtils.showOverlay();
+CabbageUtils.showOverlay();
 
 
 /**

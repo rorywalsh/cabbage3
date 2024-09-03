@@ -295,7 +295,7 @@ export class PropertyPanel {
               command: 'widgetUpdate',
               text: JSON.stringify(widget.props)
             });
-          }, (index + 1) * 50);
+          }, (index + 1) * 150);
         }
       });
     });

@@ -38,12 +38,24 @@ import { CabbageUtils } from "./utils.js";
 import { Form } from "./widgets/form.js";
 import * as cp from "child_process";
 
+import fs from 'fs';
+import path from 'path';
 
-
+let isCabbageSingleLine = true;
 let textEditor: vscode.TextEditor | undefined;
+let highlightDecorationType: vscode.TextEditorDecorationType;
 let output: vscode.OutputChannel;
 let panel: vscode.WebviewPanel | undefined = undefined;
 let dbg = false;
+
+// Define a function to initialize or update highlightDecorationType
+function initialiseHighlightDecorationType() {
+	if (!highlightDecorationType) {
+		highlightDecorationType = vscode.window.createTextEditorDecorationType({
+			backgroundColor: 'rgba(0, 0, 0, 0.1)'
+		});
+	}
+}
 
 import WebSocket from 'ws';
 interface TokenObject {
@@ -90,45 +102,104 @@ wss.on('connection', (ws) => {
 
 });
 
-function formatText(text: string): string {
-    const lines = text.split('\n');
-    let indents = 0;
-    let formattedText = '';
+function formatText(text: string, indentSpaces: number = 4): string {
+	const lines = text.split('\n');
+	let indents = 0;
+	let formattedText = '';
+	let insideCabbage = false;
+	let cabbageContent = '';
 
-    lines.forEach((line, index) => {
-        // Trim leading whitespace from non-empty lines
-        const trimmedLine = line.trim().length > 0 ? line.trimStart() : line;
+	// Create a string with the specified number of spaces
+	const indentString = ' '.repeat(indentSpaces);
 
-        // Increase indentation level for specific keywords
-        if (index > 0 && (
-            lines[index - 1].trim().startsWith("if ") ||
-            lines[index - 1].trim().startsWith("if(") ||
-            lines[index - 1].trim().startsWith("instr") ||
-            lines[index - 1].trim().startsWith("opcode") ||
-            lines[index - 1].trim().startsWith("else") ||
-            lines[index - 1].trim().startsWith("while")
-        )) {
-            indents++;
-        }
+	lines.forEach((line, index) => {
+		const trimmedLine = line.trim();
 
-        // Decrease indentation level for end keywords
-        if (
-            trimmedLine.startsWith("endif") ||
-            trimmedLine.startsWith("endin") ||
-            trimmedLine.startsWith("endop") ||
-            trimmedLine.startsWith("od") ||
-            trimmedLine.startsWith("else") ||
-            trimmedLine.startsWith("enduntil")
-        ) {
-            indents = Math.max(0, indents - 1);
-        }
+		// Detect the start of the <Cabbage> block
+		if (trimmedLine.startsWith('<Cabbage>')) {
+			insideCabbage = true;
+			formattedText += line + '\n';
+			return;
+		}
 
-        // Add indentation
-        const indentText = '\t'.repeat(indents);
-        formattedText += indentText + trimmedLine + '\n';
-    });
+		// Detect the end of the </Cabbage> block
+		if (trimmedLine.startsWith('</Cabbage>')) {
+			insideCabbage = false;
 
-    return formattedText;
+			// Process and format the JSON content
+			try {
+				const jsonArray = JSON.parse(cabbageContent);
+				const formattedJson = formatJsonObjects(jsonArray, '');
+				formattedText += formattedJson + '\n';
+			} catch (error) {
+				formattedText += cabbageContent + '\n'; // If parsing fails, keep the original content
+			}
+
+			formattedText += line + '\n';
+			cabbageContent = ''; // Reset the Cabbage content
+			return;
+		}
+
+		if (insideCabbage) {
+			// Collect Cabbage content
+			cabbageContent += line.trim();
+		} else {
+			// Continue with the regular Csound formatting logic
+
+			// Trim leading whitespace from non-empty lines
+			const trimmedLine = line.trim().length > 0 ? line.trimStart() : line;
+
+			// Increase indentation level for specific keywords
+			if (index > 0 && (
+				lines[index - 1].trim().startsWith("if ") ||
+				lines[index - 1].trim().startsWith("if(") ||
+				lines[index - 1].trim().startsWith("instr") ||
+				lines[index - 1].trim().startsWith("opcode") ||
+				lines[index - 1].trim().startsWith("else") ||
+				lines[index - 1].trim().startsWith("while")
+			)) {
+				indents++;
+			}
+
+			// Decrease indentation level for end keywords
+			if (
+				trimmedLine.startsWith("endif") ||
+				trimmedLine.startsWith("endin") ||
+				trimmedLine.startsWith("endop") ||
+				trimmedLine.startsWith("od") ||
+				trimmedLine.startsWith("else") ||
+				trimmedLine.startsWith("enduntil")
+			) {
+				indents = Math.max(0, indents - 1);
+			}
+
+			// Add indentation
+			const indentText = indentString.repeat(indents);
+			formattedText += indentText + trimmedLine + '\n';
+		}
+	});
+
+	return formattedText;
+}
+
+// Helper function to format JSON objects on single lines within the array
+function formatJsonObjects(jsonArray: any[], indentString: string): string {
+	const formattedLines = [];
+
+	formattedLines.push("[");  // Opening bracket on its own line
+
+	jsonArray.forEach((obj, index) => {
+		const formattedObject = JSON.stringify(obj);
+		if (index < jsonArray.length - 1) {
+			formattedLines.push(indentString + formattedObject + ','); // Add comma for all but the last object
+		} else {
+			formattedLines.push(indentString + formattedObject); // Last object without a comma
+		}
+	});
+
+	formattedLines.push("]");  // Closing bracket on its own line
+
+	return formattedLines.join('\n');
 }
 
 let processes: (cp.ChildProcess | undefined)[] = [];
@@ -137,49 +208,50 @@ let processes: (cp.ChildProcess | undefined)[] = [];
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-    context.subscriptions.push(vscode.commands.registerCommand('cabbage.formatCabbageJSON', async () => {
+	context.subscriptions.push(vscode.commands.registerCommand('cabbage.expandCabbageJSON', async () => {
 		const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            return; // No open text editor
-        }
+		if (!editor) {
+			return; // No open text editor
+		}
 
-        const document = editor.document;
-        const text = document.getText();
+		const document = editor.document;
+		const text = document.getText();
 
-        // Find the <Cabbage> and </Cabbage> tags
-        const startTag = '<Cabbage>';
-        const endTag = '</Cabbage>';
+		// Find the <Cabbage> and </Cabbage> tags
+		const startTag = '<Cabbage>';
+		const endTag = '</Cabbage>';
 
-        const startIndex = text.indexOf(startTag);
-        const endIndex = text.indexOf(endTag);
+		const startIndex = text.indexOf(startTag);
+		const endIndex = text.indexOf(endTag);
 
-        if (startIndex === -1 || endIndex === -1 || startIndex > endIndex) {
-            vscode.window.showErrorMessage("Cabbage section not found or is invalid.");
-            return;
-        }
+		if (startIndex === -1 || endIndex === -1 || startIndex > endIndex) {
+			vscode.window.showErrorMessage("Cabbage section not found or is invalid.");
+			return;
+		}
 
-        // Calculate the positions in the document
-        const startPos = document.positionAt(startIndex + startTag.length);
-        const endPos = document.positionAt(endIndex);
+		// Calculate the positions in the document
+		const startPos = document.positionAt(startIndex + startTag.length);
+		const endPos = document.positionAt(endIndex);
 
-        const range = new vscode.Range(startPos, endPos);
-        const cabbageContent = document.getText(range).trim();
+		const range = new vscode.Range(startPos, endPos);
+		const cabbageContent = document.getText(range).trim();
 
-        try {
-            // Parse the JSON content to ensure it's valid
-            const jsonObject = JSON.parse(cabbageContent);
+		try {
+			// Parse the JSON content to ensure it's valid
+			const jsonObject = JSON.parse(cabbageContent);
 
-            // Re-stringify the JSON content with formatting (4 spaces for indentation)
-            const formattedJson = JSON.stringify(jsonObject, null, 4);
+			// Re-stringify the JSON content with formatting (4 spaces for indentation)
+			const formattedJson = JSON.stringify(jsonObject, null, 4);
 
-            // Replace the original Cabbage section with the formatted text
-            editor.edit(editBuilder => {
-                editBuilder.replace(range, '\n' + formattedJson + '\n');
-            });
-        } catch (error) {
-            vscode.window.showErrorMessage("Failed to parse and format JSON content.");
-        }
-    }));
+			// Replace the original Cabbage section with the formatted text
+			editor.edit(editBuilder => {
+				editBuilder.replace(range, '\n' + formattedJson + '\n');
+			});
+			isCabbageSingleLine = false;
+		} catch (error) {
+			vscode.window.showErrorMessage("Failed to parse and format JSON content.");
+		}
+	}));
 
 
 
@@ -211,19 +283,19 @@ export function activate(context: vscode.ExtensionContext) {
 	}
 
 	vscode.commands.registerCommand('cabbage.formatDocument', async () => {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) return;
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) return;
 
-        const text = editor.document.getText();
-        const formattedText = formatText(text);  // Your formatting logic
+		const text = editor.document.getText();
+		const formattedText = formatText(text);  // Your formatting logic
 
-        const edit = new vscode.WorkspaceEdit();
-        edit.replace(editor.document.uri, new vscode.Range(0, 0, editor.document.lineCount, 0), formattedText);
-        await vscode.workspace.applyEdit(edit);
-    });
+		const edit = new vscode.WorkspaceEdit();
+		edit.replace(editor.document.uri, new vscode.Range(0, 0, editor.document.lineCount, 0), formattedText);
+		await vscode.workspace.applyEdit(edit);
+	});
 
 
-	context.subscriptions.push(vscode.commands.registerCommand('cabbage.launchUIEditor', () => {
+	context.subscriptions.push(vscode.commands.registerCommand('cabbage.launch', () => {
 		// The code you place here will be executed every time your command is executed
 		panel = vscode.window.createWebviewPanel(
 			'cabbageUIEditor',
@@ -280,6 +352,8 @@ export function activate(context: vscode.ExtensionContext) {
 			cabbageMode = "play";
 			const command = config.get("pathToCabbageExecutable") + '/CabbageApp.app/Contents/MacOS/CabbageApp';
 			const path = vscode.Uri.file(command);
+
+
 			try {
 				// Attempt to read the directory (or file)
 				await vscode.workspace.fs.stat(path);
@@ -295,20 +369,28 @@ export function activate(context: vscode.ExtensionContext) {
 			})
 
 			if (!dbg) {
-				const process = cp.spawn(command, [editor.fileName], {});
+				if (editor.fileName.endsWith(".csd")) {
+					// Replace the extension by slicing and concatenating the new extension - we're only interested in opening CSD files
 
-				processes.push(process);
+					const process = cp.spawn(command, [editor.fileName], {});
+					processes.push(process);
+					process.stdout.on("data", (data) => {
+						// I've seen spurious 'ANSI reset color' sequences in some csound output
+						// which doesn't render correctly in this context. Stripping that out here.
+						output.append(data.toString().replace(/\x1b\[m/g, ""));
+					});
+					process.stderr.on("data", (data) => {
+						// It looks like all csound output is written to stderr, actually.
+						// If you want your changes to show up, change this one.
+						output.append(data.toString().replace(/\x1b\[m/g, ""));
+					});
+				} else {
+					// If no extension is found or the file name starts with a dot (hidden files), handle appropriately
+					console.error('Invalid file name or no extension found');
+					output.append('Invalid file name or no extension found. Cabbage can only compile .csd file types.');
+				}
 
-				process.stdout.on("data", (data) => {
-					// I've seen spurious 'ANSI reset color' sequences in some csound output
-					// which doesn't render correctly in this context. Stripping that out here.
-					output.append(data.toString().replace(/\x1b\[m/g, ""));
-				});
-				process.stderr.on("data", (data) => {
-					// It looks like all csound output is written to stderr, actually.
-					// If you want your changes to show up, change this one.
-					output.append(data.toString().replace(/\x1b\[m/g, ""));
-				});
+
 			}
 
 		});
@@ -416,19 +498,276 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 
-/**
- * This function will update the text associated with a widget
- */
+interface WidgetProps {
+	type: string;
+	channel?: string;
+	[key: string]: any;
+}
+
+async function initializeDefaultProps(type: string): Promise<WidgetProps | null> {
+	switch (type) {
+		case 'rslider':
+			return new RotarySlider().props;
+		case 'hslider':
+			return new HorizontalSlider().props;
+		case 'vslider':
+			return new VerticalSlider().props;
+		case 'hrange':
+			return new HorizontalRangeSlider().props;
+		case 'nslider':
+			return new NumberSlider().props;
+		case 'keyboard':
+			return new MidiKeyboard().props;
+		case 'button':
+			return new Button().props;
+		case 'gentable':
+			return new GenTable().props;
+		case 'filebutton':
+			return new FileButton().props;
+		case 'optionbutton':
+			return new OptionButton().props;
+		case 'checkbox':
+			return new Checkbox().props;
+		case 'combobox':
+			return new ComboBox().props;
+		case 'label':
+			return new Label().props;
+		case 'image':
+			return new Image().props;
+		case 'listbox':
+			return new ListBox().props;
+		case 'form':
+			return new Form().props;
+		case 'csoundoutput':
+			return new CsoundOutput().props;
+		case 'texteditor':
+			return new TextEditor().props;
+		default:
+			console.error("Unsupported widget type:", type);
+			return null;
+	}
+}
+
+function transformProps(props: WidgetProps): WidgetProps {
+	if (props.left !== undefined && props.top !== undefined && props.width !== undefined && props.height !== undefined) {
+		props.bounds = [props.left, props.top, props.width, props.height];
+		delete props.left;
+		delete props.top;
+		delete props.width;
+		delete props.height;
+	}
+
+	if (props.type.includes("slider")) {
+		if (props.min !== undefined && props.max !== undefined && props.skew !== undefined && props.increment !== undefined) {
+			props.range = [props.min, props.max, props.value, props.skew, props.increment];
+			delete props.min;
+			delete props.max;
+			delete props.skew;
+			delete props.increment;
+			delete props.value;
+		}
+	}
+
+	return props;
+}
+
+function ensureTypeFirst(obj: WidgetProps): WidgetProps {
+	const { type, ...rest } = obj;
+	return { type, ...rest };
+}
+
+function formatObject(obj: WidgetProps): string {
+	const formattedObj = ensureTypeFirst(obj);
+	return JSON.stringify(formattedObj)
+		.replace(/"([^"]+)":/g, '"$1": ')
+		.replace(/,(?!\s*?[\{\[\"\'\w])/g, ''); // remove trailing commas if any
+}
+
+async function openOrShowTextDocument(filePath: string): Promise<vscode.TextEditor | null> {
+	try {
+		// Find the current .csd file's view column, defaulting to ViewColumn.One if not found
+		const csdEditor = vscode.window.visibleTextEditors.find(
+			editor => editor.document.fileName.endsWith('.csd')
+		);
+
+		// Default to ViewColumn.One if the .csd file's view column is not found
+		const viewColumn = csdEditor ? csdEditor.viewColumn : vscode.ViewColumn.One;
+
+		// Check if the file is already open in an editor
+		const existingEditor = vscode.window.visibleTextEditors.find(
+			editor => editor.document.fileName === filePath
+		);
+
+		if (existingEditor) {
+			// If already open, return the existing editor without changing focus
+			return existingEditor;
+		}
+
+		// Open the document without immediately showing it in the editor
+		const document = await vscode.workspace.openTextDocument(filePath);
+
+		// Show the document in the specified view column without bringing it to the front
+		return vscode.window.showTextDocument(document, { preview: false, viewColumn, preserveFocus: true });
+	} catch (error) {
+		console.error(`Failed to open document: ${filePath}`, error);
+		return null;
+	}
+}
+
+
+async function updateExternalJsonFile(editor: vscode.TextEditor, props: WidgetProps, defaultProps: WidgetProps) {
+	const document = editor.document;
+	const jsonArray = JSON.parse(document.getText()) as WidgetProps[];
+
+	const updatedArray = updateJsonArray(jsonArray, props, defaultProps);
+	const updatedContent = JSON.stringify(updatedArray, null, 2);
+
+	await editor.edit(editBuilder => {
+		const entireRange = new vscode.Range(
+			document.positionAt(0),
+			document.positionAt(document.getText().length)
+		);
+		editBuilder.replace(entireRange, updatedContent);
+	});
+}
+
+function updateJsonArray(jsonArray: WidgetProps[], props: WidgetProps, defaultProps: WidgetProps): WidgetProps[] {
+	let foundChannel = false;
+	let foundForm = false;
+
+	for (let i = 0; i < jsonArray.length; i++) {
+		let jsonObject = jsonArray[i];
+		if (jsonObject.type === 'form') {
+			foundForm = true;
+		}
+		if (jsonObject.channel === props.channel) {
+			foundChannel = true;
+			let newObject = { ...jsonObject, ...props };
+
+			for (let key in defaultProps) {
+				if (newObject[key] === defaultProps[key] && key !== 'type') {
+					delete newObject[key];
+				}
+			}
+
+			jsonArray[i] = ensureTypeFirst(newObject);
+			break;
+		}
+	}
+
+	if (!foundChannel && props.type !== 'form') {
+		let newObject = transformProps(props);
+		for (let key in defaultProps) {
+			if (newObject[key] === defaultProps[key] && key !== 'type') {
+				delete newObject[key];
+			}
+		}
+		jsonArray.push(ensureTypeFirst(newObject));
+	}
+
+	return jsonArray;
+}
+
+function getExternalJsonFileName(cabbageContent: string, csdFilePath: string): string {
+	// Regular expression to find the include statement
+	const includeRegex = /#include\s*"([^"]+\.json)"/;
+	const includeMatch = includeRegex.exec(cabbageContent);
+
+	if (includeMatch && includeMatch[1]) {
+		const includeFilename = includeMatch[1];
+
+		// Check if the path is relative, if so resolve it relative to the csd file
+		if (!path.isAbsolute(includeFilename)) {
+			return path.resolve(path.dirname(csdFilePath), includeFilename);
+		}
+		return includeFilename; // Absolute path
+	}
+
+	// Fallback: use the same name as the .csd file but with a .json extension
+	const fallbackJsonFile = csdFilePath.replace(/\.csd$/, '.json');
+
+	// Check if the fallback file exists
+	if (require('fs').existsSync(fallbackJsonFile)) {
+		return fallbackJsonFile;
+	}
+
+	// Return an empty string if no external JSON file is found
+	return '';
+}
+
+function highlightAndScrollToUpdatedObject(updatedProps: WidgetProps, cabbageStartIndex: number, isSingleLine: boolean) {
+	if (!textEditor) {
+		return;
+	}
+
+	const document = textEditor.document;
+	const documentText = document.getText();
+	const lines = documentText.split('\n');
+
+	// Ensure highlightDecorationType is initialized
+	initialiseHighlightDecorationType();
+
+	// Clear previous decorations
+	if (highlightDecorationType) {
+		textEditor.setDecorations(highlightDecorationType, []);
+	}
+
+	if (isSingleLine) {
+		// Define regex pattern to match the line containing the "channel" property
+		const channelPattern = new RegExp(`"channel":\\s*"${updatedProps.channel}"`, 'i');
+
+		// Find the line number using the regex pattern
+		const lineNumber = lines.findIndex(line => channelPattern.test(line));
+
+		if (lineNumber >= 0) {
+			const start = new vscode.Position(lineNumber, 0);
+			const end = new vscode.Position(lineNumber, lines[lineNumber].length);
+			textEditor.setDecorations(highlightDecorationType, [
+				{ range: new vscode.Range(start, end) }
+			]);
+			textEditor.revealRange(new vscode.Range(start, end), vscode.TextEditorRevealType.InCenter);
+		}
+	} else {
+		// Handling for multi-line objects
+		// Improved regex pattern to match a JSON object containing the specified channel
+		const pattern = new RegExp(`\\{(?:[^{}]|\\{[^{}]*\\})*?"channel":\\s*"${updatedProps.channel}"(?:[^{}]|\\{[^{}]*\\})*?\\}`, 's');
+		const match = pattern.exec(documentText);
+
+		if (match) {
+			const objectText = match[0];
+			const objectStartIndex = documentText.indexOf(objectText);
+			const objectEndIndex = objectStartIndex + objectText.length;
+
+			const startPos = document.positionAt(objectStartIndex);
+			const endPos = document.positionAt(objectEndIndex);
+
+			textEditor.setDecorations(highlightDecorationType, [
+				{ range: new vscode.Range(startPos, endPos) }
+			]);
+			textEditor.revealRange(new vscode.Range(startPos, endPos), vscode.TextEditorRevealType.InCenter);
+		}
+	}
+}
+
+
+
+
+
+
+
+
 async function updateText(jsonText: string) {
 	if (cabbageMode === "play") {
 		return;
 	}
 
-	let props;
+
+	let props: WidgetProps;
 	try {
 		props = JSON.parse(jsonText);
 	} catch (error) {
 		console.error("Failed to parse JSON text:", error);
+		output.append(`Failed to parse JSON text: ${error}`);
 		return;
 	}
 
@@ -439,207 +778,87 @@ async function updateText(jsonText: string) {
 
 	const document = textEditor.document;
 	const originalText = document.getText();
-	console.warn("originalText", originalText);
-	let defaultProps: any = {};
 
-	// Determine the default properties for the widget
-	try {
-		switch (props.type) {
-			case 'rslider':
-				defaultProps = new RotarySlider().props;
-				break;
-			case 'hslider':
-				defaultProps = new HorizontalSlider().props;
-				break;
-			case 'vslider':
-				defaultProps = new VerticalSlider().props;
-				break;
-			case 'hrange':
-				defaultProps = new HorizontalRangeSlider().props;
-				break;
-			case 'nslider':
-				defaultProps = new NumberSlider().props;
-				break;
-			case 'keyboard':
-				defaultProps = new MidiKeyboard().props;
-				break;
-			case 'button':
-				defaultProps = new Button().props;
-				break;
-			case 'gentable':
-				defaultProps = new GenTable().props;
-				break;
-			case 'filebutton':
-				defaultProps = new FileButton().props;
-				break;
-			case 'optionbutton':
-				defaultProps = new OptionButton().props;
-				break;
-			case 'checkbox':
-				defaultProps = new Checkbox().props;
-				break;
-			case 'combobox':
-				defaultProps = new ComboBox().props;
-				break;
-			case 'label':
-				defaultProps = new Label().props;
-				break;
-			case 'image':
-				defaultProps = new Image().props;
-				break;
-			case 'listbox':
-				defaultProps = new ListBox().props;
-				break;
-			case 'form':
-				defaultProps = new Form().props;
-				break;
-			case 'csoundoutput':
-				defaultProps = new CsoundOutput().props;
-				break;
-			case 'texteditor':
-				defaultProps = new TextEditor().props;
-				break;
-			default:
-				console.error("Unsupported widget type:", props.type);
-				return;
-		}
-	} catch (error) {
-		console.error("Error initializing default properties for type:", props.type, error);
+	const defaultProps = await initializeDefaultProps(props.type);
+	if (!defaultProps) {
 		return;
 	}
 
-	const internalIdentifiers: string[] = ['top', 'left', 'width', 'height', 'increment', 'min', 'max', 'skew', 'value'];
-
-	const transformProps = (props: any) => {
-		if (props.left !== undefined && props.top !== undefined && props.width !== undefined && props.height !== undefined) {
-			props.bounds = [props.left, props.top, props.width, props.height];
-			delete props.left;
-			delete props.top;
-			delete props.width;
-			delete props.height;
-		}
-
-		if (props.type.includes("slider")) {
-			if (props.min !== undefined && props.max !== undefined && props.skew !== undefined && props.increment !== undefined) {
-				props.range = [props.min, props.max, props.value, props.skew, props.increment];
-				delete props.min;
-				delete props.max;
-				delete props.skew;
-				delete props.increment;
-				delete props.value;
-			}
-		}
-
-		return props;
-	};
-
 	const updatedProps = transformProps(props);
-	const lines = document.getText().split(/\r?\n/);
-	let foundChannel = false;
 
-	const ensureTypeFirst = (obj: any) => {
-		const { type, ...rest } = obj;
-		return { type, ...rest };
-	};
+	const cabbageRegex = /<Cabbage>([\s\S]*?)<\/Cabbage>/;
+	const cabbageMatch = originalText.match(cabbageRegex);
 
-	const formatObject = (obj: any) => {
-		const formattedObj = ensureTypeFirst(obj);
-		return JSON.stringify(formattedObj)
-			.replace(/"([^"]+)":/g, '"$1": ')
-			.replace(/,(?!\s*?[\{\[\"\'\w])/g, ''); // remove trailing commas if any
-	};
+	let externalFile = '';
 
-	await textEditor.edit(async editBuilder => {
-		let jsonObjectLines: string[] = [];
-		let isInObject = false;
+	if (cabbageMatch) {
+		const cabbageContent = cabbageMatch[1].trim();
 
-		for (let i = 0; i < lines.length; i++) {
-			let line = lines[i].trim();
+		try {
+			// Attempt to parse the existing JSON array
+			const cabbageJsonArray = JSON.parse(cabbageContent) as WidgetProps[];
 
-			// Check if the line starts a JSON object
-			if (line.startsWith('{')) {
-				isInObject = true;
+			// Check if there's a "form" type object in the parsed JSON array
+			const hasFormType = cabbageJsonArray.some(obj => obj.type === 'form');
+
+			// Only search for an external file if there isn't a "form" type
+			if (!hasFormType) {
+				externalFile = getExternalJsonFileName(cabbageContent, document.fileName);
 			}
 
-			// Accumulate lines for the JSON object
-			if (isInObject) {
-				jsonObjectLines.push(line);
+			if (!externalFile) {
+				// Update the existing JSON array with the new props
+				const updatedJsonArray = updateJsonArray(cabbageJsonArray, updatedProps, defaultProps);
 
-				// Check if the line ends a JSON object
-				if (line.endsWith('},') || line.endsWith('}') || line.endsWith(']')) {
-					// Combine accumulated lines into a single string
-					const jsonObjectString = jsonObjectLines.join(' ');
+				// Access configuration settings for JSON formatting
+				const config = vscode.workspace.getConfiguration("cabbage");
+				const isSingleLine = config.get("defaultJsonFormatting") === 'Single line objects';
 
-					try {
-						// Remove trailing comma or closing bracket before parsing
-						const parsedLine = JSON.parse(jsonObjectString.replace(/[\],]$/, ''));
+				// Format the JSON array based on the user's configuration
+				const formattedArray = isSingleLine
+					? formatJsonObjects(updatedJsonArray, '    ') // Single-line formatting
+					: JSON.stringify(updatedJsonArray, null, 4); // Multi-line formatting with indentation
 
-						if (parsedLine.channel === props.channel) {
-							foundChannel = true;
-							let newObject = { ...parsedLine, ...updatedProps };
+				// Recreate the Cabbage section with the formatted array
+				const updatedCabbageSection = `<Cabbage>${formattedArray}</Cabbage>`;
 
-							// Remove unchanged properties except 'type'
-							for (let key in defaultProps) {
-								if (newObject[key] === defaultProps[key]) {
-									if (key !== 'type') {
-										delete newObject[key];
-									}
-								}
-							}
+				await textEditor.edit(editBuilder => {
+					editBuilder.replace(
+						new vscode.Range(
+							document.positionAt(cabbageMatch.index),
+							document.positionAt(cabbageMatch.index + cabbageMatch[0].length)
+						),
+						updatedCabbageSection
+					);
+				});
 
-							// Ensure the type is preserved and positioned first
-							newObject = ensureTypeFirst(newObject);
-							const newLine = formatObject(newObject) + (line.endsWith('},') ? ',' : '');
-
-							const range = new vscode.Range(
-								new vscode.Position(i - jsonObjectLines.length + 1, 0),
-								new vscode.Position(i, lines[i].length)
-							);
-							editBuilder.replace(range, newLine);
-							break;
-						}
-					} catch (error) {
-						console.error("Error parsing JSON object:", error);
-					}
-					// Reset state after processing the object
-					jsonObjectLines = [];
-					isInObject = false;
-				}
+				// Call the separate function to handle highlighting
+				highlightAndScrollToUpdatedObject(updatedProps, cabbageMatch.index, isSingleLine);
 			}
+		} catch (parseError) {
+			// console.error("Failed to parse Cabbage content as JSON:", parseError);
+			// output.append(`Failed to parse Cabbage content as JSON: ${parseError}`);
+			return;
 		}
+	}
 
-		if (!foundChannel) {
-			// Find the closing bracket of the JSON array
-			for (let i = lines.length - 1; i >= 0; i--) {
-				if (lines[i].trim() === ']') {
-					// Check if the last object has a comma, if not, add it
-					if (lines[i - 1].trim().endsWith('}')) {
-						editBuilder.insert(new vscode.Position(i - 1, lines[i - 1].length), ',');
-					}
-
-					let newObject = transformProps(props);
-
-					// Remove unchanged properties except 'type'
-					for (let key in defaultProps) {
-						if (newObject[key] === defaultProps[key]) {
-							if (key !== 'type') {
-								delete newObject[key];
-							}
-						}
-					}
-
-					// Ensure the type is preserved and positioned first
-					newObject = ensureTypeFirst(newObject);
-
-					const newLine = formatObject(newObject);
-					// Insert the new object just before the closing bracket
-					editBuilder.insert(new vscode.Position(i, 0), `\n${newLine}\n`);
-					break;
-				}
-			}
+	if (externalFile) {
+		const externalEditor = await openOrShowTextDocument(externalFile);
+		if (externalEditor) {
+			await updateExternalJsonFile(externalEditor, updatedProps, defaultProps);
+		} else {
+			output.append(`Failed to open the external JSON file: ${externalFile}`);
 		}
-	});
+	}
 }
+
+
+
+
+
+
+
+
 
 
 

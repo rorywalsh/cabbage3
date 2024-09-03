@@ -206,8 +206,9 @@ export class VerticalSlider {
     // Update the slider appearance
     const widgetDiv = document.getElementById(this.props.channel);
     widgetDiv.innerHTML = this.getInnerHTML();
-
-    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: newValue, channelType: "number" }
+    //values sent to Cabbage should be normalized between 0 and 1
+    const normValue = CabbageUtils.map(this.props.value, this.props.min, this.props.max, 0, 1);
+    const msg = { paramIdx:this.parameterIndex, channel: this.props.channel, value: normValue, channelType: "number" }
     Cabbage.sendParameterUpdate(this.vscode, msg);
   }
 

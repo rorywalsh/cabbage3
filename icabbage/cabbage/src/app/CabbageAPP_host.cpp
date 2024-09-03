@@ -225,14 +225,7 @@ bool IPlugAPPHost::Init()
     
     mIPlug->OnParamReset(kReset);
     mIPlug->OnActivate(true);
-    
-    
-    
-//    cabbageProcessor->setCsdFile(csdFile);
-//    if(!cabbageProcessor->setupAndStartCsound())
-//        showMessage(csdFile);
-    
-//    assertm(false, "Csould not compile");
+
     return true;
 }
 

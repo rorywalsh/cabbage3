@@ -24,13 +24,31 @@
           "type": "number",
           "default": 4,
           "description": "Set the number of pixels to move by when dragging an element."
+        },
+        "cabbage.saveExternalJSON": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic saving of external JSON when compiling .csd file."
+        },
+        "cabbage.defaultJsonFormatting": {
+          "type": "string",
+          "default": "Single line objects",
+          "description": "Choose an option",
+          "enum": [
+            "Singe line objects",
+            "Multiline objects"
+          ],
+          "enumDescriptions": [
+            "Formats each widget object to a single line enclosed with curly braces",
+            "Formats each widget object over multiple lines; typical of most JSON formatters"
+          ]
         }
       }
     },
     "commands": [
       {
-        "command": "cabbage.launchUIEditor",
-        "title": "Launch UI Editor",
+        "command": "cabbage.launch",
+        "title": "Launch Cabbage",
         "category": "Cabbage"
       },
       {
@@ -44,12 +62,11 @@
         "category": "Cabbage"
       },
       {
-        "command": "cabbage.formatCabbageJSON",
-        "title": "Format Cabbage section",
+        "command": "cabbage.expandCabbageJSON",
+        "title": "Expand Cabbage section",
         "category": "Cabbage"
       }
     ],
-
     "languages": [
       {
         "id": "csound-orc",
