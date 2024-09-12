@@ -54,8 +54,8 @@ set(PROJECT_DIR "${CMAKE_SOURCE_DIR}")
 if(WIN32) 
   set(VCPKG_CMAKE "C:/Users/walshr/sourcecode/vcpkg/scripts/buildsystems/vcpkg.cmake")
   SET(CMAKE_TOOLCHAIN_FILE ${VCPKG_CMAKE})
-  set(ZLIB_LIBRARY "C:\\Users\\walshr\\sourcecode\\vcpkg\\packages\\zlib_x64-windows-static\\lib\\zlib.lib")
-  set(ZLIB_INCLUDE_DIR "C:\\Users\\walshr\\sourcecode\\vcpkg\\packages\\zlib_x64-windows-static\\include")
+  set(ZLIB_LIBRARY "C:\\Users\\rory\\sourcecode\\vcpkg\\packages\\zlib_x64-windows-static\\lib\\zlib.lib")
+  set(ZLIB_INCLUDE_DIR "C:\\Users\\rory\\sourcecode\\vcpkg\\packages\\zlib_x64-windows-static\\include")
 
   # # Courtesy of rovingeye, again
   execute_process(
@@ -220,6 +220,17 @@ iplug_target_add(_base INTERFACE
 
 # For typing convenience the TARGET name is put into a variable.
 if(WIN32) 
+  if (DEFINED CabbageApp)
+    # this is the taget for the command line app that runs from vscode
+    set(TARGET app)    
+    add_executable(${TARGET} WIN32 ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
+    iplug_target_add(${TARGET} PUBLIC 
+    LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} 
+    DEFINE ${ProductName} WIN32_LEAN_AND_MEAN CUSTOM_APP_SRC)
+    iplug_configure_target(${TARGET} app)
+  else()
+
+  endif()
 # add_executable(${TARGET} WIN32 MACOSX_BUNDLE  ${WEBVIEW_SRC_FILES} ${SRC_FILES} ${OPCODE_SRC_FILES} )
 # iplug_target_add(${TARGET} PUBLIC 
 # LINK iPlug2_APP _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} DEFINE WIN32_LEAN_AND_MEAN CUSTOM_APP_SRC)
