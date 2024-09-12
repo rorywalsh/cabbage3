@@ -21,6 +21,8 @@ import { ComboBox } from "./widgets/comboBox.js";
 // @ts-ignore
 import { Label } from "./widgets/label.js";
 // @ts-ignore
+import { GroupBox } from "./widgets/groupBox.js";
+// @ts-ignore
 import { Image } from "./widgets/image.js";
 // @ts-ignore
 import { ListBox } from "./widgets/listBox.js";
@@ -38,15 +40,22 @@ import { CabbageUtils } from "./utils.js";
 import { Form } from "./widgets/form.js";
 import * as cp from "child_process";
 
-import fs from 'fs';
 import path from 'path';
 
 let isCabbageSingleLine = true;
 let textEditor: vscode.TextEditor | undefined;
 let highlightDecorationType: vscode.TextEditorDecorationType;
-let output: vscode.OutputChannel;
+let vscodeOutputChannel: vscode.OutputChannel;
 let panel: vscode.WebviewPanel | undefined = undefined;
 let dbg = false;
+
+// Create and initialize the output channel
+function createOutputChannel() {
+    if (!vscodeOutputChannel) {
+        vscodeOutputChannel = vscode.window.createOutputChannel("Cabbage output");
+    }
+    return vscodeOutputChannel;
+}
 
 // Define a function to initialize or update highlightDecorationType
 function initialiseHighlightDecorationType() {
@@ -255,12 +264,10 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 
-	if (output === undefined) {
-		output = vscode.window.createOutputChannel("Cabbage output");
-	}
 
-	output.clear();
-	output.show(true); // true means keep focus in the editor window
+	createOutputChannel();
+	vscodeOutputChannel.clear();
+	vscodeOutputChannel.show(true); // true means keep focus in the editor window
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
@@ -357,10 +364,10 @@ export function activate(context: vscode.ExtensionContext) {
 			try {
 				// Attempt to read the directory (or file)
 				await vscode.workspace.fs.stat(path);
-				output.append("Found Cabbage service app...")
+				vscodeOutputChannel.append("Found Cabbage service app...")
 			} catch (error) {
 				// If an error is thrown, it means the path does not exist
-				output.append(`ERROR: Could not locate Cabbage service app at ${path.fsPath}. Please check the path in the Cabbage extension settings.\n`);
+				vscodeOutputChannel.append(`ERROR: Could not locate Cabbage service app at ${path.fsPath}. Please check the path in the Cabbage extension settings.\n`);
 				return;
 			}
 
@@ -377,17 +384,17 @@ export function activate(context: vscode.ExtensionContext) {
 					process.stdout.on("data", (data) => {
 						// I've seen spurious 'ANSI reset color' sequences in some csound output
 						// which doesn't render correctly in this context. Stripping that out here.
-						output.append(data.toString().replace(/\x1b\[m/g, ""));
+						vscodeOutputChannel.append(data.toString().replace(/\x1b\[m/g, ""));
 					});
 					process.stderr.on("data", (data) => {
 						// It looks like all csound output is written to stderr, actually.
 						// If you want your changes to show up, change this one.
-						output.append(data.toString().replace(/\x1b\[m/g, ""));
+						vscodeOutputChannel.append(data.toString().replace(/\x1b\[m/g, ""));
 					});
 				} else {
 					// If no extension is found or the file name starts with a dot (hidden files), handle appropriately
 					console.error('Invalid file name or no extension found');
-					output.append('Invalid file name or no extension found. Cabbage can only compile .csd file types.');
+					vscodeOutputChannel.append('Invalid file name or no extension found. Cabbage can only compile .csd file types.');
 				}
 
 
@@ -530,14 +537,16 @@ async function initializeDefaultProps(type: string): Promise<WidgetProps | null>
 			return new Checkbox().props;
 		case 'combobox':
 			return new ComboBox().props;
-		case 'label':
-			return new Label().props;
+		case 'groupbox':
+			return new GroupBox().props;
 		case 'image':
 			return new Image().props;
 		case 'listbox':
 			return new ListBox().props;
 		case 'form':
 			return new Form().props;
+		case 'label':
+			return new Label().props;
 		case 'csoundoutput':
 			return new CsoundOutput().props;
 		case 'texteditor':
@@ -751,11 +760,6 @@ function highlightAndScrollToUpdatedObject(updatedProps: WidgetProps, cabbageSta
 
 
 
-
-
-
-
-
 async function updateText(jsonText: string) {
 	if (cabbageMode === "play") {
 		return;
@@ -767,7 +771,7 @@ async function updateText(jsonText: string) {
 		props = JSON.parse(jsonText);
 	} catch (error) {
 		console.error("Failed to parse JSON text:", error);
-		output.append(`Failed to parse JSON text: ${error}`);
+		vscodeOutputChannel.append(`Failed to parse JSON text: ${error}`);
 		return;
 	}
 
@@ -837,7 +841,7 @@ async function updateText(jsonText: string) {
 			}
 		} catch (parseError) {
 			// console.error("Failed to parse Cabbage content as JSON:", parseError);
-			// output.append(`Failed to parse Cabbage content as JSON: ${parseError}`);
+			vscodeOutputChannel.append(`Failed to parse Cabbage content as JSON: ${parseError}`);
 			return;
 		}
 	}
@@ -847,7 +851,7 @@ async function updateText(jsonText: string) {
 		if (externalEditor) {
 			await updateExternalJsonFile(externalEditor, updatedProps, defaultProps);
 		} else {
-			output.append(`Failed to open the external JSON file: ${externalFile}`);
+			vscodeOutputChannel.append(`Failed to open the external JSON file: ${externalFile}`);
 		}
 	}
 }

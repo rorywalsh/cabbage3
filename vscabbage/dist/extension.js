@@ -55,6 +55,8 @@ const comboBox_js_1 = __webpack_require__(38);
 // @ts-ignore
 const label_js_1 = __webpack_require__(39);
 // @ts-ignore
+const groupBox_js_1 = __webpack_require__(47);
+// @ts-ignore
 const image_js_1 = __webpack_require__(40);
 // @ts-ignore
 const listBox_js_1 = __webpack_require__(41);
@@ -73,9 +75,16 @@ const path_1 = __importDefault(__webpack_require__(7));
 let isCabbageSingleLine = true;
 let textEditor;
 let highlightDecorationType;
-let output;
+let vscodeOutputChannel;
 let panel = undefined;
 let dbg = false;
+// Create and initialize the output channel
+function createOutputChannel() {
+    if (!vscodeOutputChannel) {
+        vscodeOutputChannel = vscode.window.createOutputChannel("Cabbage output");
+    }
+    return vscodeOutputChannel;
+}
 // Define a function to initialize or update highlightDecorationType
 function initialiseHighlightDecorationType() {
     if (!highlightDecorationType) {
@@ -237,11 +246,9 @@ function activate(context) {
             vscode.window.showErrorMessage("Failed to parse and format JSON content.");
         }
     }));
-    if (output === undefined) {
-        output = vscode.window.createOutputChannel("Cabbage output");
-    }
-    output.clear();
-    output.show(true); // true means keep focus in the editor window
+    createOutputChannel();
+    vscodeOutputChannel.clear();
+    vscodeOutputChannel.show(true); // true means keep focus in the editor window
     // Use the console to output diagnostic information (console.log) and errors (console.error)
     // This line of code will only be executed once when your extension is activated
     console.log('Congratulations, your extension "cabbage" is now active!');
@@ -318,11 +325,11 @@ function activate(context) {
             try {
                 // Attempt to read the directory (or file)
                 await vscode.workspace.fs.stat(path);
-                output.append("Found Cabbage service app...");
+                vscodeOutputChannel.append("Found Cabbage service app...");
             }
             catch (error) {
                 // If an error is thrown, it means the path does not exist
-                output.append(`ERROR: Could not locate Cabbage service app at ${path.fsPath}. Please check the path in the Cabbage extension settings.\n`);
+                vscodeOutputChannel.append(`ERROR: Could not locate Cabbage service app at ${path.fsPath}. Please check the path in the Cabbage extension settings.\n`);
                 return;
             }
             processes.forEach((p) => {
@@ -336,18 +343,18 @@ function activate(context) {
                     process.stdout.on("data", (data) => {
                         // I've seen spurious 'ANSI reset color' sequences in some csound output
                         // which doesn't render correctly in this context. Stripping that out here.
-                        output.append(data.toString().replace(/\x1b\[m/g, ""));
+                        vscodeOutputChannel.append(data.toString().replace(/\x1b\[m/g, ""));
                     });
                     process.stderr.on("data", (data) => {
                         // It looks like all csound output is written to stderr, actually.
                         // If you want your changes to show up, change this one.
-                        output.append(data.toString().replace(/\x1b\[m/g, ""));
+                        vscodeOutputChannel.append(data.toString().replace(/\x1b\[m/g, ""));
                     });
                 }
                 else {
                     // If no extension is found or the file name starts with a dot (hidden files), handle appropriately
                     console.error('Invalid file name or no extension found');
-                    output.append('Invalid file name or no extension found. Cabbage can only compile .csd file types.');
+                    vscodeOutputChannel.append('Invalid file name or no extension found. Cabbage can only compile .csd file types.');
                 }
             }
         });
@@ -463,14 +470,16 @@ async function initializeDefaultProps(type) {
             return new checkbox_js_1.Checkbox().props;
         case 'combobox':
             return new comboBox_js_1.ComboBox().props;
-        case 'label':
-            return new label_js_1.Label().props;
+        case 'groupbox':
+            return new groupBox_js_1.GroupBox().props;
         case 'image':
             return new image_js_1.Image().props;
         case 'listbox':
             return new listBox_js_1.ListBox().props;
         case 'form':
             return new form_js_1.Form().props;
+        case 'label':
+            return new label_js_1.Label().props;
         case 'csoundoutput':
             return new csoundOutput_js_1.CsoundOutput().props;
         case 'texteditor':
@@ -649,7 +658,7 @@ async function updateText(jsonText) {
     }
     catch (error) {
         console.error("Failed to parse JSON text:", error);
-        output.append(`Failed to parse JSON text: ${error}`);
+        vscodeOutputChannel.append(`Failed to parse JSON text: ${error}`);
         return;
     }
     if (!textEditor) {
@@ -698,7 +707,7 @@ async function updateText(jsonText) {
         }
         catch (parseError) {
             // console.error("Failed to parse Cabbage content as JSON:", parseError);
-            // output.append(`Failed to parse Cabbage content as JSON: ${parseError}`);
+            vscodeOutputChannel.append(`Failed to parse Cabbage content as JSON: ${parseError}`);
             return;
         }
     }
@@ -708,7 +717,7 @@ async function updateText(jsonText) {
             await updateExternalJsonFile(externalEditor, updatedProps, defaultProps);
         }
         else {
-            output.append(`Failed to open the external JSON file: ${externalFile}`);
+            vscodeOutputChannel.append(`Failed to open the external JSON file: ${externalFile}`);
         }
     }
 }
@@ -1095,72 +1104,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   CabbageUtils: () => (/* binding */ CabbageUtils)
 /* harmony export */ });
 class CabbageUtils {
-  /**
- * This uses a simple regex pattern to parse a line of Cabbage code such as 
- * rslider bounds(22, 14, 60, 60) channel("clip") thumbRadius(5), text("Clip") range(0, 1, 0, 1, 0.001)
- * and converts it to a JSON object
- */
-  static getCabbageCodeAsJSON(text) {
-    const type = `${text.trimStart().split(' ')[0]}`;
-    const regex = /(\w+)\(([^)]+)\)/g;
-    const jsonObj = {};
-
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      const name = match[1];
-      let value = match[2].replace(/"/g, ''); // Remove double quotes
-
-      // console.log(`Processing name: ${name}, value: ${value}`);
-
-      if (name === 'bounds') {
-        const [left, top, width, height] = value.split(',').map(v => parseInt(v.trim()));
-        jsonObj['left'] = left || 0;
-        jsonObj['top'] = top || 0;
-        jsonObj['width'] = width || 0;
-        jsonObj['height'] = height || 0;
-      } else if (name === 'range') {
-        const [min, max, val, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
-        jsonObj['min'] = min || 0;
-        jsonObj['max'] = max || 0;
-        jsonObj['value'] = val || 0;
-        jsonObj['skew'] = skew || 0;
-        jsonObj['increment'] = increment || 0;
-      } else if (name === 'size') {
-        const [width, height] = value.split(',').map(v => parseInt(v.trim()));
-        jsonObj['width'] = width || 0;
-        jsonObj['height'] = height || 0;
-      } else if (name === 'sampleRange') {
-        const [start, end] = value.split(',').map(v => parseInt(v.trim()));
-        jsonObj['startSample'] = start || 0;
-        jsonObj['endSample'] = end || 0;
-      } else if (name === 'populate') {
-        const [directory, fileType] = value.split(',').map(v => (v.trim()));
-        jsonObj['currentDirectory'] = directory || '';
-        jsonObj['fileType'] = fileType || '';
-      } else if (name === 'items') {
-        const items = value.split(',').map(v => v.trim()).join(', ');
-        jsonObj['items'] = items;
-      } else if (name === 'text') {
-        if (type.indexOf('button') > -1) {
-          const textItems = value.split(',').map(v => v.trim());
-          jsonObj['textOff'] = textItems[0] || '';
-          jsonObj['textOn'] = (textItems.length > 1 ? textItems[1] : textItems[0]) || '';
-        } else {
-          jsonObj[name] = value;
-        }
-      } else if (name === 'samples') {
-        const samples = value.split(',').map(v => parseFloat(v.trim()));
-        jsonObj['samples'] = samples;
-      } else {
-        const numericValue = parseFloat(value);
-        jsonObj[name] = !isNaN(numericValue) ? numericValue : value;
-      }
-
-      // console.log(`jsonObj so far: ${JSON.stringify(jsonObj)}`);
-    }
-
-    return jsonObj;
-  }
 
   static updateInnerHTML(channel, instance) {
     const element = document.getElementById(channel);
@@ -1173,55 +1116,7 @@ class CabbageUtils {
     return fullPath.split(/[/\\]/).pop();
   }
 
-  /**
-   * this function parses the Cabbage code and creates new widgets accordingly..
-   */
-  static async parseCabbageCode(text, widgets, form, insertWidget) {
-    // Leave main form in the widget array - there is only one..
-    widgets.splice(1, widgets.length - 1);
-
-    let cabbageStart = 0;
-    let cabbageEnd = 0;
-    let lines = text.split(/\r?\n/);
-    let count = 0;
-
-    lines.forEach((line) => {
-      if (line.trimStart().startsWith("<Cabbage>"))
-        cabbageStart = count + 1;
-      else if (line.trimStart().startsWith("</Cabbage>"))
-        cabbageEnd = count;
-      count++;
-    })
-
-    const cabbageCode = lines.slice(cabbageStart, cabbageEnd);
-    for (const line of cabbageCode) {
-
-      if (!line.trim().startsWith(";") && line.trim() !== "") {
-        console.log("line", line)
-        const codeProps = CabbageUtils.getCabbageCodeAsJSON(line);
-        const type = `${line.trimStart().split(' ')[0]}`;
-        console.log("type", type);
-        console.log("copeProps", codeProps);
-        if (line.trim() != "") {
-          if (type != "form") {
-            await insertWidget(type, codeProps);
-          } else {
-            widgets.forEach((widget) => {
-              if (widget.props.channel == "MainForm") {
-                const w = codeProps.width;
-                const h = codeProps.height;
-                form.style.width = w + "px";
-                form.style.height = h + "px";
-                widget.props.width = w;
-                widget.props.width = h;
-              }
-            });
-          }
-        }
-      }
-    }
-  }
-
+  
   /**
    * this function will return the number of plugin parameter in our widgets array
    */
@@ -1424,22 +1319,6 @@ class CabbageUtils {
     return element || null;
   }
 
-  /**
- * This uses a simple regex pattern to get tokens from a line of Cabbage code
- */
-  static getTokens(text) {
-    const inputString = text
-    const regex = /(\w+)\(([^)]+)\)/g;
-    const tokens = [];
-    let match;
-    while ((match = regex.exec(inputString)) !== null) {
-      const token = match[1];
-      const values = match[2].split(',').map(value => value.trim()); // Split values into an array
-      tokens.push({ token, values });
-    }
-    return tokens;
-  }
-
   static sendToBack(currentDiv) {
     const parentElement = currentDiv.parentElement;
     const allDivs = parentElement.getElementsByTagName('div');
@@ -1486,60 +1365,6 @@ class CabbageUtils {
     return syntax;
   }
 
-  /**
-   * This function will check the current widget props against the default set, and return an 
-   * array for any identifiers that are different to their default values - this only returns the identifiers
-   * that need updating, not their parameters..
-   */
-  static findUpdatedIdentifiers(initial, current) {
-    const initialWidgetObj = JSON.parse(initial);
-    const currentWidgetObj = JSON.parse(current);
-
-    var updatedIdentifiers = [];
-
-    // Iterate over the keys of obj1
-    for (var key in initialWidgetObj) {
-      // Check if obj2 has the same key
-      if (currentWidgetObj.hasOwnProperty(key)) {
-        // Compare the values of the keys
-        if (initialWidgetObj[key] !== currentWidgetObj[key]) {
-          // If values are different, add the key to the differentKeys array
-          updatedIdentifiers.push(key);
-        }
-      } else {
-        // If obj2 doesn't have the key from obj1, add it to differentKeys array
-        updatedIdentifiers.push(key);
-      }
-    }
-
-    // Iterate over the keys of obj2 to find any keys not present in obj1
-    for (var key in currentWidgetObj) {
-      if (!initialWidgetObj.hasOwnProperty(key)) {
-        // Add the key to differentKeys array
-        updatedIdentifiers.push(key);
-      }
-    }
-
-
-    if (currentWidgetObj['type'].indexOf('slider') > -1) {
-      updatedIdentifiers.push('min');
-      updatedIdentifiers.push('max');
-      updatedIdentifiers.push('value');
-      updatedIdentifiers.push('skew');
-      updatedIdentifiers.push('increment');
-
-    }
-
-    return updatedIdentifiers;
-  }
-
-
-  static generateIdentifierTestCsd(widgets) {
-
-
-
-  }
-
   static updateBounds(props, identifier) {
     const element = document.getElementById(props.channel);
     if (element) {
@@ -1572,7 +1397,6 @@ class CabbageColours {
         // Loop through all rules in the stylesheet
         for (let j = 0; j < styleSheet.cssRules.length; j++) {
           const rule = styleSheet.cssRules[j];
-          console.warn(rule)
           
           if (rule.selectorText && rule.selectorText.trim() === '.selected') {
             // Modify the border color
@@ -8857,7 +8681,7 @@ class Image {
             "height": 30,
             "type": "image",
             "colour": "#888888",
-            "channel": "image",
+            "channel": "",
             "outlineWidth": 1,
             "outlineColour": "#000000",
             "corners": 4,
@@ -9670,6 +9494,139 @@ class Form {
       parentDiv.insertAdjacentHTML('beforeend', this.getInnerHTML());
     }
   }
+}
+
+
+/***/ }),
+/* 47 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   GroupBox: () => (/* binding */ GroupBox)
+/* harmony export */ });
+/**
+ * Label class
+ */
+class GroupBox {
+    constructor() {
+        this.props = {
+            "top": 0,
+            "left": 0,
+            "width": 100,
+            "height": 30,
+            "type": "groupbox",
+            "text": "Hello", // Text displayed next to the slider
+            "fontFamily": "Verdana", // Font family for the text
+            "fontSize": 0, // Font size for the text
+            "fontColour": "#dddddd",
+            "align": "centre", // Text alignment within the slider (center, left, right)
+            "colour": "#888888",
+            "channel": "groupbox",
+            "outlineWidth": 1,
+            "outlineColour": "#000000",
+            "corners": 4,
+            "visible": 1,
+            "automatable": 0
+        }
+
+        this.panelSections = {
+            "Properties": ["type"],
+            "Text": ["text", "fontSize", "fontFamily", "fontColour", "align"],
+            "Bounds": ["left", "top", "width", "height"],
+            "Colours": ["colour", "outlineColour"],
+        };
+
+        this.children = {};
+    }
+
+    addVsCodeEventListeners(widgetDiv, vs) {
+        this.vscode = vs;
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    addEventListeners(widgetDiv) {
+        widgetDiv.addEventListener("pointerdown", this.pointerDown.bind(this));
+    }
+
+    pointerDown() {
+        console.log("Label clicked!");
+    }
+
+    getInnerHTML() {
+        if (this.props.visible === 0) {
+            return '';
+        }
+    
+        const outlineOffset = this.props.outlineWidth / 2;
+        const textSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.3;
+        const yOffset = textSize / 2; // vertical offset for text
+        const padding = 5; // padding around text to leave a gap in the line
+        const textWidth = (this.props.text.length * textSize) / 2; // approximate width of text
+    
+        const alignMap = {
+            'left': 'start',
+            'center': 'middle',
+            'centre': 'middle',
+            'right': 'end',
+        };
+    
+        const svgAlign = alignMap[this.props.align] || 'middle'; // Default to 'middle' if alignment is not set or invalid
+    
+        // Calculate text position based on alignment
+        let textXPosition;
+        let gapStart;
+        let gapEnd;
+    
+        if (svgAlign === 'start') {
+            textXPosition = outlineOffset + padding; // Left-aligned, with padding
+            gapStart = textXPosition - padding;
+            gapEnd = textXPosition + textWidth + padding;
+        } else if (svgAlign === 'end') {
+            textXPosition = this.props.width - outlineOffset - padding; // Right-aligned, with padding
+            gapStart = textXPosition - textWidth - padding;
+            gapEnd = textXPosition + padding;
+        } else {
+            textXPosition = this.props.width / 2; // Center-aligned
+            gapStart = (this.props.width / 2) - textWidth / 2 - padding;
+            gapEnd = (this.props.width / 2) + textWidth / 2 + padding;
+        }
+    
+        return `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" 
+                 width="100%" height="100%" preserveAspectRatio="none"
+                 style="position: absolute; top: 0; left: 0;">
+                <!-- Transparent rectangle as the background -->
+                <rect width="${this.props.width - this.props.outlineWidth}" height="${this.props.height - this.props.outlineWidth}" 
+                      x="${outlineOffset}" y="${outlineOffset}" rx="${this.props.corners}" ry="${this.props.corners}" fill="transparent"></rect>
+                
+                <!-- Top border lines with gap adjusted for text alignment -->
+                <line x1="0" y1="${outlineOffset + yOffset}" x2="${gapStart}" y2="${outlineOffset + yOffset}" 
+                      stroke="${this.props.outlineColour}" stroke-width="${this.props.outlineWidth}" />
+                <line x1="${gapEnd}" y1="${outlineOffset + yOffset}" x2="${this.props.width}" y2="${outlineOffset + yOffset}" 
+                      stroke="${this.props.outlineColour}" stroke-width="${this.props.outlineWidth}" />
+                
+                <!-- Text at the top with alignment support -->
+                <text x="${textXPosition}" y="${textSize * 0.95}" text-anchor="${svgAlign}" 
+                      font-family="${this.props.fontFamily}" font-size="${textSize}" fill="${this.props.fontColour}">
+                    ${this.props.text}
+                </text>
+                
+                <!-- Bottom border line -->
+                <line x1="0" y1="${this.props.height - outlineOffset}" x2="${this.props.width}" y2="${this.props.height - outlineOffset}" 
+                      stroke="${this.props.outlineColour}" stroke-width="${this.props.outlineWidth}" />
+                
+                <!-- Left and right border lines adjusted to start at yOffset -->
+                <line x1="${outlineOffset}" y1="${yOffset}" x2="${outlineOffset}" y2="${this.props.height - outlineOffset}" 
+                      stroke="${this.props.outlineColour}" stroke-width="${this.props.outlineWidth}" />
+                <line x1="${this.props.width - outlineOffset}" y1="${yOffset}" x2="${this.props.width - outlineOffset}" y2="${this.props.height - outlineOffset}" 
+                      stroke="${this.props.outlineColour}" stroke-width="${this.props.outlineWidth}" />
+            </svg>
+        `;
+    }
+    
+    
+    
 }
 
 

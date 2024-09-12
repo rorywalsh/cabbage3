@@ -182,7 +182,7 @@ int CabbageGetString::getIdentifier(int init)
     if(in_count()==2) // irate version
     {
         CabbageOpcodeData data = getIdentData(csound, inargs, true, 0, 1);
-        for(auto &widget : hostData->getWidgets())
+        for(auto &widget : hostData->getWidgets())   
         {
             auto channel = CabbageParser::removeQuotes(widget["channel"].get<std::string>());
             if(channel == data.channel)
@@ -191,7 +191,6 @@ int CabbageGetString::getIdentifier(int init)
                 outargs.str_data(0).size = int(strlen(str.c_str())+1);
                 outargs.str_data(0).data = csound->strdup(str.data());
             }
-                
         }
         
 

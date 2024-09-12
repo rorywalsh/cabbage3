@@ -46,7 +46,7 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                 {
                     try{
                         
-                        _log(msg->str);
+//                        _log(msg->str);
                         auto json = nlohmann::json::parse(msg->str, nullptr, false);
                         const std::string command = json["command"];
                         auto jsonObj = nlohmann::json::parse(json["obj"].get<std::string>());
@@ -141,20 +141,6 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
     //this callback is triggered from CabbageProcessor.cpp and is responsible for
     //updating the widgets in the VSCode web panel
     auto callback = [&](CabbageOpcodeData data) {
-        if(data.type == CabbageOpcodeData::MessageType::Value)
-        {
-            nlohmann::json j;
-            j["channel"] = data.channel;
-            j["value"] = data.value;
-            
-            nlohmann::json msg;
-            msg["command"] = "widgetUpdate";
-            msg["channel"] = j["channel"];
-            msg["data"] = j.dump();
-            webSocket.send(msg.dump());
-        }
-        else
-        {
             auto& cabbage = cabbageProcessor->getCabbage();
             auto widgetOpt = cabbage.getWidget(data.channel);
             if (widgetOpt.has_value())
@@ -179,9 +165,6 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                     webSocket.send(msg.dump());
                 }
             }
-            
-        }
-
         };
     
     cabbageProcessor->hostCallback = callback;

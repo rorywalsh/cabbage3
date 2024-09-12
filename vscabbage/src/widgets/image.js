@@ -10,7 +10,7 @@ export class Image {
             "height": 30,
             "type": "image",
             "colour": "#888888",
-            "channel": "image",
+            "channel": "",
             "outlineWidth": 1,
             "outlineColour": "#000000",
             "corners": 4,

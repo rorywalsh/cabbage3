@@ -1,70 +1,4 @@
 export class CabbageUtils {
-  /**
- * This uses a simple regex pattern to parse a line of Cabbage code such as 
- * rslider bounds(22, 14, 60, 60) channel("clip") thumbRadius(5), text("Clip") range(0, 1, 0, 1, 0.001)
- * and converts it to a JSON object
- */
-  static getCabbageCodeAsJSON(text) {
-    const type = `${text.trimStart().split(' ')[0]}`;
-    const regex = /(\w+)\(([^)]+)\)/g;
-    const jsonObj = {};
-
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      const name = match[1];
-      let value = match[2].replace(/"/g, ''); // Remove double quotes
-
-      // console.log(`Processing name: ${name}, value: ${value}`);
-
-      if (name === 'bounds') {
-        const [left, top, width, height] = value.split(',').map(v => parseInt(v.trim()));
-        jsonObj['left'] = left || 0;
-        jsonObj['top'] = top || 0;
-        jsonObj['width'] = width || 0;
-        jsonObj['height'] = height || 0;
-      } else if (name === 'range') {
-        const [min, max, val, skew, increment] = value.split(',').map(v => parseFloat(v.trim()));
-        jsonObj['min'] = min || 0;
-        jsonObj['max'] = max || 0;
-        jsonObj['value'] = val || 0;
-        jsonObj['skew'] = skew || 0;
-        jsonObj['increment'] = increment || 0;
-      } else if (name === 'size') {
-        const [width, height] = value.split(',').map(v => parseInt(v.trim()));
-        jsonObj['width'] = width || 0;
-        jsonObj['height'] = height || 0;
-      } else if (name === 'sampleRange') {
-        const [start, end] = value.split(',').map(v => parseInt(v.trim()));
-        jsonObj['startSample'] = start || 0;
-        jsonObj['endSample'] = end || 0;
-      } else if (name === 'populate') {
-        const [directory, fileType] = value.split(',').map(v => (v.trim()));
-        jsonObj['currentDirectory'] = directory || '';
-        jsonObj['fileType'] = fileType || '';
-      } else if (name === 'items') {
-        const items = value.split(',').map(v => v.trim()).join(', ');
-        jsonObj['items'] = items;
-      } else if (name === 'text') {
-        if (type.indexOf('button') > -1) {
-          const textItems = value.split(',').map(v => v.trim());
-          jsonObj['textOff'] = textItems[0] || '';
-          jsonObj['textOn'] = (textItems.length > 1 ? textItems[1] : textItems[0]) || '';
-        } else {
-          jsonObj[name] = value;
-        }
-      } else if (name === 'samples') {
-        const samples = value.split(',').map(v => parseFloat(v.trim()));
-        jsonObj['samples'] = samples;
-      } else {
-        const numericValue = parseFloat(value);
-        jsonObj[name] = !isNaN(numericValue) ? numericValue : value;
-      }
-
-      // console.log(`jsonObj so far: ${JSON.stringify(jsonObj)}`);
-    }
-
-    return jsonObj;
-  }
 
   static updateInnerHTML(channel, instance) {
     const element = document.getElementById(channel);
@@ -77,55 +11,7 @@ export class CabbageUtils {
     return fullPath.split(/[/\\]/).pop();
   }
 
-  /**
-   * this function parses the Cabbage code and creates new widgets accordingly..
-   */
-  static async parseCabbageCode(text, widgets, form, insertWidget) {
-    // Leave main form in the widget array - there is only one..
-    widgets.splice(1, widgets.length - 1);
-
-    let cabbageStart = 0;
-    let cabbageEnd = 0;
-    let lines = text.split(/\r?\n/);
-    let count = 0;
-
-    lines.forEach((line) => {
-      if (line.trimStart().startsWith("<Cabbage>"))
-        cabbageStart = count + 1;
-      else if (line.trimStart().startsWith("</Cabbage>"))
-        cabbageEnd = count;
-      count++;
-    })
-
-    const cabbageCode = lines.slice(cabbageStart, cabbageEnd);
-    for (const line of cabbageCode) {
-
-      if (!line.trim().startsWith(";") && line.trim() !== "") {
-        console.log("line", line)
-        const codeProps = CabbageUtils.getCabbageCodeAsJSON(line);
-        const type = `${line.trimStart().split(' ')[0]}`;
-        console.log("type", type);
-        console.log("copeProps", codeProps);
-        if (line.trim() != "") {
-          if (type != "form") {
-            await insertWidget(type, codeProps);
-          } else {
-            widgets.forEach((widget) => {
-              if (widget.props.channel == "MainForm") {
-                const w = codeProps.width;
-                const h = codeProps.height;
-                form.style.width = w + "px";
-                form.style.height = h + "px";
-                widget.props.width = w;
-                widget.props.width = h;
-              }
-            });
-          }
-        }
-      }
-    }
-  }
-
+  
   /**
    * this function will return the number of plugin parameter in our widgets array
    */
@@ -328,22 +214,6 @@ export class CabbageUtils {
     return element || null;
   }
 
-  /**
- * This uses a simple regex pattern to get tokens from a line of Cabbage code
- */
-  static getTokens(text) {
-    const inputString = text
-    const regex = /(\w+)\(([^)]+)\)/g;
-    const tokens = [];
-    let match;
-    while ((match = regex.exec(inputString)) !== null) {
-      const token = match[1];
-      const values = match[2].split(',').map(value => value.trim()); // Split values into an array
-      tokens.push({ token, values });
-    }
-    return tokens;
-  }
-
   static sendToBack(currentDiv) {
     const parentElement = currentDiv.parentElement;
     const allDivs = parentElement.getElementsByTagName('div');
@@ -390,60 +260,6 @@ export class CabbageUtils {
     return syntax;
   }
 
-  /**
-   * This function will check the current widget props against the default set, and return an 
-   * array for any identifiers that are different to their default values - this only returns the identifiers
-   * that need updating, not their parameters..
-   */
-  static findUpdatedIdentifiers(initial, current) {
-    const initialWidgetObj = JSON.parse(initial);
-    const currentWidgetObj = JSON.parse(current);
-
-    var updatedIdentifiers = [];
-
-    // Iterate over the keys of obj1
-    for (var key in initialWidgetObj) {
-      // Check if obj2 has the same key
-      if (currentWidgetObj.hasOwnProperty(key)) {
-        // Compare the values of the keys
-        if (initialWidgetObj[key] !== currentWidgetObj[key]) {
-          // If values are different, add the key to the differentKeys array
-          updatedIdentifiers.push(key);
-        }
-      } else {
-        // If obj2 doesn't have the key from obj1, add it to differentKeys array
-        updatedIdentifiers.push(key);
-      }
-    }
-
-    // Iterate over the keys of obj2 to find any keys not present in obj1
-    for (var key in currentWidgetObj) {
-      if (!initialWidgetObj.hasOwnProperty(key)) {
-        // Add the key to differentKeys array
-        updatedIdentifiers.push(key);
-      }
-    }
-
-
-    if (currentWidgetObj['type'].indexOf('slider') > -1) {
-      updatedIdentifiers.push('min');
-      updatedIdentifiers.push('max');
-      updatedIdentifiers.push('value');
-      updatedIdentifiers.push('skew');
-      updatedIdentifiers.push('increment');
-
-    }
-
-    return updatedIdentifiers;
-  }
-
-
-  static generateIdentifierTestCsd(widgets) {
-
-
-
-  }
-
   static updateBounds(props, identifier) {
     const element = document.getElementById(props.channel);
     if (element) {
@@ -476,7 +292,6 @@ export class CabbageColours {
         // Loop through all rules in the stylesheet
         for (let j = 0; j < styleSheet.cssRules.length; j++) {
           const rule = styleSheet.cssRules[j];
-          console.warn(rule)
           
           if (rule.selectorText && rule.selectorText.trim() === '.selected') {
             // Modify the border color

@@ -183,30 +183,15 @@ void CabbageProcessor::timerCallback()
     {
         while (cabbage.opcodeData.try_dequeue(data))
         {
-            if(data.type == CabbageOpcodeData::MessageType::Value)
+            for(auto& widget : cabbage.getWidgets())
             {
-                //if incoming data is from a value opcode update Csound...
-                cabbage.setControlChannel(data.channel, data.value);
-                for(auto &widget : cabbage.getWidgets())
+                if(data.channel == CabbageParser::removeQuotes(widget["channel"]))
                 {
-                    //update widget objects in case UI is closed and reopened...
-                    if(CabbageParser::removeQuotes(widget["channel"]) == data.channel)
-                    {
-                        widget["value"] = data.value;
-                    }
+                    //this will update the widget JSON with new arguments tied to the identifier, e.g, bounds(x, y, w, h)
+                    CabbageParser::updateJson(widget, data.cabbageJson, widget.size());
                 }
             }
-            else
-            {
-                for(auto& widget : cabbage.getWidgets())
-                {
-                    if(data.channel == CabbageParser::removeQuotes(widget["channel"]))
-                    {
-                        //this will update the widget JSON with new arguments tied to the identifier, e.g, bounds(x, y, w, h)
-                        CabbageParser::updateJson(widget, data.cabbageJson, widget.size());
-                    }
-                }
-            }
+
             
 #ifdef CabbageApp
             //send data to vscode extension..

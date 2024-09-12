@@ -110,7 +110,6 @@ public:
                     {
                         auto j = CabbageWidgetDescriptors::get(item["type"]);
                         updateJson(j, item, widgets.size());
-                        _log(j.dump(4));
                         widgets.push_back(j);
                     }
                     else
@@ -126,7 +125,7 @@ public:
         }
         catch (const nlohmann::json::parse_error& e)
         {
-            std::cerr << "JSON parse error: " << e.what() << std::endl;
+            _log("JSON parse error: " << e.what() << std::endl);
         }
     }
 
@@ -151,14 +150,19 @@ public:
         {
             if (jsonObj["type"].get<std::string>() != "form")
             {
-                //jsonObj["channel"] = jsonObj["type"].get<std::string>() + std::to_string(static_cast<int>(numWidgets));
+                //if channel is empty, assign it a unique name
+                if (jsonObj.contains("channel") && jsonObj["channel"].is_string() && jsonObj["channel"].get<std::string>().empty())
+                {
+                    jsonObj["channel"] = jsonObj["type"].get<std::string>() + std::to_string(static_cast<int>(numWidgets));
+                }
             }
 
+            //parse multi argument identifiers here into separate keys
             for (auto it = incomingJson.begin(); it != incomingJson.end(); ++it)
             {
                 const std::string& key = it.key();
                 const auto& value = it.value();
-
+                
                 if (key == "bounds")
                 {
                     if (value.is_array() && value.size() == 4)
@@ -289,9 +293,9 @@ public:
                 }
 //                else if (key == "channel")
 //                {
-//                    if (value.is_string())
+//                    if (value.is_string() && value.get<std::string>().empty())
 //                    {
-//                        jsonObj["channel"] = value.get<std::string>();
+//
 //                    }
 //                    else
 //                    {
@@ -321,8 +325,10 @@ public:
                 }
                 else
                 {
+                    
                     if (value.is_string())
                     {
+//                        _log("key is " << key << ", value is " << value.get<std::string>());
                         jsonObj[key] = value.get<std::string>();
                     }
                     else if (value.is_number())
@@ -335,6 +341,8 @@ public:
                     }
                 }
             }
+//            _log("channel(\"" << jsonObj["channel"].get<std::string>() << "\") bounds(" << jsonObj["left"].get<int>() << ", " << jsonObj["top"].get<int>() << ")");
+
         }
         catch (const nlohmann::json::exception& e)
         {

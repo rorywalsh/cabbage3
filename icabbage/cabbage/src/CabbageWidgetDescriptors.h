@@ -402,7 +402,7 @@ public:
             "height": 30,
             "type": "label",
             "colour": "#88888800",
-            "channel": "label",
+            "channel": "",
             "fontColour": "#dddddd",
             "fontFamily": "Verdana",
             "fontSize": 0,

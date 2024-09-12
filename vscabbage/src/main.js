@@ -11,6 +11,7 @@ import { ComboBox } from "./widgets/comboBox.js";
 import { Label } from "./widgets/label.js";
 import { Image } from "./widgets/image.js";
 import { ListBox } from "./widgets/listBox.js";
+import { GroupBox } from "./widgets/GroupBox.js";
 import { GenTable } from "./widgets/genTable.js";
 import { CsoundOutput } from "./widgets/csoundOutput.js";
 import { MidiKeyboard } from "./widgets/midiKeyboard.js";
@@ -34,6 +35,7 @@ const widgetConstructors = {
   "image": Image,
   "listbox": ListBox,
   "combobox": ComboBox,
+  "groupbox": GroupBox,
   "checkbox": Checkbox,
   "csoundoutput": CsoundOutput,
   "texteditor": TextEditor
@@ -96,7 +98,7 @@ CabbageUtils.showOverlay();
 window.addEventListener('message', async event => {
   const message = (event.data);
   const mainForm = document.getElementById('MainForm');
-  console.log("data received", message);
+
   switch (message.command) {
     //when users change the snapToSize settings
     case 'snapToSize':
@@ -141,7 +143,6 @@ window.addEventListener('message', async event => {
       widgets.length = 0;
       widgetUpdatesMessages.forEach(msg => updateWidget(msg));
       //form.className = "form draggable";
-      //CabbageUtils.parseCabbageCode(message.text, widgets, form, insertWidget);
       break;
 
     //called each time there are new Csound console messages to display
@@ -167,35 +168,41 @@ window.addEventListener('message', async event => {
 * this is called from the plugin and will update a corresponding widget
 */
 function updateWidget(obj) {
+  
   const channel = obj['channel'];
   let widgetFound = false;
   for (const widget of widgets) {
     if (widget.props.channel === channel) {
       widgetFound = true;
+      console.log("props", widget.props);
       if (obj.hasOwnProperty('data')) {
         widget.props = JSON.parse(obj["data"]);
-      } else if (obj.hasOwnProperty('value')) {
-        widget.props.value = obj['value'];
-
+      } else {
+        console.error("obj has no data property:", obj);
       }
 
       const widgetElement = CabbageUtils.getWidgetDiv(widget.props.channel);
       if (widgetElement) {
-        // widgetElement.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
+        widgetElement.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
+
         widgetElement.setAttribute('data-x', widget.props.left);
         widgetElement.setAttribute('data-y', widget.props.top);
-
+        // widgetElement.style.top = `${widget.props.top}px`;
+        // widgetElement.style.left = `${widget.props.left}px`;
         if (widget.props.type !== "form") {
-          console.log("updating ", widget.props.channel);
           widgetElement.innerHTML = widget.getInnerHTML();
         }
 
       }
+      else{
+        console.error("Widget not found:", widget.props.channel);
+      }
 
+      //gentable and form are unique cases...
       if (widget.props.type == "gentable") {
         widget.updateTable();
       } else if (widget.props.type == "form") {
-        console.log("updating form svg from widgetUpdate");
+        // console.log("updating form svg from widgetUpdate");
         widget.updateSVG();
       }
     }
@@ -207,11 +214,10 @@ function updateWidget(obj) {
       let p = JSON.parse(obj.data);
       if (typeof p === 'string') {
         p = JSON.parse(p);
-        console.log("stringed twice");
       }
 
       if (p.hasOwnProperty('type')) {
-        insertWidget(p.type, p)
+        insertWidget(p.type, p);
       }
     } catch (error) {
       console.error("Error parsing JSON data:", error, obj.data);
@@ -249,7 +255,6 @@ async function insertWidget(type, props) {
     return;
   }
 
-  console.log("Created widget:", widget);
   widgetDiv.className = (type === "form") ? "resizeOnly" : cabbageMode;
 
   if (cabbageMode === 'draggable') {
@@ -258,6 +263,7 @@ async function insertWidget(type, props) {
 
   Object.assign(widget.props, props);
   widgets.push(widget);
+  console.warn(widget.props);
   widget.parameterIndex = CabbageUtils.getNumberOfPluginParameters(widgets) - 1;
 
   if (cabbageMode === 'nonDraggable') {
@@ -344,7 +350,7 @@ function setupFormWidget(widget) {
     ulMenu.className = 'menu';
 
     //add widget types to menu
-    const widgetTypes = ["hslider", "rslider", "nslider", "image", "texteditor", "gentable", "vslider", "keyboard", "button", "filebutton", "listbox", "optionbutton", "combobox", "checkbox", "keyboard", "csoundoutput"];
+    const widgetTypes = ["hslider", "rslider", "nslider", "image", "texteditor", "gentable", "vslider", "keyboard", "button", "filebutton", "listbox", "optionbutton", "combobox", "groupbox", "checkbox", "keyboard", "csoundoutput"];
 
     let menuItems = "";
     widgetTypes.forEach((widget) => {

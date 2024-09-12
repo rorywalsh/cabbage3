@@ -114,7 +114,7 @@ struct CabbageOpcodes
                 name = args.str_data(nameIndex).data;
         }
 
-        data.cabbageJson = "value";
+        data.cabbageJson["value"] = 0;
         data.channel = name;
         return data;
     }
@@ -150,15 +150,17 @@ struct CabbageOpcodes
     }
     
     nlohmann::json parseAndFormatJson(const std::string& jsonString) {
-        try {
-            // Parse the JSON string
-            nlohmann::json jsonObj = nlohmann::json::parse("{" + jsonString + "}");
+        // Wrap the input string with braces to form a complete JSON object
+        std::string wrappedJson = "{" + jsonString + "}";
 
-            // Ensure the JSON object is valid
-            return jsonObj;
-        } catch (const nlohmann::json::parse_error& e) {
-            std::cerr << "JSON parse error: " << e.what() << std::endl;
-            return nlohmann::json(); // Return an empty JSON object in case of error
+        try {
+            // Attempt to parse the wrapped JSON string
+            return nlohmann::json::parse(wrappedJson);
+        } catch (const nlohmann::json::parse_error&) {
+            // If parsing fails, create a new JSON object with an empty key
+            nlohmann::json fallbackJson;
+            fallbackJson[jsonString] = nullptr; 
+            return fallbackJson;
         }
     }
     

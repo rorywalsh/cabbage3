@@ -29,7 +29,7 @@ int CabbageSetValue::setValue(int /*pass*/)
     if(kCycles==32)
     {
         CabbageOpcodeData data = getValueIdentData(args, true, 0, 1);
-        data.value = args[1];
+        data.cabbageJson["value"] = args[1];
         data.type = CabbageOpcodeData::MessageType::Value;
         hostData->opcodeData.enqueue(data);
         kCycles = 0;
@@ -61,11 +61,14 @@ int CabbageSetPerfString::setIdentifier(int /*pass*/)
         if(in_count() > 3)
         {
             data.type = CabbageOpcodeData::MessageType::Identifier;
-            data.cabbageJson+=("(\""+std::string(args.str_data(3).data)+"\")");
+            data.cabbageJson+=(":"+std::string(args.str_data(3).data)+"\"");
+            cabAssert(false, "not implemented yet..");
             hostData->opcodeData.enqueue(data);
         }
     }
     hostData->opcodeData.enqueue(data);
+    
+    return IS_OK;
 }
 
 //=====================================================================================
@@ -122,18 +125,21 @@ int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
         if(in_count() > 3)
         {
             data.type = CabbageOpcodeData::MessageType::Identifier;
-            std::string params;
-            for( int i = 2 ; i < in_count() ; i++)
+            
+            //need to push to new vector before assigning to JSON object
+            std::vector<MYFLT> values;
+            for( int i = 3 ; i < in_count() ; i++)
             {
-                params += std::to_string(args[i]) + (i<in_count()-1 ? "," : "");
+                values.push_back(args[i]);
             }
-            data.cabbageJson+=("("+params+")");
+            
+            data.cabbageJson[identifier] = values;
             hostData->opcodeData.enqueue(data);
+            return IS_OK;
         }
         else
             csound->init_error("Not enough input arguments\n");
     }
-    hostData->opcodeData.enqueue(data);
 }
 
 //=====================================================================================
