@@ -7,6 +7,7 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <regex>
 #include <filesystem>
 
 #if defined(_WIN32)
@@ -167,6 +168,65 @@ public:
         #endif
     }
 
+    // Function to load JavaScript file into a string
+    static std::string loadJSFile(const std::string& filePath)
+    {
+        std::ifstream file(filePath);
+        std::string jsContent((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        return jsContent;
+    }
+
+    // Function to crudely extract the props object from a corresponding JS file...
+    // this could be rewritten using ducktapeJS or some other JS parser...
+    static nlohmann::json extractPropsFromJS(const std::string& jsContent)
+    {
+        std::string propsKey = "this.props =";
+        size_t propsPos = jsContent.find(propsKey);
+
+        if (propsPos != std::string::npos) {
+            // Start of the actual props object (after "this.props =")
+            size_t start = jsContent.find('{', propsPos);
+            if (start == std::string::npos) {
+                std::cerr << "No opening brace for props found." << std::endl;
+                return {};
+            }
+
+            // Manual brace matching
+            int braceCount = 1;
+            size_t end = start + 1;
+
+            while (end < jsContent.size() && braceCount > 0) {
+                if (jsContent[end] == '{') {
+                    ++braceCount;
+                } else if (jsContent[end] == '}') {
+                    --braceCount;
+                }
+                ++end;
+            }
+
+            // If we exited and braceCount is not zero, something went wrong
+            if (braceCount != 0) {
+                std::cerr << "Mismatched braces in the props object." << std::endl;
+                return {};
+            }
+
+            // Extract the props object string
+            std::string propsString = jsContent.substr(start, end - start);
+
+            // Parse the props string into a JSON object using nlohmann::json
+            try {
+                return nlohmann::json::parse(propsString);
+            } catch (const nlohmann::json::parse_error& e) {
+                std::cerr << "JSON parse error: " << e.what() << std::endl;
+            }
+        } else {
+            std::cerr << "No props object found in the JavaScript file." << std::endl;
+        }
+
+        return {};
+    }
+
+    
     static std::string getBinaryFileName() {
         std::string binaryPath = getBinaryPath();
         size_t pos = binaryPath.find_last_of("/\\");

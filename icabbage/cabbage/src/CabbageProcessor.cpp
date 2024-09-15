@@ -71,6 +71,7 @@ void CabbageProcessor::setupCallbacks()
     {
         for(auto &widget : cabbage.getWidgets())
         {
+            _log(widget.dump(4));
             //update widget objects in case UI is closed and reopened...
             if(widget["type"].get<std::string>() == "form")
             {

@@ -6,44 +6,44 @@ import { Cabbage } from "../cabbage.js";
 export class RotarySlider {
   constructor() {
     this.props = {
-      "top": 10, // Top position of the rotary slider widget
-      "left": 10, // Left position of the rotary slider widget
-      "width": 60, // Width of the rotary slider widget
-      "height": 60, // Height of the rotary slider widget
-      "channel": "rslider", // Unique identifier for the rotary slider widget
-      "min": 0, // Minimum value of the slider
-      "max": 1, // Maximum value of the slider
-      "value": 0, // Current value of the slider
-      "skew": 1, // Skew factor for the slider
-      "increment": 0.001, // Incremental value change per step
-      "index": 0, // Index of the slider
-      "text": "", // Text displayed on the slider
-      "fontFamily": "Verdana", // Font family for the text displayed on the slider
-      "fontSize": 0, // Font size for the text displayed on the slider
-      "align": "centre", // Alignment of the text on the slider
-      "textOffsetY": 0, // Vertical offset for the text displayed on the slider
-      "valueTextBox": 0, // Display a textbox showing the current value
-      "colour": CabbageColours.getColour("blue"), // Background color of the slider
-      "trackerColour": CabbageColours.getColour('green'), // Color of the slider tracker
-      "trackerBackgroundColour": "#ffffff", // Background color of the slider tracker
-      "trackerOutlineColour": "#525252", // Outline color of the slider tracker
-      "fontColour": "#dddddd", // Font color for the text displayed on the slider
-      "outlineColour": "#525252", // Color of the slider outline
-      "textBoxOutlineColour": "#999999", // Outline color of the value textbox
-      "textBoxColour": "#555555", // Background color of the value textbox
-      "markerColour": "#222222", // Color of the marker on the slider
-      "trackerOutlineWidth": 3, // Outline width of the slider tracker
-      "trackerWidth": 20, // Width of the slider tracker
-      "outlineWidth": 2, // Width of the slider outline
-      "type": "rslider", // Type of the widget (rotary slider)
-      "decimalPlaces": 1, // Number of decimal places in the slider value
-      "velocity": 0, // Velocity value for the slider
-      "popup": 1, // Display a popup when the slider is clicked
-      "visible": 1, // Visibility of the slider
-      "automatable": 1, // Ability to automate the slider
-      "valuePrefix": "", // Prefix to be displayed before the slider value
-      "valuePostfix": "", // Postfix to be displayed after the slider value
-      "presetIgnore": 0, // Ignore preset value for the slider
+      "top": 10,
+      "left": 10,
+      "width": 60,
+      "height": 60,
+      "channel": "rotarySlider",
+      "min": 0,
+      "max": 1,
+      "value": 0,
+      "skew": 1,
+      "increment": 0.001,
+      "index": 0,
+      "text": "",
+      "fontFamily": "Verdana",
+      "fontSize": 0,
+      "align": "centre",
+      "textOffsetY": 0,
+      "valueTextBox": 0,
+      "colour": "#0295cf",
+      "trackerColour": "#93d200",
+      "trackerBackgroundColour": "#ffffff",
+      "trackerOutlineColour": "#525252",
+      "fontColour": "#dddddd",
+      "outlineColour": "#525252",
+      "textBoxOutlineColour": "#999999",
+      "textBoxColour": "#555555",
+      "markerColour": "#222222",
+      "trackerOutlineWidth": 3,
+      "trackerWidth": 20,
+      "outlineWidth": 2,
+      "type": "rotarySlider",
+      "decimalPlaces": 1,
+      "velocity": 0,
+      "popup": 1,
+      "visible": 1,
+      "automatable": 1,
+      "valuePrefix": "",
+      "valuePostfix": "",
+      "presetIgnore": 0
     };
 
 

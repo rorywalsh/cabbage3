@@ -20,7 +20,8 @@ import { TextEditor } from "./widgets/textEditor.js";
 
 
 const widgetConstructors = {
-  "rslider": RotarySlider,
+  //add new widgets here, first the name, then the constructor
+  "rotarySlider": RotarySlider,
   "hslider": HorizontalSlider,
   "hrange": HorizontalRangeSlider,
   "vslider": VerticalSlider,
@@ -41,6 +42,10 @@ const widgetConstructors = {
   "texteditor": TextEditor
 };
 
+//for use by the context menu accessed when adding new widgets
+const widgetTypes = Object.keys(widgetConstructors);
+
+
 import { PropertyPanel } from "./propertyPanel.js";
 import { CabbageUtils, CabbageTestUtilities, CabbageColours } from "./utils.js";
 import { Cabbage } from "./cabbage.js";
@@ -48,10 +53,6 @@ import { Cabbage } from "./cabbage.js";
 console.log("main.js loaded!")
 
 // CabbageTestUtilities.generateIdentifierTestCsd(widgetsForTesting); // This will generate a test CSD file with the widgets
-// CabbageTestUtilities.generateCabbageWidgetDescriptorsClass(widgetConstructors); // This will generate a class with the widget descriptors 
-
-
-
 
 let vscode = null;
 let widgetWrappers = null;
@@ -348,9 +349,6 @@ function setupFormWidget(widget) {
 
     const ulMenu = document.createElement('ul');
     ulMenu.className = 'menu';
-
-    //add widget types to menu
-    const widgetTypes = ["hslider", "rslider", "nslider", "image", "texteditor", "gentable", "vslider", "keyboard", "button", "filebutton", "listbox", "optionbutton", "combobox", "groupbox", "checkbox", "keyboard", "csoundoutput"];
 
     let menuItems = "";
     widgetTypes.forEach((widget) => {
