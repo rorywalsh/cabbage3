@@ -164,6 +164,8 @@ elseif(APPLE)
   ${PROJECT_DIR}/src/webView/CabbageEditorDelegate.mm
   ${PROJECT_DIR}/src/webView/IPlugWebView.h 
   ${PROJECT_DIR}/src/webView/CabbageEditorDelegate.h
+  ${PROJECT_DIR}/src/webView/CabbageEditorDelegateBase.cpp
+  ${PROJECT_DIR}/src/webView/CabbageEditorDelegateBase.h
   )
 
 endif()
@@ -181,14 +183,6 @@ set(SRC_FILES
   ${PROJECT_DIR}/src/CabbageServer.h
 )
 
-set(APP_SRC_FILES
-  ../src/app/CabbageAPP.cpp 
-  ../src/app/CabbageAPP_host.h
-  ../src/app/CabbageAPP_dialog.cpp 
-  ../src/app/CabbageAPP_host.cpp 
-  ../src/app/CabbageAPP_main.cpp
-  ../src/app/CabbageAPP.h
-)
 
 set(OPCODE_SRC_FILES
   ${PROJECT_DIR}/src/opcodes/CabbageGetOpcodes.h
@@ -202,25 +196,30 @@ set(OPCODE_SRC_FILES
 
 #find_package(iPlug2 REQUIRED COMPONENTS Skia)
 
-set_source_files_properties(${PROJECT_DIR}/src/webView/IPlugWebView.mm PROPERTIES COMPILE_OPTIONS -fobjc-arc)
-
-# While not required, creating a base interface for includes and settings seems like a good idea.
-add_library(_base INTERFACE)
-# iplug_target_add() is a shorthand function for adding sources and include directories,
-# linking libraries, adding resources, setting compile options, etc.
-iplug_target_add(_base INTERFACE  
-  SOURCE ${WEB_RESOURCES}
-  INCLUDE ${PROJECT_DIR} ${IPLUG2_DIR}/Dependencies/Extras/nlohmann ${EXTRA_INCLUDE_DIRECTORIES} ${PROJECT_DIR}/resources
-  LINK_DIR ${EXTRA_LINK_DIRECTORIES}
-  LINK iPlug2_GL2 ${EXTRA_LINK_LIBRARIES} ${CSOUND_LIBRARY} ${LIB_SNDFILE}
-  FEATURE cxx_std_17
-  DEFINE NO_IGRAPHICS ${EXTRA_DEFINES} CUSTOM_EDITOR="${PROJECT_DIR}/src/webView/CabbageEditorDelegate.h" CUSTOM_EDITOR_CLASS=CabbageEditorDelegate
-)
-  
 
 # For typing convenience the TARGET name is put into a variable.
 if(WIN32) 
+  # While not required, creating a base interface for includes and settings seems like a good idea.
+  add_library(_base INTERFACE)
+  # iplug_target_add() is a shorthand function for adding sources and include directories,
+  # linking libraries, adding resources, setting compile options, etc.
+  iplug_target_add(_base INTERFACE  
+    SOURCE ${WEB_RESOURCES}
+    INCLUDE ${PROJECT_DIR} ${IPLUG2_DIR}/Dependencies/Extras/nlohmann ${EXTRA_INCLUDE_DIRECTORIES} ${PROJECT_DIR}/resources
+    LINK_DIR ${EXTRA_LINK_DIRECTORIES}
+    LINK iPlug2_GL2 ${EXTRA_LINK_LIBRARIES} ${CSOUND_LIBRARY} ${LIB_SNDFILE}
+    FEATURE cxx_std_17
+    DEFINE NO_IGRAPHICS ${EXTRA_DEFINES})
+
   if (DEFINED CabbageApp)
+    set(CUSTOM_APP_SRC
+    ../src/app/CabbageAPP.cpp 
+    ../src/app/CabbageAPP_host.h
+    ../src/app/CabbageAPP_dialog.cpp 
+    ../src/app/CabbageAPP_host.cpp 
+    ../src/app/CabbageAPP_main.cpp
+    ../src/app/CabbageAPP.h
+    )
     # this is the taget for the command line app that runs from vscode
     set(TARGET app)    
     add_executable(${TARGET} WIN32 ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
@@ -228,7 +227,24 @@ if(WIN32)
     LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} 
     DEFINE ${ProductName} WIN32_LEAN_AND_MEAN CUSTOM_APP_SRC)
     iplug_configure_target(${TARGET} app)
+    source_group("Cabbage App" FILES ${CUSTOM_APP_SRC})
   else()
+
+    message("Setting up standalone app taget")
+    set(TARGET app)
+    add_executable(${TARGET}  WIN32 ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
+    iplug_target_add(${TARGET} PUBLIC 
+    LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} 
+    DEFINE ${ProductName} WIN32_LEAN_AND_MEAN)
+    iplug_configure_target(${TARGET} app )
+
+    message("Setting up VST3 target")
+    set(TARGET vst3)
+    add_library(${TARGET} MODULE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
+    iplug_target_add(${TARGET} PUBLIC 
+    LINK iPlug2_VST3 ZLIB::ZLIB _base RESOURCE ${RESOURCES}
+    DEFINE ${ProductName} WIN32_LEAN_AND_MEAN)
+    iplug_configure_target(${TARGET} vst3)
 
   endif()
 # add_executable(${TARGET} WIN32 MACOSX_BUNDLE  ${WEBVIEW_SRC_FILES} ${SRC_FILES} ${OPCODE_SRC_FILES} )
@@ -236,64 +252,86 @@ if(WIN32)
 # LINK iPlug2_APP _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} DEFINE WIN32_LEAN_AND_MEAN CUSTOM_APP_SRC)
 # iplug_configure_target(${TARGET} app)
 else()
-  if (DEFINED CabbageApp)
-    # this is the taget for the command line app that runs from vscode
-    set(TARGET app)    
-    add_executable(${TARGET} MACOSX_BUNDLE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
-    iplug_target_add(${TARGET} PUBLIC 
-    LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} 
-    DEFINE ${ProductName})
-    iplug_configure_target(${TARGET} app)
-    set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
-  else()
-    # this app is the stadnalone target export from Cabbage
-    set(TARGET app)
-    add_executable(${TARGET} MACOSX_BUNDLE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
-    iplug_target_add(${TARGET} PUBLIC 
-    LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} 
-    DEFINE ${ProductName})
-    iplug_configure_target(${TARGET} app )
-    set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
+  set_source_files_properties(${PROJECT_DIR}/src/webView/IPlugWebView.mm PROPERTIES COMPILE_OPTIONS -fobjc-arc)
 
-    
+  # While not required, creating a base interface for includes and settings seems like a good idea.
+  add_library(_base INTERFACE)
+  # iplug_target_add() is a shorthand function for adding sources and include directories,
+  # linking libraries, adding resources, setting compile options, etc.
+  iplug_target_add(_base INTERFACE  
+    SOURCE ${WEB_RESOURCES}
+    INCLUDE ${PROJECT_DIR} ${IPLUG2_DIR}/Dependencies/Extras/nlohmann ${EXTRA_INCLUDE_DIRECTORIES} ${PROJECT_DIR}/resources
+    LINK_DIR ${EXTRA_LINK_DIRECTORIES}
+    LINK iPlug2_GL2 ${EXTRA_LINK_LIBRARIES} ${CSOUND_LIBRARY} ${LIB_SNDFILE}
+    FEATURE cxx_std_17
+    DEFINE NO_IGRAPHICS ${EXTRA_DEFINES} CUSTOM_EDITOR="${PROJECT_DIR}/src/webView/CabbageEditorDelegate.h" CUSTOM_EDITOR_CLASS=CabbageEditorDelegate
+  )
 
-    set(TARGET vst3)
-    add_library(${TARGET} MODULE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
-    iplug_target_add(${TARGET} PUBLIC 
-    LINK iPlug2_VST3 ZLIB::ZLIB _base RESOURCE ${RESOURCES}
-    DEFINE ${ProductName})
-    iplug_configure_target(${TARGET} vst3)
-    set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
-    add_custom_command(TARGET ${TARGET} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_directory" "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${ProductName}.vst3" "$ENV{HOME}/Library/Audio/Plug-Ins/VST3")
+    if (DEFINED CabbageApp)
+      set(CUSTOM_APP_SRC
+      ../src/app/CabbageAPP.cpp 
+      ../src/app/CabbageAPP_host.h
+      ../src/app/CabbageAPP_dialog.cpp 
+      ../src/app/CabbageAPP_host.cpp 
+      ../src/app/CabbageAPP_main.cpp
+      ../src/app/CabbageAPP.h
+      )
+      # this is the taget for the command line app that runs from vscode
+      set(TARGET app)    
+      add_executable(${TARGET} MACOSX_BUNDLE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
+      iplug_target_add(${TARGET} PUBLIC 
+      LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} 
+      DEFINE ${ProductName})
+      iplug_configure_target(${TARGET} app)
+      set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
+      source_group("Cabbage App" FILES ${CUSTOM_APP_SRC})
+    else()
+      # this app is the stadnalone target export from Cabbage
+      set(TARGET app)
+      add_executable(${TARGET} MACOSX_BUNDLE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
+      iplug_target_add(${TARGET} PUBLIC 
+      LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} 
+      DEFINE ${ProductName})
+      iplug_configure_target(${TARGET} app )
+      set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
 
-    # set(TARGET vst2)
-    # add_library(${TARGET} MODULE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
-    # iplug_target_add(${TARGET} PUBLIC 
-    # LINK iPlug2_VST2 ZLIB::ZLIB _base RESOURCE ${RESOURCES}
-    # DEFINE ${ProductName})
-    # iplug_configure_target(${TARGET} vst2)
-    # set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
-    # add_custom_command(TARGET ${TARGET} POST_BUILD
-    # COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_directory" "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${ProductName}.vst3" "$ENV{HOME}/Library/Audio/Plug-Ins/VST3")
+      
 
-
-    if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-      set(TARGET auv2)
+      set(TARGET vst3)
       add_library(${TARGET} MODULE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
       iplug_target_add(${TARGET} PUBLIC 
-      LINK iPlug2_AUv2 ZLIB::ZLIB _base RESOURCE ${RESOURCES})
-      iplug_configure_target(${TARGET} auv2)
+      LINK iPlug2_VST3 ZLIB::ZLIB _base RESOURCE ${RESOURCES}
+      DEFINE ${ProductName})
+      iplug_configure_target(${TARGET} vst3)
       set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
+      add_custom_command(TARGET ${TARGET} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_directory" "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${ProductName}.vst3" "$ENV{HOME}/Library/Audio/Plug-Ins/VST3")
+
+      # set(TARGET vst2)
+      # add_library(${TARGET} MODULE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
+      # iplug_target_add(${TARGET} PUBLIC 
+      # LINK iPlug2_VST2 ZLIB::ZLIB _base RESOURCE ${RESOURCES}
+      # DEFINE ${ProductName})
+      # iplug_configure_target(${TARGET} vst2)
+      # set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
+      # add_custom_command(TARGET ${TARGET} POST_BUILD
+      # COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_directory" "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${ProductName}.vst3" "$ENV{HOME}/Library/Audio/Plug-Ins/VST3")
+
+
+      if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
+        set(TARGET auv2)
+        add_library(${TARGET} MODULE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
+        iplug_target_add(${TARGET} PUBLIC 
+        LINK iPlug2_AUv2 ZLIB::ZLIB _base RESOURCE ${RESOURCES})
+        iplug_configure_target(${TARGET} auv2)
+        set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
+      endif()
     endif()
-  endif()
 endif()
 
 source_group("Cabbage Base" FILES ${SRC_FILES} )
 source_group("Webview" FILES ${WEBVIEW_SRC_FILES})
 source_group("Opcodes" FILES ${OPCODE_SRC_FILES})
-source_group("Cabbage App" FILES ${APP_SRC_FILES})
-
 
 if (WIN32)
   set(CMAKE_RC_FLAGS "/I${PROJECT_DIR}/resources /I${PROJECT_DIR}/resources/fonts /I${PROJECT_DIR}/resources/img ${CMAKE_RC_FLAGS}")
