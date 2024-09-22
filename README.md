@@ -12,7 +12,6 @@ mkdir build && cd build
 cmake ..
 make
 cd ../../iPlug2
-git checkout cmake
 cd Dependencies
 ./download-prebuilt-libs.sh
 cd IPlug
