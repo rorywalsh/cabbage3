@@ -5,12 +5,11 @@ This repository contains the **Cabbage3** project, along with its corresponding 
 ### Build Instructions for iPlug Projects
 
 ```bash
-git clone https://github.com/rorywalsh/cabbage3.git
+git clone --recursive https://github.com/rorywalsh/cabbage3.git
 cd cabbage3
-git submodule init
-git submodule update
-cd icabbae/IXWebSocket
+cd icabbage/IXWebSocket
 mkdir build && cd build
+cmake ..
 make
 cd ../../iPlug2
 git checkout cmake
