@@ -29,7 +29,7 @@ The `generateProject.sh` script will call the relevant CMake scripts to generate
 - **CabbagePluginEffect** and **CabbagePluginSynth** are plugin targets.
 - **CabbageApp** is the target used when working with the **VSCode extension**. It’s a customized version of the standalone targets for `CabbagePluginEffect` and `CabbagePluginSynth`.
 
-Additionally, on macOS, the `generateProject.sh` script will modify the resulting `info.plist` files with the relevant target name.
+Additionally, on macOS, the `generateProject.sh` script will modify the resulting `info.plist` files with the relevant target name. On MacOS, the CMake build expects to find `CsoundLib64.framework` in `/Library`. On Windows the expected location is `C:/Program Files/Csound6_x64`. 
 
 ### Project Structure
 
