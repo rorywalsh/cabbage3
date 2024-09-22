@@ -30,7 +30,7 @@ The `generateProject.sh` script will call the relevant CMake scripts to generate
 - **CabbagePluginEffect** and **CabbagePluginSynth** are plugin targets.
 - **CabbageApp** is the target used when working with the **VSCode extension**. It’s a customized version of the standalone targets for `CabbagePluginEffect` and `CabbagePluginSynth`.
 
-Additionally, on macOS, the `generateProject.sh` script will modify the resulting `info.plist` files with the relevant target name. On MacOS, the CMake build expects to find `CsoundLib64.framework` in `/Library`. On Windows the expected location is `C:/Program Files/Csound6_x64`. There are some extra libraries needed on Windows such as zlib, but these are easily installed and found with vcpgk. 
+Additionally, on macOS, the `generateProject.sh` script will modify the resulting `info.plist` files with the relevant target name. On MacOS, the CMake build expects to find `CsoundLib64.framework` in `/Library`. On Windows the expected location is `C:/Program Files/Csound6_x64`. There are some extra libraries needed on Windows such as zlib, but these are easily installed and found with vcpgk.
 
 ### Project Structure
 
@@ -48,7 +48,7 @@ To test the `CabbagePluginEffect` project:
 1. Copy the contents of the `CabbagePluginEffect` folder from the top-level `examples` folder to `~/Library/CabbageAudio/CabbagePluginEffect`.
 2. This folder contains up-to-date examples, including a copy of the relevant JavaScript source files.
 
-Cabbage3 plugins will search the user library for a `CabbageAudio` folder and look for a folder that matches the plugin binary name. It will then load the corresponding assets, Csound (`.csd`) file, etc. The standalone target `app` is the simplest one to debug. 
+Cabbage3 plugins will search the user library for a `CabbageAudio` folder and look for a folder that matches the plugin binary name. It will then load the corresponding assets, Csound (`.csd`) file, etc. The standalone target `app` is the simplest one to debug.
 
 ### Running the VSCode Extension
 
