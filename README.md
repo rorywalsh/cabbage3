@@ -6,9 +6,10 @@ This repository contains the **Cabbage3** project, along with its corresponding 
 
 ```bash
 git clone https://github.com/rorywalsh/cabbage3.git
+cd cabbage3
 git submodule init
 git submodule update
-cd IXWebSocket
+cd icabbae/IXWebSocket
 mkdir build && cd build
 make
 cd ../../iPlug2
