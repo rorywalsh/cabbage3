@@ -164,8 +164,6 @@ elseif(APPLE)
   ${PROJECT_DIR}/src/webView/CabbageEditorDelegate.mm
   ${PROJECT_DIR}/src/webView/IPlugWebView.h 
   ${PROJECT_DIR}/src/webView/CabbageEditorDelegate.h
-  ${PROJECT_DIR}/src/webView/CabbageEditorDelegateBase.cpp
-  ${PROJECT_DIR}/src/webView/CabbageEditorDelegateBase.h
   )
 
 endif()
@@ -247,10 +245,7 @@ if(WIN32)
     iplug_configure_target(${TARGET} vst3)
 
   endif()
-# add_executable(${TARGET} WIN32 MACOSX_BUNDLE  ${WEBVIEW_SRC_FILES} ${SRC_FILES} ${OPCODE_SRC_FILES} )
-# iplug_target_add(${TARGET} PUBLIC 
-# LINK iPlug2_APP _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} DEFINE WIN32_LEAN_AND_MEAN CUSTOM_APP_SRC)
-# iplug_configure_target(${TARGET} app)
+
 else()
   set_source_files_properties(${PROJECT_DIR}/src/webView/IPlugWebView.mm PROPERTIES COMPILE_OPTIONS -fobjc-arc)
 
@@ -296,7 +291,6 @@ else()
       set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
 
       
-
       set(TARGET vst3)
       add_library(${TARGET} MODULE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
       iplug_target_add(${TARGET} PUBLIC 
@@ -304,8 +298,8 @@ else()
       DEFINE ${ProductName})
       iplug_configure_target(${TARGET} vst3)
       set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
-      add_custom_command(TARGET ${TARGET} POST_BUILD
-      COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_directory" "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${ProductName}.vst3" "$ENV{HOME}/Library/Audio/Plug-Ins/VST3")
+      # add_custom_command(TARGET ${TARGET} POST_BUILD
+      # COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_directory" "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${ProductName}.vst3" "$ENV{HOME}/Library/Audio/Plug-Ins/VST3")
 
       # set(TARGET vst2)
       # add_library(${TARGET} MODULE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
