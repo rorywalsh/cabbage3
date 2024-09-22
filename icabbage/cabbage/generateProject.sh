@@ -42,7 +42,9 @@ if [ "$OS_NAME" = "Darwin" ]; then
     fi
     
     # Run updatePlist.sh with the target as an argument
+    if [ "$target" != "CabbageApp" ]; then
     ./updatePlist.sh "$target"
+    fi
     
     # Check if the updatePlist.sh script was successful
     if [ $? -ne 0 ]; then

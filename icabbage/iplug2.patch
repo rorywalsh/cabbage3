@@ -1,0 +1,339 @@
+diff --git a/Dependencies/Extras/faust/iplug-targets-win.cmake b/Dependencies/Extras/faust/iplug-targets-win.cmake
+index 5a5f3ed5d..04c373da0 100644
+--- a/Dependencies/Extras/faust/iplug-targets-win.cmake
++++ b/Dependencies/Extras/faust/iplug-targets-win.cmake
+@@ -1,13 +1,13 @@
+-# this file may be used to select different target
+-# values are among ON or OFF 
+-
+-set ( INCLUDE_EXECUTABLE  ON  CACHE STRING  "Include faust compiler" FORCE )
+-set ( INCLUDE_STATIC      OFF  CACHE STRING  "Include static faust library" FORCE )
+-set ( INCLUDE_DYNAMIC     ON  CACHE STRING  "Include dynamic faust library" FORCE )
+-
+-set ( INCLUDE_OSC         OFF  CACHE STRING  "Include Faust OSC static library" FORCE )
+-set ( INCLUDE_HTTP        OFF  CACHE STRING  "Include Faust HTTPD library" FORCE )
+-
+-set ( OSCDYNAMIC          OFF CACHE STRING  "Include Faust OSC dynamic library" FORCE )
+-set ( HTTPDYNAMIC         OFF CACHE STRING  "Include Faust HTTP dynamic library" FORCE )
+-
++# this file may be used to select different target
++# values are among ON or OFF 
++
++set ( INCLUDE_EXECUTABLE  ON  CACHE STRING  "Include faust compiler" FORCE )
++set ( INCLUDE_STATIC      OFF  CACHE STRING  "Include static faust library" FORCE )
++set ( INCLUDE_DYNAMIC     ON  CACHE STRING  "Include dynamic faust library" FORCE )
++
++set ( INCLUDE_OSC         OFF  CACHE STRING  "Include Faust OSC static library" FORCE )
++set ( INCLUDE_HTTP        OFF  CACHE STRING  "Include Faust HTTPD library" FORCE )
++
++set ( OSCDYNAMIC          OFF CACHE STRING  "Include Faust OSC dynamic library" FORCE )
++set ( HTTPDYNAMIC         OFF CACHE STRING  "Include Faust HTTP dynamic library" FORCE )
++
+diff --git a/Dependencies/IPlug/RTAudio/RtAudio.cpp b/Dependencies/IPlug/RTAudio/RtAudio.cpp
+index 0837d98ef..83b4b4efb 100755
+--- a/Dependencies/IPlug/RTAudio/RtAudio.cpp
++++ b/Dependencies/IPlug/RTAudio/RtAudio.cpp
+@@ -696,7 +696,7 @@ RtAudio::DeviceInfo RtApiCore :: getDeviceInfo( unsigned int device )
+   }
+ 
+   //const char *mname = CFStringGetCStringPtr( cfname, CFStringGetSystemEncoding() );
+-  int length = CFStringGetLength(cfname);
++  int length = static_cast<int>(CFStringGetLength(cfname));
+   char *mname = (char *)malloc(length * 3 + 1);
+ #if defined( UNICODE ) || defined( _UNICODE )
+   CFStringGetCString(cfname, mname, length * 3 + 1, kCFStringEncodingUTF8);
+@@ -718,7 +718,7 @@ RtAudio::DeviceInfo RtApiCore :: getDeviceInfo( unsigned int device )
+   }
+ 
+   //const char *name = CFStringGetCStringPtr( cfname, CFStringGetSystemEncoding() );
+-  length = CFStringGetLength(cfname);
++  length = static_cast<int>(CFStringGetLength(cfname));
+   char *name = (char *)malloc(length * 3 + 1);
+ #if defined( UNICODE ) || defined( _UNICODE )
+   CFStringGetCString(cfname, name, length * 3 + 1, kCFStringEncodingUTF8);
+@@ -1084,9 +1084,9 @@ bool RtApiCore :: probeDeviceOpen( unsigned int device, StreamMode mode, unsigne
+     return FAILURE;
+   }
+ 
+-  if ( bufferRange.mMinimum > *bufferSize ) *bufferSize = (unsigned long) bufferRange.mMinimum;
+-  else if ( bufferRange.mMaximum < *bufferSize ) *bufferSize = (unsigned long) bufferRange.mMaximum;
+-  if ( options && options->flags & RTAUDIO_MINIMIZE_LATENCY ) *bufferSize = (unsigned long) bufferRange.mMinimum;
++  if ( bufferRange.mMinimum > *bufferSize ) *bufferSize = static_cast<unsigned int>( bufferRange.mMinimum);
++  else if ( bufferRange.mMaximum < *bufferSize ) *bufferSize = static_cast<unsigned int>( bufferRange.mMaximum);
++  if ( options && options->flags & RTAUDIO_MINIMIZE_LATENCY ) *bufferSize = static_cast<unsigned int>( bufferRange.mMinimum);
+ 
+   // Set the buffer size.  For multiple streams, I'm assuming we only
+   // need to make this setting for the master channel.
+diff --git a/Dependencies/IPlug/RTMidi/RtMidi.cpp b/Dependencies/IPlug/RTMidi/RtMidi.cpp
+index 2524ae58d..abd215c6c 100644
+--- a/Dependencies/IPlug/RTMidi/RtMidi.cpp
++++ b/Dependencies/IPlug/RTMidi/RtMidi.cpp
+@@ -937,7 +937,7 @@ void MidiInCore :: openPort( unsigned int portNumber, const std::string &portNam
+   }
+ 
+   CFRunLoopRunInMode( kCFRunLoopDefaultMode, 0, false );
+-  unsigned int nSrc = MIDIGetNumberOfSources();
++  unsigned int nSrc = static_cast<unsigned int>(MIDIGetNumberOfSources());
+   if ( nSrc < 1 ) {
+     errorString_ = "MidiInCore::openPort: no MIDI input sources found!";
+     error( RtMidiError::NO_DEVICES_FOUND, errorString_ );
+@@ -1051,7 +1051,7 @@ void MidiInCore :: setPortName ( const std::string& )
+ unsigned int MidiInCore :: getPortCount()
+ {
+   CFRunLoopRunInMode( kCFRunLoopDefaultMode, 0, false );
+-  return MIDIGetNumberOfSources();
++  return static_cast<unsigned int>(MIDIGetNumberOfSources());
+ }
+ 
+ // This function was submitted by Douglas Casey Tucker and apparently
+@@ -1142,7 +1142,7 @@ static CFStringRef ConnectedEndpointName( MIDIEndpointRef endpoint )
+   if ( connections != NULL ) {
+     // It has connections, follow them
+     // Concatenate the names of all connected devices
+-    nConnected = CFDataGetLength( connections ) / sizeof(MIDIUniqueID);
++    nConnected = static_cast<int>(CFDataGetLength( connections ) / sizeof(MIDIUniqueID));
+     if ( nConnected ) {
+       const SInt32 *pid = (const SInt32 *)(CFDataGetBytePtr(connections));
+       for ( i=0; i<nConnected; ++i, ++pid ) {
+@@ -1254,7 +1254,7 @@ void MidiOutCore :: initialize( const std::string& clientName )
+ unsigned int MidiOutCore :: getPortCount()
+ {
+   CFRunLoopRunInMode( kCFRunLoopDefaultMode, 0, false );
+-  return MIDIGetNumberOfDestinations();
++  return static_cast<unsigned int>(MIDIGetNumberOfDestinations());
+ }
+ 
+ std::string MidiOutCore :: getPortName( unsigned int portNumber )
+@@ -1290,7 +1290,7 @@ void MidiOutCore :: openPort( unsigned int portNumber, const std::string &portNa
+   }
+ 
+   CFRunLoopRunInMode( kCFRunLoopDefaultMode, 0, false );
+-  unsigned int nDest = MIDIGetNumberOfDestinations();
++  unsigned int nDest = static_cast<unsigned int>(MIDIGetNumberOfDestinations());
+   if (nDest < 1) {
+     errorString_ = "MidiOutCore::openPort: no MIDI output destinations found!";
+     error( RtMidiError::NO_DEVICES_FOUND, errorString_ );
+diff --git a/IPlug/IPlugConstants.h b/IPlug/IPlugConstants.h
+index 7efd08e9b..f75c64418 100644
+--- a/IPlug/IPlugConstants.h
++++ b/IPlug/IPlugConstants.h
+@@ -61,7 +61,8 @@ enum EVST3ParamIDs
+ #endif
+ };
+ 
+-static const double PI = 3.1415926535897932384626433832795;
++//case conflict with Csound's define..
++//static const double PI = 3.1415926535897932384626433832795;
+ 
+ /** @brief Magic number for gain to dB conversion.
+  * Approximates \f$ 20*log_{10}(x) \f$
+diff --git a/IPlug/IPlugDelegate_select.h b/IPlug/IPlugDelegate_select.h
+index 91292484f..4630b703b 100644
+--- a/IPlug/IPlugDelegate_select.h
++++ b/IPlug/IPlugDelegate_select.h
+@@ -19,6 +19,9 @@
+ #elif defined WEBVIEW_EDITOR_DELEGATE
+   #include "IPlugWebViewEditorDelegate.h"
+   using EDITOR_DELEGATE_CLASS = iplug::WebViewEditorDelegate;
++#elif defined CUSTOM_EDITOR
++  #include CUSTOM_EDITOR
++  using EDITOR_DELEGATE_CLASS = CUSTOM_EDITOR_CLASS;
+ #elif defined NO_IGRAPHICS
+   #include "IPlugEditorDelegate.h"
+   using EDITOR_DELEGATE_CLASS = iplug::IEditorDelegate;
+diff --git a/IPlug/IPlug_include_in_plug_hdr.h b/IPlug/IPlug_include_in_plug_hdr.h
+index 6d562e0bf..2b7f1753d 100644
+--- a/IPlug/IPlug_include_in_plug_hdr.h
++++ b/IPlug/IPlug_include_in_plug_hdr.h
+@@ -60,7 +60,11 @@
+   #define API_EXT "aax"
+   #define PROTOOLS
+ #elif defined APP_API
+-  #include "IPlugAPP.h"
++    #if CabbageApp
++        #include "CabbageAPP.h"
++    #else
++        #include "IPlugAPP.h"
++    #endif
+   #define PLUGIN_API_BASE IPlugAPP
+   #define API_EXT "app"
+ #elif defined WAM_API
+diff --git a/IPlug/IPlug_include_in_plug_src.h b/IPlug/IPlug_include_in_plug_src.h
+index 453fab407..b65c34987 100644
+--- a/IPlug/IPlug_include_in_plug_src.h
++++ b/IPlug/IPlug_include_in_plug_src.h
+@@ -391,14 +391,24 @@ BEGIN_IPLUG_NAMESPACE
+ 
+ #if defined VST2_API || defined VST3_API || defined AAX_API || defined AUv3_API || defined APP_API  || defined WAM_API || defined WEB_API || defined CLAP_API
+ 
++#ifdef CabbageApp
++Plugin* MakePlug(const iplug::InstanceInfo& info, std::string csdFile)
++{
++    // From VST3 - is this necessary?
++    static WDL_Mutex sMutex;
++    WDL_MutexLock lock(&sMutex);
++    return new PLUG_CLASS_NAME(info, csdFile);
++}
++#else
+ Plugin* MakePlug(const iplug::InstanceInfo& info)
+ {
+-  // From VST3 - is this necessary?
+-  static WDL_Mutex sMutex;
+-  WDL_MutexLock lock(&sMutex);
+-  
+-  return new PLUG_CLASS_NAME(info);
++    // From VST3 - is this necessary?
++    static WDL_Mutex sMutex;
++    WDL_MutexLock lock(&sMutex);
++    return new PLUG_CLASS_NAME(info);
+ }
++#endif
++
+ 
+ #pragma mark - AUv2
+ #elif defined AU_API
+diff --git a/Scripts/cmake/APP.cmake b/Scripts/cmake/APP.cmake
+index 1f8ea1280..1102e2169 100644
+--- a/Scripts/cmake/APP.cmake
++++ b/Scripts/cmake/APP.cmake
+@@ -13,21 +13,45 @@ add_library(iPlug2_APP INTERFACE)
+ 
+ # Set common variables
+ set(sdk ${IPLUG2_DIR}/IPlug/APP)
+-set(_src
+-  ${sdk}/IPlugAPP.cpp 
+-  ${sdk}/IPlugAPP_dialog.cpp 
+-  ${sdk}/IPlugAPP_host.cpp 
+-  ${sdk}/IPlugAPP_main.cpp
+-  ${IPLUG_DEPS}/RTAudio/RtAudio.cpp
+-  ${IPLUG_DEPS}/RTMidi/RtMidi.cpp
+-)
+-set(_inc
+-  ${sdk} 
+-  ${IPLUG_DEPS}/RTAudio
+-  ${IPLUG_DEPS}/RTAudio/include
+-  ${IPLUG_DEPS}/RTMidi
+-  ${IPLUG_DEPS}/RTMidi/include
+-)
++if(DEFINED CabbageApp)
++  message("Setting custom Cabbage app target src")
++  set(_src
++    ${IPLUG2_DIR}/../cabbage/src/app/CabbageAPP.cpp 
++    ${IPLUG2_DIR}/../cabbage/src/app/CabbageAPP_host.h
++    ${IPLUG2_DIR}/../cabbage/src/app/CabbageAPP_dialog.cpp 
++    ${IPLUG2_DIR}/../cabbage/src/app/CabbageAPP_host.cpp 
++    ${IPLUG2_DIR}/../cabbage/src/app/CabbageAPP_main.cpp
++    ${IPLUG2_DIR}/../cabbage/src/app/CabbageAPP.h
++    ${IPLUG_DEPS}/RTAudio/RtAudio.cpp
++    ${IPLUG_DEPS}/RTMidi/RtMidi.cpp
++  )
++  set(_inc
++    ${IPLUG2_DIR}/../cabbage/src
++    ${IPLUG_DEPS}/RTAudio
++    ${IPLUG_DEPS}/RTAudio/include
++    ${IPLUG_DEPS}/RTMidi
++    ${IPLUG_DEPS}/RTMidi/include
++  )
++else()
++  message("Setting IPlug app target src")
++  set(_src
++    ${sdk}/IPlugAPP.cpp 
++    ${sdk}/IPlugAPP_dialog.cpp 
++    ${sdk}/IPlugAPP_host.cpp 
++    ${sdk}/IPlugAPP_main.cpp
++    ${IPLUG_DEPS}/RTAudio/RtAudio.cpp
++    ${IPLUG_DEPS}/RTMidi/RtMidi.cpp
++  )
++  set(_inc
++    ${sdk} 
++    ${IPLUG_DEPS}/RTAudio
++    ${IPLUG_DEPS}/RTAudio/include
++    ${IPLUG_DEPS}/RTMidi
++    ${IPLUG_DEPS}/RTMidi/include
++  )
++endif()
++
++
+ set(_def "APP_API" "IPLUG_EDITOR=1" "IPLUG_DSP=1")
+ 
+ # Platform-specific configurations
+@@ -175,14 +199,15 @@ function(iplug_configure_app target)
+     source_group("Resources" FILES ${_res})
+     iplug_target_add(${target} PUBLIC SOURCE ${_res} RESOURCE ${_res})
+ 
+-    add_custom_command(TARGET ${target} POST_BUILD
+-      COMMAND ${CMAKE_COMMAND} -E make_directory "${out_dir}"
+-      COMMAND ${CMAKE_COMMAND} -E copy_directory "$<TARGET_BUNDLE_DIR:${target}>" "${app_out_dir}"
+-      COMMAND ${CMAKE_COMMAND} -E copy_directory "$<TARGET_BUNDLE_DIR:${target}>.dSYM" "${out_dir}/${PLUG_NAME}.app.dSYM" || ${CMAKE_COMMAND} -E echo "No .dSYM found, possibly a non-Xcode generator"
+-      COMMAND ${CMAKE_COMMAND} -E echo "Attempting to generate dSYM file..."
+-      COMMAND dsymutil "$<TARGET_BUNDLE_DIR:${target}>/Contents/MacOS/$<TARGET_FILE_NAME:${target}>" -o "${out_dir}/${PLUG_NAME}.app.dSYM" || ${CMAKE_COMMAND} -E echo "Failed to generate dSYM, continuing build..."
+-      COMMAND ${CMAKE_COMMAND} -E echo "App bundle and dSYM processing completed"
+-    )
++    # I had to comment these out due to post-build error in Xcode
++    # add_custom_command(TARGET ${target} POST_BUILD
++    #   COMMAND ${CMAKE_COMMAND} -E make_directory "${out_dir}"
++    #   COMMAND ${CMAKE_COMMAND} -E copy_directory "$<TARGET_BUNDLE_DIR:${target}>" "${app_out_dir}"
++    #   COMMAND ${CMAKE_COMMAND} -E copy_directory "$<TARGET_BUNDLE_DIR:${target}>.dSYM" "${out_dir}/${PLUG_NAME}.app.dSYM" || ${CMAKE_COMMAND} -E echo "No .dSYM found, possibly a non-Xcode generator"
++    #   COMMAND ${CMAKE_COMMAND} -E echo "Attempting to generate dSYM file..."
++    #   COMMAND dsymutil "$<TARGET_BUNDLE_DIR:${target}>/Contents/MacOS/$<TARGET_FILE_NAME:${target}>" -o "${out_dir}/${PLUG_NAME}.app.dSYM" || ${CMAKE_COMMAND} -E echo "Failed to generate dSYM, continuing build..."
++    #   COMMAND ${CMAKE_COMMAND} -E echo "App bundle and dSYM processing completed"
++    # )
+ 
+   endif()
+ 
+diff --git a/Scripts/cmake/FindiPlug2.cmake b/Scripts/cmake/FindiPlug2.cmake
+index 2ce9a36dd..a9fbee86e 100644
+--- a/Scripts/cmake/FindiPlug2.cmake
++++ b/Scripts/cmake/FindiPlug2.cmake
+@@ -113,7 +113,11 @@ endmacro()
+ macro(iplug_source_tree target)
+   get_target_property(_tmp ${target} INTERFACE_SOURCES)
+   if(NOT "${_tmp}" STREQUAL "_tmp-NOTFOUND")
+-    source_group(TREE ${IPLUG2_DIR} PREFIX "IPlug" FILES ${_tmp})
++      if(CabbageApp)
++        source_group("IPlug" FILES ${_tmp})
++      else()
++        source_group(TREE ${IPLUG2_DIR} PREFIX "IPlug" FILES ${_tmp})
++      endif()
+   endif()
+ endmacro()
+ 
+diff --git a/Scripts/cmake/VST3.cmake b/Scripts/cmake/VST3.cmake
+index 771a874ad..c41d3bb73 100644
+--- a/Scripts/cmake/VST3.cmake
++++ b/Scripts/cmake/VST3.cmake
+@@ -210,12 +210,13 @@ function(iplug_configure_vst3 target)
+       )
+     endif()
+     
+-    add_custom_command(TARGET ${target} POST_BUILD
+-      COMMAND ${CMAKE_COMMAND} -E copy_directory "${out_dir}" "${install_dir}"
+-      COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/out"
+-      COMMAND dsymutil "$<TARGET_FILE:${target}>" -o "${CMAKE_BINARY_DIR}/out/${PLUG_NAME}.vst3.dSYM"
+-      COMMAND ${CMAKE_COMMAND} -E copy_directory "$<TARGET_BUNDLE_DIR:${target}>.dSYM" "${CMAKE_BINARY_DIR}/out/${PLUG_NAME}.vst3.dSYM" || echo "No dSYM found for VST3"
+-    )
++    # I had to remove this because of various post-build issues in Xcode
++    # add_custom_command(TARGET ${target} POST_BUILD
++    #   COMMAND ${CMAKE_COMMAND} -E copy_directory "${out_dir}" "${install_dir}"
++    #   COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/out"
++    #   COMMAND dsymutil "$<TARGET_FILE:${target}>" -o "${CMAKE_BINARY_DIR}/out/${PLUG_NAME}.vst3.dSYM"
++    #   COMMAND ${CMAKE_COMMAND} -E copy_directory "$<TARGET_BUNDLE_DIR:${target}>.dSYM" "${CMAKE_BINARY_DIR}/out/${PLUG_NAME}.vst3.dSYM" || echo "No dSYM found for VST3"
++    # )
+ 
+     set(PKGINFO_FILE "${out_dir}/Contents/PkgInfo")
+     file(WRITE ${PKGINFO_FILE} "BNDL????")
+diff --git a/WDL/swell/swell-dlg.mm b/WDL/swell/swell-dlg.mm
+index 56759e425..ed423a438 100644
+--- a/WDL/swell/swell-dlg.mm
++++ b/WDL/swell/swell-dlg.mm
+@@ -1700,8 +1700,8 @@ static id<MTLDevice> mtl_def_device()
+     NSLog(@"swell-cocoa: metal blitCommandEncoder failure\n");
+   }
+ 
+-  const int texw = [(id<MTLTexture>) m_metal_texture width];
+-  const int texh = [(id<MTLTexture>) m_metal_texture height];
++  const int texw = static_cast<unsigned int>([(id<MTLTexture>) m_metal_texture width]);
++  const int texh = static_cast<unsigned int>([(id<MTLTexture>) m_metal_texture height]);
+   if (texw < bounds.size.width)
+   {
+ #ifdef _DEBUG
