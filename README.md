@@ -20,7 +20,7 @@ cd IPlug
 ./download-vst3-sdk.sh
 ./download-iplug-sdks.sh
 cd ../../
-git apply ../iplug2.patch
+git apply --reject ../iplug2.patch
 cd ../cabbage
 ./generateProject.sh CabbagePluginEffect
 ```
