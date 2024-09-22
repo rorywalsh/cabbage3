@@ -18,7 +18,7 @@ cd Dependencies
 cd IPlug
 ./download-vst3-sdk.sh
 ./download-iplug-sdks.sh
-cd ../../
+cd ../..
 git apply --reject ../iplug2.patch
 cd ../cabbage
 ./generateProject.sh CabbagePluginEffect
