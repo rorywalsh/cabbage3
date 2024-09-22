@@ -17,7 +17,7 @@ elseif(DEFINED CabbagePluginSynth)
 endif()
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION 0.0.98)
+	set(BUILD_VERSION 0.0.99)
 endif()
 
 
@@ -54,8 +54,8 @@ set(PROJECT_DIR "${CMAKE_SOURCE_DIR}")
 if(WIN32) 
   set(VCPKG_CMAKE "C:/Users/walshr/sourcecode/vcpkg/scripts/buildsystems/vcpkg.cmake")
   SET(CMAKE_TOOLCHAIN_FILE ${VCPKG_CMAKE})
-  set(ZLIB_LIBRARY "C:\\Users\\rory\\sourcecode\\vcpkg\\packages\\zlib_x64-windows-static\\lib\\zlib.lib")
-  set(ZLIB_INCLUDE_DIR "C:\\Users\\rory\\sourcecode\\vcpkg\\packages\\zlib_x64-windows-static\\include")
+  set(ZLIB_LIBRARY "C:\\Users\\roryw\\sourcecode\\vcpkg\\installed\\x64-windows\\lib\\zlib.lib")
+  set(ZLIB_INCLUDE_DIR "C:\\Users\\roryw\\sourcecode\\vcpkg\\installed\\x64-windows\\include")
 
   # # Courtesy of rovingeye, again
   execute_process(

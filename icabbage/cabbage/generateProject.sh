@@ -59,7 +59,7 @@ elif [ "$OS_NAME" = "Linux" ]; then
 
 else
     # Default command for other systems
-    command="cmake -B build -S . -D${target}=On -DCMAKE_BUILD_TYPE=Debug"
+    command="cmake -G\"Visual Studio 17 2022\" -B build -S . -D${target}=On -DCMAKE_BUILD_TYPE=Debug"
     
     echo "$command"
     # Run the constructed CMake command
