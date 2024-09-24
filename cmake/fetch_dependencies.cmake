@@ -22,8 +22,8 @@ message(STATUS "Fetching dependency iPlug2")
 
 FetchContent_Declare(
     iPlug2
-    URL https://codeload.github.com/docEdub/cabbage3-iPlug2-fork/tar.gz/ce184afb2a432aff87e7af6b09b78ec4fb1ad9a3
-    URL_MD5 ef6cec00694e5791e21368483f8f8a65
+    URL https://codeload.github.com/rorywalsh/iPlug2/tar.gz/baa9a03bf2488a809e9020cd4c1dc69b20b52913
+    URL_MD5 fe30ea1822d9935ce9dbd1ef0adb86c2
     DOWNLOAD_DIR "${FETCHCONTENT_BASE_DIR}/iPlug2"
     DOWNLOAD_EXTRACT_TIMESTAMP true
 )
