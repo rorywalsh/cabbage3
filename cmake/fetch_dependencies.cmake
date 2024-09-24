@@ -32,6 +32,34 @@ FetchContent_MakeAvailable(iPlug2)
 
 message(STATUS "Fetching dependency iPlug2 - done")
 
+message(STATUS "Fetching dependency iPlug2_dependencies")
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    set(iPlug2_dependencies_zip_file "IPLUG2_DEPS_MAC")
+    set(iPlug2_dependencies_url_md5 b85fadfaba0806ce57b4c4d486453451)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(iPlug2_dependencies_zip_file "IPLUG2_DEPS_WIN")
+    # TODO: Update iPlug2 dependencies zip file md5 hash for Windows.
+    set(iPlug2_dependencies_url_md5 ef6cec00694e5791e21368483f8f8a65)
+else()
+    message(FATAL_ERROR "Unsupported system for iPlug2: ${CMAKE_SYSTEM_NAME}")
+endif()
+
+# Fetch iPlug2 dependencies into the iPlug2 source directory's Build subdirectory, creating it if needed.
+# This replicates the behavior of the iPlug2 download-prebuilt-libs.sh script.
+FetchContent_Declare(
+    iPlug2_dependencies
+    URL https://github.com/iPlug2/iPlug2/releases/download/setup/${iPlug2_dependencies_zip_file}.zip
+    URL_MD5 ${iPlug2_dependencies_url_md5}
+    DOWNLOAD_DIR "${FETCHCONTENT_BASE_DIR}/iPlug2_dependencies"
+    DOWNLOAD_EXTRACT_TIMESTAMP true
+    SOURCE_DIR "${iplug2_SOURCE_DIR}/Build"
+)
+
+FetchContent_MakeAvailable(iPlug2_dependencies)
+
+message(STATUS "Fetching dependency iPlug2_dependencies - done")
+
 message(STATUS "Fetching dependency readerwriterqueue")
 
 FetchContent_Declare(
