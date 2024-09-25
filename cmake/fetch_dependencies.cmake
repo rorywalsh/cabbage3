@@ -91,6 +91,34 @@ FetchContent_MakeAvailable(iPlug2_vst3_sdk)
 
 message(STATUS "Fetching dependency iPlug2_vst3_sdk - done")
 
+message(STATUS "Fetching dependency iPlug2_clap_sdk")
+
+FetchContent_Declare(
+    iPlug2_clap_sdk
+    GIT_REPOSITORY https://github.com/free-audio/clap.git
+    GIT_TAG 27f20f81dec40b930d79ef429fd35dcc2d45db5b
+    DOWNLOAD_DIR "${FETCHCONTENT_BASE_DIR}/iPlug2_clap_sdk"
+    SOURCE_DIR "${iplug2_SOURCE_DIR}/Dependencies/iPlug/CLAP_SDK"
+)
+
+FetchContent_MakeAvailable(iPlug2_clap_sdk)
+
+message(STATUS "Fetching dependency iPlug2_clap_sdk - done")
+
+message(STATUS "Fetching dependency iPlug2_clap_helpers")
+
+FetchContent_Declare(
+    iPlug2_clap_helpers
+    GIT_REPOSITORY https://github.com/free-audio/clap-helpers.git
+    GIT_TAG 59791394dc26637d9425c2745233a979602be2a7
+    DOWNLOAD_DIR "${FETCHCONTENT_BASE_DIR}/iPlug2_clap_helpers"
+    SOURCE_DIR "${iplug2_SOURCE_DIR}/Dependencies/iPlug/CLAP_HELPERS"
+)
+
+FetchContent_MakeAvailable(iPlug2_clap_helpers)
+
+message(STATUS "Fetching dependency iPlug2_clap_helpers - done")
+
 message(STATUS "Fetching dependency readerwriterqueue")
 
 FetchContent_Declare(
