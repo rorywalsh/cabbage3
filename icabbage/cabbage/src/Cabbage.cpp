@@ -139,7 +139,7 @@ bool Cabbage::setupCsound()
                                                                            std::string(w["channel"].get<std::string>()+"Label1").c_str(),
                                                                            iplug::IParam::EFlags::kFlagsNone,
                                                                            "");
-                        parameterChannels.push_back({CabbageParser::removeQuotes(w["channel"].get<std::string>()), w["value"].get<int>()});
+                        parameterChannels.push_back({CabbageParser::removeQuotes(w["channel"].get<std::string>()), w["value"].get<float>()});
                         csound->SetControlChannel(w["channel"].get<std::string>().c_str(), w["value"].get<float>());
                         numberOfParameters++;
                     }

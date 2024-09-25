@@ -394,11 +394,13 @@ public:
 private:
     #if defined(_WIN32)
     static std::string getWindowsBinaryPath() {
-        char path[MAX_PATH];
-        HMODULE hModule = NULL;
-        GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCSTR>(&getWindowsBinaryPath), &hModule);
-        GetModuleFileName(hModule, path, MAX_PATH);
-        return std::string(path);
+        //char path[MAX_PATH];
+        //HMODULE hModule = NULL;
+        //GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCSTR>(&getWindowsBinaryPath), &hModule);
+        //GetModuleFileName(hModule, path, MAX_PATH);
+        //return std::string(path);
+		cabAssert(false, "Not implemented on windows");
+        return {};
     }
 
     static std::string getWindowsProgramDataDir() {

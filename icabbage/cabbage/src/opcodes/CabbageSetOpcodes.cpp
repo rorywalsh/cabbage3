@@ -138,8 +138,13 @@ int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
             return IS_OK;
         }
         else
+        {
             csound->init_error("Not enough input arguments\n");
+            return IS_OK;
+        }
+            
     }
+
 }
 
 //=====================================================================================

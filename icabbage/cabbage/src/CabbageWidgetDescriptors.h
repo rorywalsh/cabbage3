@@ -602,5 +602,6 @@ public:
 //            return nlohmann::json::parse(jsonString);
 //        }
         cabAssert(false, "Invalid widget type");
+        return {};
     }
 };
