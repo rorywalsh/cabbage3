@@ -76,6 +76,21 @@ FetchContent_MakeAvailable(iPlug2_dependencies)
 
 message(STATUS "Fetching dependency iPlug2_dependencies - done")
 
+message(STATUS "Fetching dependency iPlug2_vst3_sdk")
+
+FetchContent_Declare(
+    iPlug2_vst3_sdk
+    GIT_REPOSITORY https://github.com/steinbergmedia/vst3sdk.git
+    GIT_TAG cc2adc90382dded9e347caf74e4532f1458715db
+    GIT_SUBMODULES "base" "cmake" "pluginterfaces" "public.sdk" "vstgui4"
+    DOWNLOAD_DIR "${FETCHCONTENT_BASE_DIR}/iPlug2_vst3_sdk"
+    SOURCE_DIR "${iplug2_SOURCE_DIR}/Dependencies/iPlug/VST3_SDK"
+)
+
+FetchContent_MakeAvailable(iPlug2_vst3_sdk)
+
+message(STATUS "Fetching dependency iPlug2_vst3_sdk - done")
+
 message(STATUS "Fetching dependency readerwriterqueue")
 
 FetchContent_Declare(
