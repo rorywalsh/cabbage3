@@ -2,6 +2,22 @@ include_guard()
 
 message(STATUS "Fetching dependencies ...")
 
+message(STATUS "Finding vcpkg packages")
+
+# Find packages listed in vcpkg.json's dependencies array.
+file(READ "vcpkg.json" vcpkg_json)
+string(JSON vcpkg_deps GET ${vcpkg_json} "dependencies")
+string(JSON vcpkg_deps_count LENGTH ${vcpkg_deps})
+math(EXPR vcpkg_deps_max_index "${vcpkg_deps_count} - 1")
+foreach(dep_index RANGE ${vcpkg_deps_max_index})
+    string(JSON dep_name GET ${vcpkg_deps} ${dep_index})
+    message(STATUS "Finding vcpkg package ${dep_name}")
+    find_package(${dep_name} CONFIG REQUIRED)
+    message(STATUS "Finding vcpkg package ${dep_name} - done")
+endforeach()
+
+message(STATUS "Finding vcpkg packages - done")
+
 include(FetchContent)
 
 message(STATUS "Fetching dependency choc")
