@@ -164,8 +164,6 @@ elseif(APPLE)
   ${PROJECT_DIR}/src/webView/CabbageEditorDelegate.mm
   ${PROJECT_DIR}/src/webView/IPlugWebView.h 
   ${PROJECT_DIR}/src/webView/CabbageEditorDelegate.h
-  ${PROJECT_DIR}/src/webView/CabbageEditorDelegateBase.cpp
-  ${PROJECT_DIR}/src/webView/CabbageEditorDelegateBase.h
   )
 
 endif()
