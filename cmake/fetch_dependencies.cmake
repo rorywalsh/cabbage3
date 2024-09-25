@@ -4,7 +4,7 @@ message(STATUS "Fetching dependencies ...")
 
 message(STATUS "Finding vcpkg packages")
 
-# Find packages listed in vcpkg.json's dependencies array.
+# Automatically find packages listed in vcpkg.json's dependencies array.
 file(READ "vcpkg.json" vcpkg_json)
 string(JSON vcpkg_deps GET ${vcpkg_json} "dependencies")
 string(JSON vcpkg_deps_count LENGTH ${vcpkg_deps})
