@@ -37,7 +37,7 @@ message(STATUS "Fetching dependency iPlug2")
 FetchContent_Declare(
     iPlug2
     GIT_REPOSITORY https://github.com/rorywalsh/iPlug2.git
-    GIT_TAG baa9a03bf2488a809e9020cd4c1dc69b20b52913
+    GIT_TAG 70234c3f5923586db44e91fa8b4a66a9cb22230e
 )
 
 FetchContent_MakeAvailable(iPlug2)
