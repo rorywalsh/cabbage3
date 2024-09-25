@@ -53,15 +53,11 @@ void CabbageProcessor::setupCallbacks()
     //working in vscode
     editorInitFuncCallback = [&]() 
     {
-#ifdef OS_WIN
-        LoadFile(R"(C:\Users\oli\Dev\iPlug2\Examples\CabbageProcessor\resources\web\index.html)", nullptr);
-#else
 #ifndef CabbageApp
         if(!server.isThreadRunning())
-            server.start("/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/");
+            server.start(CabbageFile::getCsdPath());
         const std::string mntPoint = "http://127.0.0.1:" + std::to_string(server.getCurrentPort()) + "/index.html";
         LoadURL(mntPoint.c_str());
-#endif
 #endif
         EnableScroll(false);
     };

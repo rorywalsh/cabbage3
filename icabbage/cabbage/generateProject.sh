@@ -42,9 +42,7 @@ if [ "$OS_NAME" = "Darwin" ]; then
     fi
     
     # Run updatePlist.sh with the target as an argument
-    if [ "$target" != "CabbageApp" ]; then
     ./updatePlist.sh "$target"
-    fi
     
     # Check if the updatePlist.sh script was successful
     if [ $? -ne 0 ]; then
@@ -59,7 +57,7 @@ elif [ "$OS_NAME" = "Linux" ]; then
 
 else
     # Default command for other systems
-    command="cmake -G\"Visual Studio 17 2022\" -B build -S . -D${target}=On -DCMAKE_BUILD_TYPE=Debug"
+    command="cmake -B build -S . -D${target}=On -DPLUG_NAME=${target} -DCMAKE_BUILD_TYPE=Debug"
     
     echo "$command"
     # Run the constructed CMake command
