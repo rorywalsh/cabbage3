@@ -17,7 +17,7 @@ elseif(DEFINED CabbagePluginSynth)
 endif()
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION 0.0.100)
+	set(BUILD_VERSION 0.0.99)
 endif()
 
 
@@ -177,7 +177,6 @@ set(SRC_FILES
   ${PROJECT_DIR}/src/CabbageParser.h
   ${PROJECT_DIR}/src/Cabbage.h
   ${PROJECT_DIR}/src/Cabbage.cpp
-  ${PROJECT_DIR}/src/CabbageWidgetDescriptors.h
   ${PROJECT_DIR}/src/CabbageUtils.h
   ${PROJECT_DIR}/src/CabbageServer.cpp
   ${PROJECT_DIR}/src/CabbageServer.h
@@ -231,11 +230,13 @@ if(WIN32)
   else()
 
     message("Setting up standalone app taget")
+    
+
     set(TARGET app)
     add_executable(${TARGET}  WIN32 ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
     iplug_target_add(${TARGET} PUBLIC 
     LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} 
-    DEFINE ${ProductName} WIN32_LEAN_AND_MEAN)
+    DEFINE WIN32_LEAN_AND_MEAN)
     iplug_configure_target(${TARGET} app )
 
     message("Setting up VST3 target")
@@ -243,9 +244,10 @@ if(WIN32)
     add_library(${TARGET} MODULE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
     iplug_target_add(${TARGET} PUBLIC 
     LINK iPlug2_VST3 ZLIB::ZLIB _base RESOURCE ${RESOURCES}
-    DEFINE ${ProductName} WIN32_LEAN_AND_MEAN)
+    DEFINE WIN32_LEAN_AND_MEAN)
     iplug_configure_target(${TARGET} vst3)
 
+    set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME ${ProductName})
   endif()
 # add_executable(${TARGET} WIN32 MACOSX_BUNDLE  ${WEBVIEW_SRC_FILES} ${SRC_FILES} ${OPCODE_SRC_FILES} )
 # iplug_target_add(${TARGET} PUBLIC 

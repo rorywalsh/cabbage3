@@ -28,8 +28,6 @@ EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 
 #include <algorithm> // for std::sort
 
-// Define a macro to enable/disable debugging
-#define DEBUG 1
 
 #if DEBUG
 #define _log(message) \
@@ -44,7 +42,9 @@ EXTERN_C IMAGE_DOS_HEADER __ImageBase;
     } while (0)
 #endif
 
-// StringFormatter class
+/*
+	String formatter class
+*/
 class StringFormatter 
 {
 public:
@@ -140,7 +140,9 @@ private:
 };
 
 
-
+/*
+	Utility class to read and write files, query paths, etc.
+*/
 class CabbageFile {
 public:
     static std::string getBinaryPath() 
@@ -506,6 +508,9 @@ private:
     #endif
 };
 
+/*
+	Utility class to run a polling function with a specified interval
+*/
 class TimerThread {
 public:
     TimerThread() : stop(false) {}
@@ -542,4 +547,59 @@ private:
     std::atomic<bool> stop;
 };
 
+/*
+	Utility class to get widget descriptors from widget JS files
+*/
+class CabbageWidgetDescriptors {
+public:
+
+    //Utility function to get full list of widget types contained in widgets directory
+    static std::vector<std::string> getWidgetTypes()
+    {
+        std::vector<std::string> widgetTypes;
+        std::string widgetPath = CabbageFile::getCsdPath() + "/widgets"; // Folder containing widget files
+
+        // Check if the directory exists
+        if (!std::filesystem::exists(widgetPath) || !std::filesystem::is_directory(widgetPath))
+        {
+            std::cerr << "Error: Directory " << widgetPath << " does not exist or is not a directory." << std::endl;
+            return widgetTypes;  // Return an empty vector if directory is not found
+        }
+
+        // Iterate through the directory and extract the filenames without the extension
+        for (const auto& entry : std::filesystem::directory_iterator(widgetPath))
+        {
+            if (entry.is_regular_file())
+            {  // Only process regular files
+                std::string filename = entry.path().filename().string();  // Get filename
+                std::string extension = entry.path().extension().string();
+
+                // Remove extension from filename
+                if (!extension.empty())
+                {
+                    filename = filename.substr(0, filename.length() - extension.length());
+                }
+
+                widgetTypes.push_back(filename);  // Add filename to the vector
+            }
+        }
+
+        return widgetTypes;
+    }
+
+    //returns a widget descriptor object for a given widget type
+    static nlohmann::json get(std::string widgetType)
+    {
+        std::vector<std::string> widgetTypes;
+        std::string widgetPath = CabbageFile::getCsdPath() + "/widgets"; // Folder containing widget files
+        auto jsFileContents = CabbageFile::loadJSFile(widgetPath + "/" + widgetType + ".js");
+        if (!jsFileContents.empty())
+        {
+            return CabbageFile::extractPropsFromJS(jsFileContents);
+        }
+
+        cabAssert(false, "Invalid widget type");
+        return {};
+    }
+};
 

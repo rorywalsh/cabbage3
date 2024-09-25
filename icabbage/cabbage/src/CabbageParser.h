@@ -5,7 +5,6 @@
 #include <string>
 #include <vector>
 #include <json.hpp>
-#include "../CabbageWidgetDescriptors.h"
 #include "CabbageUtils.h"
 
 

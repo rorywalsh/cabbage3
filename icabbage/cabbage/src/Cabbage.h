@@ -9,7 +9,6 @@
 #include <optional>
 
 #include "IPlug_include_in_plug_hdr.h"
-#include "CabbageWidgetDescriptors.h"
 #include "CabbageUtils.h"
 #include "csound.hpp"
 #include "CabbageParser.h"
