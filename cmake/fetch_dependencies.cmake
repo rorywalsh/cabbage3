@@ -24,10 +24,8 @@ message(STATUS "Fetching dependency choc")
 
 FetchContent_Declare(
     choc
-    URL https://codeload.github.com/Tracktion/choc/tar.gz/85149958b6d0e51885eefba8816b51798570b54b
-    URL_MD5 ffdb942dcaa64a716239d37c620e5eb2
-    DOWNLOAD_DIR "${FETCHCONTENT_BASE_DIR}/choc"
-    DOWNLOAD_EXTRACT_TIMESTAMP true
+    GIT_REPOSITORY https://github.com/Tracktion/choc.git
+    GIT_TAG 85149958b6d0e51885eefba8816b51798570b54b
 )
 
 FetchContent_MakeAvailable(choc)
@@ -38,10 +36,8 @@ message(STATUS "Fetching dependency iPlug2")
 
 FetchContent_Declare(
     iPlug2
-    URL https://codeload.github.com/rorywalsh/iPlug2/tar.gz/baa9a03bf2488a809e9020cd4c1dc69b20b52913
-    URL_MD5 fe30ea1822d9935ce9dbd1ef0adb86c2
-    DOWNLOAD_DIR "${FETCHCONTENT_BASE_DIR}/iPlug2"
-    DOWNLOAD_EXTRACT_TIMESTAMP true
+    GIT_REPOSITORY https://github.com/rorywalsh/iPlug2.git
+    GIT_TAG baa9a03bf2488a809e9020cd4c1dc69b20b52913
 )
 
 FetchContent_MakeAvailable(iPlug2)
@@ -149,10 +145,8 @@ message(STATUS "Fetching dependency readerwriterqueue")
 
 FetchContent_Declare(
     readerwriterqueue
-    URL https://github.com/cameron314/readerwriterqueue/archive/refs/tags/v1.0.6.tar.gz
-    URL_MD5 a22feb68840ba44cbc2b01853fb4a503
-    DOWNLOAD_DIR "${FETCHCONTENT_BASE_DIR}/readerwriterqueue"
-    DOWNLOAD_EXTRACT_TIMESTAMP true
+    GIT_REPOSITORY https://github.com/cameron314/readerwriterqueue.git
+    GIT_TAG v1.0.6
 )
 
 FetchContent_MakeAvailable(readerwriterqueue)
