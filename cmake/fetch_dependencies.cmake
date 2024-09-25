@@ -65,7 +65,7 @@ FetchContent_Declare(
     URL_MD5 ${iPlug2_dependencies_url_md5}
     DOWNLOAD_DIR "${FETCHCONTENT_BASE_DIR}/iPlug2_dependencies"
     DOWNLOAD_EXTRACT_TIMESTAMP true
-    SOURCE_DIR "${iplug2_SOURCE_DIR}/Build"
+    SOURCE_DIR "${iplug2_SOURCE_DIR}/Dependencies/Build"
 )
 
 FetchContent_MakeAvailable(iPlug2_dependencies)
