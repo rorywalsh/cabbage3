@@ -119,6 +119,34 @@ FetchContent_MakeAvailable(iPlug2_clap_helpers)
 
 message(STATUS "Fetching dependency iPlug2_clap_helpers - done")
 
+message(STATUS "Fetching dependency iPlug2_wam_sdk")
+
+FetchContent_Declare(
+    iPlug2_wam_sdk
+    GIT_REPOSITORY https://github.com/iplug2/api.git
+    GIT_TAG e0fb276b5a16df4d3b7419b14d6347593ebd8846
+    DOWNLOAD_DIR "${FETCHCONTENT_BASE_DIR}/iPlug2_wam_sdk"
+    SOURCE_DIR "${iplug2_SOURCE_DIR}/Dependencies/iPlug/WAM_SDK"
+)
+
+FetchContent_MakeAvailable(iPlug2_wam_sdk)
+
+message(STATUS "Fetching dependency iPlug2_wam_sdk - done")
+
+message(STATUS "Fetching dependency iPlug2_wam_audioworklet_polyfill")
+
+FetchContent_Declare(
+    iPlug2_wam_audioworklet_polyfill
+    GIT_REPOSITORY https://github.com/iplug2/audioworklet-polyfill
+    GIT_TAG 771ddc51076c7d0c5db6ac773f304a2a85a4a8ae
+    DOWNLOAD_DIR "${FETCHCONTENT_BASE_DIR}/iPlug2_wam_audioworklet_polyfill"
+    SOURCE_DIR "${iplug2_SOURCE_DIR}/Dependencies/iPlug/WAM_AWP"
+)
+
+FetchContent_MakeAvailable(iPlug2_wam_audioworklet_polyfill)
+
+message(STATUS "Fetching dependency iPlug2_wam_audioworklet_polyfill - done")
+
 message(STATUS "Fetching dependency readerwriterqueue")
 
 FetchContent_Declare(
