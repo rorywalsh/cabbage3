@@ -83,7 +83,6 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/steinbergmedia/vst3sdk.git
     GIT_TAG cc2adc90382dded9e347caf74e4532f1458715db
     GIT_SUBMODULES "base" "cmake" "pluginterfaces" "public.sdk" "vstgui4"
-    DOWNLOAD_DIR "${FETCHCONTENT_BASE_DIR}/iPlug2_vst3_sdk"
     SOURCE_DIR "${iplug2_SOURCE_DIR}/Dependencies/iPlug/VST3_SDK"
 )
 
@@ -139,7 +138,6 @@ FetchContent_Declare(
     iPlug2_wam_audioworklet_polyfill
     GIT_REPOSITORY https://github.com/iplug2/audioworklet-polyfill
     GIT_TAG 771ddc51076c7d0c5db6ac773f304a2a85a4a8ae
-    DOWNLOAD_DIR "${FETCHCONTENT_BASE_DIR}/iPlug2_wam_audioworklet_polyfill"
     SOURCE_DIR "${iplug2_SOURCE_DIR}/Dependencies/iPlug/WAM_AWP"
 )
 
