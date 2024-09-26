@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.26 FATAL_ERROR)
 
-set(BUILD_STANDALONE_APP OFF)
+set(BUILD_STANDALONE_APP ON)
 set(BUILD_VSCODE_SERVICE_APP OFF)
 
-set(BUILD_AUV2_EFFECT_PLUGIN ON)
-set(BUILD_AUV2_SYNTH_PLUGIN ON)
+set(BUILD_AUV2_EFFECT_PLUGIN OFF)
+set(BUILD_AUV2_SYNTH_PLUGIN OFF)
 
-set(BUILD_VST3_EFFECT_PLUGIN ON)
-set(BUILD_VST3_SYNTH_PLUGIN ON)
+set(BUILD_VST3_EFFECT_PLUGIN OFF)
+set(BUILD_VST3_SYNTH_PLUGIN OFF)
 
 # Initialize vcpkg. Must be before project() call.
 include(cmake/init_vcpkg.cmake)
@@ -83,8 +83,9 @@ if(APPLE)
     set(CABBAGE_INCLUDE_DIRS
         "${FETCHCONTENT_BASE_DIR}/choc-src/include"
         "${iplug2_SOURCE_DIR}/Dependencies/Build/mac/include"
+        "${CMAKE_SOURCE_DIR}"
         "${CMAKE_SOURCE_DIR}/src"
-        "src/app"
+        "${CMAKE_SOURCE_DIR}/src/app"
     )
 
     # Very possible we don't need some of these - not super familiar with mac frameworks
@@ -140,8 +141,9 @@ if(APPLE)
             ${CABBAGE_WEBVIEW_SOURCES}
         )
 
+        set(PLUG_NAME "Cabbage" CACHE STRING "" FORCE)
+
         iplug_target_add(Cabbage PUBLIC
-            DEFINE "Cabbage"
             INCLUDE
                 "${CMAKE_SOURCE_DIR}/resources"
             LINK
@@ -164,7 +166,6 @@ if(APPLE)
         )
 
         iplug_target_add(CabbageVSCodeService PUBLIC
-            DEFINE "CabbageVSCodeService"
             INCLUDE
                 "${CMAKE_SOURCE_DIR}/resources"
             LINK
@@ -187,7 +188,6 @@ if(APPLE)
         set(PLUG_NAME "CabbageAUV2Effect" CACHE STRING "" FORCE)
 
         iplug_target_add(CabbageAUV2Effect PUBLIC
-            DEFINE "CabbageAUV2Effect"
             INCLUDE
                 "${CMAKE_SOURCE_DIR}/resources"
             LINK
@@ -211,7 +211,6 @@ if(APPLE)
         set(PLUG_NAME "CabbageVST3Effect" CACHE STRING "" FORCE)
 
         iplug_target_add(CabbageVST3Effect PUBLIC
-            DEFINE "CabbageVST3Effect"
             INCLUDE
                 "${CMAKE_SOURCE_DIR}/resources"
             LINK
