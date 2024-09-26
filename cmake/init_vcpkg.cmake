@@ -1,5 +1,8 @@
 include_guard()
 
+# Comment out the following line to see each package's CMake usage instructions.
+set(VCPKG_INSTALL_OPTIONS "--no-print-usage")
+
 # Include this file before calling `project(...)` in CMakeLists.txt, so the vcpkg toolchain gets used.
 
 message(STATUS "Fetching vcpkg")
@@ -18,7 +21,6 @@ FetchContent_MakeAvailable(vcpkg)
 
 message(STATUS "Fetching vcpkg - done")
 
-set(VCPKG_INSTALL_OPTIONS "--no-print-usage")
 set(CMAKE_TOOLCHAIN_FILE "${vcpkg_SOURCE_DIR}/scripts/buildsystems/vcpkg.cmake")
 
 set(X_VCPKG_APPLOCAL_DEPS_INSTALL ON CACHE BOOL "" FORCE)

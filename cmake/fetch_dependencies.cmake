@@ -2,22 +2,6 @@ include_guard()
 
 message(STATUS "Fetching dependencies ...")
 
-message(STATUS "Finding vcpkg packages")
-
-# Automatically find packages listed in vcpkg.json's dependencies array.
-file(READ "vcpkg.json" vcpkg_json)
-string(JSON vcpkg_deps GET ${vcpkg_json} "dependencies")
-string(JSON vcpkg_deps_count LENGTH ${vcpkg_deps})
-math(EXPR vcpkg_deps_max_index "${vcpkg_deps_count} - 1")
-foreach(dep_index RANGE ${vcpkg_deps_max_index})
-    string(JSON dep_name GET ${vcpkg_deps} ${dep_index})
-    message(STATUS "Finding vcpkg package ${dep_name}")
-    find_package(${dep_name} CONFIG REQUIRED)
-    message(STATUS "Finding vcpkg package ${dep_name} - done")
-endforeach()
-
-message(STATUS "Finding vcpkg packages - done")
-
 include(FetchContent)
 
 message(STATUS "Fetching dependency choc")
@@ -26,6 +10,7 @@ FetchContent_Declare(
     choc
     GIT_REPOSITORY https://github.com/Tracktion/choc.git
     GIT_TAG 85149958b6d0e51885eefba8816b51798570b54b
+    SOURCE_DIR "${FETCHCONTENT_BASE_DIR}/choc-src/include/choc"
 )
 
 FetchContent_MakeAvailable(choc)
@@ -73,6 +58,14 @@ FetchContent_MakeAvailable(iPlug2_dependencies)
 message(STATUS "Fetching dependency iPlug2_dependencies - done")
 
 message(STATUS "Fetching dependency iPlug2_vst3_sdk")
+
+# Set these variables to disable building VST3 plugin examples, VST3 hosting examples, and VSTGUI support.
+#
+# NB: The original iPlug2 script removes the associated directories for these features, but that causes errors when
+# using the CMake FetchContent API.
+set(SMTG_ENABLE_VST3_PLUGIN_EXAMPLES OFF)
+set(SMTG_ENABLE_VST3_HOSTING_EXAMPLES OFF)
+set(SMTG_ENABLE_VSTGUI_SUPPORT OFF)
 
 FetchContent_Declare(
     iPlug2_vst3_sdk
