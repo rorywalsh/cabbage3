@@ -221,8 +221,9 @@ if(APPLE)
 
         iplug_configure_target(CabbageVST3Effect vst3)
 
-        # TODO: Make a target that depends on the build .vst3 file.
         set_target_properties(CabbageVST3Effect PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME "CabbageVST3Effect")
+
+        # TODO: Make a target that depends on the build .vst3 file.
         add_custom_command(TARGET CabbageVST3Effect POST_BUILD
             COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_directory" "${CMAKE_BINARY_DIR}/out/CabbageVST3Effect.vst3" "$ENV{HOME}/Library/Audio/Plug-Ins/VST3"
         )
