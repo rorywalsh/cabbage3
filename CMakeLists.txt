@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.26 FATAL_ERROR)
 
-set(BUILD_STANDALONE_APP ON)
-set(BUILD_VSCODE_SERVICE_APP OFF)
+set(BUILD_STANDALONE_APP OFF)
+set(BUILD_VSCODE_SERVICE_APP ON)
 
-set(BUILD_AUV2_EFFECT_PLUGIN OFF)
-set(BUILD_AUV2_SYNTH_PLUGIN OFF)
+set(BUILD_AUV2_EFFECT_PLUGIN ON)
+set(BUILD_AUV2_SYNTH_PLUGIN ON)
 
-set(BUILD_VST3_EFFECT_PLUGIN OFF)
-set(BUILD_VST3_SYNTH_PLUGIN OFF)
+set(BUILD_VST3_EFFECT_PLUGIN ON)
+set(BUILD_VST3_SYNTH_PLUGIN ON)
 
 # Initialize vcpkg. Must be before project() call.
 include(cmake/init_vcpkg.cmake)
@@ -156,6 +156,7 @@ if(APPLE)
         iplug_configure_target(Cabbage app)
 
         set_target_properties(Cabbage PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME "Cabbage")
+        target_link_options(Cabbage PRIVATE LINKER:-adhoc_codesign)
     endif()
 
     if(BUILD_VSCODE_SERVICE_APP)
@@ -164,6 +165,8 @@ if(APPLE)
             ${CABBAGE_OPCODE_SOURCES}
             ${CABBAGE_WEBVIEW_SOURCES}
         )
+
+        set(PLUG_NAME "CabbageVSCodeService" CACHE STRING "" FORCE)
 
         iplug_target_add(CabbageVSCodeService PUBLIC
             INCLUDE
@@ -176,6 +179,8 @@ if(APPLE)
         )
 
         iplug_configure_target(CabbageVSCodeService app)
+
+        set_target_properties(CabbageVSCodeService PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME "CabbageVSCodeService")
     endif()
 
     if(BUILD_AUV2_EFFECT_PLUGIN)
