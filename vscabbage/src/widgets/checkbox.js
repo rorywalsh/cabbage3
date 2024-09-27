@@ -4,31 +4,31 @@ import { Cabbage } from "../cabbage.js";
 export class Checkbox {
   constructor() {
     this.props = {
-        "top": 10, // Top position of the checkbox
-        "left": 10, // Left position of the checkbox
-        "width": 100, // Width of the checkbox
-        "height": 30, // Height of the checkbox
-        "channel": "checkbox", // Unique identifier for the checkbox
-        "corners": 2, // Radius of the corners of the checkbox rectangle
-        "min": 0, // Minimum value for the checkbox (for sliders)
-        "max": 1, // Maximum value for the checkbox (for sliders)
-        "value": 0, // Current value of the checkbox (for sliders)
-        "text": "On/Off", // Text displayed next to the checkbox
-        "fontFamily": "Verdana", // Font family for the text
-        "fontColour": "#dddddd", // Color of the text
-        "fontSize": 0, // Font size for the text
-        "align": "left", // Text alignment within the checkbox (left, center, right)
-        "colourOn": CabbageColours.getColour("green"), // Background color of the checkbox in the 'On' state
-        "colourOff": "#ffffff", // Background color of the checkbox in the 'Off' state
-        "fontColourOn": "#dddddd", // Color of the text in the 'On' state
-        "fontColourOff": "#000000", // Color of the text in the 'Off' state
-        "outlineColour": "#999999", // Color of the outline
-        "outlineWidth": 1, // Width of the outline
-        "value": 0, // Value of the checkbox (0 for off, 1 for on)
-        "type": "checkbox", // Type of the checkbox (checkbox)
-        "visible": 1, // Visibility of the checkbox (0 for hidden, 1 for visible)
-        "automatable": 1, // Whether the checkbox value can be automated (0 for no, 1 for yes)
-        "presetIgnore": 0 // Whether the checkbox should be ignored in presets (0 for no, 1 for yes)
+      "top": 10,
+      "left": 10,
+      "width": 100,
+      "height": 30,
+      "channel": "checkbox",
+      "corners": 2,
+      "min": 0,
+      "max": 1,
+      "value": 0,
+      "text": "On/Off",
+      "fontFamily": "Verdana",
+      "fontColour": "#dddddd",
+      "fontSize": 0,
+      "align": "left",
+      "colourOn": "#93d200",
+      "colourOff": "#ffffff",
+      "fontColourOn": "#dddddd",
+      "fontColourOff": "#000000",
+      "outlineColour": "#999999",
+      "outlineWidth": 1,
+      "value": 0,
+      "type": "checkbox",
+      "visible": 1,
+      "automatable": 1,
+      "presetIgnore": 0
     };
     
     this.panelSections = {

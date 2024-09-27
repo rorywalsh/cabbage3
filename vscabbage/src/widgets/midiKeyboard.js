@@ -7,23 +7,23 @@ import { CabbageUtils, CabbageColours } from "../utils.js";
 export class MidiKeyboard {
   constructor() {
     this.props = {
-      top: 0, // Top position of the keyboard widget
-      left: 0, // Left position of the keyboard widget
-      width: 600, // Width of the keyboard widget
-      height: 300, // Height of the keyboard widget
-      type: "keyboard", // Type of the widget (keyboard)
-      colour: "#888888", // Background color of the keyboard
-      channel: "keyboard", // Unique identifier for the keyboard widget
-      blackNoteColour: "#000000", // Color of the black keys on the keyboard
-      value: "36", // The leftmost note of the keyboard
-      fontFamily: "Verdana", // Font family for the text displayed on the keyboard
-      whiteNoteColour: "#ffffff", // Color of the white keys on the keyboard
-      keySeparatorColour: "#000000", // Color of the separators between keys
-      arrowBackgroundColour: "#0295cf", // Background color of the arrow keys
-      mouseoverKeyColour: CabbageColours.getColour('green'), // Color of keys when hovered over
-      keydownColour: CabbageColours.getColour('green'), // Color of keys when pressed
+      top: 0,
+      left: 0,
+      width: 600,
+      height: 300,
+      type: "keyboard",
+      colour: "#888888",
+      channel: "keyboard",
+      blackNoteColour: "#000000",
+      value: "36",
+      fontFamily: "Verdana",
+      whiteNoteColour: "#ffffff",
+      keySeparatorColour: "#000000",
+      arrowBackgroundColour: "#0295cf",
+      mouseoverKeyColour: '#93d200',
+      keydownColour: '#93d200',
       automatable: 0,
-      octaves: 5 // Default number of octaves to display
+      octaves: 5
     };
 
     this.panelSections = {

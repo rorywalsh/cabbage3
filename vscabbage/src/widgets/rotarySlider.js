@@ -1,4 +1,4 @@
-import { CabbageUtils, CabbageColours } from "../utils.js";
+import { CabbageUtils } from "../utils.js";
 import { Cabbage } from "../cabbage.js";
 /**
  * Rotary Slider (rslider) class

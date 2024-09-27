@@ -9,8 +9,8 @@ export class GenTable {
             "width": 200,
             "height": 100,
             "type": "gentable",
-            "colour": "#888888", // Color between 0 and sample value
-            "outlineColour": "#dddddd", // Outline color
+            "colour": "#888888",
+            "outlineColour": "#dddddd",
             "outlineWidth": 1,
             "channel": "gentable",
             "backgroundColour": "#a8d388",
@@ -20,7 +20,7 @@ export class GenTable {
             "endSample": -1,
             "file": "",
             "fontSize": 0,
-            "corners": 4, // Radius of the background rectangle
+            "corners": 4, 
             "align": "left",
             "visible": 1,
             "text": "",

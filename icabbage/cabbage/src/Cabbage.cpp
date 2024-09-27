@@ -100,7 +100,7 @@ bool Cabbage::setupCsound()
             return false;
         }
         
-
+        widgets.clear();
         widgets =  CabbageParser::parseCsdForWidgets(csdFile);
         for(auto& w : widgets)
         {

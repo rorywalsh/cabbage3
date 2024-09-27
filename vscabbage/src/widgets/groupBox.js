@@ -9,11 +9,11 @@ export class GroupBox {
             "width": 100,
             "height": 30,
             "type": "groupbox",
-            "text": "Hello", // Text displayed next to the slider
-            "fontFamily": "Verdana", // Font family for the text
-            "fontSize": 0, // Font size for the text
+            "text": "Hello",
+            "fontFamily": "Verdana", 
+            "fontSize": 0,
             "fontColour": "#dddddd",
-            "align": "centre", // Text alignment within the slider (center, left, right)
+            "align": "centre", 
             "colour": "#888888",
             "channel": "groupbox",
             "outlineWidth": 1,

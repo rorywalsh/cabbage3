@@ -74,20 +74,6 @@ void CabbageProcessor::setupCallbacks()
                 Resize(widget["width"].get<int>(), widget["height"]);
             }
         }
-        
-//        auto csdText = CabbageFile::getCabbageSection();
-//        std::string result = StringFormatter::format(R"(
-//        window.addEventListener('message', event => {
-//            const message = event.data;
-//            if(message.command === "cabbageIsReady"){
-//                console.log("DOM has loaded - sending Cabbage section to JS..");
-//                window.postMessage({ command: "onFileChanged", text: "<>" });
-//            }
-//        });
-//        
-//        )", csdText);
-//        
-//        EvaluateJavaScript(result.c_str());
     };
     
     editorDeleteFuncCallback = [&]() 
@@ -153,8 +139,10 @@ void CabbageProcessor::updateJSWidgets()
     uiIsOpen = true;
     allowDequeuing = true;
 }
+
 //===============================================================================
 //timer thread listens for incoming data from Csound using a lock free fifo
+//===============================================================================
 void CabbageProcessor::timerCallback()
 {
 #ifndef CabbageApp
@@ -222,6 +210,7 @@ void CabbageProcessor::timerCallback()
                     }
                     else
                     {
+                        _log(data.cabbageJson.dump(4));
                         CabbageParser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
                         message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
                     }

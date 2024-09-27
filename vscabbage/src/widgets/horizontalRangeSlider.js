@@ -7,43 +7,43 @@ import { CabbageUtils, CabbageColours } from "../utils.js";
 export class HorizontalRangeSlider {
   constructor() {
     this.props = {
-      "top": 10, // Top position of the horizontal slider
-      "left": 10, // Left position of the horizontal slider
-      "width": 60, // Width of the horizontal slider
-      "height": 60, // Height of the horizontal slider
-      "channel": "rslider", // Unique identifier for the horizontal slider
-      "min": 0, // Minimum value of the slider
-      "max": 1, // Maximum value of the slider
-      "value": 0, // Current value of the slider
-      "skew": 1, // Skew factor for the slider (for non-linear scales)
-      "increment": 0.001, // Value increment/decrement when moving the slider
-      "text": "", // Text displayed next to the slider
-      "fontFamily": "Verdana", // Font family for the text
-      "fontSize": 0, // Font size for the text
-      "align": "centre", // Text alignment within the slider (center, left, right)
-      "valueTextBox": 0, // Whether to display a text box showing the current value
-      "colour": CabbageColours.getColour("blue"), // Background color of the slider track
-      "trackerColour": CabbageColours.getColour('green'), // Color of the slider thumb
-      "trackerBackgroundColour": "#ffffff", // Background color of the slider thumb
-      "trackerOutlineColour": "#525252", // Color of the outline around the slider thumb
-      "fontColour": "#dddddd", // Color of the text displayed next to the slider
-      "outlineColour": "#999999", // Color of the slider outline
-      "textBoxColour": "#555555", // Color of the value text box (if enabled)
-      "trackerOutlineWidth": 1, // Width of the outline around the slider thumb
-      "outlineWidth": 1, // Width of the slider outline
-      "markerThickness": 0.2, // Thickness of the slider markers
-      "markerStart": 0.1, // Start position of the slider markers
-      "markerEnd": 0.9, // End position of the slider markers
-      "type": "hslider", // Type of the slider (horizontal)
-      "decimalPlaces": 1, // Number of decimal places to display for the slider value
-      "velocity": 0, // Velocity of slider movement (for gesture-based interaction)
-      "visible": 1, // Visibility of the slider (0 for hidden, 1 for visible)
-      "popup": 1, // Whether to show a popup when interacting with the slider
-      "automatable": 1, // Whether the slider value can be automated (0 for no, 1 for yes)
-      "valuePrefix": "", // Prefix to display before the slider value
-      "valuePostfix": "", // Postfix to display after the slider value
-      "presetIgnore": 0 // Whether the slider should be ignored in presets (0 for no, 1 for yes)
-  };
+      "top": 10,
+      "left": 10,
+      "width": 60,
+      "height": 60,
+      "channel": "rslider",
+      "min": 0,
+      "max": 1,
+      "value": 0,
+      "skew": 1,
+      "increment": 0.001,
+      "text": "",
+      "fontFamily": "Verdana",
+      "fontSize": 0,
+      "align": "centre",
+      "valueTextBox": 0,
+      "colour": "#0295cf",
+      "trackerColour": "#93d200",
+      "trackerBackgroundColour": "#ffffff",
+      "trackerOutlineColour": "#525252",
+      "fontColour": "#dddddd",
+      "outlineColour": "#999999",
+      "textBoxColour": "#555555",
+      "trackerOutlineWidth": 1,
+      "outlineWidth": 1,
+      "markerThickness": 0.2,
+      "markerStart": 0.1,
+      "markerEnd": 0.9,
+      "type": "hslider",
+      "decimalPlaces": 1,
+      "velocity": 0,
+      "visible": 1,
+      "popup": 1,
+      "automatable": 1,
+      "valuePrefix": "",
+      "valuePostfix": "",
+      "presetIgnore": 0
+    };
   
 
     this.panelSections = {

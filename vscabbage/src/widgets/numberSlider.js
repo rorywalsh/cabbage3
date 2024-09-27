@@ -21,7 +21,7 @@ export class NumberSlider {
             "align": "centre",
             "textOffsetY": 0,
             "valueTextBox": 0,
-            "colour": CabbageColours.getColour("blue"),
+            "colour": '#93d200',
             "fontColour": "#dddddd",
             "outlineColour": "#525252",
             "outlineWidth": 2,

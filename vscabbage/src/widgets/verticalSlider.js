@@ -19,8 +19,8 @@ export class VerticalSlider {
       "fontSize": 0, // Font size for the text displayed on the slider
       "align": "centre", // Alignment of the text on the slider
       "valueTextBox": 0, // Display a textbox showing the current value
-      "colour": CabbageColours.getColour("blue"), // Background color of the slider
-      "trackerColour": CabbageColours.getColour('green'), // Color of the slider tracker
+      "colour": "#0295cf", // Background color of the slider
+      "trackerColour": "#93d200", // Color of the slider tracker
       "trackerBackgroundColour": "#ffffff", // Background color of the slider tracker
       "trackerOutlineColour": "#525252", // Outline color of the slider tracker
       "fontColour": "#dddddd", // Font color for the text displayed on the slider

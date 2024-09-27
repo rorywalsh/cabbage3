@@ -4,32 +4,33 @@ import { Cabbage } from "../cabbage.js";
 export class Button {
   constructor() {
     this.props = {
-      "top": 10, // Top position of the button
-      "left": 10, // Left position of the button
-      "width": 80, // Width of the button
-      "height": 30, // Height of the button
-      "channel": "button", // Unique identifier for the button
-      "corners": 2, // Radius of the corners of the button rectangle
-      "min": 0, // Minimum value for the button (for sliders)
-      "max": 1, // Maximum value for the button (for sliders)
-      "value": 0, // Current value of the button (for sliders)
-      "textOn": "On", // Text displayed when button is in the 'On' state
-      "textOff": "Off", // Text displayed when button is in the 'Off' state
-      "fontFamily": "Verdana", // Font family for the text
-      "fontSize": 0, // Font size for the text (0 for automatic)
-      "align": "centre", // Text alignment within the button (left, center, right)
-      "colourOn": CabbageColours.getColour("blue"), // Background color of the button in the 'On' state
-      "colourOff": CabbageColours.getColour("blue"), // Background color of the button in the 'Off' state
-      "fontColourOn": "#dddddd", // Color of the text in the 'On' state
-      "fontColourOff": "#dddddd", // Color of the text in the 'Off' state
-      "outlineColour": "#dddddd", // Color of the outline
-      "outlineWidth": 2, // Width of the outline
-      "name": "", // Name of the button
-      "value": 0, // Value of the button (0 for off, 1 for on)
-      "type": "button", // Type of the button (button)
-      "visible": 1, // Visibility of the button (0 for hidden, 1 for visible)
-      "automatable": 1, // Whether the button value can be automated (0 for no, 1 for yes)
-      "presetIgnore": 0 // Whether the button should be ignored in presets (0 for no, 1 for yes)
+      "top": 10,
+      "left": 10,
+      "width": 80,
+      "height": 30,
+      "channel": "button",
+      "corners": 2,
+      "min": 0,
+      "max": 1,
+      "value": 0,
+      "textOn": "On",
+      "alpha": 1,
+      "textOff": "Off",
+      "fontFamily": "Verdana",
+      "fontSize": 0,
+      "align": "centre",
+      "colourOn": "#0295cf",
+      "colourOff": "#0295cf",
+      "fontColourOn": "#dddddd",
+      "fontColourOff": "#dddddd",
+      "outlineColour": "#dddddd",
+      "outlineWidth": 2,
+      "name": "",
+      "value": 0,
+      "type": "button",
+      "visible": 1,
+      "automatable": 1,
+      "presetIgnore": 0
     };
 
 
@@ -54,7 +55,7 @@ export class Button {
     CabbageUtils.updateInnerHTML(this.props.channel, this);
   }
 
-  pointerDown(evt) {
+  pointerDown() {
     if (this.props.active === 0) {
       return '';
     }
@@ -64,21 +65,20 @@ export class Button {
 
     CabbageUtils.updateInnerHTML(this.props.channel, this);
     const msg = { paramIdx: this.parameterIndex, channel: this.props.channel, value: this.props.value }
+    console.log(msg);
     Cabbage.sendParameterUpdate(this.vscode, msg);
   }
 
 
-  pointerEnter(evt) {
+  pointerEnter() {
     if (this.props.active === 0) {
       return '';
     }
     this.isMouseOver = true;
     CabbageUtils.updateInnerHTML(this.props.channel, this);
-
   }
 
-
-  pointerLeave(evt) {
+  pointerLeave() {
     if (this.props.active === 0) {
       return '';
     }

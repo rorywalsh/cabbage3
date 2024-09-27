@@ -11,7 +11,7 @@ import { ComboBox } from "./widgets/comboBox.js";
 import { Label } from "./widgets/label.js";
 import { Image } from "./widgets/image.js";
 import { ListBox } from "./widgets/listBox.js";
-import { GroupBox } from "./widgets/GroupBox.js";
+import { GroupBox } from "./widgets/groupBox.js";
 import { GenTable } from "./widgets/genTable.js";
 import { CsoundOutput } from "./widgets/csoundOutput.js";
 import { MidiKeyboard } from "./widgets/midiKeyboard.js";
@@ -84,10 +84,6 @@ if (leftPanel)
 const rightPanel = document.getElementById('RightPanel');
 if (rightPanel)
   rightPanel.style.visibility = "hidden";
-
-
-// const form = document.getElementById('MainForm');
-// form.style.backgroundColor = widgets[0].props.colour;
 
 
 CabbageUtils.showOverlay();
@@ -191,6 +187,7 @@ function updateWidget(obj) {
         // widgetElement.style.top = `${widget.props.top}px`;
         // widgetElement.style.left = `${widget.props.left}px`;
         if (widget.props.type !== "form") {
+          console.log("updating widget:", widget.props.items);
           widgetElement.innerHTML = widget.getInnerHTML();
         }
 

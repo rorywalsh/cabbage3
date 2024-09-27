@@ -4,30 +4,30 @@ import { Cabbage } from "../cabbage.js";
 export class ComboBox {
     constructor() {
         this.props = {
-            "top": 10, // Top position of the widget
-            "left": 10, // Left position of the widget
-            "width": 100, // Width of the widget
-            "height": 30, // Height of the widget
-            "channel": "comboBox", // Unique identifier for the widget
-            "corners": 2, // Radius of the corners of the widget rectangle
-            "fontFamily": "Verdana", // Font family for the text
-            "fontSize": 14, // Font size for the text
-            "align": "center", // Text alignment within the widget (left, center, right)
-            "colour": CabbageColours.getColour("blue"), // Background color of the widget
-            "items": "One, Two, Three", // List of items for the dropdown
-            "fontColour": "#dddddd", // Color of the text
-            "outlineColour": "#dddddd", // Color of the outline
-            "outlineWidth": 0, // Width of the outline
-            "min": 0, // Minimum value of the widget
+            "top": 10,
+            "left": 10,
+            "width": 100,
+            "height": 30,
+            "channel": "comboBox",
+            "corners": 2,
+            "fontFamily": "Verdana",
+            "fontSize": 14,
+            "align": "center",
+            "colour": "#0295cf",
+            "items": "One, Two, Three",
+            "fontColour": "#dddddd",
+            "outlineColour": "#dddddd",
+            "outlineWidth": 0,
+            "min": 0,
             "max": 3,
-            "visible": 1, // Visibility of the widget (0 for hidden, 1 for visible)
-            "type": "combobox", // Type of the widget (combobox)
-            "value": 0, // Value of the widget
-            "automatable": 1, // Whether the widget value can be automated (0 for no, 1 for yes)
-            "active": 1, // Whether the widget is active (0 for inactive, 1 for active)
-            "channelType": "number", // Type of the channel (number, string) - string channels cannot be automated by the host
-            "currentDirectory": "", // Directory to point to if using populate() identifier
-            "fileType": "" // File type to filter if using populate() identifier, can use semicolon separated list with wildcard patterns, i.e, "*.txt;*.csv" 
+            "visible": 1,
+            "type": "combobox",
+            "value": 0,
+            "automatable": 1,
+            "active": 1,
+            "channelType": "number",
+            "currentDirectory": "",
+            "fileType": ""
         };
 
         this.panelSections = {
@@ -103,23 +103,29 @@ export class ComboBox {
         if (this.props.visible === 0) {
             return '';
         }
-
+    
+        const items = this.props.items.split(",");
+    
+        // Ensure selectedItem is up-to-date with the items list
+        if (!items.includes(this.selectedItem)) {
+            this.selectedItem = items.length > 0 ? items[0].trim() : "";
+        }
+    
         const alignMap = {
             'left': 'start',
             'center': 'middle',
             'centre': 'middle',
             'right': 'end',
         };
-
+    
         const svgAlign = alignMap[this.props.align] || this.props.align;
         const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
-
+    
         let totalHeight = this.props.height;
         const itemHeight = this.props.height * 0.8; // Scale back item height to 80% of the original height
         let dropdownItems = "";
-
+    
         if (this.isOpen) {
-            const items = this.props.items.split(",");
             items.forEach((item, index) => {
                 dropdownItems += `
                     <div style="height:${itemHeight}px; display:flex; align-items:center; justify-content:center; cursor:pointer; background-color:${CabbageColours.darker(this.props.colour, 0.2)};"
@@ -130,11 +136,11 @@ export class ComboBox {
                     </div>
                 `;
             });
-
+    
             // Calculate the total dropdown height
             const dropdownHeight = items.length * itemHeight;
             totalHeight += dropdownHeight;
-
+    
             // Check available space
             const mainForm = CabbageUtils.getWidgetDiv("MainForm");
             const widgetDiv = mainForm.querySelector(`#${this.props.channel}`);
@@ -142,19 +148,19 @@ export class ComboBox {
             const mainFormRect = mainForm.getBoundingClientRect();
             const spaceBelow = mainFormRect.bottom - widgetRect.bottom;
             const spaceAbove = widgetRect.top - mainFormRect.top;
-
+    
             // Determine max height for the dropdown
             const maxDropdownHeight = Math.min(dropdownHeight, Math.max(spaceBelow, spaceAbove));
-
+    
             // Adjust total height
             totalHeight = this.props.height + maxDropdownHeight;
         }
-
+    
         const arrowWidth = 10; // Width of the arrow
         const arrowHeight = 6; // Height of the arrow
         const arrowX = this.props.width - arrowWidth - this.props.corners / 2 - 10; // Decreasing arrowX value to move the arrow more to the left
         const arrowY = (this.props.height - arrowHeight) / 2; // Y-coordinate of the arrow
-
+    
         let selectedItemTextX;
         if (svgAlign === 'middle') {
             selectedItemTextX = (this.props.width - arrowWidth - this.props.corners / 2) / 2;
@@ -164,7 +170,7 @@ export class ComboBox {
             selectedItemTextX = svgAlign === 'start' ? (this.props.width - this.props.corners / 2) / 2 - selectedItemWidth / 2 + textPadding : (this.props.width - this.props.corners / 2) / 2 + selectedItemWidth / 2 + textPadding;
         }
         const selectedItemTextY = this.props.height / 2;
-
+    
         return `
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${totalHeight}" width="${this.props.width}" height="${totalHeight}" preserveAspectRatio="none">
                 <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners * 2}" fill="${this.props.colour}" stroke="${this.props.outlineColour}"
@@ -198,5 +204,6 @@ export class ComboBox {
             </svg>
         `;
     }
+    
 
 }
