@@ -13,6 +13,7 @@ include_guard()
         GIT_TAG 85149958b6d0e51885eefba8816b51798570b54b
 
         # Comment out this line to fail the MD5 check and print the expected value.
+        # Unused if USE_GIT is set.
         URL_MD5 ffdb942dcaa64a716239d37c620e5eb2
 
         SOURCE_DIR "${FETCHCONTENT_BASE_DIR}/choc-src/include/choc"
