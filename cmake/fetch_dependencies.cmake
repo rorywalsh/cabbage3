@@ -30,7 +30,7 @@ fetch_github_dependency(
     # USE_GIT
 )
 
-message(STATUS "Fetching dependency iplug2_dependencies")
+message(STATUS "Fetching iPlug2 dependencies")
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(iplug2_dependencies_zip_file "IPLUG2_DEPS_MAC")
@@ -56,14 +56,14 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(iplug2_dependencies)
 
-message(STATUS "Fetching dependency iplug2_dependencies - done")
+message(STATUS "Fetching iPlug2 dependencies - done")
 
 
 if(vst3 STREQUAL "${CABBAGE_BUILD_PLUGIN_TYPE}")
-    message(STATUS "Fetching dependency vst3sdk")
+    message(STATUS "Fetching vst3sdk")
 
     set(vst3sdk_SOURCE_DIR "${iplug2_SOURCE_DIR}/Dependencies/iPlug/VST3_SDK")
-    if(NOT EXISTS "${vst3sdk_SOURCE_DIR}/.git")
+    if(NOT EXISTS "${vst3sdk_SOURCE_DIR}/.git" AND EXISTS "${FETCHCONTENT_BASE_DIR}/vst3sdk-build")
         message(TRACE "VST3 SDK source directory not found. Removing fetched dependencies to re-fetch the VST3 SDK.")
         execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory "${FETCHCONTENT_BASE_DIR}/vst3sdk-build")
         execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory "${FETCHCONTENT_BASE_DIR}/vst3sdk-subbuild")
@@ -88,7 +88,7 @@ if(vst3 STREQUAL "${CABBAGE_BUILD_PLUGIN_TYPE}")
 
     FetchContent_MakeAvailable(vst3sdk)
 
-    message(STATUS "Fetching dependency vst3sdk - done")
+    message(STATUS "Fetching vst3sdk - done")
 endif()
 
 message(STATUS "Fetching dependencies - done")
