@@ -1,24 +1,74 @@
 cmake_minimum_required(VERSION 3.26 FATAL_ERROR)
 
-set(BUILD_STANDALONE_APP OFF)
-set(BUILD_VSCODE_SERVICE_APP ON)
+# Add -D IS_CABBAGE_CI_BUILD=true to the CMake config command to enable CI-specific checks.
+if(DEFINED IS_CABBAGE_CI_BUILD)
+    message(DEBUG "IS_CABBAGE_CI_BUILD = ${IS_CABBAGE_CI_BUILD}")
+endif()
 
-set(BUILD_AUV2_EFFECT_PLUGIN ON)
-set(BUILD_AUV2_SYNTH_PLUGIN ON)
+# Default CMAKE_BUILD_TYPE to Release.
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+message(DEBUG "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
-set(BUILD_VST3_EFFECT_PLUGIN ON)
-set(BUILD_VST3_SYNTH_PLUGIN ON)
 
-# Initialize vcpkg. Must be before project() call.
-include(cmake/init_vcpkg.cmake)
+if(NOT DEFINED CABBAGE_BUILD_TARGET)
+    message(FATAL_ERROR "CABBAGE_BUILD_TARGET is not defined")
+endif()
+string(TOLOWER "${CABBAGE_BUILD_TARGET}" CABBAGE_BUILD_TARGET)
+message(DEBUG "CABBAGE_BUILD_TARGET = ${CABBAGE_BUILD_TARGET}")
 
-project(Cabbage VERSION 0.0.98)
+if(standalone_app STREQUAL "${CABBAGE_BUILD_TARGET}")
+    set(CABBAGE_BUILD_TARGET_TYPE app)
+    set(CABBAGE_BUILD_APP_TYPE standalone)
+elseif(vscode_service_app STREQUAL "${CABBAGE_BUILD_TARGET}")
+    set(CABBAGE_BUILD_TARGET_TYPE app)
+    set(CABBAGE_BUILD_APP_TYPE vscode_service)
+elseif(auv2_effect STREQUAL "${CABBAGE_BUILD_TARGET}")
+    set(CABBAGE_BUILD_TARGET_TYPE plugin)
+    set(CABBAGE_BUILD_PLUGIN_TYPE auv2)
+    set(CABBAGE_BUILD_PLUGIN_PROCESSING_TYPE effect)
+elseif(auv2_synth STREQUAL "${CABBAGE_BUILD_TARGET}")
+    set(CABBAGE_BUILD_TARGET_TYPE plugin)
+    set(CABBAGE_BUILD_PLUGIN_TYPE auv2)
+    set(CABBAGE_BUILD_PLUGIN_PROCESSING_TYPE effect)
+elseif(vst3_effect STREQUAL "${CABBAGE_BUILD_TARGET}")
+    set(CABBAGE_BUILD_TARGET_TYPE plugin)
+    set(CABBAGE_BUILD_PLUGIN_TYPE vst3)
+    set(CABBAGE_BUILD_PLUGIN_PROCESSING_TYPE effect)
+elseif(vst3_synth STREQUAL "${CABBAGE_BUILD_TARGET}")
+    set(CABBAGE_BUILD_TARGET_TYPE plugin)
+    set(CABBAGE_BUILD_PLUGIN_TYPE vst3)
+    set(CABBAGE_BUILD_PLUGIN_PROCESSING_TYPE synth)
+else()
+    message(FATAL_ERROR "Unsupported CABBAGE_BUILD_TARGET: ${CABBAGE_BUILD_TARGET}")
+endif()
+
+if(app STREQUAL "${CABBAGE_BUILD_TARGET_TYPE}")
+    message(DEBUG "CABBAGE_BUILD_APP_TYPE = ${CABBAGE_BUILD_APP_TYPE}")
+elseif(plugin STREQUAL "${CABBAGE_BUILD_TARGET_TYPE}")
+    message(DEBUG "CABBAGE_BUILD_PLUGIN_TYPE = ${CABBAGE_BUILD_PLUGIN_TYPE}")
+    message(DEBUG "CABBAGE_BUILD_PLUGIN_PROCESSING_TYPE = ${CABBAGE_BUILD_PLUGIN_PROCESSING_TYPE}")
+endif()
+
+# Set the base directory for dependencies fetched by FetchContent before changing CMAKE_BINARY_DIR, so all Cabbage
+# build targets use the same fetched dependencies.
+set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/../_deps")
+cmake_path(ABSOLUTE_PATH FETCHCONTENT_BASE_DIR BASE_DIRECTORY "${CMAKE_BINARY_DIR}" NORMALIZE)
+message(DEBUG "FETCHCONTENT_BASE_DIR = ${FETCHCONTENT_BASE_DIR}")
+
+# Initialize vcpkg. Must be done before project() call.
+# include(cmake/init_vcpkg.cmake)
+
+project(Cabbage VERSION 0.0.100)
 
 # Find packages provided by vcpkg.
-find_package(ixwebsocket CONFIG REQUIRED)
+# find_package(ixwebsocket CONFIG REQUIRED)
 
 # Fetch dependencies not provided by vcpkg.
 include(cmake/fetch_dependencies.cmake)
+
+return()
 
 # Find Csound.
 list(APPEND CMAKE_MODULE_PATH "cmake")
@@ -26,19 +76,13 @@ find_package(CSOUND REQUIRED)
 
 enable_language(CXX)
 
-# Set default build type to Release.
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
-endif()
-
 set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
 
 # Initialize iPlug2.
 include(${iplug2_SOURCE_DIR}/iPlug2.cmake)
 find_package(iPlug2 REQUIRED)
 
-# Include iPlug2's APP.cmake here to avoid including it multiple times when iplug_configure_target() is called.
-include("${IPLUG2_CMAKE_DIR}/APP.cmake")
+return()
 
 set(CABBAGE_OPCODE_SOURCES
   "src/opcodes/CabbageGetOpcodes.h"

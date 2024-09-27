@@ -1,2 +1,3 @@
-.DS_Store
+_deps/
 build/
+.DS_Store
