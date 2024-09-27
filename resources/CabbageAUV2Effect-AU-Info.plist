@@ -28,7 +28,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleExecutable</key>
-	<string>CabbageAUV2Effect</string>
+	<string>CabbageAUv2Effect</string>
 	<key>CFBundleGetInfoString</key>
 	<string>Cabbage v1.0.0 Copyright 2020 Acme Inc</string>
 	<key>CFBundleIdentifier</key>

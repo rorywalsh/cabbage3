@@ -1,5 +1,12 @@
 include_guard()
 
+include("cmake/cabbage_version.cmake")
+
+message("")
+message("-----------------------------------")
+message("Configuring ${CABBAGE_BUILD_TARGET}")
+message("-----------------------------------")
+
 # Set the base directory for fetched dependencies so all Cabbage build targets use the same dependencies.
 set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/../_deps")
 cmake_path(ABSOLUTE_PATH FETCHCONTENT_BASE_DIR BASE_DIRECTORY "${CMAKE_BINARY_DIR}" NORMALIZE)
@@ -8,12 +15,14 @@ message(DEBUG "FETCHCONTENT_BASE_DIR = ${FETCHCONTENT_BASE_DIR}")
 # Initialize vcpkg. Must be done before project() call.
 include("cmake/init_vcpkg.cmake")
 
-project(${CABBAGE_BUILD_TARGET} VERSION ${CABBAGE_VERSION})
+project(${CABBAGE_PROJECT_NAME} VERSION ${CABBAGE_VERSION})
 
-if(CabbageStandaloneApp STREQUAL "${CABBAGE_BUILD_TARGET}")
+find_package(ixwebsocket CONFIG REQUIRED)
+
+if(CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
     set(CABBAGE_BUILD_TARGET_TYPE app)
     set(CABBAGE_BUILD_APP_TYPE standalone)
-elseif(CabbageVSCodeServiceApp STREQUAL "${CABBAGE_BUILD_TARGET}")
+elseif(CabbageVSCodeService STREQUAL "${CABBAGE_BUILD_TARGET}")
     set(CABBAGE_BUILD_TARGET_TYPE app)
     set(CABBAGE_BUILD_APP_TYPE vscode_service)
 elseif(CabbageAUv2Effect STREQUAL "${CABBAGE_BUILD_TARGET}")
@@ -62,26 +71,26 @@ include(${iplug2_SOURCE_DIR}/iPlug2.cmake)
 find_package(iPlug2 REQUIRED)
 
 set(CABBAGE_OPCODE_SOURCES
-  "src/opcodes/CabbageGetOpcodes.h"
-  "src/opcodes/CabbageGetOpcodes.cpp"
-  "src/opcodes/CabbageSetOpcodes.h"
-  "src/opcodes/CabbageSetOpcodes.cpp"
-  "src/opcodes/CabbageProfilerOpcodes.h"
-  "src/opcodes/CabbageProfilerOpcodes.cpp"
-  "src/opcodes/CabbageOpcodes.h"
+    "src/opcodes/CabbageGetOpcodes.h"
+    "src/opcodes/CabbageGetOpcodes.cpp"
+    "src/opcodes/CabbageSetOpcodes.h"
+    "src/opcodes/CabbageSetOpcodes.cpp"
+    "src/opcodes/CabbageProfilerOpcodes.h"
+    "src/opcodes/CabbageProfilerOpcodes.cpp"
+    "src/opcodes/CabbageOpcodes.h"
 )
 
 set(CABBAGE_SOURCES
-  "src/config.h"
-  "src/CabbageProcessor.h"
-  "src/CabbageProcessor.cpp"
-  "src/CabbageParser.h"
-  "src/Cabbage.h"
-  "src/Cabbage.cpp"
-  "src/CabbageWidgetDescriptors.h"
-  "src/CabbageUtils.h"
-  "src/CabbageServer.cpp"
-  "src/CabbageServer.h"
+    "src/config.h"
+    "src/CabbageProcessor.h"
+    "src/CabbageProcessor.cpp"
+    "src/CabbageParser.h"
+    "src/Cabbage.h"
+    "src/Cabbage.cpp"
+    "src/CabbageWidgetDescriptors.h"
+    "src/CabbageUtils.h"
+    "src/CabbageServer.cpp"
+    "src/CabbageServer.h"
 )
 
 if(APPLE)
@@ -102,6 +111,7 @@ if(APPLE)
     )
 
     set(CABBAGE_INCLUDE_DIRS
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include"
         "${FETCHCONTENT_BASE_DIR}/choc-src/include"
         "${iplug2_SOURCE_DIR}/Dependencies/Build/mac/include"
         "${CMAKE_SOURCE_DIR}"

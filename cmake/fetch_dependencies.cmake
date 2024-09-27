@@ -2,11 +2,6 @@ include_guard()
 
 include("${CMAKE_CURRENT_LIST_DIR}/fetch_github_dependency.cmake")
 
-# Set the base directory for fetched dependencies so all Cabbage build targets use the same ones.
-set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/../_deps")
-cmake_path(ABSOLUTE_PATH FETCHCONTENT_BASE_DIR BASE_DIRECTORY "${CMAKE_BINARY_DIR}" NORMALIZE)
-message(DEBUG "FETCHCONTENT_BASE_DIR = ${FETCHCONTENT_BASE_DIR}")
-
 message(STATUS "Fetching dependencies ...")
 
 include(FetchContent)
@@ -31,12 +26,12 @@ fetch_github_dependency(
 fetch_github_dependency(
     iplug2
     GIT_REPOSITORY https://github.com/rorywalsh/iPlug2.git
-    GIT_TAG baa9a03bf2488a809e9020cd4c1dc69b20b52913
-    URL_MD5 fe30ea1822d9935ce9dbd1ef0adb86c2
+    GIT_TAG aea7c6309c39868ae3d19b650e8116362ed088ff
+    URL_MD5 5664cd9c59f727bece57302a1530d936
     # USE_GIT
 )
 
-message(STATUS "Fetching iPlug2 dependencies")
+message(DEBUG "Fetching iPlug2 dependencies")
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(iplug2_dependencies_zip_file "IPLUG2_DEPS_MAC")
@@ -62,11 +57,11 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(iplug2_dependencies)
 
-message(STATUS "Fetching iPlug2 dependencies - done")
+message(DEBUG "Fetching iPlug2 dependencies - done")
 
 
 if(vst3 STREQUAL "${CABBAGE_BUILD_PLUGIN_TYPE}")
-    message(STATUS "Fetching vst3sdk")
+    message(DEBUG "Fetching vst3sdk")
 
     set(vst3sdk_SOURCE_DIR "${iplug2_SOURCE_DIR}/Dependencies/iPlug/VST3_SDK")
     if(NOT EXISTS "${vst3sdk_SOURCE_DIR}/.git" AND EXISTS "${FETCHCONTENT_BASE_DIR}/vst3sdk-build")
@@ -94,7 +89,7 @@ if(vst3 STREQUAL "${CABBAGE_BUILD_PLUGIN_TYPE}")
 
     FetchContent_MakeAvailable(vst3sdk)
 
-    message(STATUS "Fetching vst3sdk - done")
+    message(DEBUG "Fetching vst3sdk - done")
 endif()
 
 message(STATUS "Fetching dependencies - done")

@@ -21,6 +21,6 @@ FetchContent_MakeAvailable(vcpkg)
 
 message(STATUS "Fetching vcpkg - done")
 
+set(VCPKG_INSTALLED_DIR "${FETCHCONTENT_BASE_DIR}/vcpkg-installed")
 set(CMAKE_TOOLCHAIN_FILE "${vcpkg_SOURCE_DIR}/scripts/buildsystems/vcpkg.cmake")
-
 set(X_VCPKG_APPLOCAL_DEPS_INSTALL ON CACHE BOOL "" FORCE)
