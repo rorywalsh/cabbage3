@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.26 FATAL_ERROR)
 
-# Add -D IS_CABBAGE_CI_BUILD=true to the CMake config command to enable CI-specific checks.
+# Define IS_CABBAGE_CI_BUILD=true to enable CI-specific checks.
 if(DEFINED IS_CABBAGE_CI_BUILD)
     message(DEBUG "IS_CABBAGE_CI_BUILD = ${IS_CABBAGE_CI_BUILD}")
+else()
+    set(IS_CABBAGE_CI_BUILD false)
 endif()
 
 # Default CMAKE_BUILD_TYPE to Release.
@@ -11,9 +13,56 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 message(DEBUG "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
+set(CABBAGE_BUILD_TARGETS
+    standalone_app
+    vscode_service_app
+    auv2_effect
+    auv2_synth
+    vst3_effect
+    vst3_synth
+)
+
+function(get_cabbage_project_name cabbage_build_target output_var)
+    string(REPLACE "_" ";" parts ${cabbage_build_target})
+
+    foreach(part ${parts})
+        string(SUBSTRING "${part}" 0 1 first_char)
+        string(TOUPPER ${first_char} first_char)
+        string(SUBSTRING ${part} 1 -1 rest)
+        list(APPEND output "${first_char}${rest}")
+    endforeach()
+
+    string(REPLACE ";" "" output "${output}")
+    set(${output_var} Cabbage${output} PARENT_SCOPE)
+endfunction()
+
 if(NOT DEFINED CABBAGE_BUILD_TARGET)
-    message(FATAL_ERROR "CABBAGE_BUILD_TARGET is not defined")
+    message(DEBUG "CABBAGE_BUILD_TARGET is not defined. Configuring all Cabbage targets.")
+
+    project(Cabbage)
+
+    foreach(CABBAGE_BUILD_TARGET ${CABBAGE_BUILD_TARGETS})
+        get_cabbage_project_name(${CABBAGE_BUILD_TARGET} cabbage_project_name)
+        execute_process(
+            COMMAND ${CMAKE_COMMAND}
+            -B "${CMAKE_BINARY_DIR}/${cabbage_project_name}"
+            -G ${CMAKE_GENERATOR}
+            -D IS_CABBAGE_CI_BUILD=${IS_CABBAGE_CI_BUILD}
+            -D CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+            -D CABBAGE_BUILD_TARGET=${CABBAGE_BUILD_TARGET}
+        )
+
+        add_custom_target(
+            build_${CABBAGE_BUILD_TARGET}
+            ALL
+            COMMAND ${CMAKE_COMMAND} --build "${CMAKE_BINARY_DIR}/${cabbage_project_name}" --config ${CMAKE_BUILD_TYPE}
+            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/${cabbage_project_name}"
+        )
+    endforeach()
+
+    return()
 endif()
+
 string(TOLOWER "${CABBAGE_BUILD_TARGET}" CABBAGE_BUILD_TARGET)
 message(DEBUG "CABBAGE_BUILD_TARGET = ${CABBAGE_BUILD_TARGET}")
 
@@ -59,7 +108,9 @@ message(DEBUG "FETCHCONTENT_BASE_DIR = ${FETCHCONTENT_BASE_DIR}")
 # Initialize vcpkg. Must be done before project() call.
 include(cmake/init_vcpkg.cmake)
 
-project(Cabbage VERSION 0.0.100)
+get_cabbage_project_name(${CABBAGE_BUILD_TARGET} cabbage_project_name)
+message(STATUS "Configuring Cabbage project: ${cabbage_project_name}")
+project(${cabbage_project_name} VERSION 0.0.100)
 
 # Find packages provided by vcpkg.
 find_package(ixwebsocket CONFIG REQUIRED)
