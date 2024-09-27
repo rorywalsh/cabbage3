@@ -27,7 +27,7 @@ fetch_github_dependency(
     GIT_REPOSITORY https://github.com/rorywalsh/iPlug2.git
     GIT_TAG baa9a03bf2488a809e9020cd4c1dc69b20b52913
     URL_MD5 fe30ea1822d9935ce9dbd1ef0adb86c2
-    USE_GIT
+    # USE_GIT
 )
 
 message(STATUS "Fetching dependency iplug2_dependencies")
@@ -62,6 +62,13 @@ message(STATUS "Fetching dependency iplug2_dependencies - done")
 if(vst3 STREQUAL "${CABBAGE_BUILD_PLUGIN_TYPE}")
     message(STATUS "Fetching dependency vst3sdk")
 
+    set(vst3sdk_SOURCE_DIR "${iplug2_SOURCE_DIR}/Dependencies/iPlug/VST3_SDK")
+    if(NOT EXISTS "${vst3sdk_SOURCE_DIR}/.git")
+        message(TRACE "VST3 SDK source directory not found. Removing fetched dependencies to re-fetch the VST3 SDK.")
+        execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory "${FETCHCONTENT_BASE_DIR}/vst3sdk-build")
+        execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory "${FETCHCONTENT_BASE_DIR}/vst3sdk-subbuild")
+    endif()
+
     # Set these variables to disable building the VST3 SDK plugin examples, hosting examples, and gui support.
     # NB: The original iPlug2 script deletes the associated directories for these features after cloning, but this
     # causes errors when using the CMake FetchContent API, so we do the same thing by setting these variables to OFF.
@@ -76,7 +83,7 @@ if(vst3 STREQUAL "${CABBAGE_BUILD_PLUGIN_TYPE}")
         GIT_REPOSITORY https://github.com/steinbergmedia/vst3sdk.git
         GIT_TAG cc2adc90382dded9e347caf74e4532f1458715db
         GIT_SUBMODULES "base" "cmake" "pluginterfaces" "public.sdk" "vstgui4"
-        SOURCE_DIR "${iplug2_SOURCE_DIR}/Dependencies/iPlug/VST3_SDK"
+        SOURCE_DIR "${vst3sdk_SOURCE_DIR}"
     )
 
     FetchContent_MakeAvailable(vst3sdk)
