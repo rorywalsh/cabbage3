@@ -1,5 +1,5 @@
 include_guard()
-include("${CMAKE_CURRENT_LIST_DIR}/fetch_dependencies_utils.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/fetch_github_dependency.cmake")
 
 message(STATUS "Fetching dependencies ...")
 
