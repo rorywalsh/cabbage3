@@ -13,217 +13,48 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 message(DEBUG "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
-set(CABBAGE_BUILD_TARGETS
-    standalone_app
-    vscode_service_app
-    auv2_effect
-    auv2_synth
-    vst3_effect
-    vst3_synth
-)
-
-function(get_cabbage_project_name cabbage_build_target output_var)
-    string(REPLACE "_" ";" parts ${cabbage_build_target})
-
-    foreach(part ${parts})
-        string(SUBSTRING "${part}" 0 1 first_char)
-        string(TOUPPER ${first_char} first_char)
-        string(SUBSTRING ${part} 1 -1 rest)
-        list(APPEND output "${first_char}${rest}")
-    endforeach()
-
-    string(REPLACE ";" "" output "${output}")
-    set(${output_var} Cabbage${output} PARENT_SCOPE)
-endfunction()
-
 if(NOT DEFINED CABBAGE_BUILD_TARGET)
     message(DEBUG "CABBAGE_BUILD_TARGET is not defined. Configuring all Cabbage targets.")
 
-    project(Cabbage)
+    project(Cabbage VERSION 0.0.100)
+
+    set(CABBAGE_BUILD_TARGETS
+        CabbageStandaloneApp
+        CabbageVSCodeServiceApp
+        CabbageAUv2Effect
+        CabbageAUv2Synth
+        CabbageVST3Effect
+        CabbageVST3Synth
+    )
+
+    message(DEBUG "CMAKE_MESSAGE_LOG_LEVEL = ${CMAKE_MESSAGE_LOG_LEVEL}")
 
     foreach(CABBAGE_BUILD_TARGET ${CABBAGE_BUILD_TARGETS})
-        get_cabbage_project_name(${CABBAGE_BUILD_TARGET} cabbage_project_name)
         execute_process(
             COMMAND ${CMAKE_COMMAND}
-            -B "${CMAKE_BINARY_DIR}/${cabbage_project_name}"
+            -B "${CMAKE_BINARY_DIR}/${CABBAGE_BUILD_TARGET}"
             -G ${CMAKE_GENERATOR}
             -D IS_CABBAGE_CI_BUILD=${IS_CABBAGE_CI_BUILD}
             -D CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
             -D CABBAGE_BUILD_TARGET=${CABBAGE_BUILD_TARGET}
+            -D CABBAGE_VERSION=${CMAKE_PROJECT_VERSION}
+            -D CMAKE_MESSAGE_LOG_LEVEL=${CMAKE_MESSAGE_LOG_LEVEL}
         )
 
         add_custom_target(
             build_${CABBAGE_BUILD_TARGET}
             ALL
-            COMMAND ${CMAKE_COMMAND} --build "${CMAKE_BINARY_DIR}/${cabbage_project_name}" --config ${CMAKE_BUILD_TYPE}
-            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/${cabbage_project_name}"
+            COMMAND ${CMAKE_COMMAND} --build "${CMAKE_BINARY_DIR}/${CABBAGE_BUILD_TARGET}" --config ${CMAKE_BUILD_TYPE}
+            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/${CABBAGE_BUILD_TARGET}"
         )
     endforeach()
-
-    return()
-endif()
-
-string(TOLOWER "${CABBAGE_BUILD_TARGET}" CABBAGE_BUILD_TARGET)
-message(DEBUG "CABBAGE_BUILD_TARGET = ${CABBAGE_BUILD_TARGET}")
-
-if(standalone_app STREQUAL "${CABBAGE_BUILD_TARGET}")
-    set(CABBAGE_BUILD_TARGET_TYPE app)
-    set(CABBAGE_BUILD_APP_TYPE standalone)
-elseif(vscode_service_app STREQUAL "${CABBAGE_BUILD_TARGET}")
-    set(CABBAGE_BUILD_TARGET_TYPE app)
-    set(CABBAGE_BUILD_APP_TYPE vscode_service)
-elseif(auv2_effect STREQUAL "${CABBAGE_BUILD_TARGET}")
-    set(CABBAGE_BUILD_TARGET_TYPE plugin)
-    set(CABBAGE_BUILD_PLUGIN_TYPE auv2)
-    set(CABBAGE_BUILD_PLUGIN_PROCESSING_TYPE effect)
-elseif(auv2_synth STREQUAL "${CABBAGE_BUILD_TARGET}")
-    set(CABBAGE_BUILD_TARGET_TYPE plugin)
-    set(CABBAGE_BUILD_PLUGIN_TYPE auv2)
-    set(CABBAGE_BUILD_PLUGIN_PROCESSING_TYPE effect)
-elseif(vst3_effect STREQUAL "${CABBAGE_BUILD_TARGET}")
-    set(CABBAGE_BUILD_TARGET_TYPE plugin)
-    set(CABBAGE_BUILD_PLUGIN_TYPE vst3)
-    set(CABBAGE_BUILD_PLUGIN_PROCESSING_TYPE effect)
-elseif(vst3_synth STREQUAL "${CABBAGE_BUILD_TARGET}")
-    set(CABBAGE_BUILD_TARGET_TYPE plugin)
-    set(CABBAGE_BUILD_PLUGIN_TYPE vst3)
-    set(CABBAGE_BUILD_PLUGIN_PROCESSING_TYPE synth)
+elseif(EXISTS "cmake/${CABBAGE_BUILD_TARGET}.cmake")
+    include("cmake/${CABBAGE_BUILD_TARGET}.cmake")
 else()
     message(FATAL_ERROR "Unsupported CABBAGE_BUILD_TARGET: ${CABBAGE_BUILD_TARGET}")
 endif()
 
-if(app STREQUAL "${CABBAGE_BUILD_TARGET_TYPE}")
-    message(DEBUG "CABBAGE_BUILD_APP_TYPE = ${CABBAGE_BUILD_APP_TYPE}")
-elseif(plugin STREQUAL "${CABBAGE_BUILD_TARGET_TYPE}")
-    message(DEBUG "CABBAGE_BUILD_PLUGIN_TYPE = ${CABBAGE_BUILD_PLUGIN_TYPE}")
-    message(DEBUG "CABBAGE_BUILD_PLUGIN_PROCESSING_TYPE = ${CABBAGE_BUILD_PLUGIN_PROCESSING_TYPE}")
-endif()
-
-# Set the base directory for dependencies fetched by FetchContent before changing CMAKE_BINARY_DIR, so all Cabbage
-# build targets use the same fetched dependencies.
-set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/../_deps")
-cmake_path(ABSOLUTE_PATH FETCHCONTENT_BASE_DIR BASE_DIRECTORY "${CMAKE_BINARY_DIR}" NORMALIZE)
-message(DEBUG "FETCHCONTENT_BASE_DIR = ${FETCHCONTENT_BASE_DIR}")
-
-# Initialize vcpkg. Must be done before project() call.
-include(cmake/init_vcpkg.cmake)
-
-get_cabbage_project_name(${CABBAGE_BUILD_TARGET} cabbage_project_name)
-message(STATUS "Configuring Cabbage project: ${cabbage_project_name}")
-project(${cabbage_project_name} VERSION 0.0.100)
-
-# Find packages provided by vcpkg.
-find_package(ixwebsocket CONFIG REQUIRED)
-
-# Fetch dependencies not provided by vcpkg.
-include(cmake/fetch_dependencies.cmake)
-
-# Find Csound.
-list(APPEND CMAKE_MODULE_PATH "cmake")
-find_package(CSOUND REQUIRED)
-
-enable_language(CXX)
-
-set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
-
-# Initialize iPlug2.
-include(${iplug2_SOURCE_DIR}/iPlug2.cmake)
-find_package(iPlug2 REQUIRED)
-
-set(CABBAGE_OPCODE_SOURCES
-  "src/opcodes/CabbageGetOpcodes.h"
-  "src/opcodes/CabbageGetOpcodes.cpp"
-  "src/opcodes/CabbageSetOpcodes.h"
-  "src/opcodes/CabbageSetOpcodes.cpp"
-  "src/opcodes/CabbageProfilerOpcodes.h"
-  "src/opcodes/CabbageProfilerOpcodes.cpp"
-  "src/opcodes/CabbageOpcodes.h"
-)
-
-set(CABBAGE_SOURCES
-  "src/config.h"
-  "src/CabbageProcessor.h"
-  "src/CabbageProcessor.cpp"
-  "src/CabbageParser.h"
-  "src/Cabbage.h"
-  "src/Cabbage.cpp"
-  "src/CabbageWidgetDescriptors.h"
-  "src/CabbageUtils.h"
-  "src/CabbageServer.cpp"
-  "src/CabbageServer.h"
-)
-
 if(APPLE)
-    enable_language(OBJC)
-    enable_language(OBJCXX)
-
-    set(CABBAGE_WEBVIEW_SOURCES
-        "src/webView/IPlugWebView.h"
-        "src/webView/IPlugWebView.mm"
-        "src/webView/CabbageEditorDelegate.h"
-        "src/webView/CabbageEditorDelegate.mm"
-    )
-
-    set(CABBAGE_DEFINES
-        OBJC_PREFIX=vCabbage
-        SWELL_APP_PREFIX=Swell_vCabbage
-        SWELL_COMPILED
-    )
-
-    set(CABBAGE_INCLUDE_DIRS
-        "${FETCHCONTENT_BASE_DIR}/choc-src/include"
-        "${iplug2_SOURCE_DIR}/Dependencies/Build/mac/include"
-        "${CMAKE_SOURCE_DIR}"
-        "${CMAKE_SOURCE_DIR}/src"
-        "${CMAKE_SOURCE_DIR}/src/app"
-    )
-
-    # Very possible we don't need some of these - not super familiar with mac frameworks
-    set(CABBAGE_LIBRARIES
-        "-framework Carbon"
-        "-framework AppKit"
-        "-framework Metal"
-        "-framework MetalKit"
-        "-framework WebKit"
-        "-framework CoreFoundation"
-        ixwebsocket::ixwebsocket
-        readerwriterqueue
-    )
-
-    # because the file hierarchy needs preserving, I did this the KISS way - but maybe some of the existing iPlug stuff has a more elegant way to do this
-    set(CABBAGE_WEB_RESOURCES
-        "resources/web/index.html"
-        "resources/web/script.js"
-        "resources/web/webaudio-controls.js"
-    )
-
-    set_source_files_properties("resources/web/index.html" PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/web")
-    set_source_files_properties("resources/web/script.js" PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/web")
-    set_source_files_properties("resources/web/webaudio-controls.js" PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/web")
-
-    set_source_files_properties("src/webView/IPlugWebView.mm" PROPERTIES COMPILE_OPTIONS -fobjc-arc)
-
-    add_library(_base INTERFACE)
-
-    iplug_target_add(_base INTERFACE
-        DEFINE
-            CUSTOM_EDITOR="${CMAKE_SOURCE_DIR}/src/webView/CabbageEditorDelegate.h"
-            CUSTOM_EDITOR_CLASS=CabbageEditorDelegate
-            NO_IGRAPHICS
-        FEATURE cxx_std_17
-        INCLUDE
-            "${CMAKE_SOURCE_DIR}/resources"
-            ${CABBAGE_DEFINES}
-            ${CABBAGE_INCLUDE_DIRS}
-            ${CSOUND_INCLUDE_DIRS}
-            ${iplug2_SOURCE_DIR}/Dependencies/Extras/nlohmann
-        LINK
-            iPlug2_GL2
-            ${CABBAGE_LIBRARIES}
-            ${CSOUND_FRAMEWORK}
-        SOURCE ${CABBAGE_WEB_RESOURCES}
-    )
-
     # if(BUILD_STANDALONE_APP)
     #     add_executable(Cabbage MACOSX_BUNDLE
     #         ${CABBAGE_OPCODE_SOURCES}

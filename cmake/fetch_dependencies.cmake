@@ -1,5 +1,11 @@
 include_guard()
+
 include("${CMAKE_CURRENT_LIST_DIR}/fetch_github_dependency.cmake")
+
+# Set the base directory for fetched dependencies so all Cabbage build targets use the same ones.
+set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/../_deps")
+cmake_path(ABSOLUTE_PATH FETCHCONTENT_BASE_DIR BASE_DIRECTORY "${CMAKE_BINARY_DIR}" NORMALIZE)
+message(DEBUG "FETCHCONTENT_BASE_DIR = ${FETCHCONTENT_BASE_DIR}")
 
 message(STATUS "Fetching dependencies ...")
 
