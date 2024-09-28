@@ -21,6 +21,9 @@ include_guard()
         # Uncomment this line to use the Git repository instead of the Github .tar.gz.
         # This makes development easier but slows the fetch down alot, so don't commit it uncommented.
         # USE_GIT
+
+        # Uncomment this line to convert the GitHub url to a ssh url.
+        # USE_SSH
     )
 ]]
 macro(fetch_github_dependency name)
