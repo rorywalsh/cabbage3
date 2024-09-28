@@ -21,11 +21,6 @@ if(NOT DEFINED CMAKE_MESSAGE_LOG_LEVEL)
 endif()
 
 if(NOT DEFINED CABBAGE_BUILD_TARGET)
-    message("")
-    message("--------------------------------")
-    message("Configuring all Cabbage projects")
-    message("--------------------------------")
-
     project(BuildAllCabbageProjects VERSION ${CABBAGE_VERSION})
 
     set(CABBAGE_BUILD_TARGETS
