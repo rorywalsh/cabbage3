@@ -71,7 +71,7 @@ void CabbageProcessor::setupCallbacks()
             //update widget objects in case UI is closed and reopened...
             if(widget["type"].get<std::string>() == "form")
             {
-                Resize(widget["width"].get<int>(), widget["height"]);
+                Resize(widget["width"].get<int>(), widget["height"].get<int>());
             }
         }
     };
@@ -193,7 +193,7 @@ void CabbageProcessor::timerCallback()
             std::string message = {};
             if(data.type == CabbageOpcodeData::MessageType::Value)
             {
-                message =  cabbage.getWidgetUpdateScript(data.channel, data.value);
+                message =  cabbage.getWidgetUpdateScript(data.channel, data.cabbageJson["value"].get<float>());
                 EvaluateJavaScript(message.c_str());
             }
             else
@@ -210,7 +210,7 @@ void CabbageProcessor::timerCallback()
                     }
                     else
                     {
-                        _log(data.cabbageJson.dump(4));
+//                        _log(data.cabbageJson.dump(4));
                         CabbageParser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
                         message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
                     }

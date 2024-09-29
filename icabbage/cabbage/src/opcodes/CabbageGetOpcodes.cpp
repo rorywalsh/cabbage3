@@ -11,6 +11,10 @@
 #include "CabbageParser.h"
 #include "CabbageUtils.h"
 
+//=====================================================================================
+// k1 cabbageGetValue "channel"
+// i1 cabbageGetValue "channel"
+//=====================================================================================
 int CabbageGetValue::getValue(int init)
 {
 //    std::cout << " Opcode called on thread: " << std::this_thread::get_id() << std::endl;
@@ -25,7 +29,9 @@ int CabbageGetValue::getValue(int init)
     return IS_OK;
 }
 
-
+//=====================================================================================
+// k1, kTrig cabbageGetValue "channel"
+//=====================================================================================
 int CabbageGetValueWithTrigger::getValue(int mode)
 {
     if(in_count() == 0)
@@ -59,8 +65,15 @@ int CabbageGetValueWithTrigger::getValue(int mode)
     return IS_OK;
 }
 
+//=====================================================================================
+// Not yet implemented...
+// SOut cabbageGetValue "channel"
+//=====================================================================================
 int CabbageGetValueString::getValue(int rate)
-{
+{    
+    csound->init_error("Not yet implemented as none of the current widgets support \"channelType\":\"string\" \n");
+    return NOTOK;
+    
     if(in_count() == 0)
             return NOTOK;
 
@@ -93,8 +106,15 @@ int CabbageGetValueString::getValue(int rate)
         return IS_OK;
 }
 
+//=====================================================================================
+// Not yet implemented..
+// SOut, kTrig cabbageGetValue "channel"
+//=====================================================================================
 int CabbageGetValueStringWithTrigger::getValue(int rate)
 {
+    csound->init_error("Not yet implemented as none of the current widgets support \"channelType\":\"string\" \n");
+    return NOTOK;
+    
     if(in_count() == 0)
         return NOTOK;
         
@@ -133,7 +153,10 @@ int CabbageGetValueStringWithTrigger::getValue(int rate)
     return IS_OK;
 }
 
-//these opcodes access the main widget vector
+//=====================================================================================
+// iWidth cabbageGet "channel", "bounds.width"
+// kVisible cabbageGet "channel", "visible"
+//=====================================================================================
 int CabbageGetMYFLT::getIdentifier(int init)
 {
     
@@ -148,14 +171,14 @@ int CabbageGetMYFLT::getIdentifier(int init)
             if(channel == data.channel)
             {
                 //EvaluateJavaScript << data.identifierText << ":" << widget[data.identifierText].get<float>();
-                outargs[0] = widget[data.cabbageJson].get<float>();
+                outargs[0] = getJsonValue(widget, data.identifier).get<MYFLT>();
             }
         }
     }
     else
     {
         //if only a channel string is passed in, then get the current value of that channel
-        
+        //this is basically the same as the chnget opcode
         CabbageOpcodeData data = getIdentData(csound, inargs, true, 0, 0);
         for(auto &widget : hostData->getWidgets())
         {
@@ -175,6 +198,9 @@ int CabbageGetMYFLT::getIdentifier(int init)
 }
 
 //=========================================================================================
+// SText cabbageGet "channel", "identifier"
+// SText cabbageGet "channel", "identifier.key"
+//=========================================================================================
 int CabbageGetString::getIdentifier(int init)
 {
     auto* hostData = static_cast<Cabbage*>(csound->host_data());
@@ -187,18 +213,19 @@ int CabbageGetString::getIdentifier(int init)
             auto channel = CabbageParser::removeQuotes(widget["channel"].get<std::string>());
             if(channel == data.channel)
             {
-                auto str = CabbageParser::removeQuotes(widget[data.cabbageJson].get<std::string>());
-                outargs.str_data(0).size = int(strlen(str.c_str())+1);
-                outargs.str_data(0).data = csound->strdup(str.data());
+                auto output = getJsonValue(widget, data.identifier).get<std::string>();
+                outargs.str_data(0).size = int(strlen(output.c_str())+1);
+                outargs.str_data(0).data = csound->strdup(output.data());
             }
         }
-        
-
     }
     
     return IS_OK;
 }
 
+//=========================================================================================
+//
+//=========================================================================================
 int CabbageGetStringWithTrigger::getIdentifier(int init)
 {
     auto* hostData = static_cast<Cabbage*>(csound->host_data());
@@ -211,15 +238,11 @@ int CabbageGetStringWithTrigger::getIdentifier(int init)
             auto channel = widget["channel"].get<std::string>();
             if(channel == data.channel)
             {
-                auto str = widget[data.cabbageJson].get<std::string>();
+                auto str = getJsonValue(widget, data.identifier).get<std::string>();
 
-                if(!currentString){
-                    currentString = (char*)str.c_str();
-                    outargs[1] = 0;
-                }
-                else if(currentString != str){
+                if(currentString != str){
                     outargs[1] = 1;
-                    currentString = (char*)str.c_str();
+                    currentString = str;
                 }
                 else
                     outargs[1] = 0;
@@ -227,10 +250,7 @@ int CabbageGetStringWithTrigger::getIdentifier(int init)
                 outargs.str_data(0).size = int(strlen(str.c_str())+1);
                 outargs.str_data(0).data = csound->strdup(str.data());
             }
-                
         }
-        
-
     }
     
     return IS_OK;

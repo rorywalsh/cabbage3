@@ -171,21 +171,22 @@ function updateWidget(obj) {
   for (const widget of widgets) {
     if (widget.props.channel === channel) {
       widgetFound = true;
-      console.log("props", widget.props);
       if (obj.hasOwnProperty('data')) {
         widget.props = JSON.parse(obj["data"]);
       } else {
-        console.error("obj has no data property:", obj);
+        // console.error("obj has no data property:", obj);
+        widget.props.value = obj.value;
+        console.log("updating widget value:", obj.value);
       }
 
       const widgetElement = CabbageUtils.getWidgetDiv(widget.props.channel);
       if (widgetElement) {
-        widgetElement.style.transform = 'translate(' + widget.props.left + 'px,' + widget.props.top + 'px)';
+        widgetElement.style.transform = 'translate(' + widget.props.bounds.left + 'px,' + widget.props.bounds.top + 'px)';
 
-        widgetElement.setAttribute('data-x', widget.props.left);
-        widgetElement.setAttribute('data-y', widget.props.top);
-        // widgetElement.style.top = `${widget.props.top}px`;
-        // widgetElement.style.left = `${widget.props.left}px`;
+        widgetElement.setAttribute('data-x', widget.props.bounds.left);
+        widgetElement.setAttribute('data-y', widget.props.bounds.top);
+        // widgetElement.style.top = `${widget.props.bounds.top}px`;
+        // widgetElement.style.left = `${widget.props.bounds.left}px`;
         if (widget.props.type !== "form") {
           console.log("updating widget:", widget.props.items);
           widgetElement.innerHTML = widget.getInnerHTML();
@@ -260,8 +261,11 @@ async function insertWidget(type, props) {
   }
 
   Object.assign(widget.props, props);
+  if(type == "rotarySlider" || type == "horizontalSlider" || type == "verticalSlider" || type == "numberSlider" || type == "horizontalRangeSlider"){
+    widget.props.value = props.range.defaultValue;
+  }
   widgets.push(widget);
-  console.warn(widget.props);
+
   widget.parameterIndex = CabbageUtils.getNumberOfPluginParameters(widgets) - 1;
 
   if (cabbageMode === 'nonDraggable') {
@@ -379,8 +383,8 @@ function setupFormWidget(widget) {
   // Set MainForm properties and styles
   const form = document.getElementById('MainForm');
   if (form) {
-    form.style.width = widget.props.width + "px";
-    form.style.height = widget.props.height + "px";
+    form.style.width = widget.props.bounds.width + "px";
+    form.style.height = widget.props.bounds.height + "px";
     form.style.top = '0px';
     form.style.left = '0px';
     console.log("updating form");
@@ -405,16 +409,16 @@ function setupFormWidget(widget) {
 
 function updateWidgetStyles(widgetDiv, props) {
   widgetDiv.style.position = 'absolute';
-  widgetDiv.style.transform = `translate(${props.left}px, ${props.top}px)`;
+  widgetDiv.style.transform = `translate(${props.bounds.left}px, ${props.bounds.top}px)`;
 
   //if we use translate we need to ensure x/y are 0. 
   widgetDiv.style.top = '0px'
   widgetDiv.style.left = '0px'
 
-  widgetDiv.setAttribute('data-x', props.left);
-  widgetDiv.setAttribute('data-y', props.top);
-  widgetDiv.style.width = props.width + 'px';
-  widgetDiv.style.height = props.height + 'px';
+  widgetDiv.setAttribute('data-x', props.bounds.left);
+  widgetDiv.setAttribute('data-y', props.bounds.top);
+  widgetDiv.style.width = props.bounds.width + 'px';
+  widgetDiv.style.height = props.bounds.height + 'px';
 }
 
 

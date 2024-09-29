@@ -4,16 +4,21 @@ import { Cabbage } from "../cabbage.js";
 export class Button {
   constructor() {
     this.props = {
-      "top": 10,
-      "left": 10,
-      "width": 80,
-      "height": 30,
+      "bounds": {
+        "top": 10,
+        "left": 10,
+        "width": 80,
+        "height": 30
+      },
       "channel": "button",
       "corners": 2,
       "min": 0,
       "max": 1,
       "value": 0,
-      "textOn": "On",
+      "text": {
+        "on": "On",
+        "off": "Off"
+      },
       "alpha": 1,
       "textOff": "Off",
       "fontFamily": "Verdana",
@@ -136,25 +141,25 @@ export class Button {
     };
 
     const svgAlign = alignMap[this.props.align] || this.props.align;
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.bounds.height * 0.5;
     const padding = 5;
 
     let textX;
     if (this.props.align === 'left') {
       textX = this.props.corners; // Add padding for left alignment
     } else if (this.props.align === 'right') {
-      textX = this.props.width - this.props.corners - padding; // Add padding for right alignment
+      textX = this.props.bounds.width - this.props.corners - padding; // Add padding for right alignment
     } else {
-      textX = this.props.width / 2;
+      textX = this.props.bounds.width / 2;
     }
-    const buttonText = this.props.type === "filebutton" ? this.props.text : (this.props.value === 1 ? this.props.textOn : this.props.textOff);
+    const buttonText = this.props.type === "filebutton" ? this.props.text : (this.props.value === 1 ? this.props.text.on : this.props.text.off);
     const stateColour = CabbageColours.darker(this.props.value === 1 ? this.props.colourOn : this.props.colourOff, this.isMouseInside ? 0.2 : 0);
     const currentColour = this.isMouseDown ? CabbageColours.lighter(this.props.colourOn, 0.2) : stateColour;
     return `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-          <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners}" fill="${currentColour}" stroke="${this.props.outlineColour}"
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.bounds.width} ${this.props.bounds.height}" width="${this.props.bounds.width}" height="${this.props.bounds.height}" preserveAspectRatio="none">
+          <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.bounds.width - this.props.corners}" height="${this.props.bounds.height - this.props.corners}" fill="${currentColour}" stroke="${this.props.outlineColour}"
             stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
-          <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+          <text x="${textX}" y="${this.props.bounds.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
             fill="${this.props.value === 1 ? this.props.fontColourOn : this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${buttonText}</text>
       </svg>
     `;
@@ -172,12 +177,12 @@ export class FileButton extends Button {
     this.props.colourOn = this.props.colourOff;
     this.props.fontColourOn = this.props.fontColourOff;
     this.props.mode = "file";
-    delete this.props.textOff;
-    delete this.props.textOn;
+    delete this.props.text.off;
+    delete this.props.text.on;
     //override following properties
     this.props.text = "Choose File";
-    this.props.textOn = this.props.text;
-    this.props.textOff = this.props.text;
+    this.props.text.on = this.props.text;
+    this.props.text.off = this.props.text;
     this.props.type = "filebutton";
     this.props.automatable = 0;
   }
@@ -202,7 +207,7 @@ export class OptionButton extends Button {
   constructor() {
     super();
     this.props.channel = "fileButton";
-    this.props.textOn = this.props.textOff;
+    this.props.text.on = this.props.text.off;
     this.props.colourOn = this.props.colourOff;
     this.props.fontColourOn = this.props.fontColourOff;
     this.props.items = "One, Two, Three", // List of items for the dropdown
@@ -239,7 +244,7 @@ export class OptionButton extends Button {
     };
 
     const svgAlign = alignMap[this.props.align] || this.props.align;
-    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.height * 0.5;
+    const fontSize = this.props.fontSize > 0 ? this.props.fontSize : this.props.bounds.height * 0.5;
     const padding = 5;
     const items = this.props.items.split(",");
 
@@ -247,18 +252,18 @@ export class OptionButton extends Button {
     if (this.props.align === 'left') {
       textX = this.props.corners; // Add padding for left alignment
     } else if (this.props.align === 'right') {
-      textX = this.props.width - this.props.corners - padding; // Add padding for right alignment
+      textX = this.props.bounds.width - this.props.corners - padding; // Add padding for right alignment
     } else {
-      textX = this.props.width / 2;
+      textX = this.props.bounds.width / 2;
     }
 
     const stateColour = CabbageColours.darker(this.props.value === 1 ? this.props.colourOn : this.props.colourOff, this.isMouseInside ? 0.2 : 0);
     const currentColour = this.isMouseDown ? CabbageColours.lighter(this.props.colourOn, 0.2) : stateColour;
     return `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.width} ${this.props.height}" width="${this.props.width}" height="${this.props.height}" preserveAspectRatio="none">
-          <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.width - this.props.corners}" height="${this.props.height - this.props.corners}" fill="${currentColour}" stroke="${this.props.outlineColour}"
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.props.bounds.width} ${this.props.bounds.height}" width="${this.props.bounds.width}" height="${this.props.bounds.height}" preserveAspectRatio="none">
+          <rect x="${this.props.corners / 2}" y="${this.props.corners / 2}" width="${this.props.bounds.width - this.props.corners}" height="${this.props.bounds.height - this.props.corners}" fill="${currentColour}" stroke="${this.props.outlineColour}"
             stroke-width="${this.props.outlineWidth}" rx="${this.props.corners}" ry="${this.props.corners}"></rect>
-          <text x="${textX}" y="${this.props.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
+          <text x="${textX}" y="${this.props.bounds.height / 2}" font-family="${this.props.fontFamily}" font-size="${fontSize}"
             fill="${this.props.fontColourOff}" text-anchor="${svgAlign}" alignment-baseline="middle">${items[this.props.value]}</text>
       </svg>
     `;

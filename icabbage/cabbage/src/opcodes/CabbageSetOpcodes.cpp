@@ -13,7 +13,7 @@
 //=====================================================================================
 // cabbageSetValue "channel", xValue
 //=====================================================================================
-int CabbageSetValue::setValue(int /*pass*/)
+int CabbageSetValue::setValue(int pass)
 {
     auto* hostData = static_cast<Cabbage*>(csound->host_data());
 
@@ -29,7 +29,7 @@ int CabbageSetValue::setValue(int /*pass*/)
     if(kCycles==32)
     {
         CabbageOpcodeData data = getValueIdentData(args, true, 0, 1);
-        data.cabbageJson["value"] = args[1];
+        data.cabbageJson["value"] = *value;
         data.type = CabbageOpcodeData::MessageType::Value;
         hostData->opcodeData.enqueue(data);
         kCycles = 0;

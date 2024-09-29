@@ -169,9 +169,9 @@ public:
                 {
                     if(value.is_object())
                     {
-                        for (auto& [key, val] : value.items())
+                        for (auto& [propKey, val] : value.items())
                         {
-                            jsonObj[key] = val;
+                            jsonObj[key][propKey] = val;
                         }
                     }
                     else
@@ -183,9 +183,11 @@ public:
                 {
                     if(value.is_object())
                     {
-                        for (auto& [key, val] : value.items())
+                        for (auto& [propKey, val] : value.items())
                         {
-                            jsonObj[key] = val;
+                            jsonObj[key][propKey] = val;
+//                            if(propKey == "value")
+//                                jsonObj["currentValue"] = val;
                         }
                     }
                     else
@@ -197,9 +199,9 @@ public:
                 {
                     if(value.is_object())
                     {
-                        for (auto& [key, val] : value.items())
+                        for (auto& [propKey, val] : value.items())
                         {
-                            jsonObj[key] = val;
+                            jsonObj[propKey] = val;
                         }
                     }
                     else
@@ -323,10 +325,17 @@ public:
                     }
                     else if (value.is_object())
                     {
+                        //set textOn/textOff for UI editor
                         if(value.contains("off"))
                             jsonObj["textOff"] = value["off"].get<std::string>();
                         if(value.contains("on"))
                             jsonObj["textOn"] = value["on"].get<std::string>();
+                        
+                        //maintains original "text":{"on":"onStr", "off":"offStr"} 
+                        for (auto& [innerKey, val] : value.items())
+                        {
+                            jsonObj[key][innerKey] = val;
+                        }
                     }
                 }
                 else

@@ -27,13 +27,10 @@ struct CabbageOpcodeData
         Perf
     };
         
-    
     nlohmann::json cabbageJson = {};
     std::string channel = {};
     std::string identifier = {};
     MessageType type;
-    MYFLT value = 0;
-
 };
 
 template <std::size_t NumInputParams>
@@ -199,17 +196,29 @@ struct CabbageOpcodes
     }
     
     // Function to access a JSON object using dot notation
-    nlohmann::json getJsonValue(const nlohmann::json& jsonObj, const std::string& dotNotation)
+    nlohmann::json getJsonValue(const nlohmann::json& jsonObj, const std::string& jsonString)
     {
-        std::vector<std::string> keys = split(dotNotation, '.');
+        if(jsonString.find(".") == std::string::npos)
+        {
+            if(jsonObj.contains(jsonString))
+                return jsonObj[jsonString];
+            
+            return jsonObj;            
+            
+        }
+        
+//        _log(jsonObj.dump(4));
+        //else deal with dot notation
+        std::vector<std::string> keys = split(jsonString, '.');
         nlohmann::json current = jsonObj;
-
-        for (const auto& key : keys) 
+        for (const auto& key : keys)
         {
             if (current.contains(key)) 
             {
                 current = current[key];
-            } else {
+            } 
+            else
+            {
                 return nullptr; // Return null if the key does not exist
             }
         }
@@ -253,8 +262,6 @@ struct CabbageOpcodes
                         setJsonValue(jsonObj, args.str_data(argIndex-1).data, args.str_data(argIndex).data);
                     else
                         setJsonValue(jsonObj, args.str_data(argIndex-1).data, args[argIndex]);
-                    
-                    _log(jsonObj.dump(4));
                 }
             }
             else

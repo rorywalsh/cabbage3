@@ -74,7 +74,7 @@ struct CabbageGetString : csnd::Plugin<1, 2>, CabbageOpcodes<2>
 
 struct CabbageGetStringWithTrigger : csnd::Plugin<2, 2>, CabbageOpcodes<2>
 {
-    char* currentString = {};
+    std::string currentString = {};
     int kperf() { return getIdentifier(CabbageOpcodeData::PassType::Perf);   };
     int getIdentifier(int init);
 };
