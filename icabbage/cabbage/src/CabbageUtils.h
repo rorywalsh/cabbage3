@@ -196,6 +196,23 @@ public:
         return jsContent;
     }
 
+    static std::string getSettingsFile()
+    {
+        //if in CabbageApp mode, the widget src dir is set by the Cabbage .ini settings
+        WDL_String iniPath;
+#if defined OS_WIN
+        TCHAR strPath[2048];
+        SHGetFolderPathA( NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath );
+        iniPath.SetFormatted(2048, "%s\\%s\\", strPath, BUNDLE_NAME);
+#elif defined OS_MAC
+        iniPath.SetFormatted(2048, "%s/Library/Application Support/%s/", getenv("HOME"), "Cabbage");
+#else
+    #error NOT IMPLEMENTED
+#endif
+        iniPath.Append("settings.ini"); // add file name to path
+        return iniPath.Get();
+    }
+    
     // Function to crudely extract the props object from a corresponding JS file...
     // this could be rewritten using ducktapeJS or some other JS parser...
     static nlohmann::json extractPropsFromJS(const std::string& jsContent)
@@ -288,7 +305,8 @@ public:
         }
     }
 
-    static std::string getCsdFileAndPath() {
+    static std::string getCsdFileAndPath()
+    {
         std::string resourceDir = getCabbageResourceDir();
         std::string binaryFileName = getBinaryFileName();
         size_t pos = binaryFileName.find_last_of(".");
@@ -440,6 +458,79 @@ public:
         return path.filename().string();
     }
 
+    static std::string getParentDirectory(const std::string& absolutePath)
+    {
+        try {
+            // Create a path object from the input string
+            std::filesystem::path filePath(absolutePath);
+
+            // Check if the path is absolute
+            if (!filePath.is_absolute())
+            {
+                throw std::invalid_argument("The path provided is not an absolute path.");
+            }
+
+            // Check if the path exists
+            if (!std::filesystem::exists(filePath))
+            {
+                throw std::runtime_error("The specified path does not exist.");
+            }
+
+            // Return the parent directory
+            std::filesystem::path parentDir = filePath.parent_path();
+            
+            // If the parent directory is empty (e.g., root directory), handle that case
+            if (parentDir.empty()) 
+            {
+                throw std::runtime_error("The path does not have a parent directory.");
+            }
+
+            // Return the parent directory as a string
+            return parentDir.string();
+            
+        } 
+        catch (const std::exception& ex) {
+            // Handle errors and return the error message
+            return std::string("Error: ") + ex.what();
+        }
+    }
+    
+    static std::string getSettingsProperty(const std::string section, const std::string& property) {
+        
+        std::ifstream file(getSettingsFile());
+        if (!file.is_open()) {
+            std::cerr << "Error: Could not open the file " << getSettingsFile() << std::endl;
+            return "";
+        }
+
+        std::string line;
+        bool inMiscSection = false;
+
+        while (std::getline(file, line)) {
+            // Trim whitespace from the line
+            line.erase(0, line.find_first_not_of(" \t")); // Trim leading whitespace
+            line.erase(line.find_last_not_of(" \t") + 1); // Trim trailing whitespace
+
+            // Check for section headers
+            if (line == "["+section+"]") {
+                inMiscSection = true; // We're in the correct section
+                continue; // Move to the next line
+            } else if (line.front() == '[') {
+                inMiscSection = false; // We've hit a new section, exit misc section
+                continue;
+            }
+
+            // If we're in the [misc] section, look for jsSrcDir
+            if (inMiscSection && line.find(property) == 0) {
+                // Extract the path by removing the key part
+                return line.substr(line.find('=') + 1); // Return everything after '='
+            }
+        }
+
+        // If we reach here, jsSrcDir was not found
+        std::cerr << "Error: jsSrcDir not found in the INI file." << std::endl;
+        return "";
+    }
 private:
     #if defined(_WIN32)
     static std::string getWindowsBinaryPath() 
@@ -590,15 +681,23 @@ public:
     //returns a widget descriptor object for a given widget type
     static nlohmann::json get(std::string widgetType)
     {
+        
         std::vector<std::string> widgetTypes;
+#ifdef CabbageApp
+        //this folder will be different for plugins than for the vscode extension
+        std::string widgetPath = CabbageFile::getSettingsProperty("misc", "jsSrcDir") + "/widgets";;
+#else
         std::string widgetPath = CabbageFile::getCsdPath() + "/widgets"; // Folder containing widget files
+#endif
+
         auto jsFileContents = CabbageFile::loadJSFile(widgetPath + "/" + widgetType + ".js");
         if (!jsFileContents.empty())
         {
             return CabbageFile::extractPropsFromJS(jsFileContents);
         }
 
-        cabAssert(false, "Invalid widget type");
+        _log("Invalid widget type:" << widgetType);
+        cabAssert(false, "Invalid widget type:");
         return {};
     }
 };

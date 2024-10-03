@@ -10,7 +10,6 @@ CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info, std::string 
 : iplug::Plugin(info, iplug::MakeConfig(Cabbage::getNumberOfParameters(csdFile), 0)),
 cabbage(*this, csdFile)
 {
-    
     if(!cabbage.setupCsound())
         return;
     

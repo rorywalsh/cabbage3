@@ -109,6 +109,9 @@ public:
         uint32_t mAudioOutChanL;
         uint32_t mAudioOutChanR;
         
+        //custom app state fields
+        WDL_String mJsSourceDirectory;
+        
         AppState()
         : mAudioInDev(DEFAULT_INPUT_DEV)
         , mAudioOutDev(DEFAULT_OUTPUT_DEV)

@@ -267,6 +267,10 @@ bool IPlugAPPHost::InitState()
             
             mState.mMidiInChan = GetPrivateProfileInt("midi", "inchan", 0, mINIPath.Get()); // 0 is any
             mState.mMidiOutChan = GetPrivateProfileInt("midi", "outchan", 0, mINIPath.Get()); // 1 is first chan
+            
+            //misc
+            
+
         }
         
         // if settings file doesn't exist, populate with default values, otherwise overrwrite

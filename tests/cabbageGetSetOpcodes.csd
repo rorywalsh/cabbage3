@@ -2,9 +2,9 @@
     {"type":"form","caption":"Simple Instrument","size":{"width":1000,"height":520},"pluginId":"RMSy"},
     {"type":"rotarySlider", "channel":"gain", "bounds":{"left":150, "top":10, "width":100, "height":100}, "range":{"min":0, "max":2, "defaultValue":1, "skew":1, "increment":0.1}, "text":"Gain"},
     {"type":"button", "channel":"button1", "bounds":{"left":0, "top":10, "width":100, "height":30}, "colour":{"on":[255, 0, 0], "off":"#0000ff"},"text":{"on":"I am on", "off":"I am off"}},
-    {"type": "texteditor", "bounds": {"left": 17.0, "top": 169.0, "width": 341.0, "height": 40.0}, "channel": "infoText", "readOnly": 1.0, "wrap": 1.0, "scrollbars": 1.0, "text":"This instrument shows an example..."},
-    {"type":"combobox", "channel":"combo1", "bounds":{"left":200, "top":200, "width":100, "height":30}, "items":["One", "Two", "Three"]},
-    {"type":"csoundoutput", "channel":"output1", "bounds":{"left":10, "top":300, "width":800, "height":200}}
+    {"type": "textEditor", "bounds": {"left": 17.0, "top": 169.0, "width": 341.0, "height": 40.0}, "channel": "infoText", "readOnly": 1.0, "wrap": 1.0, "scrollbars": 1.0, "text":"This instrument shows an example..."},
+    {"type":"comboBox", "channel":"combo1", "bounds":{"left":200, "top":200, "width":100, "height":30}, "items":["One", "Two", "Three"]},
+    {"type":"csoundOutput", "channel":"output1", "bounds":{"left":10, "top":300, "width":800, "height":200}}
 ]</Cabbage>
 <CsoundSynthesizer>
 <CsOptions>
@@ -12,7 +12,7 @@
 </CsOptions>
 <CsInstruments>
 ; sr set by host
-ksmps = 16
+ksmps = 64
 nchnls = 2
 0dbfs = 1
 
@@ -87,11 +87,13 @@ endin
 
 instr TestGetValueOpcodes
     if p4 == 0 then
+        prints "Testing cabbageGetValue k-rate, no trigger"
         kVal cabbageGetValue "gain"
         printk2 kVal
-        elseif p4 == 1 then
+    elseif p4 == 1 then
+        prints "Testing cabbageGetValue k-rate, with trigger"
         kVal, kTrig cabbageGetValue "gain"
-        printf "gain: %f, trigger: %d", kVal, kTrig
+        printf "gain: %f", kTrig, kVal
     endif    
 endin
 
@@ -135,9 +137,9 @@ endin
 ; i"TestMYFLTGetOpcodes" + 1 4
 ; i"TestMYFLTGetOpcodes" + 1 5
 ; i"TestSetValueOpcodes" + 2 0
-i"TestSetValueOpcodes" + 4 1
-i"TestGetValueOpcodes" + 2 0
-i"TestGetValueOpcodes" + 2 1
+; i"TestSetValueOpcodes" + 4 1
+i"TestGetValueOpcodes" + 4 0
+i"TestGetValueOpcodes" + 4 1
 f0 z
 </CsScore>
 </CsoundSynthesizer>

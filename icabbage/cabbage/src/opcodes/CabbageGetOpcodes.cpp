@@ -25,7 +25,6 @@ int CabbageGetValue::getValue(int init)
                                             CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
     {
         outargs[0] = *value;
-        _log(*value);
     }
     
     return IS_OK;
