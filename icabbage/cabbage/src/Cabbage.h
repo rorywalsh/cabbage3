@@ -136,6 +136,9 @@ public:
     //utlity function to loads samples from a sound file on disk.
     static std::vector<double> readAudioFile(const std::string& filePath);
     
+    //return a vector of all widget types that have a range object
+    static std::vector<std::string> getRangeWidgetTypes(const std::vector<nlohmann::json> widgets);
+    
     void setReservedChannels();
     moodycamel::ReaderWriterQueue<CabbageOpcodeData> opcodeData;
     

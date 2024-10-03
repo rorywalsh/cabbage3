@@ -102,25 +102,31 @@ bool Cabbage::setupCsound()
         
         widgets.clear();
         widgets =  CabbageParser::parseCsdForWidgets(csdFile);
+        std::vector<std::string> rangeTypes = getRangeWidgetTypes(widgets);
         for(auto& w : widgets)
         {
             if (w.contains("automatable") && w["automatable"] == 1 &&
                 (!w.contains("channelType") || w["channelType"] == "number"))
             {
-//                _log(w.dump(4));
-                if(w["type"].get<std::string>().find("slider") != std::string::npos)
+
+                
+                const std::string widgetType = w["type"].get<std::string>();
+                //check if widget has a range - range widget parameters are initialised differently to other widgets
+                if (std::any_of(rangeTypes.begin(), rangeTypes.end(), [&](const std::string& type) {
+                    return widgetType == type;
+                }))
                 {
                     try{
                         processor.GetParam(numberOfParameters)->InitDouble(w["channel"].get<std::string>().c_str(),
-                                                                           w["value"].get<float>(),
-                                                                           w["min"].get<float>(),
-                                                                           w["max"].get<float>(),
-                                                                           w["increment"].get<float>(),
+                                                                           w["range"]["defaultValue"].get<float>(),
+                                                                           w["range"]["min"].get<float>(),
+                                                                           w["range"]["max"].get<float>(),
+                                                                           w["range"]["increment"].get<float>(),
                                                                            std::string(w["channel"].get<std::string>()+"Label1").c_str(),
                                                                            iplug::IParam::EFlags::kFlagsNone,
                                                                            "",
-                                                                           iplug::IParam::ShapePowCurve(w["skew"].get<float>()));
-                        parameterChannels.push_back({CabbageParser::removeQuotes(w["channel"].get<std::string>()), w["value"].get<float>()});
+                                                                           iplug::IParam::ShapePowCurve(w["range"]["skew"].get<float>()));
+                        parameterChannels.push_back({CabbageParser::removeQuotes(w["channel"].get<std::string>()), w["range"]["defaultValue"].get<float>()});
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {
@@ -164,7 +170,20 @@ void Cabbage::setReservedChannels()
 {
     auto path = CabbageFile::getCsdPath();
     csound->SetStringChannel("CSD_PATH", (char*)path.c_str());
-    
+}
+
+//==========================================================================================
+std::vector<std::string> Cabbage::getRangeWidgetTypes(const std::vector<nlohmann::json> widgets)
+{
+    std::vector<std::string> typesWithRange;
+    for (const auto& obj : widgets) {
+        if (obj.contains("range")) {
+            if (obj.contains("type")) {
+                typesWithRange.push_back(obj["type"].get<std::string>());
+            }
+        }
+    }
+    return typesWithRange;
 }
 //===========================================================================================
 int Cabbage::getNumberOfParameters(const std::string& csdFile)

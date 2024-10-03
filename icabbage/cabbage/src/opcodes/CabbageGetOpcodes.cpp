@@ -20,10 +20,12 @@ int CabbageGetValue::getValue(int init)
 //    std::cout << " Opcode called on thread: " << std::this_thread::get_id() << std::endl;
     if(in_count() == 0)
         return NOTOK;
+    
     if (csound->get_csound()->GetChannelPtr(csound->get_csound(), &value, inargs.str_data(0).data,
                                             CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
     {
         outargs[0] = *value;
+        _log(*value);
     }
     
     return IS_OK;
@@ -175,7 +177,7 @@ int CabbageGetMYFLT::getIdentifier(int init)
             }
         }
     }
-    else
+    else if (in_count()==1)
     {
         //if only a channel string is passed in, then get the current value of that channel
         //this is basically the same as the chnget opcode

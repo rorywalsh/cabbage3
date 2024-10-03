@@ -185,6 +185,7 @@ public:
                     {
                         for (auto& [propKey, val] : value.items())
                         {
+
                             jsonObj[key][propKey] = val;
 //                            if(propKey == "value")
 //                                jsonObj["currentValue"] = val;

@@ -86,8 +86,13 @@ instr TestMYFLTGetOpcodes
 endin
 
 instr TestGetValueOpcodes
-    kVal cabbageGetValue "gain"
-    kVal, kTrig cabbageGetValue "gain"
+    if p4 == 0 then
+        kVal cabbageGetValue "gain"
+        printk2 kVal
+        elseif p4 == 1 then
+        kVal, kTrig cabbageGetValue "gain"
+        printf "gain: %f, trigger: %d", kVal, kTrig
+    endif    
 endin
 
 instr TestSetValueOpcodes
@@ -131,6 +136,8 @@ endin
 ; i"TestMYFLTGetOpcodes" + 1 5
 ; i"TestSetValueOpcodes" + 2 0
 i"TestSetValueOpcodes" + 4 1
+i"TestGetValueOpcodes" + 2 0
+i"TestGetValueOpcodes" + 2 1
 f0 z
 </CsScore>
 </CsoundSynthesizer>
