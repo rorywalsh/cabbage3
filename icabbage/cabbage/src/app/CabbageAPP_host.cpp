@@ -116,7 +116,6 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                     //if connection is ope we need to send all parse jSON objects to VS-Code..
                     for( auto& w : cabbage.getWidgets())
                     {
-                        _log(w.dump(4));
                         nlohmann::json msg;
                         msg["command"] = "widgetUpdate";
                         msg["channel"] = w["channel"];
@@ -233,6 +232,14 @@ bool IPlugAPPHost::InitState()
 #else
 #error NOT IMPLEMENTED
 #endif
+    
+    /* 
+     todo - set default locations for widget src
+    if (mState->GetString("jsSrcDir", nullptr) == nullptr)
+        mState->SetString("jsSrcDir", "path to JS src dir");
+     */
+
+
     
     struct stat st;
     

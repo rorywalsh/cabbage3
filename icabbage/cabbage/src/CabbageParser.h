@@ -110,7 +110,6 @@ public:
                     if (item.is_object())
                     {
                         auto j = CabbageWidgetDescriptors::get(item["type"]);
-                        _log(j.dump(4));
                         updateJson(j, item, widgets.size());
                         widgets.push_back(j);
                     }
@@ -146,6 +145,8 @@ public:
         parseContent(buffer.str(), widgets);
     }
 
+    // propably needs better error checking for valid objects, some properties such as bounds and range get checked,
+    // while other just parsed at the end without any checking - it's a little inconsistant.
     static void updateJson(nlohmann::json& jsonObj, const nlohmann::json& incomingJson, size_t numWidgets)
     {
         try
@@ -202,7 +203,7 @@ public:
                     {
                         for (auto& [propKey, val] : value.items())
                         {
-                            jsonObj[propKey] = val;
+                            jsonObj[key][propKey] = val;
                         }
                     }
                     else
@@ -289,16 +290,16 @@ public:
                         if(value.contains("on"))
                         {
                             if(value["on"].is_array())
-                                jsonObj["colourOn"] = rgbToHex(value["on"].get<std::vector<double>>());
+                                jsonObj[key]["on"] = rgbToHex(value["on"].get<std::vector<double>>());
                             else if(value["on"].is_string())
-                                jsonObj["colourOn"] = validateHexString(value["on"].get<std::string>());
+                                jsonObj[key]["on"] = validateHexString(value["on"].get<std::string>());
                         }
                         if(value.contains("off"))
                         {
                             if(value["off"].is_array())
-                                jsonObj["colourOff"] = rgbToHex(value["off"].get<std::vector<double>>());
+                                jsonObj[key]["off"] = rgbToHex(value["off"].get<std::vector<double>>());
                             else if(value["off"].is_string())
-                                jsonObj["colourOff"] = validateHexString(value["off"].get<std::string>());
+                                jsonObj[key]["off"] = validateHexString(value["off"].get<std::string>());
                         }
                     }
                     else
@@ -321,18 +322,10 @@ public:
                     if (value.is_string())
                     {
                         jsonObj["text"] = escapeJSON(value.get<std::string>());
-                        jsonObj["textOn"] = escapeJSON(value.get<std::string>());
-                        jsonObj["textOff"] = escapeJSON(value.get<std::string>());
                     }
                     else if (value.is_object())
                     {
-                        //set textOn/textOff for UI editor
-                        if(value.contains("off"))
-                            jsonObj["textOff"] = value["off"].get<std::string>();
-                        if(value.contains("on"))
-                            jsonObj["textOn"] = value["on"].get<std::string>();
-                        
-                        //maintains original "text":{"on":"onStr", "off":"offStr"} 
+                        //maintains original "text":{"on":"onStr", "off":"offStr"}
                         for (auto& [innerKey, val] : value.items())
                         {
                             jsonObj[key][innerKey] = val;
@@ -349,6 +342,13 @@ public:
                     else if (value.is_number())
                     {
                         jsonObj[key] = value;
+                    }
+                    else if(value.is_object())
+                    {
+                        for (auto& [propKey, val] : value.items())
+                        {
+                            jsonObj[key][propKey] = val;
+                        }
                     }
                     else
                     {

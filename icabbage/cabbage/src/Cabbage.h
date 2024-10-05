@@ -139,8 +139,11 @@ public:
     //return a vector of all widget types that have a range object
     static std::vector<std::string> getRangeWidgetTypes(const std::vector<nlohmann::json> widgets);
     
+    //setup reserved channel
     void setReservedChannels();
+        
     moodycamel::ReaderWriterQueue<CabbageOpcodeData> opcodeData;
+    
     
 private:
     void addOpcodes();

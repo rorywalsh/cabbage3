@@ -64,15 +64,21 @@ void CabbageProcessor::setupCallbacks()
     //editor onInit callback function
     editorOnLoadCallback = [&]() 
     {
-        for(auto &widget : cabbage.getWidgets())
-        {
-            _log(widget.dump(4));
-            //update widget objects in case UI is closed and reopened...
-            if(widget["type"].get<std::string>() == "form")
+            for(auto &widget : cabbage.getWidgets())
             {
-                Resize(widget["width"].get<int>(), widget["height"].get<int>());
+                //update widget objects in case UI is closed and reopened...
+                try {
+                    if(widget.contains("type") && widget["type"].get<std::string>() == "form")
+                    {
+                        Resize(widget["size"]["width"].get<int>(), widget["size"]["height"].get<int>());
+                    }
+                }
+                catch (nlohmann::json::exception& e) {
+                    _log(e.what());
+//                    cabAssert(false, "");
+                }
             }
-        }
+        
     };
     
     editorDeleteFuncCallback = [&]() 
@@ -131,8 +137,11 @@ void CabbageProcessor::updateJSWidgets()
     //iterate over all widget objects and send to webview
     for( auto& w : cabbage.getWidgets())
     {
-        auto result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
-        EvaluateJavaScript(result.c_str());
+        if(w.contains("channel")) //only let valid object through.
+        {
+            auto result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
+            EvaluateJavaScript(result.c_str());
+        }
     }
     
     uiIsOpen = true;

@@ -42,6 +42,68 @@ EXTERN_C IMAGE_DOS_HEADER __ImageBase;
     } while (0)
 #endif
 
+class CabbageUtils {
+    public:
+    
+    //print JSON with line numbers
+    static std::string getJsonWithLineNumbers(const nlohmann::json& j)
+    {
+        // Get the pretty-printed JSON string
+        std::string json_str = j.dump(4);  // 4 is the indent for pretty-printing
+
+        // Use a string stream to break the string into lines
+        std::istringstream stream(json_str);
+        std::string line;
+        int line_number = 1;
+
+        // Prepare a string to store the result
+        std::ostringstream result;
+
+        // Add each line with its line number to the result string
+        while (std::getline(stream, line))
+        {
+            result << line_number << ": " << line << "\n";
+            line_number++;
+        }
+    
+        // Return the complete string with line numbers
+        return result.str();
+    }
+    
+    static std::string getJsonWithLineNumbers(const std::string& json_str) {
+        try {
+            // Parse the JSON string into a nlohmann::json object
+            auto j = nlohmann::json::parse(json_str);
+
+            // Reuse the original function to add line numbers (if valid)
+            return getJsonWithLineNumbers(j);
+        }
+        
+        catch (nlohmann::json::parse_error& e) {
+            // Create a string stream to format the output
+            std::stringstream error_output;
+            
+            // Add the error message from the exception
+            error_output << "Error: Invalid JSON - " << e.what() << "\n";
+            
+            // Add the offending JSON string with line numbers
+            error_output << "Offending JSON:\n";
+            
+            // Split the JSON string by lines and add line numbers
+            std::istringstream json_stream(json_str);
+            std::string line;
+            int line_number = 1;
+            
+            while (std::getline(json_stream, line)) {
+                error_output << line_number << ": " << line << "\n";
+                line_number++;
+            }
+            
+            // Return the formatted string (error message + JSON with line numbers)
+            return error_output.str();
+        }
+    }
+};
 /*
 	String formatter class
 */
@@ -216,7 +278,7 @@ public:
     // Function to crudely extract the props object from a corresponding JS file...
     // this could be rewritten using ducktapeJS or some other JS parser...
     static nlohmann::json extractPropsFromJS(const std::string& jsContent)
-    {
+    {        
         std::string propsKey = "this.props =";
         size_t propsPos = jsContent.find(propsKey);
 
@@ -263,7 +325,9 @@ public:
             } 
             catch (const nlohmann::json::parse_error& e) 
             {
-                std::cerr << "JSON parse error: " << e.what() << std::endl;
+                _log("JSON parse error: " << e.what() << "\nOffending JSON:\n" << CabbageUtils::getJsonWithLineNumbers(propsString));
+//                std::cerr << "JSON parse error: " << e.what() << std::endl;
+                return {};
             }
         } 
         else 
