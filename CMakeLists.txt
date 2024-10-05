@@ -9,13 +9,13 @@ else()
     set(IS_CABBAGE_CI_BUILD false)
 endif()
 
-# Default CMAKE_BUILD_TYPE to Release.
+# Set default CMAKE_BUILD_TYPE to Release.
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 message(DEBUG "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
-# Default CMAKE_MESSAGE_LOG_LEVEL to STATUS.
+# Set default CMAKE_MESSAGE_LOG_LEVEL to STATUS.
 if(NOT DEFINED CMAKE_MESSAGE_LOG_LEVEL)
     set(CMAKE_MESSAGE_LOG_LEVEL STATUS)
 endif()
