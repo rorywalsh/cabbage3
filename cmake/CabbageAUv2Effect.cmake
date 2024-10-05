@@ -9,6 +9,8 @@ add_library(${CABBAGE_PROJECT_NAME} MODULE
 )
 
 iplug_target_add(${CABBAGE_PROJECT_NAME} PUBLIC
+    DEFINE
+        CabbagePluginEffect
     INCLUDE
         "${CMAKE_SOURCE_DIR}/resources"
     LINK

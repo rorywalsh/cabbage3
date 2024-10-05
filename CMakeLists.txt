@@ -25,7 +25,7 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
 
     set(CABBAGE_BUILD_TARGETS
         CabbageApp
-        CabbageVSCodeService
+        CabbageStandaloneApp
         CabbageAUv2Effect
         CabbageVST3Effect
         # CabbageAUv2Synth

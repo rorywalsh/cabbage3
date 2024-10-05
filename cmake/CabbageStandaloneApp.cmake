@@ -1,14 +1,16 @@
-set(CABBAGE_PROJECT_NAME ${CABBAGE_BUILD_TARGET})
+set(CABBAGE_PROJECT_NAME Cabbage)
 
 include("cmake/cabbage_project.cmake")
 
 add_executable(${CABBAGE_PROJECT_NAME} MACOSX_BUNDLE
-    ${CABBAGE_SOURCES}
     ${CABBAGE_OPCODE_SOURCES}
+    ${CABBAGE_SOURCES}
     ${CABBAGE_WEBVIEW_SOURCES}
 )
 
 iplug_target_add(${CABBAGE_PROJECT_NAME} PUBLIC
+    DEFINE
+        CabbageStandaloneApp
     INCLUDE
         "${CMAKE_SOURCE_DIR}/resources"
     LINK

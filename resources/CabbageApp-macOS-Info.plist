@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleExecutable</key>
-	<string>CabbageVSCodeService</string>
+	<string>CabbageApp</string>
 	<key>CFBundleGetInfoString</key>
 	<string>Cabbage v1.0.0 Copyright 2020 Acme Inc</string>
 	<key>CFBundleIconFile</key>
