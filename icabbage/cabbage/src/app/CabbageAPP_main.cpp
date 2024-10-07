@@ -27,6 +27,9 @@ using namespace iplug;
 #include <windows.h>
 #include <WinSock2.h>
 #include <commctrl.h>
+#include <shellapi.h>  // For CommandLineToArgvW
+#include <locale>
+#include <codecvt>
 
 extern WDL_DLGRET MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -55,7 +58,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
         InitCommonControls();
         gScrollMessage = RegisterWindowMessage("MSWHEEL_ROLLMSG");
         
-        IPlugAPPHost* pAppHost = IPlugAPPHost::Create("");
+        int argc;
+        LPWSTR cmdLine = GetCommandLineW();
+        LPWSTR* argv = CommandLineToArgvW(cmdLine, &argc);
+        IPlugAPPHost* pAppHost = nullptr;
+        if (argv == NULL)
+        {
+            pAppHost = IPlugAPPHost::Create("");
+        }
+        else
+        {
+            std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+            pAppHost = IPlugAPPHost::Create(converter.to_bytes(argv[1]));
+        }
+
         pAppHost->Init();
         pAppHost->TryToChangeAudio();
         

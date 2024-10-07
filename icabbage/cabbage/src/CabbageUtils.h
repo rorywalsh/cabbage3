@@ -265,7 +265,7 @@ public:
 #if defined OS_WIN
         TCHAR strPath[2048];
         SHGetFolderPathA( NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath );
-        iniPath.SetFormatted(2048, "%s\\%s\\", strPath, BUNDLE_NAME);
+        iniPath.SetFormatted(2048, "%s\\%s\\", strPath, "Cabbage");
 #elif defined OS_MAC
         iniPath.SetFormatted(2048, "%s/Library/Application Support/%s/", getenv("HOME"), "Cabbage");
 #else
