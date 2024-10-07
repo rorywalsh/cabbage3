@@ -111,7 +111,6 @@ print(final_commit_message)
 # Execute git commands
 os.system('git add icabbage/cabbage')
 os.system('git add icabbage/iplug2.patch')
-os.system('git add vscabbage')
 os.system('git add tests')
 os.system('git add example')
 os.system('git add commit.py')
