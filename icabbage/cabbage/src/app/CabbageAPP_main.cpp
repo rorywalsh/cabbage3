@@ -62,7 +62,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
         LPWSTR cmdLine = GetCommandLineW();
         LPWSTR* argv = CommandLineToArgvW(cmdLine, &argc);
         IPlugAPPHost* pAppHost = nullptr;
-        if (argv == NULL)
+        if (argv == NULL || argc == 1)
         {
             pAppHost = IPlugAPPHost::Create("");
         }
