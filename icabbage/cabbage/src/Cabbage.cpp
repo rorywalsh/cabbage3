@@ -44,8 +44,8 @@ void Cabbage::addOpcodes()
 bool Cabbage::setupCsound()
 {
     csound = std::make_unique<Csound>();
-    csound->SetHostImplementedMIDIIO(true);
-    csound->SetHostImplementedAudioIO(1, 0);
+    csound->SetHostMIDIIO();
+    csound->SetHostAudioIO();
     csound->SetHostData(this);
     
     addOpcodes();
@@ -79,11 +79,10 @@ bool Cabbage::setupCsound()
     if(exists)
     {
         csCompileResult = csound->Compile (csdFile.c_str());
-        
+        csound->Start();
         if (csdCompiledWithoutError())
         {
             csdKsmps = csound->GetKsmps();
-            csSpout = csound->GetSpout();
             csSpin = csound->GetSpin();
             csScale = csound->Get0dBFS();
             setReservedChannels();
@@ -297,8 +296,9 @@ void Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonOb
         const int tableSize = getCsound()->TableLength(tableNumber);
         if(tableSize != -1)
         {
-            std::vector<double> temp (tableSize);
-            getCsound()->TableCopyOut (tableNumber, &temp[0]);
+            MYFLT *tablePtr = nullptr;
+            auto length = csound->GetTable(&tablePtr, tableNumber);
+            std::vector<MYFLT> temp(tablePtr, tablePtr + length);
             setTableJSON(data.channel, temp, jsonObj);
         }
     }
@@ -319,7 +319,9 @@ void Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonOb
             const int tableSize = getCsound()->TableLength(tableNumber);
             if(tableSize != -1)
             {
-                getCsound()->TableCopyIn (tableNumber, &samples[0]);
+                MYFLT *tablePtr = nullptr;
+                getCsound()->GetTable(&tablePtr, tableNumber);
+                std::memcpy(tablePtr, samples.data(), tableSize * sizeof(MYFLT));
                 setTableJSON(data.channel, samples, jsonObj);
             }
         }

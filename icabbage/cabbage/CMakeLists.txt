@@ -17,7 +17,7 @@ elseif(DEFINED CabbagePluginSynth)
 endif()
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION 0.0.108)
+	set(BUILD_VERSION 0.0.109)
 endif()
 
 
@@ -154,10 +154,10 @@ elseif(APPLE)
   set_source_files_properties(${PROJECT_DIR}/resources/web/script.js PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/web")
   set_source_files_properties(${PROJECT_DIR}/resources/web/webaudio-controls.js PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/web")
 
-  SET(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} "/Library/Frameworks/CsoundLib64")
-  find_library(CSOUND_LIBRARY NAMES CsoundLib64 HINTS /Library/Frameworks/CsoundLib64.framework/
-  "/Library/Frameworks/CsoundLib64.framework")  
-  include_directories("/Library/Frameworks/CsoundLib64.framework/Headers")
+  SET(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} "/Applications/Csound/CsoundLib64.framework")
+  find_library(CSOUND_LIBRARY NAMES CsoundLib64 HINTS /Applications/Csound/CsoundLib64.framework/
+  "/Applications/Csound/CsoundLib64.framework/")  
+  include_directories("/Applications/Csound/CsoundLib64.framework/Headers")
 
   set(WEBVIEW_SRC_FILES
   ${PROJECT_DIR}/src/webView/IPlugWebView.mm
@@ -267,6 +267,8 @@ else()
     DEFINE NO_IGRAPHICS ${EXTRA_DEFINES} CUSTOM_EDITOR="${PROJECT_DIR}/src/webView/CabbageEditorDelegate.h" CUSTOM_EDITOR_CLASS=CabbageEditorDelegate
   )
 
+  find_library(CsoundLibrary NAMES CsoundLib64 PATHS "/Applications/Csound" REQUIRED NO_DEFAULT_PATH)
+
     if (DEFINED CabbageApp)
       set(CUSTOM_APP_SRC
       ../src/app/CabbageAPP.cpp 
@@ -280,7 +282,7 @@ else()
       set(TARGET app)    
       add_executable(${TARGET} MACOSX_BUNDLE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
       iplug_target_add(${TARGET} PUBLIC 
-      LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} 
+      LINK iPlug2_APP ZLIB::ZLIB _base ${CsoundLibrary}  ${LIB_SNDFILE} RESOURCE ${RESOURCES} 
       DEFINE ${ProductName})
       iplug_configure_target(${TARGET} app)
       set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})
@@ -288,9 +290,10 @@ else()
     else()
       # this app is the stadnalone target export from Cabbage
       set(TARGET app)
+      
       add_executable(${TARGET} MACOSX_BUNDLE ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
       iplug_target_add(${TARGET} PUBLIC 
-      LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} 
+      LINK iPlug2_APP ZLIB::ZLIB _base ${CsoundLibrary} ${LIB_SNDFILE} RESOURCE ${RESOURCES} 
       DEFINE ${ProductName})
       iplug_configure_target(${TARGET} app )
       set_target_properties(${TARGET} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME ${ProductName})

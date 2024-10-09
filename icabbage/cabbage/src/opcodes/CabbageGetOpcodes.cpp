@@ -21,10 +21,11 @@ int CabbageGetValue::getValue(int init)
     if(in_count() == 0)
         return NOTOK;
     
-    if (csound->get_csound()->GetChannelPtr(csound->get_csound(), &value, inargs.str_data(0).data,
+    if (csound->get_csound()->GetChannelPtr(csound->get_csound(), (void**)&value, inargs.str_data(0).data,
                                             CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
     {
         outargs[0] = *value;
+
     }
     
     return IS_OK;
@@ -41,7 +42,7 @@ int CabbageGetValueWithTrigger::getValue(int mode)
     if(in_count() > 1)
         triggerOnPerfPass = inargs[1];
 
-    if (csound->get_csound()->GetChannelPtr(csound->get_csound(), &value, inargs.str_data(0).data,
+    if (csound->get_csound()->GetChannelPtr(csound->get_csound(), (void**)&value, inargs.str_data(0).data,
                                             CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
     {
         numberOfPasses = (numberOfPasses < 3 ? numberOfPasses+1 : 3);
@@ -78,7 +79,7 @@ int CabbageGetValueString::getValue(int rate)
     if(in_count() == 0)
             return NOTOK;
 
-        if (csound->get_csound()->GetChannelPtr(csound->get_csound(), &value, inargs.str_data(0).data,
+        if (csound->get_csound()->GetChannelPtr(csound->get_csound(), (void**)&value, inargs.str_data(0).data,
                                                 CSOUND_STRING_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
         {
             if (!currentString)
@@ -124,7 +125,7 @@ int CabbageGetValueStringWithTrigger::getValue(int rate)
     if(in_count() == 2)
         trigOnInit = inargs[1];
 
-    if (csound->get_csound()->GetChannelPtr(csound->get_csound(), &value, inargs.str_data(0).data,
+    if (csound->get_csound()->GetChannelPtr(csound->get_csound(), (void**)&value, inargs.str_data(0).data,
                                             CSOUND_STRING_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
     {
         const auto s = csound->strdup(inargs.str_data(0).data);
@@ -186,7 +187,7 @@ int CabbageGetMYFLT::getIdentifier(int init)
             auto channel = CabbageParser::removeQuotes(widget["channel"].get<std::string>());
             if(channel == data.channel)
             {
-                if (csound->get_csound()->GetChannelPtr(csound->get_csound(), &value, inargs.str_data(0).data,
+                if (csound->get_csound()->GetChannelPtr(csound->get_csound(), (void**)&value, inargs.str_data(0).data,
                                                         CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
                 {
                     outargs[0] = *value;

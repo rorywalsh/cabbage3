@@ -111,6 +111,7 @@ public:
                     {
                         auto j = CabbageWidgetDescriptors::get(item["type"]);
                         updateJson(j, item, widgets.size());
+                        _log(j.dump(4));
                         widgets.push_back(j);
                     }
                     else
@@ -293,6 +294,7 @@ public:
                                 jsonObj[key]["on"] = rgbToHex(value["on"].get<std::vector<double>>());
                             else if(value["on"].is_string())
                                 jsonObj[key]["on"] = validateHexString(value["on"].get<std::string>());
+                            _log(jsonObj[key]["on"].dump(4));
                         }
                         if(value.contains("off"))
                         {
@@ -300,6 +302,7 @@ public:
                                 jsonObj[key]["off"] = rgbToHex(value["off"].get<std::vector<double>>());
                             else if(value["off"].is_string())
                                 jsonObj[key]["off"] = validateHexString(value["off"].get<std::string>());
+                            _log(jsonObj[key]["on"].dump(4));
                         }
                     }
                     else
@@ -356,6 +359,7 @@ public:
                     }
                 }
             }
+//            _log(jsonObj.dump(4));
         }
         catch (const nlohmann::json::exception& e)
         {
