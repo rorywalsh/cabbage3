@@ -107,7 +107,7 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                         }
                     }
                     catch (nlohmann::json::exception& e) {
-                        std::cout << "JSON Error:" << e.what() << std::endl;
+                        _log("Error:" << e.what());
                     }
                 }
                 else if (msg->type == ix::WebSocketMessageType::Open)

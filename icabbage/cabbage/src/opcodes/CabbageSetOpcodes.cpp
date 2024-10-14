@@ -17,11 +17,7 @@ int CabbageSetValue::setValue(int pass)
 {
     auto* hostData = static_cast<Cabbage*>(csound->host_data());
 
-    if(csound->get_csound()->GetChannelPtr(csound->get_csound(), &value, args.str_data(0).data,
-                                                   CSOUND_CONTROL_CHANNEL | CSOUND_INPUT_CHANNEL) == CSOUND_SUCCESS)
-    {
-        *value = args[1];
-    }
+    //csound->get_csound()->csoundSetControlChannel(args.str_data(0).data, args[1]);
  
     //this needs to be throttled as sending some many messages
     //to the UI will choke it. Only update the widget's value

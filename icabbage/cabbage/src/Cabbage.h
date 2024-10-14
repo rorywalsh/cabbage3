@@ -31,14 +31,14 @@ class Cabbage {
     std::vector<nlohmann::json> widgets;
     
 public:
-
+    
     //a parameter struct whose namees match that of the corresponding Csound channel
     struct ParameterChannel {
         std::string name;
         void setValue(float v, float min = 0, float max = 1, float skew= 1, float increment = 1){
             value = v;
         }
-
+        
         float getValue(){
             return value;
         }
@@ -49,7 +49,7 @@ public:
         
         float value;
         bool init = true;
-
+        
     };
     
     Cabbage(CabbageProcessor& p, std::string file);
@@ -77,8 +77,12 @@ public:
     void setSpIn(int index, MYFLT value)  { csSpin[index] = value * csScale; }
     
     // Get output value for a specific index in csSpout array
-    MYFLT getSpOut(int index)             { return csSpout[index] / csScale; }
-    
+    MYFLT getSpOut(int index)             
+    {
+        auto spout = csound->GetSpout();
+        return spout[index] / csScale;
+    }
+
     // Check if CSD compiled without error
     bool csdCompiledWithoutError()        { return csCompileResult == 0 ? true : false; }
     
@@ -158,7 +162,6 @@ private:
     int csdKsmps = 0;
     MYFLT csScale = 0.0;
     MYFLT *csSpin = nullptr;
-    MYFLT *csSpout = nullptr;
     int samplingRate = 44100;
     std::vector<iplug::IMidiMsg> midiQueue;
     std::string csdFile = {};
