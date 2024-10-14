@@ -370,6 +370,11 @@ void IPlugAPPHost::UpdateINI()
             size_t colonPos = outputDevice.find(':');
             if (colonPos != std::string::npos)
                 outputDevice = outputDevice.substr(colonPos + 1);  // Skip the ':' character
+            //remove any leading spaces
+            outputDevice.erase(outputDevice.begin(), std::find_if(outputDevice.begin(), outputDevice.end(), [](unsigned char ch) {
+                return !std::isspace(ch);
+            }));
+            
             outputDevice += " | MaxChannels: "+std::to_string(info.outputChannels);
             WritePrivateProfileString("audioDevices", outs.c_str(), outputDevice.c_str(), ini);
             outputCnt++;
@@ -384,6 +389,10 @@ void IPlugAPPHost::UpdateINI()
             size_t colonPos = inputDevice.find(':');
             if (colonPos != std::string::npos)
                 inputDevice = inputDevice.substr(colonPos + 1);  // Skip the ':' character
+            //remove any leading spaces
+            inputDevice.erase(inputDevice.begin(), std::find_if(inputDevice.begin(), inputDevice.end(), [](unsigned char ch) {
+                return !std::isspace(ch);
+            }));
             inputDevice += " | MaxChannels: "+std::to_string(info.inputChannels);
             WritePrivateProfileString("audioDevices", ins.c_str(), inputDevice.c_str(), ini);
             inputCnt++;
