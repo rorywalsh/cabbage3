@@ -749,9 +749,9 @@ public:
         std::vector<std::string> widgetTypes;
 #ifdef CabbageApp
         //this folder will be different for plugins than for the vscode extension
-        std::string widgetPath = CabbageFile::getSettingsProperty("misc", "jsSrcDir") + "/widgets";;
+        std::string widgetPath = CabbageFile::getSettingsProperty("misc", "jsSrcDir") + "/cabbage/widgets";;
 #else
-        std::string widgetPath = CabbageFile::getCsdPath() + "/widgets"; // Folder containing widget files
+        std::string widgetPath = CabbageFile::getCsdPath() + "/cabbage/widgets"; // Folder containing widget files
 #endif
 
         auto jsFileContents = CabbageFile::loadJSFile(widgetPath + "/" + widgetType + ".js");

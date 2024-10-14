@@ -274,9 +274,7 @@ bool IPlugAPPHost::InitState()
             
             mState.mMidiInChan = GetPrivateProfileInt("midi", "inchan", 0, mINIPath.Get()); // 0 is any
             mState.mMidiOutChan = GetPrivateProfileInt("midi", "outchan", 0, mINIPath.Get()); // 1 is first chan
-            
-            //misc
-            
+    
 
         }
         
@@ -348,6 +346,89 @@ void IPlugAPPHost::UpdateINI()
     WritePrivateProfileString("midi", "inchan", buf, ini);
     sprintf(buf, "%u", mState.mMidiOutChan);
     WritePrivateProfileString("midi", "outchan", buf, ini);
+    
+    WritePrivateProfileString("misc", "jsSrcDir", "add directory to source dir", ini);
+    
+    RtAudio audio;
+    RtMidiIn midiIn;
+    RtMidiOut midiOut;
+
+    unsigned int deviceCount = audio.getDeviceCount();
+    int inputCnt = 1;
+    int outputCnt = 1;
+    for (unsigned int i = 0; i < deviceCount; ++i)
+    {
+        // Get information about each device and save to settings.ini file
+        RtAudio::DeviceInfo info = audio.getDeviceInfo(i);
+
+        // Handle output devices
+        if (info.outputChannels > 0)
+        {
+            const std::string outs = "output" + std::to_string(outputCnt);
+            auto outputDevice = info.name;
+            // Remove manufacturer from device list...
+            size_t colonPos = outputDevice.find(':');
+            if (colonPos != std::string::npos)
+                outputDevice = outputDevice.substr(colonPos + 1);  // Skip the ':' character
+            outputDevice += " | MaxChannels: "+std::to_string(info.outputChannels);
+            WritePrivateProfileString("audioDevices", outs.c_str(), outputDevice.c_str(), ini);
+            outputCnt++;
+        }
+
+        // Handle input devices
+        if (info.inputChannels > 0)
+        {
+            const std::string ins = "input" + std::to_string(inputCnt);
+            auto inputDevice = info.name;
+            // Remove manufacturer from device list...
+            size_t colonPos = inputDevice.find(':');
+            if (colonPos != std::string::npos)
+                inputDevice = inputDevice.substr(colonPos + 1);  // Skip the ':' character
+            inputDevice += " | MaxChannels: "+std::to_string(info.inputChannels);
+            WritePrivateProfileString("audioDevices", ins.c_str(), inputDevice.c_str(), ini);
+            inputCnt++;
+        }
+    }
+
+    
+//    WritePrivateProfileString("audioDevices", "numInputs", std::to_string(inputCnt).c_str(), ini);
+//    WritePrivateProfileString("audioDevices", "numOutputs", std::to_string(outputCnt).c_str(), ini);
+    
+
+
+    // Get the number of input devices
+    inputCnt = 1;
+    outputCnt = 1;
+    unsigned int inputCount = midiIn.getPortCount();
+    for (unsigned int i = 0; i < inputCount; ++i) 
+    {
+        const std::string mIn = "input"+std::to_string(i+1);
+        WritePrivateProfileString("midiDevices", mIn.c_str(), midiIn.getPortName(i).c_str(), ini);
+    }
+
+    // Get the number of output devices
+    unsigned int outputCount = midiOut.getPortCount();
+    for (unsigned int i = 0; i < outputCount; ++i) 
+    {
+        std::string mOut = "output"+std::to_string(i+1);
+        WritePrivateProfileString("midiDevices", mOut.c_str(), midiOut.getPortName(i).c_str(), ini);
+    }
+
+
+
+        
+
+    
+    
+//    for (const auto& d : mMidiOutputDevNames)
+//    {
+//        WritePrivateProfileString("midiDevices", "output", d.c_str(), ini);
+//    }
+//    
+//    for (const auto& d : mMidiInputDevNames)
+//    {
+//        WritePrivateProfileString("midiDevices", "input", d.c_str(), ini);
+//    }
 }
 
 std::string IPlugAPPHost::GetAudioDeviceName(int idx) const

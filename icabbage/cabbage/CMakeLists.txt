@@ -17,7 +17,7 @@ elseif(DEFINED CabbagePluginSynth)
 endif()
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION 0.0.111)
+	set(BUILD_VERSION 0.0.112)
 endif()
 
 
@@ -179,10 +179,10 @@ elseif(APPLE)
   set_source_files_properties(${PROJECT_DIR}/resources/web/script.js PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/web")
   set_source_files_properties(${PROJECT_DIR}/resources/web/webaudio-controls.js PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/web")
 
-  # SET(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} "/Applications/Csound/CsoundLib64.framework")
+  # SET(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} "/Applications/Csound/CsoundLib64.framework/Versions/7.0/Headers")
   # find_library(CSOUND_LIBRARY NAMES CsoundLib64 HINTS /Applications/Csound/CsoundLib64.framework/
   # "/Applications/Csound/CsoundLib64.framework/")  
-  # include_directories("/Applications/Csound/CsoundLib64.framework/Headers")
+  
 
   set(WEBVIEW_SRC_FILES
   ${PROJECT_DIR}/src/webView/IPlugWebView.mm
@@ -319,6 +319,8 @@ else()
   )
 
   find_library(CsoundLibrary NAMES CsoundLib64 PATHS "/Applications/Csound" REQUIRED NO_DEFAULT_PATH)
+  SET(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} "/Applications/Csound/CsoundLib64.framework/Versions/7.0/Headers")
+  include_directories("/Applications/Csound/CsoundLib64.framework/Versions/7.0/Headers")
 
     if (DEFINED CabbageApp)
       set(CUSTOM_APP_SRC
