@@ -36,6 +36,9 @@
 
 #if defined(_WIN32)
 #include <windows.h>
+#include <winrt/Windows.System.h>
+#include <dispatcherqueue.h>
+#include <winrt/base.h>  // For winrt::com_ptr
 #elif defined(__APPLE__)
 #include <mach-o/dyld.h>
 #elif defined(__linux__)
@@ -54,6 +57,11 @@ enum EControlTags
 {
     kCtrlTagMeter = 0,
 };
+
+#if defined(_WIN32)
+
+#endif // WIN32
+
 
 class CabbageProcessor final : public iplug::Plugin
 {
@@ -78,8 +86,7 @@ public:
     static int OpenMidiOutputDevice (CSOUND* csnd, void** userData, const char* devName);
     static int ReadMidiData (CSOUND* csound, void* userData, unsigned char* mbuf, int nbytes);
     static int WriteMidiData (CSOUND* csound, void* userData, const unsigned char* mbuf, int nbytes);
-    
-    
+   
     void stopProcessing(){        cabbage.stopProcessing();    }
     Cabbage& getCabbage(){        return cabbage;              }
     
