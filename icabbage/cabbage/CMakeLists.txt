@@ -17,7 +17,7 @@ elseif(DEFINED CabbagePluginSynth)
 endif()
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION adding JSON entries for seetings file in move to replace all ini settings with more readable JSON)
+	set(BUILD_VERSION 0.0.115)
 endif()
 
 

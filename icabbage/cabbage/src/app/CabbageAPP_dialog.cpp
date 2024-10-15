@@ -225,7 +225,7 @@ bool IPlugAPPHost::PopulateMidiDialogs(HWND hwndDlg)
     if(indevidx == -1)
     {
       mState.mMidiInDev.Set("off");
-      UpdateINI();
+      UpdateSettings();
       indevidx = 0;
     }
 
@@ -242,7 +242,7 @@ bool IPlugAPPHost::PopulateMidiDialogs(HWND hwndDlg)
     if(outdevidx == -1)
     {
       mState.mMidiOutDev.Set("off");
-      UpdateINI();
+      UpdateSettings();
       outdevidx = 0;
     }
 
@@ -620,7 +620,7 @@ WDL_DLGRET IPlugAPPHost::MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
           INT_PTR ret = DialogBox(gHINSTANCE, MAKEINTRESOURCE(IDD_DIALOG_PREF), hwndDlg, IPlugAPPHost::PreferencesDlgProc);
 
           if(ret == IDOK)
-            pAppHost->UpdateINI();
+            pAppHost->UpdateSettings();
 
           return 0;
         }
