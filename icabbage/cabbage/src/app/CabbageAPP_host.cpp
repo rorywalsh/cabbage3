@@ -253,8 +253,26 @@ bool IPlugAPPHost::InitState()
             std::ifstream file(mJSONPath);
             nlohmann::json settingsJson = {};
             
-            if (file.is_open())
-                settingsJson << file;
+            if (file.is_open()) {
+                // Check if the file is empty
+                if (file.peek() == std::ifstream::traits_type::eof()) {
+                    std::cout << "File is empty, using default settings." << std::endl;
+                    UpdateSettings();
+                    return true;
+                }
+                else {
+                    try {
+                        // Use the extraction operator to read JSON data from the file
+                        file >> settingsJson;
+                    }
+                    catch (const nlohmann::json::parse_error& e) {
+                        std::cerr << "JSON parse error: " << e.what() << std::endl;
+                    }
+                }
+            }
+            else {
+                std::cerr << "Failed to open the file." << std::endl;
+            }
                 
             file.close();
             
@@ -265,24 +283,25 @@ bool IPlugAPPHost::InitState()
                 DBGMSG("Reading ini file from %s\n", mJSONPath.c_str());
 
                 mState.mAudioDriverType = settingsJson["currentConfig"]["audio"].value("driver", 0);
-                mState.mAudioInDev.Set(settingsJson["currentConfig"]["audio"].value("indev", "Built-in Input").c_str());
-                mState.mAudioOutDev.Set(settingsJson["currentConfig"]["audio"].value("outdev", "Built-in Output").c_str());
+                mState.mAudioInDev.Set(settingsJson["currentConfig"]["audio"].value("inputDevice", "Built-in Input").c_str());
+                mState.mAudioOutDev.Set(settingsJson["currentConfig"]["audio"].value("outputDevice", "Built-in Output").c_str());
                 mState.mAudioInChanL = settingsJson["currentConfig"]["audio"].value("in1", 1);
                 mState.mAudioInChanR = settingsJson["currentConfig"]["audio"].value("in2", 2);
                 mState.mAudioOutChanL = settingsJson["currentConfig"]["audio"].value("out1", 1);
                 mState.mAudioOutChanR = settingsJson["currentConfig"]["audio"].value("out2", 2);
                 mState.mBufferSize = settingsJson["currentConfig"]["audio"].value("buffer", 512);
                 mState.mAudioSR = settingsJson["currentConfig"]["audio"].value("sr", 44100);
-                mState.mMidiInDev.Set(settingsJson["currentConfig"]["midi"].value("indev", "no input").c_str());
-                mState.mMidiOutDev.Set(settingsJson["currentConfig"]["midi"].value("outdev", "no output").c_str());
-                mState.mMidiInChan = settingsJson["currentConfig"]["midi"].value("inchan", 0);
-                mState.mMidiOutChan = settingsJson["currentConfig"]["midi"].value("outchan", 0);
+                mState.mMidiInDev.Set(settingsJson["currentConfig"]["midi"].value("inputDevice", "no input").c_str());
+                mState.mMidiOutDev.Set(settingsJson["currentConfig"]["midi"].value("outputDvice", "no output").c_str());
+                mState.mMidiInChan = settingsJson["currentConfig"]["midi"].value("inChan", 0);
+                mState.mMidiOutChan = settingsJson["currentConfig"]["midi"].value("outChan", 0);
             }
 
         }
         catch (const nlohmann::json::parse_error& e)
         {
             _log("JSON parse error: " << e.what() << std::endl);
+            auto t = e.what();
             cabAssert(false, "Can't parse settings file");
         }
         
@@ -295,7 +314,7 @@ bool IPlugAPPHost::InitState()
         // folder doesn't exist - make folder and make file
         CreateDirectory(mJSONPath.c_str(), NULL);
         mJSONPath+=("\\settings.json");
-        UpdateINI(); // will write file if doesn't exist
+        UpdateSettings(); // will write file if doesn't exist
 #elif defined OS_MAC
         mode_t process_mask = umask(0);
         int result_code = mkdir(mJSONPath.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
@@ -323,18 +342,18 @@ void IPlugAPPHost::UpdateSettings()
 	nlohmann::json settingsJSON, deviceJSON;
 
     settingsJSON["currentConfig"]["audio"]["driver"] = mState.mAudioDriverType;
-    settingsJSON["currentConfig"]["audio"]["indev"] = mState.mAudioInDev.Get();
-    settingsJSON["currentConfig"]["audio"]["outdev"] = mState.mAudioOutDev.Get();
+    settingsJSON["currentConfig"]["audio"]["inputDevice"] = mState.mAudioInDev.Get();
+    settingsJSON["currentConfig"]["audio"]["outputDevice"] = mState.mAudioOutDev.Get();
     settingsJSON["currentConfig"]["audio"]["in1"] = mState.mAudioInChanL;
     settingsJSON["currentConfig"]["audio"]["in2"] = mState.mAudioInChanR;
     settingsJSON["currentConfig"]["audio"]["out1"] = mState.mAudioOutChanL;
     settingsJSON["currentConfig"]["audio"]["out2"] = mState.mAudioOutChanR;
     settingsJSON["currentConfig"]["audio"]["buffer"] = mState.mBufferSize;
     settingsJSON["currentConfig"]["audio"]["sr"] = mState.mAudioSR;
-    settingsJSON["currentConfig"]["midi"]["index"] = mState.mMidiInDev.Get();
-    settingsJSON["currentConfig"]["midi"]["outdev"] = mState.mMidiOutDev.Get();
-    settingsJSON["currentConfig"]["midi"]["inchan"] = mState.mMidiInChan;
-    settingsJSON["currentConfig"]["midi"]["outchan"] = mState.mMidiOutChan;
+    settingsJSON["currentConfig"]["midi"]["inputDevice"] = mState.mMidiInDev.Get();
+    settingsJSON["currentConfig"]["midi"]["outputDevice"] = mState.mMidiOutDev.Get();
+    settingsJSON["currentConfig"]["midi"]["inChan"] = mState.mMidiInChan;
+    settingsJSON["currentConfig"]["midi"]["outChan"] = mState.mMidiOutChan;
 
 #ifdef OS_WIN
     settingsJSON["audioDrivers"] = { "DirectSound", "ASIO" };
@@ -374,6 +393,7 @@ void IPlugAPPHost::UpdateSettings()
             nlohmann::json j;
             j["deviceNum"] = outputCnt;
             j["numChannels"] = info.outputChannels;
+            j["sampleRates"] = info.sampleRates;
             settingsJSON["systemAudioMidiIOListing"]["audioOutputDevices"][outputDevice] = j;
             outputCnt++;
         }
@@ -395,10 +415,19 @@ void IPlugAPPHost::UpdateSettings()
             nlohmann::json j;
             j["deviceId"] = inputCnt;
             j["numChannels"] = info.inputChannels;
+
             settingsJSON["systemAudioMidiIOListing"]["audioInputDevices"][inputDevice] = j;
             inputCnt++;
         }
     }
+
+    // Get the default output device ID
+    unsigned int defaultOutputDevice = audio.getDefaultOutputDevice();
+    auto info = audio.getDeviceInfo(defaultOutputDevice);
+    nlohmann::json json;
+    json["numChannels"] = info.outputChannels;
+    json["sampleRates"] = info.sampleRates;
+    settingsJSON["systemAudioMidiIOListing"]["audioOutputDevices"]["Default Device"] = json;
 
     // Get the number of input devices
     inputCnt = 1;
