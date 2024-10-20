@@ -15,11 +15,9 @@ message(DEBUG "FETCHCONTENT_BASE_DIR = ${FETCHCONTENT_BASE_DIR}")
 # Initialize vcpkg. Must be done before project() call.
 include("cmake/init_vcpkg.cmake")
 
-if(APPLE)
-    enable_language(OBJCXX)
-endif()
-
 project(${CABBAGE_PROJECT_NAME} VERSION ${CABBAGE_VERSION})
+
+find_package(ixwebsocket CONFIG REQUIRED)
 
 if(CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
     set(CABBAGE_BUILD_TARGET_TYPE app)
