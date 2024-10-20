@@ -20,6 +20,11 @@ if(NOT DEFINED CMAKE_MESSAGE_LOG_LEVEL)
     set(CMAKE_MESSAGE_LOG_LEVEL STATUS)
 endif()
 
+# Make sure Apple builds use the Xcode generetor.
+if(APPLE AND NOT "Xcode" STREQUAL "${CMAKE_GENERATOR}")
+    message(FATAL_ERROR "Apple builds must use the Xcode CMake generator (e.g. `cmake -B build -G Xcode`)")
+endif()
+
 if(NOT DEFINED CABBAGE_BUILD_TARGET)
     project(BuildAllCabbageProjects VERSION ${CABBAGE_VERSION})
 
