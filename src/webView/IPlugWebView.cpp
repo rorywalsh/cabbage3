@@ -185,7 +185,28 @@ void IWebView::LoadFile(const char* fileName, const char* bundleID)
   }
 }
 
-void IWebView::EvaluateJavaScript(const char* scriptStr, completionHandlerFunc func)
+void IWebView::EvaluateJavaScript(const std::string& script)
+{
+#if defined(_WIN32)
+    if (auto dispatcherQueue = winrt::Windows::System::DispatcherQueue::GetForCurrentThread())
+    {
+        // Dispatch the EvaluateJavaScript call to the main thread
+        dispatcherQueue.TryEnqueue([this, script]()
+        {
+            EvaluateJavaScriptOnMainThread(script.c_str(), nullptr); // Assuming completionHandlerFunc is not needed
+        });
+    }
+    else
+    {
+        // If no dispatcher is available, log or handle the error
+        //std::cerr << "Dispatcher queue not available!" << std::endl;
+    }
+#else
+    EvaluateJavaScript(script.c_str());
+#endif
+}
+
+void IWebView::EvaluateJavaScriptOnMainThread(const char* scriptStr, completionHandlerFunc func)
 {
   if (mWebViewWnd)
   {

@@ -10,7 +10,6 @@ CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info, std::string 
 : iplug::Plugin(info, iplug::MakeConfig(Cabbage::getNumberOfParameters(csdFile), 0)),
 cabbage(*this, csdFile)
 {
-    
     if(!cabbage.setupCsound())
         return;
     
@@ -53,15 +52,11 @@ void CabbageProcessor::setupCallbacks()
     //working in vscode
     editorInitFuncCallback = [&]() 
     {
-#ifdef OS_WIN
-        LoadFile(R"(C:\Users\oli\Dev\iPlug2\Examples\CabbageProcessor\resources\web\index.html)", nullptr);
-#else
 #ifndef CabbageApp
         if(!server.isThreadRunning())
-            server.start("/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/");
+            server.start(CabbageFile::getCsdPath());
         const std::string mntPoint = "http://127.0.0.1:" + std::to_string(server.getCurrentPort()) + "/index.html";
         LoadURL(mntPoint.c_str());
-#endif
 #endif
         EnableScroll(false);
     };
@@ -69,29 +64,21 @@ void CabbageProcessor::setupCallbacks()
     //editor onInit callback function
     editorOnLoadCallback = [&]() 
     {
-        for(auto &widget : cabbage.getWidgets())
-        {
-            _log(widget.dump(4));
-            //update widget objects in case UI is closed and reopened...
-            if(widget["type"].get<std::string>() == "form")
+            for(auto &widget : cabbage.getWidgets())
             {
-                Resize(widget["width"].get<int>(), widget["height"]);
+                //update widget objects in case UI is closed and reopened...
+                try {
+                    if(widget.contains("type") && widget["type"].get<std::string>() == "form")
+                    {
+                        Resize(widget["size"]["width"].get<int>(), widget["size"]["height"].get<int>());
+                    }
+                }
+                catch (nlohmann::json::exception& e) {
+                    _log(e.what());
+//                    cabAssert(false, "");
+                }
             }
-        }
         
-//        auto csdText = CabbageFile::getCabbageSection();
-//        std::string result = StringFormatter::format(R"(
-//        window.addEventListener('message', event => {
-//            const message = event.data;
-//            if(message.command === "cabbageIsReady"){
-//                console.log("DOM has loaded - sending Cabbage section to JS..");
-//                window.postMessage({ command: "onFileChanged", text: "<>" });
-//            }
-//        });
-//        
-//        )", csdText);
-//        
-//        EvaluateJavaScript(result.c_str());
     };
     
     editorDeleteFuncCallback = [&]() 
@@ -150,15 +137,21 @@ void CabbageProcessor::updateJSWidgets()
     //iterate over all widget objects and send to webview
     for( auto& w : cabbage.getWidgets())
     {
-        auto result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
-        EvaluateJavaScript(result.c_str());
+        if(w.contains("channel")) //only let valid object through.
+        {
+//            _log(w.dump(4));
+            auto result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
+            EvaluateJavaScript(result.c_str());
+        }
     }
     
     uiIsOpen = true;
     allowDequeuing = true;
 }
+
 //===============================================================================
 //timer thread listens for incoming data from Csound using a lock free fifo
+//===============================================================================
 void CabbageProcessor::timerCallback()
 {
 #ifndef CabbageApp
@@ -209,7 +202,7 @@ void CabbageProcessor::timerCallback()
             std::string message = {};
             if(data.type == CabbageOpcodeData::MessageType::Value)
             {
-                message =  cabbage.getWidgetUpdateScript(data.channel, data.value);
+                message =  cabbage.getWidgetUpdateScript(data.channel, data.cabbageJson["value"].get<float>());
                 EvaluateJavaScript(message.c_str());
             }
             else
@@ -226,6 +219,7 @@ void CabbageProcessor::timerCallback()
                     }
                     else
                     {
+//                        _log(data.cabbageJson.dump(4));
                         CabbageParser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
                         message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
                     }
@@ -310,7 +304,9 @@ void CabbageProcessor::ProcessMidiMsg(const iplug::IMidiMsg& msg)
     msg.PrintMsg();
     SendMidiMsg(msg);
     cabbage.getMidiQueue().push_back(msg);
-    /* */
+    /* this needs attention. SendMidiMsgFromDelegate
+     will send MIDI data to the UI, but it shouldn't be
+     called from the main thread..*/
     SendMidiMsgFromDelegate(msg);
 }
 

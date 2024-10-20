@@ -562,7 +562,7 @@ WDL_DLGRET IPlugAPPHost::MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
 
       ClientResize(hwndDlg, width, height);
 
-//      ShowWindow(hwndDlg, SW_SHOW);
+      ShowWindow(hwndDlg, SW_SHOW);
       return 1;
     }
     case WM_DESTROY:

@@ -37,15 +37,17 @@ void Cabbage::addOpcodes()
     csnd::plugin<CabbageGetMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "k", "SW", csnd::thread::ik);
     csnd::plugin<CabbageGetMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "i", "SS", csnd::thread::i);
     csnd::plugin<CabbageGetString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "S", "SS", csnd::thread::i);
-    csnd::plugin<CabbageGetStringWithTrigger>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "k", "SS", csnd::thread::k);
+    csnd::plugin<CabbageGetStringWithTrigger>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "Sk", "SS", csnd::thread::k);
 
+    csnd::plugin<CabbageDump>((csnd::Csound*) getCsound()->GetCsound(), "cabbageDump", "", "So", csnd::thread::i);
+    csnd::plugin<CabbageDumpWithTrigger>((csnd::Csound*) getCsound()->GetCsound(), "cabbageDump", "", "kSo", csnd::thread::ik);
 }
 
 bool Cabbage::setupCsound()
 {
     csound = std::make_unique<Csound>();
-    csound->SetHostImplementedMIDIIO(true);
-    csound->SetHostImplementedAudioIO(1, 0);
+    csound->SetHostMIDIIO();
+    csound->SetHostAudioIO();
     csound->SetHostData(this);
     
     addOpcodes();
@@ -79,11 +81,10 @@ bool Cabbage::setupCsound()
     if(exists)
     {
         csCompileResult = csound->Compile (csdFile.c_str());
-        
+        csound->Start();
         if (csdCompiledWithoutError())
         {
             csdKsmps = csound->GetKsmps();
-            csSpout = csound->GetSpout();
             csSpin = csound->GetSpin();
             csScale = csound->Get0dBFS();
             setReservedChannels();
@@ -100,27 +101,33 @@ bool Cabbage::setupCsound()
             return false;
         }
         
-
+        widgets.clear();
         widgets =  CabbageParser::parseCsdForWidgets(csdFile);
+        std::vector<std::string> rangeTypes = getRangeWidgetTypes(widgets);
         for(auto& w : widgets)
         {
             if (w.contains("automatable") && w["automatable"] == 1 &&
                 (!w.contains("channelType") || w["channelType"] == "number"))
             {
-//                _log(w.dump(4));
-                if(w["type"].get<std::string>().find("slider") != std::string::npos)
+
+                
+                const std::string widgetType = w["type"].get<std::string>();
+                //check if widget has a range - range widget parameters are initialised differently to other widgets
+                if (std::any_of(rangeTypes.begin(), rangeTypes.end(), [&](const std::string& type) {
+                    return widgetType == type;
+                }))
                 {
                     try{
                         processor.GetParam(numberOfParameters)->InitDouble(w["channel"].get<std::string>().c_str(),
-                                                                           w["value"].get<float>(),
-                                                                           w["min"].get<float>(),
-                                                                           w["max"].get<float>(),
-                                                                           w["increment"].get<float>(),
+                                                                           w["range"]["defaultValue"].get<float>(),
+                                                                           w["range"]["min"].get<float>(),
+                                                                           w["range"]["max"].get<float>(),
+                                                                           w["range"]["increment"].get<float>(),
                                                                            std::string(w["channel"].get<std::string>()+"Label1").c_str(),
                                                                            iplug::IParam::EFlags::kFlagsNone,
                                                                            "",
-                                                                           iplug::IParam::ShapePowCurve(w["skew"].get<float>()));
-                        parameterChannels.push_back({CabbageParser::removeQuotes(w["channel"].get<std::string>()), w["value"].get<float>()});
+                                                                           iplug::IParam::ShapePowCurve(w["range"]["skew"].get<float>()));
+                        parameterChannels.push_back({CabbageParser::removeQuotes(w["channel"].get<std::string>()), w["range"]["defaultValue"].get<float>()});
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {
@@ -139,7 +146,7 @@ bool Cabbage::setupCsound()
                                                                            std::string(w["channel"].get<std::string>()+"Label1").c_str(),
                                                                            iplug::IParam::EFlags::kFlagsNone,
                                                                            "");
-                        parameterChannels.push_back({CabbageParser::removeQuotes(w["channel"].get<std::string>()), w["value"].get<int>()});
+                        parameterChannels.push_back({CabbageParser::removeQuotes(w["channel"].get<std::string>()), w["value"].get<float>()});
                         csound->SetControlChannel(w["channel"].get<std::string>().c_str(), w["value"].get<float>());
                         numberOfParameters++;
                     }
@@ -164,7 +171,20 @@ void Cabbage::setReservedChannels()
 {
     auto path = CabbageFile::getCsdPath();
     csound->SetStringChannel("CSD_PATH", (char*)path.c_str());
-    
+}
+
+//==========================================================================================
+std::vector<std::string> Cabbage::getRangeWidgetTypes(const std::vector<nlohmann::json> widgets)
+{
+    std::vector<std::string> typesWithRange;
+    for (const auto& obj : widgets) {
+        if (obj.contains("range")) {
+            if (obj.contains("type")) {
+                typesWithRange.push_back(obj["type"].get<std::string>());
+            }
+        }
+    }
+    return typesWithRange;
 }
 //===========================================================================================
 int Cabbage::getNumberOfParameters(const std::string& csdFile)
@@ -278,8 +298,9 @@ void Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonOb
         const int tableSize = getCsound()->TableLength(tableNumber);
         if(tableSize != -1)
         {
-            std::vector<double> temp (tableSize);
-            getCsound()->TableCopyOut (tableNumber, &temp[0]);
+            MYFLT *tablePtr = nullptr;
+            auto length = csound->GetTable(&tablePtr, tableNumber);
+            std::vector<MYFLT> temp(tablePtr, tablePtr + length);
             setTableJSON(data.channel, temp, jsonObj);
         }
     }
@@ -300,7 +321,9 @@ void Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonOb
             const int tableSize = getCsound()->TableLength(tableNumber);
             if(tableSize != -1)
             {
-                getCsound()->TableCopyIn (tableNumber, &samples[0]);
+                MYFLT *tablePtr = nullptr;
+                getCsound()->GetTable(&tablePtr, tableNumber);
+                std::memcpy(tablePtr, samples.data(), tableSize * sizeof(MYFLT));
                 setTableJSON(data.channel, samples, jsonObj);
             }
         }
@@ -340,6 +363,24 @@ const std::string Cabbage::getCsoundOutputUpdateScript(std::string output)
     return result.c_str();
 }
 
+//===========================================================================================
+
+float Cabbage::remap(double n, double start1, double stop1, double start2, double stop2) {
+    return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
+}
+
+float Cabbage::getFullRangeValue(std::string channel, float normalValue)
+{
+    for( const auto& w : getWidgets())
+    {
+        if(w["channel"] == channel && w.contains("range"))
+        {
+            return Cabbage::remap(normalValue, 0.f, 1.f, w["range"]["min"], w["range"]["max"]);
+        }
+        else
+            return normalValue;
+    }
+}
 //===========================================================================================
 
 std::string Cabbage::removeControlCharacters(const std::string& input) {

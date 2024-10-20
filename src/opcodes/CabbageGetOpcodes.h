@@ -20,6 +20,18 @@
 #include <plugin.h>
 #include "CabbageSetOpcodes.h"
 
+struct CabbageDump : csnd::InPlug<2>
+{
+    int init() { return dump(CabbageOpcodeData::PassType::Init);    };
+    int dump(int init);
+};
+
+struct CabbageDumpWithTrigger : csnd::InPlug<3>
+{
+    int kperf() { return dump(CabbageOpcodeData::PassType::Perf);   };
+    int dump(int init);
+};
+
 struct CabbageGetValue : csnd::Plugin<1, 1>
 {
     MYFLT* value;
@@ -74,7 +86,7 @@ struct CabbageGetString : csnd::Plugin<1, 2>, CabbageOpcodes<2>
 
 struct CabbageGetStringWithTrigger : csnd::Plugin<2, 2>, CabbageOpcodes<2>
 {
-    char* currentString = {};
+    std::string currentString = {};
     int kperf() { return getIdentifier(CabbageOpcodeData::PassType::Perf);   };
     int getIdentifier(int init);
 };

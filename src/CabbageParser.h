@@ -5,7 +5,6 @@
 #include <string>
 #include <vector>
 #include <json.hpp>
-#include "../CabbageWidgetDescriptors.h"
 #include "CabbageUtils.h"
 
 
@@ -110,8 +109,11 @@ public:
                 {
                     if (item.is_object())
                     {
+                        
                         auto j = CabbageWidgetDescriptors::get(item["type"]);
+//                        _log(j.dump(4));
                         updateJson(j, item, widgets.size());
+                        
                         widgets.push_back(j);
                     }
                     else
@@ -146,6 +148,8 @@ public:
         parseContent(buffer.str(), widgets);
     }
 
+    // propably needs better error checking for valid objects, some properties such as bounds and range get checked,
+    // while other just parsed at the end without any checking - it's a little inconsistant.
     static void updateJson(nlohmann::json& jsonObj, const nlohmann::json& incomingJson, size_t numWidgets)
     {
         try
@@ -167,47 +171,44 @@ public:
                 
                 if (key == "bounds")
                 {
-                    if (value.is_array() && value.size() == 4)
+                    if(value.is_object())
                     {
-                        jsonObj["left"] = value[0].get<int>();
-                        jsonObj["top"] = value[1].get<int>();
-                        jsonObj["width"] = value[2].get<int>();
-                        jsonObj["height"] = value[3].get<int>();
-                    }
-                    else
-                    {
-                        std::cerr << "The bounds identifier takes 4 parameters" << std::endl;
-                    }
-                }
-                else if (key == "range")
-                {
-                    if (value.is_array() && value.size() >= 3)
-                    {
-                        jsonObj["min"] = value[0].get<double>();
-                        jsonObj["max"] = value[1].get<double>();
-                        jsonObj["value"] = value[2].get<double>();
-
-                        if (value.size() == 5)
+                        for (auto& [propKey, val] : value.items())
                         {
-                            jsonObj["skew"] = value[3].get<double>();
-                            jsonObj["increment"] = value[4].get<double>();
+                            jsonObj[key][propKey] = val;
                         }
                     }
                     else
                     {
-                        std::cerr << "The range identifier takes at least 3 parameters" << std::endl;
+                        _log("Expected a JSON object for \"bounds\" key...");
+                    }
+                }
+                else if (key == "range")
+                {
+                    if(value.is_object())
+                    {
+                        for (auto& [propKey, val] : value.items())
+                        {
+                            jsonObj[key][propKey] = val;
+                        }
+                    }
+                    else
+                    {
+                        _log("Expected a JSON object for \"range\" key...");
                     }
                 }
                 else if (key == "size")
                 {
-                    if (value.is_array() && value.size() == 2)
+                    if(value.is_object())
                     {
-                        jsonObj["width"] = value[0].get<int>();
-                        jsonObj["height"] = value[1].get<int>();
+                        for (auto& [propKey, val] : value.items())
+                        {
+                            jsonObj[key][propKey] = val;
+                        }
                     }
                     else
                     {
-                        std::cerr << "The size identifier takes 2 parameters" << std::endl;
+                        _log("Expected a JSON object for \"size\" key...");
                     }
                 }
                 else if (key == "sampleRange")
@@ -224,21 +225,38 @@ public:
                 }
                 else if (key == "populate")
                 {
+                    if(value.is_object())
+                    {
+                        jsonObj[key]["directory"] = value["directory"].get<std::string>();
+                        jsonObj[key]["fileType"] = value["fileType"].get<std::string>();
+                        
+                        std::vector<std::string> files = CabbageFile::getFilesOfType(value["directory"].get<std::string>(), CabbageFile::sanitisePath(value["fileType"].get<std::string>()));
+                        
+                        jsonObj["channelType"] = "string";
+//                        jsonObj["files"] = files;
+                        
+                        const std::string items = std::accumulate(
+                                                                  std::next(files.begin()), files.end(), files[0],
+                                                                  [](std::string a, const std::string& b) { return std::move(a) + ", " + b; }
+                                                                  );
+                        
+                        jsonObj["items"] = items;
+                    }
                     if (value.is_array() && value.size() == 2)
                     {
-                        jsonObj["currentDirectory"] = value[0].get<std::string>();
+                        jsonObj["directory"] = value[0].get<std::string>();
                         jsonObj["fileType"] = value[1].get<std::string>();
-
+                        
                         std::vector<std::string> files = CabbageFile::getFilesOfType(value[0].get<std::string>(), CabbageFile::sanitisePath(value[1].get<std::string>()));
-
+                        
                         jsonObj["channelType"] = "string";
                         jsonObj["files"] = files;
-
+                        
                         const std::string items = std::accumulate(
-                            std::next(files.begin()), files.end(), files[0],
-                            [](std::string a, const std::string& b) { return std::move(a) + ", " + b; }
-                        );
-
+                                                                  std::next(files.begin()), files.end(), files[0],
+                                                                  [](std::string a, const std::string& b) { return std::move(a) + ", " + b; }
+                                                                  );
+                        
                         jsonObj["items"] = items;
                     }
                     else
@@ -246,14 +264,14 @@ public:
                         std::cerr << "The populate identifier takes 2 parameters" << std::endl;
                     }
                 }
-                else if (key == "items")
+                else if (key == "items") // items is provided as an array..
                 {
                     if (value.is_array())
                     {
                         const std::string items = std::accumulate(
-                            std::next(value.begin()), value.end(), value[0].get<std::string>(),
-                            [](std::string a, const std::string& b) { return std::move(a) + ", " + b; }
-                        );
+                                                                  std::next(value.begin()), value.end(), value[0].get<std::string>(),
+                                                                  [](std::string a, const std::string& b) { return std::move(a) + ", " + b; }
+                                                                  );
                         jsonObj["items"] = items;
                         jsonObj["min"] = 0;
                         jsonObj["max"] = value.size() - 1;
@@ -274,36 +292,43 @@ public:
                         std::cerr << "The samples identifier takes numeric parameters" << std::endl;
                     }
                 }
-                else if (key.find("colour") != std::string::npos)
+                else if (key.find(CabbageUtils::toLower("colour")) != std::string::npos)
                 {
-                    std::string colourString;
-
                     if (value.is_array())
                     {
-                        colourString = rgbToHex(value.get<std::vector<double>>());
+                        jsonObj[key] = rgbToHex(value.get<std::vector<double>>());
                     }
                     else if (value.is_string())
                     {
-                        colourString = validateHexString(value.get<std::string>());
+                        jsonObj[key] = validateHexString(value.get<std::string>());
+                    }
+                    else if (value.is_object())
+                    {
+                        if(value.contains("on"))
+                        {
+                            if(value["on"].is_array())
+                                jsonObj[key]["on"] = rgbToHex(value["on"].get<std::vector<double>>());
+                            else if(value["on"].is_string())
+                                jsonObj[key]["on"] = validateHexString(value["on"].get<std::string>());
+                            _log(jsonObj[key]["on"].dump(4));
+                        }
+                        if(value.contains("off"))
+                        {
+                            if(value["off"].is_array())
+                                jsonObj[key]["off"] = rgbToHex(value["off"].get<std::vector<double>>());
+                            else if(value["off"].is_string())
+                                jsonObj[key]["off"] = validateHexString(value["off"].get<std::string>());
+                            _log(jsonObj[key]["on"].dump(4));
+                        }
                     }
                     else
                     {
                         std::cerr << "Token does not contain valid colour information" << std::endl;
                     }
-
-                    jsonObj[key] = colourString;
+                    
+                    
                 }
-//                else if (key == "channel")
-//                {
-//                    if (value.is_string() && value.get<std::string>().empty())
-//                    {
-//
-//                    }
-//                    else
-//                    {
-//                        std::cerr << "The channel identifier takes a string parameter" << std::endl;
-//                    }
-//                }
+
                 else if (key == "file")
                 {
                     if (value.is_string())
@@ -315,14 +340,35 @@ public:
                 {
                     if (value.is_string())
                     {
-                        jsonObj["text"] = escapeJSON(value.get<std::string>());
-                        jsonObj["textOn"] = escapeJSON(value.get<std::string>());
-                        jsonObj["textOff"] = escapeJSON(value.get<std::string>());
+                        
+                        if(CabbageUtils::toLower(jsonObj["type"].get<std::string>()).find("button") != std::string::npos)
+                        {
+                            jsonObj["text"]["on"] = escapeJSON(value.get<std::string>());
+                            jsonObj["text"]["off"] = escapeJSON(value.get<std::string>());
+                        }
+                        else
+                        {
+                            jsonObj["text"] = escapeJSON(value.get<std::string>());
+                        }
                     }
-                    else if (value.is_array() && value.size() == 2)
+                    else if (value.is_object())
                     {
-                        jsonObj["textOff"] = value[0].get<std::string>();
-                        jsonObj["textOn"] = value[1].get<std::string>();
+                        //maintains original "text":{"on":"onStr", "off":"offStr"}
+                        for (auto& [innerKey, val] : value.items())
+                        {
+                            //if key is a colour, then convert to valid colour type
+                            if(CabbageUtils::toLower(key).find("colour") != std::string::npos)
+                            {
+                                if(value.is_array())
+                                    jsonObj[key][innerKey] = rgbToHex(value["on"].get<std::vector<double>>());
+                                else if(value.is_string())
+                                    jsonObj[key][innerKey] = validateHexString(value["on"].get<std::string>());
+                            }
+                            else
+                            {
+                                jsonObj[key][innerKey] = val;
+                            }
+                        }
                     }
                 }
                 else
@@ -330,12 +376,18 @@ public:
                     
                     if (value.is_string())
                     {
-//                        _log("key is " << key << ", value is " << value.get<std::string>());
                         jsonObj[key] = value.get<std::string>();
                     }
                     else if (value.is_number())
                     {
                         jsonObj[key] = value;
+                    }
+                    else if(value.is_object())
+                    {
+                        for (auto& [propKey, val] : value.items())
+                        {
+                            jsonObj[key][propKey] = val;
+                        }
                     }
                     else
                     {
@@ -343,8 +395,7 @@ public:
                     }
                 }
             }
-//            _log("channel(\"" << jsonObj["channel"].get<std::string>() << "\") bounds(" << jsonObj["left"].get<int>() << ", " << jsonObj["top"].get<int>() << ")");
-
+//            _log(jsonObj.dump(4));
         }
         catch (const nlohmann::json::exception& e)
         {

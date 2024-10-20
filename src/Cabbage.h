@@ -9,7 +9,6 @@
 #include <optional>
 
 #include "IPlug_include_in_plug_hdr.h"
-#include "CabbageWidgetDescriptors.h"
 #include "CabbageUtils.h"
 #include "csound.hpp"
 #include "CabbageParser.h"
@@ -32,14 +31,14 @@ class Cabbage {
     std::vector<nlohmann::json> widgets;
     
 public:
-
+    
     //a parameter struct whose namees match that of the corresponding Csound channel
     struct ParameterChannel {
         std::string name;
         void setValue(float v, float min = 0, float max = 1, float skew= 1, float increment = 1){
             value = v;
         }
-
+        
         float getValue(){
             return value;
         }
@@ -50,7 +49,7 @@ public:
         
         float value;
         bool init = true;
-
+        
     };
     
     Cabbage(CabbageProcessor& p, std::string file);
@@ -78,8 +77,12 @@ public:
     void setSpIn(int index, MYFLT value)  { csSpin[index] = value * csScale; }
     
     // Get output value for a specific index in csSpout array
-    MYFLT getSpOut(int index)             { return csSpout[index] / csScale; }
-    
+    MYFLT getSpOut(int index)             
+    {
+        auto spout = csound->GetSpout();
+        return spout[index] / csScale;
+    }
+
     // Check if CSD compiled without error
     bool csdCompiledWithoutError()        { return csCompileResult == 0 ? true : false; }
     
@@ -137,8 +140,18 @@ public:
     //utlity function to loads samples from a sound file on disk.
     static std::vector<double> readAudioFile(const std::string& filePath);
     
+    //return a vector of all widget types that have a range object
+    static std::vector<std::string> getRangeWidgetTypes(const std::vector<nlohmann::json> widgets);
+    
+    //setup reserved channel
     void setReservedChannels();
+        
+    //get full range value from widget
+    static float remap(double n, double start1, double stop1, double start2, double stop2);
+    float getFullRangeValue(std::string channel, float normalValue);
+    
     moodycamel::ReaderWriterQueue<CabbageOpcodeData> opcodeData;
+    
     
 private:
     void addOpcodes();
@@ -153,7 +166,6 @@ private:
     int csdKsmps = 0;
     MYFLT csScale = 0.0;
     MYFLT *csSpin = nullptr;
-    MYFLT *csSpout = nullptr;
     int samplingRate = 44100;
     std::vector<iplug::IMidiMsg> midiQueue;
     std::string csdFile = {};
