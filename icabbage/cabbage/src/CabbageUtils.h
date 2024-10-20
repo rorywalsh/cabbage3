@@ -103,6 +103,13 @@ class CabbageUtils {
             return error_output.str();
         }
     }
+    
+    static std::string toLower(const std::string& str) {
+        std::string lowerStr = str;
+        std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        return lowerStr;
+    }
 };
 /*
 	String formatter class
@@ -277,6 +284,8 @@ public:
     
     // Function to crudely extract the props object from a corresponding JS file...
     // this could be rewritten using ducktapeJS or some other JS parser...
+    // Note that this won't work with classes that extend other class as the prop
+    // object might not be found...
     static nlohmann::json extractPropsFromJS(const std::string& jsContent)
     {        
         std::string propsKey = "this.props =";

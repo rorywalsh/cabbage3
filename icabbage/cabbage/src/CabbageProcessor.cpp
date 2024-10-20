@@ -139,6 +139,7 @@ void CabbageProcessor::updateJSWidgets()
     {
         if(w.contains("channel")) //only let valid object through.
         {
+//            _log(w.dump(4));
             auto result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
             EvaluateJavaScript(result.c_str());
         }
@@ -303,7 +304,9 @@ void CabbageProcessor::ProcessMidiMsg(const iplug::IMidiMsg& msg)
     msg.PrintMsg();
     SendMidiMsg(msg);
     cabbage.getMidiQueue().push_back(msg);
-    /* */
+    /* this needs attention. SendMidiMsgFromDelegate
+     will send MIDI data to the UI, but it shouldn't be
+     called from the main thread..*/
     SendMidiMsgFromDelegate(msg);
 }
 

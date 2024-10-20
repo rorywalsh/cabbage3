@@ -109,9 +109,11 @@ public:
                 {
                     if (item.is_object())
                     {
+                        
                         auto j = CabbageWidgetDescriptors::get(item["type"]);
+//                        _log(j.dump(4));
                         updateJson(j, item, widgets.size());
-                        _log(j.dump(4));
+                        
                         widgets.push_back(j);
                     }
                     else
@@ -187,10 +189,7 @@ public:
                     {
                         for (auto& [propKey, val] : value.items())
                         {
-
                             jsonObj[key][propKey] = val;
-//                            if(propKey == "value")
-//                                jsonObj["currentValue"] = val;
                         }
                     }
                     else
@@ -226,9 +225,26 @@ public:
                 }
                 else if (key == "populate")
                 {
+                    if(value.is_object())
+                    {
+                        jsonObj[key]["directory"] = value["directory"].get<std::string>();
+                        jsonObj[key]["fileType"] = value["fileType"].get<std::string>();
+                        
+                        std::vector<std::string> files = CabbageFile::getFilesOfType(value["directory"].get<std::string>(), CabbageFile::sanitisePath(value["fileType"].get<std::string>()));
+                        
+                        jsonObj["channelType"] = "string";
+//                        jsonObj["files"] = files;
+                        
+                        const std::string items = std::accumulate(
+                                                                  std::next(files.begin()), files.end(), files[0],
+                                                                  [](std::string a, const std::string& b) { return std::move(a) + ", " + b; }
+                                                                  );
+                        
+                        jsonObj["items"] = items;
+                    }
                     if (value.is_array() && value.size() == 2)
                     {
-                        jsonObj["currentDirectory"] = value[0].get<std::string>();
+                        jsonObj["directory"] = value[0].get<std::string>();
                         jsonObj["fileType"] = value[1].get<std::string>();
                         
                         std::vector<std::string> files = CabbageFile::getFilesOfType(value[0].get<std::string>(), CabbageFile::sanitisePath(value[1].get<std::string>()));
@@ -276,7 +292,7 @@ public:
                         std::cerr << "The samples identifier takes numeric parameters" << std::endl;
                     }
                 }
-                else if (key.find("colour") != std::string::npos)
+                else if (key.find(CabbageUtils::toLower("colour")) != std::string::npos)
                 {
                     if (value.is_array())
                     {
@@ -324,14 +340,34 @@ public:
                 {
                     if (value.is_string())
                     {
-                        jsonObj["text"] = escapeJSON(value.get<std::string>());
+                        
+                        if(CabbageUtils::toLower(jsonObj["type"].get<std::string>()).find("button") != std::string::npos)
+                        {
+                            jsonObj["text"]["on"] = escapeJSON(value.get<std::string>());
+                            jsonObj["text"]["off"] = escapeJSON(value.get<std::string>());
+                        }
+                        else
+                        {
+                            jsonObj["text"] = escapeJSON(value.get<std::string>());
+                        }
                     }
                     else if (value.is_object())
                     {
                         //maintains original "text":{"on":"onStr", "off":"offStr"}
                         for (auto& [innerKey, val] : value.items())
                         {
-                            jsonObj[key][innerKey] = val;
+                            //if key is a colour, then convert to valid colour type
+                            if(CabbageUtils::toLower(key).find("colour") != std::string::npos)
+                            {
+                                if(value.is_array())
+                                    jsonObj[key][innerKey] = rgbToHex(value["on"].get<std::vector<double>>());
+                                else if(value.is_string())
+                                    jsonObj[key][innerKey] = validateHexString(value["on"].get<std::string>());
+                            }
+                            else
+                            {
+                                jsonObj[key][innerKey] = val;
+                            }
                         }
                     }
                 }

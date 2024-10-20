@@ -12,6 +12,44 @@
 #include "CabbageUtils.h"
 
 //=====================================================================================
+// cabbageDump "channel" [, iIndent]
+int CabbageDump::dump(int)
+{
+    auto* hostData = static_cast<Cabbage*>(csound->host_data());
+    const std::string widgetChannel = args.str_data(0).data;
+    int indents = in_count()==2 ? args[1] : 4;
+    for(auto &widget : hostData->getWidgets())
+    {
+        auto channel = CabbageParser::removeQuotes(widget["channel"].get<std::string>());
+        if(channel == widgetChannel)
+        {
+            csound->message(widget.dump(indents));
+        }
+    }    
+}
+
+// cabbageDump kTrig, "channel" [, iIndent]
+int CabbageDumpWithTrigger::dump(int)
+{
+    auto* hostData = static_cast<Cabbage*>(csound->host_data());
+    const std::string widgetChannel = args.str_data(1).data;
+    int indents = in_count()==2 ? args[2] : 4;
+    //trigger printing
+    if(args[0] == 1)
+    {
+        for(auto &widget : hostData->getWidgets())
+        {
+            auto channel = CabbageParser::removeQuotes(widget["channel"].get<std::string>());
+            if(channel == widgetChannel)
+            {
+                csound->message(widget.dump(indents));
+            }
+        }
+    }
+}
+
+
+//=====================================================================================
 // k1 cabbageGetValue "channel"
 // i1 cabbageGetValue "channel"
 //=====================================================================================
