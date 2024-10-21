@@ -130,17 +130,6 @@ if(APPLE)
         readerwriterqueue
     )
 
-    # because the file hierarchy needs preserving, I did this the KISS way - but maybe some of the existing iPlug stuff has a more elegant way to do this
-    set(CABBAGE_WEB_RESOURCES
-        "resources/web/index.html"
-        "resources/web/script.js"
-        "resources/web/webaudio-controls.js"
-    )
-
-    set_source_files_properties("resources/web/index.html" PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/web")
-    set_source_files_properties("resources/web/script.js" PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/web")
-    set_source_files_properties("resources/web/webaudio-controls.js" PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/web")
-
     set_source_files_properties("src/webView/IPlugWebView.mm" PROPERTIES COMPILE_OPTIONS -fobjc-arc)
 
     add_library(_base INTERFACE)
@@ -161,6 +150,5 @@ if(APPLE)
             iPlug2_GL2
             ${CABBAGE_LIBRARIES}
             ${CSOUND_FRAMEWORK}
-        SOURCE ${CABBAGE_WEB_RESOURCES}
     )
 endif()
