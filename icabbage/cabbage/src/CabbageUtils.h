@@ -29,18 +29,13 @@ EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 #include <algorithm> // for std::sort
 
 
-#if DEBUG
 #define _log(message) \
     do { \
         std::ostringstream oss; \
         oss << "Cabbage DEBUG: " << __FILE__ << " (" << __LINE__ << ") " << __FUNCTION__ << ": " << message << " [Thread ID: " << std::this_thread::get_id() << "]" << std::endl; \
         std::cout << oss.str(); \
     } while (0)
-#else
-#define DEBUG_LOG(message) \
-    do { \
-    } while (0)
-#endif
+
 
 class CabbageUtils {
     public:
