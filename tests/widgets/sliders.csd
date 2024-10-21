@@ -33,8 +33,6 @@ giWave ftgen 1, 0, 4096, 10, 1, .2, .1, .2, .1
 
 instr 1
 
-    SText  = "Slider widgets in Cabbage come in a variety of styles. Almost all the widget examples use sliders in some way or another. This simple instrument uses vslider widgets. When the 'Randomise' button is pushed, each slider has its position updated according to a simple spline curve."
-    cabbageSet "infoText", "text", SText
     
     a1 oscili tonek(cabbageGetValue:k("harmonic1"), 10), 50, giWave
     a2 oscili tonek(cabbageGetValue:k("harmonic2"), 10), 100, giWave

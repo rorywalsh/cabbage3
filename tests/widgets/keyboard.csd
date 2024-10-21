@@ -1,14 +1,12 @@
-<Cabbage>
-form caption("Option Button") size(380, 500), guiMode("queue"), colour(2, 145, 209) pluginId("def1")
-
-rslider bounds(12, 9, 86, 90), channel("att"), range(0, 1, 0.01, 1, 0.001), text("Att.")
-rslider bounds(99, 9, 86, 90), channel("dec"), range(0, 1, 0.4, 1, 0.001), text("Dec.")
-rslider bounds(187, 9, 86, 90), channel("sus"), range(0, 1, 0.7, 1, 0.001), text("Sus.")
-rslider bounds(274, 9, 86, 90), channel("rel"), range(0, 1, 0.8, 1, 0.001), text("Rel.")
-
-texteditor bounds(18, 256, 341, 208) channel("infoText"), readOnly(1), wrap(1), scrollbars(1)
-keyboard bounds(12, 104, 348, 80) channel("keyboard")
-optionbutton bounds(260, 188, 100, 30) channel("waveform"), colour:0(147, 210, 0), corners(5), items("Saw", "Square", "Triangle")
+<Cabbage>[
+{"type": "form", "caption": "Combobox Example", "size": {"width": 580.0, "height": 500.0}, "pluginId": "def1"},
+{"type": "rotarySlider", "bounds": {"left": 12.0, "top": 9.0, "width": 86.0, "height": 90.0}, "channel": "att", "range": {"min": 0.0, "max": 1.0, "defaultValue": 0.01, "skew": 1.0, "increment": 0.001}, "text": "Att."},
+{"type": "rotarySlider", "bounds": {"left": 99.0, "top": 9.0, "width": 86.0, "height": 90.0}, "channel": "dec", "range": {"min": 0.0, "max": 1.0, "defaultValue": 0.4, "skew": 1.0, "increment": 0.001}, "text": "Dec."},
+{"type": "rotarySlider", "bounds": {"left": 187.0, "top": 9.0, "width": 86.0, "height": 90.0}, "channel": "sus", "range": {"min": 0.0, "max": 1.0, "defaultValue": 0.7, "skew": 1.0, "increment": 0.001}, "text": "Sus."},
+{"type": "rotarySlider", "bounds": {"left": 274.0, "top": 9.0, "width": 86.0, "height": 90.0}, "channel": "rel", "range": {"min": 0.0, "max": 1.0, "defaultValue": 0.8, "skew": 1.0, "increment": 0.001}, "text": "Rel."},
+{"type": "keyboard", "bounds": {"left": 12.0, "top": 104.0, "width": 348.0, "height": 80.0}, "channel": "keyboard"},
+{"type": "comboBox", "bounds": {"left": 260.0, "top": 188.0, "width": 100.0, "height": 30.0}, "channel": "waveform", "corners": 5.0, "items": ["Saw", "Square", "Triangle"]}
+]
 </Cabbage>
 <CsoundSynthesizer>
 <CsOptions>
@@ -27,17 +25,10 @@ nchnls = 2
 ; You can copy, modify, and distribute this file, 
 ; even for commercial purposes, all without asking permission. 
 
-instr 99
-
-    SText  = "An option button can be used to toggle through different items. The widget will send its current index to is associated channel, starting from 0. In this example an option button is used to toggle through a set of waveform. \n\nWe can't just pass these indices to the vco2 opcode. Instead we use them as indices to simple array that hold the appropriate vco2 waveform modes."
-    cabbageSet "infoText", "text", SText
-
-endin
-
 instr 1
     
     iVcoModes[] fillarray 0, 10, 12
-    
+
     iAtt cabbageGetValue "att"
     iDec cabbageGetValue "dec"
     iSus cabbageGetValue "sus"
@@ -52,6 +43,5 @@ endin
 <CsScore>
 ;causes Csound to run for about 7000 years...
 f0 z
-i99 0 z
 </CsScore>
 </CsoundSynthesizer>

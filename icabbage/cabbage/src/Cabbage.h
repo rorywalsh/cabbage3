@@ -146,6 +146,10 @@ public:
     //setup reserved channel
     void setReservedChannels();
         
+    //get full range value from widget
+    static float remap(double n, double start1, double stop1, double start2, double stop2);
+    float getFullRangeValue(std::string channel, float normalValue);
+    
     moodycamel::ReaderWriterQueue<CabbageOpcodeData> opcodeData;
     
     

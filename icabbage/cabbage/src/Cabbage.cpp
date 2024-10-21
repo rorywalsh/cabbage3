@@ -39,6 +39,8 @@ void Cabbage::addOpcodes()
     csnd::plugin<CabbageGetString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "S", "SS", csnd::thread::i);
     csnd::plugin<CabbageGetStringWithTrigger>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "Sk", "SS", csnd::thread::k);
 
+    csnd::plugin<CabbageDump>((csnd::Csound*) getCsound()->GetCsound(), "cabbageDump", "", "So", csnd::thread::i);
+    csnd::plugin<CabbageDumpWithTrigger>((csnd::Csound*) getCsound()->GetCsound(), "cabbageDump", "", "kSo", csnd::thread::ik);
 }
 
 bool Cabbage::setupCsound()
@@ -361,6 +363,24 @@ const std::string Cabbage::getCsoundOutputUpdateScript(std::string output)
     return result.c_str();
 }
 
+//===========================================================================================
+
+float Cabbage::remap(double n, double start1, double stop1, double start2, double stop2) {
+    return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
+}
+
+float Cabbage::getFullRangeValue(std::string channel, float normalValue)
+{
+    for( const auto& w : getWidgets())
+    {
+        if(w["channel"] == channel && w.contains("range"))
+        {
+            return Cabbage::remap(normalValue, 0.f, 1.f, w["range"]["min"], w["range"]["max"]);
+        }
+        else
+            return normalValue;
+    }
+}
 //===========================================================================================
 
 std::string Cabbage::removeControlCharacters(const std::string& input) {
