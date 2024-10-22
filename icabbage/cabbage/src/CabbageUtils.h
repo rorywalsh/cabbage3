@@ -278,7 +278,7 @@ public:
 #else
     #error NOT IMPLEMENTED
 #endif
-        iniPath.Append("settings.ini"); // add file name to path
+        iniPath.Append("settings.json"); // add file name to path
         return iniPath.Get();
     }
     
@@ -568,40 +568,52 @@ public:
         }
     }
     
-    static std::string getSettingsProperty(const std::string section, const std::string& property) {
-        
+    static std::string getSettingsProperty(const std::string& section, const std::string& key) 
+    {
+        // Open the settings file
         std::ifstream file(getSettingsFile());
-        if (!file.is_open()) {
+        if (!file.is_open()) 
+        {
             std::cerr << "Error: Could not open the file " << getSettingsFile() << std::endl;
             return "";
         }
 
-        std::string line;
-        bool inMiscSection = false;
-
-        while (std::getline(file, line)) {
-            // Trim whitespace from the line
-            line.erase(0, line.find_first_not_of(" \t")); // Trim leading whitespace
-            line.erase(line.find_last_not_of(" \t") + 1); // Trim trailing whitespace
-
-            // Check for section headers
-            if (line == "["+section+"]") {
-                inMiscSection = true; // We're in the correct section
-                continue; // Move to the next line
-            } else if (line.front() == '[') {
-                inMiscSection = false; // We've hit a new section, exit misc section
-                continue;
-            }
-
-            // If we're in the [misc] section, look for jsSrcDir
-            if (inMiscSection && line.find(property) == 0) {
-                // Extract the path by removing the key part
-                return line.substr(line.find('=') + 1); // Return everything after '='
-            }
+        // Parse the JSON content from the file
+        nlohmann::json jsonData;
+        try {
+            file >> jsonData;
+        } catch (const std::exception& e) {
+            std::cerr << "Error: Failed to parse JSON - " << e.what() << std::endl;
+            return "";
         }
 
-        // If we reach here, jsSrcDir was not found
-        std::cerr << "Error: jsSrcDir not found in the INI file." << std::endl;
+        // Check if the section exists
+        if (jsonData.contains(section)) 
+        {
+            // Get the section object
+            nlohmann::json sectionObj = jsonData[section];
+
+            // Check if the key exists within the section
+            if (sectionObj.contains(key)) 
+            {
+                try {
+                    // Return the value as a string
+                    return sectionObj[key].get<std::string>();
+                } catch (const std::exception& e) {
+                    std::cerr << "Error: Failed to retrieve the key '" << key << "' as a string - " << e.what() << std::endl;
+                    return "";
+                }
+            } 
+            else
+            {
+                std::cerr << "Error: Key '" << key << "' not found in section '" << section << "'." << std::endl;
+            }
+        } 
+        else 
+        {
+            std::cerr << "Error: Section '" << section << "' not found in the JSON file." << std::endl;
+        }
+
         return "";
     }
 private:
@@ -758,7 +770,7 @@ public:
         std::vector<std::string> widgetTypes;
 #ifdef CabbageApp
         //this folder will be different for plugins than for the vscode extension
-        std::string widgetPath = CabbageFile::getSettingsProperty("misc", "jsSrcDir") + "/cabbage/widgets";;
+        std::string widgetPath = CabbageFile::getSettingsProperty("currentConfig", "jsSourceDir") + "/cabbage/widgets";;
 #else
         std::string widgetPath = CabbageFile::getCsdPath() + "/cabbage/widgets"; // Folder containing widget files
 #endif
