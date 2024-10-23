@@ -193,13 +193,14 @@ void IWebView::EvaluateJavaScript(const std::string& script)
         // Dispatch the EvaluateJavaScript call to the main thread
         dispatcherQueue.TryEnqueue([this, script]()
         {
-            EvaluateJavaScriptOnMainThread(script.c_str(), nullptr); // Assuming completionHandlerFunc is not needed
+            EvaluateJavaScriptOnMainThread(script.c_str(), nullptr);
         });
     }
     else
     {
-        // If no dispatcher is available, log or handle the error
-        //std::cerr << "Dispatcher queue not available!" << std::endl;
+        // If EvaludateJavaScript was not called from the message thread..
+        EvaluateJavaScriptOnMainThread(script.c_str(), nullptr);
+        
     }
 #else
     EvaluateJavaScript(script.c_str());

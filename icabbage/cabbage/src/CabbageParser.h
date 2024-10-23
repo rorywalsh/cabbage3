@@ -23,7 +23,7 @@ public:
     {
         std::vector<std::string> widgetTypes = CabbageWidgetDescriptors::getWidgetTypes();
         for( auto& w : widgetTypes )
-            _log(w);
+            writeToLog(w);
         auto it = std::find(widgetTypes.begin(), widgetTypes.end(), target);
         return it != widgetTypes.end();
     }
@@ -129,7 +129,7 @@ public:
         }
         catch (const nlohmann::json::parse_error& e)
         {
-            _log("JSON parse error: " << e.what() << std::endl);
+            writeToLog("JSON parse error: " << e.what() << std::endl);
         }
     }
 
@@ -180,7 +180,7 @@ public:
                     }
                     else
                     {
-                        _log("Expected a JSON object for \"bounds\" key...");
+                        writeToLog("Expected a JSON object for \"bounds\" key...");
                     }
                 }
                 else if (key == "range")
@@ -194,7 +194,7 @@ public:
                     }
                     else
                     {
-                        _log("Expected a JSON object for \"range\" key...");
+                        writeToLog("Expected a JSON object for \"range\" key...");
                     }
                 }
                 else if (key == "size")
@@ -208,7 +208,7 @@ public:
                     }
                     else
                     {
-                        _log("Expected a JSON object for \"size\" key...");
+                        writeToLog("Expected a JSON object for \"size\" key...");
                     }
                 }
                 else if (key == "sampleRange")
@@ -310,7 +310,7 @@ public:
                                 jsonObj[key]["on"] = rgbToHex(value["on"].get<std::vector<double>>());
                             else if(value["on"].is_string())
                                 jsonObj[key]["on"] = validateHexString(value["on"].get<std::string>());
-                            _log(jsonObj[key]["on"].dump(4));
+                            writeToLog(jsonObj[key]["on"].dump(4));
                         }
                         if(value.contains("off"))
                         {
@@ -318,7 +318,7 @@ public:
                                 jsonObj[key]["off"] = rgbToHex(value["off"].get<std::vector<double>>());
                             else if(value["off"].is_string())
                                 jsonObj[key]["off"] = validateHexString(value["off"].get<std::string>());
-                            _log(jsonObj[key]["on"].dump(4));
+                            writeToLog(jsonObj[key]["on"].dump(4));
                         }
                     }
                     else

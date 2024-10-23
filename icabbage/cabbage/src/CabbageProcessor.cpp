@@ -74,7 +74,7 @@ void CabbageProcessor::setupCallbacks()
                     }
                 }
                 catch (nlohmann::json::exception& e) {
-                    _log(e.what());
+                    writeToLog(e.what());
 //                    cabAssert(false, "");
                 }
             }
@@ -139,7 +139,7 @@ void CabbageProcessor::updateJSWidgets()
     {
         if(w.contains("channel")) //only let valid object through.
         {
-//            _log(w.dump(4));
+            writeToLog(w.dump(4));
             auto result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
             EvaluateJavaScript(result.c_str());
         }

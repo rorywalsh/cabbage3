@@ -5,7 +5,7 @@
 
 Cabbage::Cabbage(CabbageProcessor& p, std::string file): processor(p), csdFile(file)
 {
-    
+    sampleRate = p.GetSampleRate();
 };
 
 Cabbage::~Cabbage()
@@ -14,13 +14,21 @@ Cabbage::~Cabbage()
     {
         csCompileResult = false;
         csound = nullptr;
-        csoundParams = nullptr;
     }
 }
 
 void Cabbage::addOpcodes()
 {
-    csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Sk", csnd::thread::k);
+    //template <typename T>
+    //int32_t plugin(Csound * csound, const char* name, const char* oargs,
+    //    const char* iargs, uint32_t thr, uint32_t flags = 0) {
+    //    CSOUND* cs = (CSOUND*)csound;
+    //    if (thr == thread::ia || thr == thread::a) {
+    //        return cs->AppendOpcode(cs, (char*)name, sizeof(T), flags,
+    //            (char*)oargs, (char*)iargs, (SUBR)init<T>,
+    //            (SUBR)aperf<T>, (SUBR)deinit<T>);
+    //auto t = csoundAppendOpcode(getCsound()->GetCsound(), "cabbageSetValue", sizeof(), 0, "null", "", nullptr, nullptr, nullptr);
+    auto ret = csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Sk", csnd::thread::k);
     csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Si", csnd::thread::i);
     
     csnd::plugin<CabbageSetPerfString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSSW", csnd::thread::k);
@@ -28,7 +36,7 @@ void Cabbage::addOpcodes()
     csnd::plugin<CabbageSetPerfMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSSM", csnd::thread::k);
     csnd::plugin<CabbageSetInitMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "SSM", csnd::thread::i);
     
-    csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
+    ret = csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "i", "S", csnd::thread::i);
     csnd::plugin<CabbageGetValueString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "S", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValueWithTrigger>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "kk", "S", csnd::thread::ik);
@@ -57,21 +65,15 @@ bool Cabbage::setupCsound()
     csound->SetExternalMidiReadCallback(CabbageProcessor::ReadMidiData);
     csound->SetExternalMidiOutOpenCallback(CabbageProcessor::OpenMidiOutputDevice);
     csound->SetExternalMidiWriteCallback(CabbageProcessor::WriteMidiData);
-    csoundParams = nullptr;
-    csoundParams = std::make_unique<CSOUND_PARAMS> ();
-    
-    csoundParams->displays = 0;
+
     
     csound->SetOption((char*)"-n");
     csound->SetOption((char*)"-d");
     csound->SetOption((char*)"-b0");
+    csound->SetOption(std::string("--sample-rate="+std::to_string(sampleRate)).c_str());
     
     //    csoundParams->nchnls_override = numCsoundOutputChannels;
     //    csoundParams->nchnls_i_override = numCsoundInputChannels;
-    
-    csoundParams->sample_rate_override = 44100;
-    csound->SetParams(csoundParams.get());
-    //    compileCsdFile(csdFile);
     
 //    csdFile = "/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/CabbagePluginEffect.csd";
     std::filesystem::path file = csdFile.empty() ? CabbageFile::getCsdFileAndPath() : csdFile;
@@ -94,8 +96,7 @@ bool Cabbage::setupCsound()
             //Csound could not compile your file?
             while (csound->GetMessageCnt() > 0)
             {
-                std::string message(csound->GetFirstMessage());
-                std::cout << message << std::endl;
+                writeToLog(csound->GetFirstMessage());
                 csound->PopFirstMessage();
             }
             return false;
@@ -131,8 +132,8 @@ bool Cabbage::setupCsound()
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {
-                        _log(w.dump(4));
-                        _log(e.what());
+                        writeToLog(w.dump(4));
+                        writeToLog(e.what());
                         cabAssert(false, "");
                     }
                 }
@@ -151,8 +152,8 @@ bool Cabbage::setupCsound()
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {
-                        _log(w.dump(4));
-                        _log(e.what());
+                        writeToLog(w.dump(4));
+                        writeToLog(e.what());
 //                        cabAssert(false, "");
                     }
                 }
@@ -170,7 +171,7 @@ bool Cabbage::setupCsound()
 void Cabbage::setReservedChannels()
 {
     auto path = CabbageFile::getCsdPath();
-    csound->SetStringChannel("CSD_PATH", (char*)path.c_str());
+    //csound->SetStringChannel("CSD_PATH", (char*)path.c_str());
 }
 
 //==========================================================================================
@@ -380,6 +381,8 @@ float Cabbage::getFullRangeValue(std::string channel, float normalValue)
         else
             return normalValue;
     }
+
+	return normalValue;
 }
 //===========================================================================================
 

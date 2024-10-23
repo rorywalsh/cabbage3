@@ -26,6 +26,8 @@ int CabbageDump::dump(int)
             csound->message(widget.dump(indents));
         }
     }    
+
+    return IS_OK;
 }
 
 // cabbageDump kTrig, "channel" [, iIndent]
@@ -46,6 +48,8 @@ int CabbageDumpWithTrigger::dump(int)
             }
         }
     }
+
+    return IS_OK;
 }
 
 
