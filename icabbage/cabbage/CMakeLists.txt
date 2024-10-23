@@ -100,31 +100,31 @@ if(WIN32)
 
   find_package(ZLIB REQUIRED) 
   include_directories("C:\\Program Files\\Csound7\\include\\csound" "C:\\SDKs\\ASIOSDK2.3.3\\asiosdk_2.3.3_2019-06-14\\common")
-  find_library(CSOUND_LIBRARY NAMES libcsound64 HINTS "C:\\Program Files\\Csound7\\lib")
-  set(LIB_CSOUND64 "C:\\Program Files\\Csound7\\lib\\csound64.lib")
-  set(LIB_FLAC "C:\\Program Files\\Csound7\\lib\\FLAC.lib")
-  set(LIB_FLACPP "C:\\Program Files\\Csound7\\lib\\FLAC++.lib")
-  set(LIB_GMOCK "C:\\Program Files\\Csound7\\lib\\gmock.lib")
-  set(LIB_GTEST "C:\\Program Files\\Csound7\\lib\\gtest.lib")
-  set(LIB_LIBCSOUND64 "C:\\Program Files\\Csound7\\lib\\libcsound64.lib")
-  set(LIB_LIBCSOUND64_REL "C:\\Program Files\\Csound7\\lib\\libcsound64.rel.lib")
-  set(LIB_LIBLO "C:\\Program Files\\Csound7\\lib\\liblo.lib")
-  set(LIB_LIBLO_STATIC "C:\\Program Files\\Csound7\\lib\\liblo_static.lib")
-  set(LIB_LIBMP3LAME_STATIC "C:\\Program Files\\Csound7\\lib\\libmp3lame-static.lib")
-  set(LIB_LIBMPGHIP_STATIC "C:\\Program Files\\Csound7\\lib\\libmpghip-static.lib")
-  set(LIB_MPG123 "C:\\Program Files\\Csound7\\lib\\mpg123.lib")
-  set(LIB_OGG "C:\\Program Files\\Csound7\\lib\\ogg.lib")
-  set(LIB_OPUS "C:\\Program Files\\Csound7\\lib\\opus.lib")
-  set(LIB_OUT123 "C:\\Program Files\\Csound7\\lib\\out123.lib")
-  set(LIB_PORTAUDIO "C:\\Program Files\\Csound7\\lib\\portaudio.lib")
-  set(LIB_PORTMIDI "C:\\Program Files\\Csound7\\lib\\portmidi.lib")
-  set(LIB_SAMPLERATE "C:\\Program Files\\Csound7\\lib\\samplerate.lib")
-  set(LIB_SNDFILE "C:\\Program Files\\Csound7\\lib\\sndfile.lib")
-  set(LIB_SYN123 "C:\\Program Files\\Csound7\\lib\\syn123.lib")
-  set(LIB_VORBIS "C:\\Program Files\\Csound7\\lib\\vorbis.lib")
-  set(LIB_VORBISENC "C:\\Program Files\\Csound7\\lib\\vorbisenc.lib")
-  set(LIB_VORBISFILE "C:\\Program Files\\Csound7\\lib\\vorbisfile.lib")
-  set(LIB_ZLIB "C:\\Program Files\\Csound7\\lib\\zlib.lib")
+  find_library(CSOUND_LIBRARY NAMES csound64 HINTS "C:\\Program Files\\Csound7\\lib")
+  
+  # set(LIB_FLAC "C:\\Program Files\\Csound7\\lib\\FLAC.lib")
+  # set(LIB_FLACPP "C:\\Program Files\\Csound7\\lib\\FLAC++.lib")
+  # set(LIB_GMOCK "C:\\Program Files\\Csound7\\lib\\gmock.lib")
+  # set(LIB_GTEST "C:\\Program Files\\Csound7\\lib\\gtest.lib")
+  # set(LIB_LIBCSOUND64 "C:\\Program Files\\Csound7\\lib\\libcsound64.lib")
+  # set(LIB_LIBCSOUND64_REL "C:\\Program Files\\Csound7\\lib\\libcsound64.rel.lib")
+  # set(LIB_LIBLO "C:\\Program Files\\Csound7\\lib\\liblo.lib")
+  # set(LIB_LIBLO_STATIC "C:\\Program Files\\Csound7\\lib\\liblo_static.lib")
+  # set(LIB_LIBMP3LAME_STATIC "C:\\Program Files\\Csound7\\lib\\libmp3lame-static.lib")
+  # set(LIB_LIBMPGHIP_STATIC "C:\\Program Files\\Csound7\\lib\\libmpghip-static.lib")
+  # set(LIB_MPG123 "C:\\Program Files\\Csound7\\lib\\mpg123.lib")
+  # set(LIB_OGG "C:\\Program Files\\Csound7\\lib\\ogg.lib")
+  # set(LIB_OPUS "C:\\Program Files\\Csound7\\lib\\opus.lib")
+  # set(LIB_OUT123 "C:\\Program Files\\Csound7\\lib\\out123.lib")
+  # set(LIB_PORTAUDIO "C:\\Program Files\\Csound7\\lib\\portaudio.lib")
+  # set(LIB_PORTMIDI "C:\\Program Files\\Csound7\\lib\\portmidi.lib")
+  # set(LIB_SAMPLERATE "C:\\Program Files\\Csound7\\lib\\samplerate.lib")
+  # set(LIB_SNDFILE "C:\\Program Files\\Csound7\\lib\\sndfile.lib")
+  # set(LIB_SYN123 "C:\\Program Files\\Csound7\\lib\\syn123.lib")
+  # set(LIB_VORBIS "C:\\Program Files\\Csound7\\lib\\vorbis.lib")
+  # set(LIB_VORBISENC "C:\\Program Files\\Csound7\\lib\\vorbisenc.lib")
+  # set(LIB_VORBISFILE "C:\\Program Files\\Csound7\\lib\\vorbisfile.lib")
+  # set(LIB_ZLIB "C:\\Program Files\\Csound7\\lib\\zlib.lib")
   
 
   set(WEBVIEW_SRC_FILES
@@ -231,30 +231,30 @@ if(WIN32)
     LINK_DIR ${EXTRA_LINK_DIRECTORIES}
     LINK iPlug2_GL2 ${EXTRA_LINK_LIBRARIES} 
     ${CSOUND_LIBRARY} 
-    ${LIB_CSOUND64}
-    ${LIB_FLAC}
-    ${LIB_FLACPP}
-    ${LIB_GMOCK}
-    ${LIB_GTEST}
-    ${LIB_LIBCSOUND64}
-    ${LIB_LIBCSOUND64_REL}
-    ${LIB_LIBLO}
-    ${LIB_LIBLO_STATIC}
-    ${LIB_LIBMP3LAME_STATIC}
-    ${LIB_LIBMPGHIP_STATIC}
-    ${LIB_MPG123}
-    ${LIB_OGG}
-    ${LIB_OPUS}
-    ${LIB_OUT123}
-    ${LIB_PORTAUDIO}
-    ${LIB_PORTMIDI}
-    ${LIB_SAMPLERATE}
-    ${LIB_SNDFILE}
-    ${LIB_SYN123}
-    ${LIB_VORBIS}
-    ${LIB_VORBISENC}
-    ${LIB_VORBISFILE}
-    ${LIB_ZLIB}
+    # ${LIB_CSOUND64}
+    # ${LIB_FLAC}
+    # ${LIB_FLACPP}
+    # ${LIB_GMOCK}
+    # ${LIB_GTEST}
+    # ${LIB_LIBCSOUND64}
+    # ${LIB_LIBCSOUND64_REL}
+    # ${LIB_LIBLO}
+    # ${LIB_LIBLO_STATIC}
+    # ${LIB_LIBMP3LAME_STATIC}
+    # ${LIB_LIBMPGHIP_STATIC}
+    # ${LIB_MPG123}
+    # ${LIB_OGG}
+    # ${LIB_OPUS}
+    # ${LIB_OUT123}
+    # ${LIB_PORTAUDIO}
+    # ${LIB_PORTMIDI}
+    # ${LIB_SAMPLERATE}
+    # ${LIB_SNDFILE}
+    # ${LIB_SYN123}
+    # ${LIB_VORBIS}
+    # ${LIB_VORBISENC}
+    # ${LIB_VORBISFILE}
+    # ${LIB_ZLIB}
     
     FEATURE cxx_std_17
     DEFINE NO_IGRAPHICS ${EXTRA_DEFINES} CUSTOM_EDITOR="${PROJECT_DIR}/src/webView/CabbageEditorDelegate.h" CUSTOM_EDITOR_CLASS=CabbageEditorDelegate)
