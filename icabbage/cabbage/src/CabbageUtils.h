@@ -573,12 +573,12 @@ public:
             return std::string("Error: ") + ex.what();
         }
     }
-
-    static std::string getSettingsProperty(const std::string& section, const std::string& key)
+    
+    static std::string getSettingsProperty(const std::string& section, const std::string& key) 
     {
         // Open the settings file
         std::ifstream file(getSettingsFile());
-        if (!file.is_open())
+        if (!file.is_open()) 
         {
             std::cerr << "Error: Could not open the file " << getSettingsFile() << std::endl;
             return "";
@@ -588,34 +588,36 @@ public:
         nlohmann::json jsonData;
         try {
             file >> jsonData;
-        }
-        catch (const std::exception& e) {
+        } catch (const std::exception& e) {
             std::cerr << "Error: Failed to parse JSON - " << e.what() << std::endl;
             return "";
         }
 
         // Check if the section exists
-        if (jsonData.contains(section))
+        if (jsonData.contains(section)) 
         {
             // Get the section object
             nlohmann::json sectionObj = jsonData[section];
 
             // Check if the key exists within the section
-            if (sectionObj.contains(key))
+            if (sectionObj.contains(key)) 
             {
                 try {
                     // Return the value as a string
                     return sectionObj[key].get<std::string>();
-                }
-                catch (const std::exception& e) {
+                } catch (const std::exception& e) {
                     std::cerr << "Error: Failed to retrieve the key '" << key << "' as a string - " << e.what() << std::endl;
                     return "";
                 }
-            }
+            } 
             else
             {
                 std::cerr << "Error: Key '" << key << "' not found in section '" << section << "'." << std::endl;
             }
+        } 
+        else 
+        {
+            std::cerr << "Error: Section '" << section << "' not found in the JSON file." << std::endl;
         }
         else
         {
