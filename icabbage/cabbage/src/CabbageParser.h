@@ -6,6 +6,7 @@
 #include <vector>
 #include <json.hpp>
 #include "CabbageUtils.h"
+#include "CabbageColours.h"
 
 
 class CabbageParser
@@ -425,8 +426,7 @@ private:
         }
         else
         {
-            std::cerr << "Invalid hex colour string: " << str << std::endl;
-            return "#000000"; // Default to black
+            return CabbageColours::getColour(str);
         }
     }
 
