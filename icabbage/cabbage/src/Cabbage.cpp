@@ -384,8 +384,17 @@ float Cabbage::getFullRangeValue(std::string channel, float normalValue)
 
 	return normalValue;
 }
-//===========================================================================================
 
+//===========================================================================================
+// Called by opcodes whenever we need to update our widgets array, i.e, 
+// in the case of a property change
+//===========================================================================================
+void Cabbage::update()
+{
+	processor.pollFIFOQueue();
+}
+
+//===========================================================================================
 std::string Cabbage::removeControlCharacters(const std::string& input) {
     std::string result;
     for (char c : input) {

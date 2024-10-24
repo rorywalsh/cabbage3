@@ -9,11 +9,18 @@
 #include <sstream>
 #include <regex>
 #include <filesystem>
+#include "json.hpp"
 
 #if defined(_WIN32)
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 #include <windows.h>
 #include <Shlobj.h>
+#include <wrl.h>
+#include <wil/com.h>
+#include "WebView2.h"
+#include <winrt/Windows.System.h>
+#include <DispatcherQueue.h>
+#include <winrt/base.h>  // For winrt::com_ptr
 #elif defined(__APPLE__)
 #include <mach-o/dyld.h>
 #include <sys/stat.h>
@@ -27,6 +34,7 @@ EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 #endif
 
 #include <algorithm> // for std::sort
+#include <winrt/impl/windows.system.2.h>
 
 
 #define writeToLog(message) \
@@ -573,12 +581,12 @@ public:
             return std::string("Error: ") + ex.what();
         }
     }
-    
-    static std::string getSettingsProperty(const std::string& section, const std::string& key) 
+
+    static std::string getSettingsProperty(const std::string& section, const std::string& key)
     {
         // Open the settings file
         std::ifstream file(getSettingsFile());
-        if (!file.is_open()) 
+        if (!file.is_open())
         {
             std::cerr << "Error: Could not open the file " << getSettingsFile() << std::endl;
             return "";
@@ -588,36 +596,34 @@ public:
         nlohmann::json jsonData;
         try {
             file >> jsonData;
-        } catch (const std::exception& e) {
+        }
+        catch (const std::exception& e) {
             std::cerr << "Error: Failed to parse JSON - " << e.what() << std::endl;
             return "";
         }
 
         // Check if the section exists
-        if (jsonData.contains(section)) 
+        if (jsonData.contains(section))
         {
             // Get the section object
             nlohmann::json sectionObj = jsonData[section];
 
             // Check if the key exists within the section
-            if (sectionObj.contains(key)) 
+            if (sectionObj.contains(key))
             {
                 try {
                     // Return the value as a string
                     return sectionObj[key].get<std::string>();
-                } catch (const std::exception& e) {
+                }
+                catch (const std::exception& e) {
                     std::cerr << "Error: Failed to retrieve the key '" << key << "' as a string - " << e.what() << std::endl;
                     return "";
                 }
-            } 
+            }
             else
             {
                 std::cerr << "Error: Key '" << key << "' not found in section '" << section << "'." << std::endl;
             }
-        } 
-        else 
-        {
-            std::cerr << "Error: Section '" << section << "' not found in the JSON file." << std::endl;
         }
         else
         {
@@ -694,44 +700,6 @@ private:
 #endif
 };
 
-/*
-    Utility class to run a polling function with a specified interval
-*/
-class TimerThread {
-public:
-    TimerThread() : stop(false) {}
-
-    // Start the thread with a member function callback and a timer interval
-    template <typename T>
-    void Start(T* obj, void (T::* memberFunc)(), int intervalMillis)
-    {
-        mThread = std::thread([=]()
-        {
-            while (!stop)
-            {
-                // Call the member function on the object instance
-                (obj->*memberFunc)();
-                std::this_thread::sleep_for(std::chrono::milliseconds(intervalMillis)); // Sleep for the specified interval
-                //std::cout << "Timer tick" << std::endl; // Debug output
-            }
-            //std::cout << "Timer stopped" << std::endl; // Debug output
-        });
-    }
-
-
-    // Stop the timer thread
-    void Stop() {
-        stop = true;
-        if (mThread.joinable())
-        {
-            mThread.join();
-        }
-    }
-
-private:
-    std::thread mThread;
-    std::atomic<bool> stop;
-};
 
 /*
     Utility class to get widget descriptors from widget JS files

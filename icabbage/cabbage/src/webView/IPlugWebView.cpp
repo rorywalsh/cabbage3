@@ -14,11 +14,13 @@ See LICENSE.txt for  more info.
 #include <windows.h>
 #include <shlobj.h>
 #include <cassert>
+#include "../CabbageUtils.h"
 
 using namespace iplug;
 using namespace Microsoft::WRL;
 
 extern float GetScaleForHWND(HWND hWnd);
+
 
 IWebView::IWebView(bool opaque)
 : mOpaque(opaque)
@@ -185,35 +187,12 @@ void IWebView::LoadFile(const char* fileName, const char* bundleID)
   }
 }
 
-void IWebView::EvaluateJavaScript(const std::string& script)
-{
-#if defined(_WIN32)
-    if (auto dispatcherQueue = winrt::Windows::System::DispatcherQueue::GetForCurrentThread())
-    {
-        // Dispatch the EvaluateJavaScript call to the main thread
-        dispatcherQueue.TryEnqueue([this, script]()
-        {
-            EvaluateJavaScriptOnMainThread(script.c_str(), nullptr);
-        });
-    }
-    else
-    {
-        // If EvaludateJavaScript was not called from the message thread..
-        EvaluateJavaScriptOnMainThread(script.c_str(), nullptr);
-        
-    }
-#else
-    EvaluateJavaScript(script.c_str());
-#endif
-}
-
-void IWebView::EvaluateJavaScriptOnMainThread(const char* scriptStr, completionHandlerFunc func)
+void IWebView::EvaluateJavaScript(const char* scriptStr, completionHandlerFunc func)
 {
   if (mWebViewWnd)
   {
     WCHAR scriptWide[IPLUG_WIN_MAX_WIDE_PATH]; // TODO: error check/size
     UTF8ToUTF16(scriptWide, scriptStr, IPLUG_WIN_MAX_WIDE_PATH); // TODO: error check/size
-
     mWebViewWnd->ExecuteScript(scriptWide, Callback<ICoreWebView2ExecuteScriptCompletedHandler>(
       [func](HRESULT errorCode, LPCWSTR resultObjectAsJson) -> HRESULT {
         if (func && resultObjectAsJson) {
