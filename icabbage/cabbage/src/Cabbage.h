@@ -151,6 +151,8 @@ public:
     float getFullRangeValue(std::string channel, float normalValue);
     
     moodycamel::ReaderWriterQueue<CabbageOpcodeData> opcodeData;
+
+    void update();
     
     
 private:
@@ -159,14 +161,13 @@ private:
     std::vector<ParameterChannel> parameterChannels;
     int samplePosForMidi = 0;
     std::string csoundOutput = {};
-    std::unique_ptr<CSOUND_PARAMS> csoundParams;
     int csCompileResult = -1;
     int numCsoundOutputChannels = 0;
     int numCsoundInputChannels = 0;
     int csdKsmps = 0;
     MYFLT csScale = 0.0;
     MYFLT *csSpin = nullptr;
-    int samplingRate = 44100;
+    double sampleRate = 44100;
     std::vector<iplug::IMidiMsg> midiQueue;
     std::string csdFile = {};
     std::unique_ptr<Csound> csound;

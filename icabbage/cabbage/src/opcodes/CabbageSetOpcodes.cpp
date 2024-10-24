@@ -15,7 +15,7 @@
 //=====================================================================================
 int CabbageSetValue::setValue(int pass)
 {
-    auto* hostData = static_cast<Cabbage*>(csound->host_data());
+    auto* host = static_cast<Cabbage*>(csound->host_data());
 
     if(csound->get_csound()->GetChannelPtr(csound->get_csound(), (void**)&value, args.str_data(0).data,
                                                        CSOUND_CONTROL_CHANNEL | CSOUND_INPUT_CHANNEL) == CSOUND_SUCCESS)
@@ -23,15 +23,16 @@ int CabbageSetValue::setValue(int pass)
             *value = args[1];
         }
  
-    //this needs to be throttled as sending some many messages
-    //to the UI will choke it. Only update the widget's value
-    //every 32 k-cycles.
+    // this needs to be throttled as sending so many messages
+    // to the UI will choke it. Only update the widget's value
+    // every 32 k-cycles.
     if(kCycles==32)
     {
         CabbageOpcodeData data = getValueIdentData(args, true, 0, 1);
         data.cabbageJson["value"] = *value;
         data.type = CabbageOpcodeData::MessageType::Value;
-        hostData->opcodeData.enqueue(data);
+        host->opcodeData.enqueue(data);
+		//writeToLog("Setting value for channel: " << args.str_data(0).data);
         kCycles = 0;
     }
     kCycles++;
@@ -45,7 +46,7 @@ int CabbageSetValue::setValue(int pass)
 //=====================================================================================
 int CabbageSetPerfString::setIdentifier(int /*pass*/)
 {
-    auto* hostData = static_cast<Cabbage*>(csound->host_data());
+    auto* host = static_cast<Cabbage*>(csound->host_data());
     const int argIndex = 2;
     auto data = getIdentData(csound, args, true, 1, argIndex);
     data.type = CabbageOpcodeData::MessageType::Identifier;
@@ -68,7 +69,7 @@ int CabbageSetPerfString::setIdentifier(int /*pass*/)
             updateWidgetJson<std::string>(data.cabbageJson, args, argIndex, in_count(),data.identifier);
         else
             updateWidgetJson<std::string>(data.cabbageJson, args, argIndex+1, in_count(),data.identifier);
-        hostData->opcodeData.enqueue(data);
+        host->opcodeData.enqueue(data);
     }
     
     
@@ -82,7 +83,7 @@ int CabbageSetPerfString::setIdentifier(int /*pass*/)
 int CabbageSetInitString::setIdentifier(int pass)
 {
 
-    auto* hostData = static_cast<Cabbage*>(csound->host_data());
+    auto* host = static_cast<Cabbage*>(csound->host_data());
     const int argIndex = 1;
     auto data = getIdentData(csound, args, true, 0, argIndex);
     data.type = CabbageOpcodeData::MessageType::Identifier;
@@ -98,7 +99,7 @@ int CabbageSetInitString::setIdentifier(int pass)
     else
         updateWidgetJson<std::string>(data.cabbageJson, args, argIndex+1, in_count(), data.identifier);
     
-    hostData->opcodeData.enqueue(data);
+    host->opcodeData.enqueue(data);
     
     return IS_OK;
 }
@@ -108,7 +109,7 @@ int CabbageSetInitString::setIdentifier(int pass)
 //=====================================================================================
 int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
 {
-    auto* hostData = static_cast<Cabbage*>(csound->host_data());
+    auto* host = static_cast<Cabbage*>(csound->host_data());
     auto data = getIdentData(csound, args, true, 1, 2);
     data.type = CabbageOpcodeData::MessageType::Identifier;
     
@@ -129,7 +130,7 @@ int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
     else
     {
         updateWidgetJson<MYFLT>(data.cabbageJson, args, argIndex+1, in_count(),data.identifier);
-        hostData->opcodeData.enqueue(data);
+        host->opcodeData.enqueue(data);
     }
     
     return IS_OK;
@@ -141,7 +142,7 @@ int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
 //=====================================================================================
 int CabbageSetInitMYFLT::setIdentifier(int /*pass*/)
 {
-    auto* hostData = static_cast<Cabbage*>(csound->host_data());
+    auto* host = static_cast<Cabbage*>(csound->host_data());
     auto data = getIdentData(csound, args, true, 0, 1);
     data.type = CabbageOpcodeData::MessageType::Identifier;
     const int argIndex = 1;
@@ -157,7 +158,8 @@ int CabbageSetInitMYFLT::setIdentifier(int /*pass*/)
     else
         updateWidgetJson<MYFLT>(data.cabbageJson, args, argIndex+1, in_count(), data.identifier);
     
-    hostData->opcodeData.enqueue(data);
+    host->opcodeData.enqueue(data);
+    host->update();
     
     return IS_OK;
 }

@@ -26,6 +26,8 @@ int CabbageDump::dump(int)
             csound->message(widget.dump(indents));
         }
     }    
+
+    return IS_OK;
 }
 
 // cabbageDump kTrig, "channel" [, iIndent]
@@ -46,6 +48,8 @@ int CabbageDumpWithTrigger::dump(int)
             }
         }
     }
+
+    return IS_OK;
 }
 
 
@@ -55,7 +59,6 @@ int CabbageDumpWithTrigger::dump(int)
 //=====================================================================================
 int CabbageGetValue::getValue(int init)
 {
-//    std::cout << " Opcode called on thread: " << std::this_thread::get_id() << std::endl;
     if(in_count() == 0)
         return NOTOK;
     

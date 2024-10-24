@@ -172,16 +172,16 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
 
 IPlugAPPHost::~IPlugAPPHost()
 {
-    mExiting = true;
+    //mExiting = true;
     
-    CloseAudio();
+    //CloseAudio();
     
     
-    if(mMidiIn)
-        mMidiIn->cancelCallback();
-    
-    if(mMidiOut)
-        mMidiOut->closePort();
+    //if(mMidiIn)
+    //    mMidiIn->cancelCallback();
+    //
+    //if(mMidiOut)
+    //    mMidiOut->closePort();
 }
 
 //static
@@ -426,7 +426,14 @@ void IPlugAPPHost::UpdateSettings()
     auto info = audio.getDeviceInfo(defaultOutputDevice);
     nlohmann::json json;
     json["numChannels"] = info.outputChannels;
-    json["sampleRates"] = info.sampleRates;
+    if (info.sampleRates.size() > 0) 
+    {
+        json["sampleRates"] = info.sampleRates;
+    }
+    else
+    {
+        json["sampleRates"] = { 44100, 48200 };
+    }
     settingsJSON["systemAudioMidiIOListing"]["audioOutputDevices"]["Default Device"] = json;
 
     // Get the number of input devices
