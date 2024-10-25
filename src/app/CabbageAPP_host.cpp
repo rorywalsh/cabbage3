@@ -158,13 +158,27 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                     webSocket.send(msg.dump());
                 }
                 else{
-                    nlohmann::json json;
-                    cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
-                    nlohmann::json msg;
-                    msg["command"] = "widgetUpdate";
-                    msg["channel"] = data.channel;
-                    msg["data"] = j.dump();
-                    webSocket.send(msg.dump());
+                    if(data.type == CabbageOpcodeData::MessageType::Value)
+                    {
+                        nlohmann::json json;
+                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+                        nlohmann::json msg;
+                        msg["command"] = "widgetUpdate";
+                        msg["channel"] = data.channel;
+                        msg["value"] = j["value"].get<float>();
+                        webSocket.send(msg.dump());
+//                        writeToLog(msg.dump());
+                    }
+                    else
+                    {
+//                        nlohmann::json json;
+//                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+//                        nlohmann::json msg;
+//                        msg["command"] = "widgetUpdate";
+//                        msg["channel"] = data.channel;
+//                        msg["data"] = j.dump();
+//                        webSocket.send(msg.dump());
+                    }
                 }
             }
         };
