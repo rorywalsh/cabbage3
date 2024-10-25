@@ -7,17 +7,15 @@
 //===============================================================================
 #ifdef CabbageApp
 CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info, std::string csdFile)
-: iplug::Plugin(info, iplug::MakeConfig(Cabbage::getNumberOfParameters(csdFile), 0)),
+: iplug::Plugin(info, iplug::MakeConfig(cabbage::Engine::getNumberOfParameters(csdFile), 0)),
 cabbage(*this, csdFile)
 {
     if(!cabbage.setupCsound())
         return;
-    
-    timer.Start(this, &CabbageProcessor::timerCallback, 1);
 }
 #else
 CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info)
-: iplug::Plugin(info, iplug::MakeConfig(Cabbage::getNumberOfParameters(""), 0)),
+: iplug::Plugin(info, iplug::MakeConfig(cabbage::Engine::getNumberOfParameters(""), 0)),
 cabbage(*this, "")
 {
     
@@ -55,7 +53,7 @@ void CabbageProcessor::setupCallbacks()
     {
 #ifndef CabbageApp
         if(!server.isThreadRunning())
-            server.start(CabbageFile::getCsdPath());
+            server.start(cabbage::File::getCsdPath());
         const std::string mntPoint = "http://127.0.0.1:" + std::to_string(server.getCurrentPort()) + "/index.html";
         LoadURL(mntPoint.c_str());
 #endif
@@ -129,6 +127,7 @@ void CabbageProcessor::setupCallbacks()
 //===============================================================================
 void CabbageProcessor::interfaceHasLoaded()
 {
+    writeToLog("Interface has loaded..");
     uiIsOpen = true;
     allowDequeuing = true;
 }
@@ -171,6 +170,7 @@ void CabbageProcessor::OnParamChange(int paramIdx)
             p.setValue(GetParam(paramIdx)->Value());
             //update channel..
             cabbage.setControlChannel(p.name.c_str(), GetParam(paramIdx)->Value());
+            writeToLog(p.name.c_str() << ":" << GetParam(paramIdx)->Value());
         }
     }
 }
@@ -231,7 +231,7 @@ void CabbageProcessor::OnIdle()
         while (cabbage.getCsound()->GetMessageCnt() > 0)
         {
             std::string message(cabbage.getCsound()->GetFirstMessage());
-            writeToLog(message);
+            writeToVSCode(message);
             EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
             cabbage.getCsound()->PopFirstMessage();
         }
@@ -249,10 +249,10 @@ void CabbageProcessor::OnIdle()
         {
             for (auto& widget : cabbage.getWidgets())
             {
-                if (data.channel == CabbageParser::removeQuotes(widget["channel"]))
+                if (data.channel == cabbage::Parser::removeQuotes(widget["channel"]))
                 {
                     //this will update the widget JSON with new arguments tied to the identifier, e.g, bounds(x, y, w, h)
-                    CabbageParser::updateJson(widget, data.cabbageJson, widget.size());
+                    cabbage::Parser::updateJson(widget, data.cabbageJson, widget.size());
                 }
             }
 
@@ -264,8 +264,8 @@ void CabbageProcessor::OnIdle()
             while (cabbage.getCsound()->GetMessageCnt() > 0)
             {
                 std::string message(cabbage.getCsound()->GetFirstMessage());
-                std::cout << message << std::endl;
-                EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str(), false);
+                writeToVSCode(message);
+                EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
                 cabbage.getCsound()->PopFirstMessage();
             }
 
@@ -273,7 +273,7 @@ void CabbageProcessor::OnIdle()
             if (data.type == CabbageOpcodeData::MessageType::Value)
             {
                 message = cabbage.getWidgetUpdateScript(data.channel, data.cabbageJson["value"].get<float>());
-                EvaluateJavaScript(message.c_str(), false);
+                EvaluateJavaScript(message.c_str());
             }
             else
             {
@@ -290,11 +290,11 @@ void CabbageProcessor::OnIdle()
                     else
                     {
                         //                        _log(data.cabbageJson.dump(4));
-                        CabbageParser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
                         message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
                     }
                 }
-                EvaluateJavaScript(message.c_str(), false);
+                EvaluateJavaScript(message.c_str());
             }
 #endif
         }
@@ -307,10 +307,6 @@ void CabbageProcessor::ProcessMidiMsg(const iplug::IMidiMsg& msg)
     msg.PrintMsg();
     SendMidiMsg(msg);
     cabbage.getMidiQueue().push_back(msg);
-    /* this needs attention. SendMidiMsgFromDelegate
-     will send MIDI data to the UI, but it shouldn't be
-     called from the main thread..*/
-    SendMidiMsgFromDelegate(msg);
 }
 
 //======================== CSOUND MIDI FUNCTIONS ================================
@@ -326,7 +322,7 @@ int CabbageProcessor::OpenMidiInputDevice (CSOUND* csound, void** userData, cons
 int CabbageProcessor::ReadMidiData (CSOUND* /*csound*/, void* userData,
                                     unsigned char* mbuf, int nbytes)
 {
-    auto* pluginData = static_cast<Cabbage*>(userData);
+    auto* pluginData = static_cast<cabbage::Engine*>(userData);
     
     if (!userData)
     {

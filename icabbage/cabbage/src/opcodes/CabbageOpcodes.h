@@ -284,19 +284,13 @@ struct CabbageOpcodes
 
         try {
             // Attempt to parse the wrapped JSON string
-            if(nlohmann::json::accept(wrappedJson))
-                return nlohmann::json::parse(wrappedJson);
-            else
-            {
-                // If parsing fails, create a new JSON object with an empty key
-                nlohmann::json fallbackJson;
-                fallbackJson[split(jsonString)[0]] = nullptr;
-                return fallbackJson;
-            }
-        } catch (const nlohmann::json::parse_error& e) {
-            std::cerr << "JSON parse error: " << e.what() << std::endl;
+            return nlohmann::json::parse(wrappedJson);
+        } catch (const nlohmann::json::parse_error&) {
+            // If parsing fails, create a new JSON object with an empty key
+            nlohmann::json fallbackJson;
+            fallbackJson[split(jsonString)[0]] = nullptr;
+            return fallbackJson;
         }
-        return {};
     }
     
     CabbageOpcodeData getIdentData(csnd::Csound* csound, csnd::Param<NumInputParams>& args, bool init, int channelIndex, int identIndex)

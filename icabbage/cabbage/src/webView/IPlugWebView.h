@@ -27,8 +27,8 @@
 #include <wrl.h>
 #include <wil/com.h>
 #include "WebView2.h"
-#include <DispatcherQueue.h>
-#include <winrt/Windows.System.h>   
+#include <winrt/Windows.System.h>
+#include <dispatcherqueue.h>
 #include <winrt/base.h>  // For winrt::com_ptr
 #endif
 
@@ -61,8 +61,12 @@ public:
     /** Runs some JavaScript in the webview
      * @param scriptStr UTF8 encoded JavaScript code to run
      * @param func A function conforming to completionHandlerFunc that should be called on successful execution of the script */
+#ifdef _WIN32
+    void EvaluateJavaScriptOnMainThread(const char* scriptStr, completionHandlerFunc func);
+    void EvaluateJavaScript(const std::string& script);
+#else
     void EvaluateJavaScript(const char* scriptStr, completionHandlerFunc func = nullptr);
-
+#endif // _WIN32
 
     
     /** Enable scrolling on the webview. NOTE: currently only implemented for iOS */

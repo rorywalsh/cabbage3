@@ -88,7 +88,7 @@ public:
     static int WriteMidiData (CSOUND* csound, void* userData, const unsigned char* mbuf, int nbytes);
    
     void stopProcessing(){        cabbage.stopProcessing();    }
-    Cabbage& getCabbage(){        return cabbage;              }
+    cabbage::Engine& getCabbageEngine(){        return cabbage;              }
     
     void setupCallbacks();
     void interfaceHasLoaded();
@@ -103,7 +103,7 @@ public:
 private:
 
     std::string host = {"127.0.0.1"};
-    Cabbage cabbage;
+    cabbage::Engine cabbage;
     std::function<void(std::string)> triggerScript;
     int csndIndex = 0;
     int csdKsmps = 0;

@@ -110,7 +110,7 @@ public:
         uint32_t mAudioOutChanR;
         
         //custom app state fields
-        WDL_String mJsSourceDirectory;
+        std::string mJsSourceDirectory;
         
         AppState()
         : mAudioInDev(DEFAULT_INPUT_DEV)

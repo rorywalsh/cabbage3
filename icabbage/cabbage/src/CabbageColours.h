@@ -11,8 +11,10 @@
 #include <unordered_map>
 #include <string>
 #include <algorithm>
+#include "CabbageUtils.h"
 
-class CabbageColours
+namespace cabbage {
+class Colours
 {
 public:
     // Function to get the color map
@@ -171,10 +173,11 @@ public:
         else
         {
             // If it's not a valid hex string or CSS color name, return black by default
-            _log("Invalid hex colour string or CSS color name: " << colour << std::endl);
+            //cabbage::writeToLog("Invalid hex colour string or CSS color name: " << colour << std::endl);
             return "#000000";
         }
     }
 };
 
+}//end of namesapce
 #endif /* CabbageColours_h */

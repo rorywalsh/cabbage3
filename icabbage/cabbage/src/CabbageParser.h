@@ -8,31 +8,31 @@
 #include "CabbageUtils.h"
 #include "CabbageColours.h"
 
+namespace cabbage {
 
-class CabbageParser
+
+class Parser
 {
 public:
-
+    
     static std::string removeQuotes(const std::string& str)
     {
         std::string result = str;
         result.erase(std::remove_if(result.begin(), result.end(), [](char c) { return c == '\"'; }), result.end());
         return result;
     }
-
+    
     static bool isWidget(const std::string& target)
     {
-        std::vector<std::string> widgetTypes = CabbageWidgetDescriptors::getWidgetTypes();
-        for( auto& w : widgetTypes )
-            writeToLog(w);
+        std::vector<std::string> widgetTypes = cabbage::WidgetDescriptors::getWidgetTypes();
         auto it = std::find(widgetTypes.begin(), widgetTypes.end(), target);
         return it != widgetTypes.end();
     }
-
+    
     static std::vector<nlohmann::json> parseCsdForWidgets(const std::string& csdFile)
     {
         std::vector<nlohmann::json> widgets;
-
+        
         // Read the content of the CSD file
         std::ifstream file(csdFile);
         if (!file.is_open())
@@ -40,23 +40,23 @@ public:
             std::cerr << "Error opening Csd file: " << csdFile << std::endl;
             return widgets;
         }
-
+        
         std::stringstream buffer;
         buffer << file.rdbuf();
         std::string content = buffer.str();
-
+        
         // Regular expression to extract the content between <Cabbage> and </Cabbage>
         std::regex cabbageRegex(R"(<Cabbage>([\s\S]*?)</Cabbage>)");
         std::smatch cabbageMatch;
-
+        
         if (std::regex_search(content, cabbageMatch, cabbageRegex))
         {
             std::string cabbageContent = cabbageMatch[1].str();
-
+            
             // Check for form widget
             std::regex formRegex(R"("type"\s*:\s*"form")");
             bool foundFormWidget = std::regex_search(cabbageContent, formRegex);
-
+            
             if (foundFormWidget)
             {
                 parseContent(cabbageContent, widgets);
@@ -66,19 +66,19 @@ public:
                 // Check for #include "filename.json"
                 std::regex includeRegex(R"(#include\s*\"([^\"]+\.json)\")");
                 std::smatch includeMatch;
-
+                
                 if (std::regex_search(cabbageContent, includeMatch, includeRegex))
                 {
                     std::string includeFilename = includeMatch[1].str();
                     std::filesystem::path includePath(includeFilename);
-
+                    
                     // If the path is not absolute, construct a new path based on the CSD file's directory
                     if (!includePath.is_absolute())
                     {
                         std::filesystem::path csdPath(csdFile);
                         includePath = csdPath.parent_path() / includePath;
                     }
-
+                    
                     // Convert the path to a string and parse the JSON file
                     parseJsonFile(includePath.string(), widgets);
                 }
@@ -94,10 +94,10 @@ public:
         {
             std::cerr << "No Cabbage section found in the file: " << csdFile << std::endl;
         }
-
+        
         return widgets;
     }
-
+    
     // Helper function to parse content as JSON and add to widgets
     static void parseContent(const std::string& content, std::vector<nlohmann::json>& widgets)
     {
@@ -111,8 +111,8 @@ public:
                     if (item.is_object())
                     {
                         
-                        auto j = CabbageWidgetDescriptors::get(item["type"]);
-//                        _log(j.dump(4));
+                        auto j = cabbage::WidgetDescriptors::get(item["type"]);
+                        //                        _log(j.dump(4));
                         updateJson(j, item, widgets.size());
                         
                         widgets.push_back(j);
@@ -133,7 +133,7 @@ public:
             writeToLog("JSON parse error: " << e.what() << std::endl);
         }
     }
-
+    
     // Helper function to parse a JSON file and add to widgets
     static void parseJsonFile(const std::string& filename, std::vector<nlohmann::json>& widgets)
     {
@@ -143,12 +143,12 @@ public:
             std::cerr << "Error opening JSON file: " << filename << std::endl;
             return;
         }
-
+        
         std::stringstream buffer;
         buffer << jsonFile.rdbuf();
         parseContent(buffer.str(), widgets);
     }
-
+    
     // propably needs better error checking for valid objects, some properties such as bounds and range get checked,
     // while other just parsed at the end without any checking - it's a little inconsistant.
     static void updateJson(nlohmann::json& jsonObj, const nlohmann::json& incomingJson, size_t numWidgets)
@@ -163,7 +163,7 @@ public:
                     jsonObj["channel"] = jsonObj["type"].get<std::string>() + std::to_string(static_cast<int>(numWidgets));
                 }
             }
-
+            
             //parse multi argument identifiers here into separate keys
             for (auto it = incomingJson.begin(); it != incomingJson.end(); ++it)
             {
@@ -231,10 +231,10 @@ public:
                         jsonObj[key]["directory"] = value["directory"].get<std::string>();
                         jsonObj[key]["fileType"] = value["fileType"].get<std::string>();
                         
-                        std::vector<std::string> files = CabbageFile::getFilesOfType(value["directory"].get<std::string>(), CabbageFile::sanitisePath(value["fileType"].get<std::string>()));
+                        std::vector<std::string> files = cabbage::File::getFilesOfType(value["directory"].get<std::string>(), cabbage::File::sanitisePath(value["fileType"].get<std::string>()));
                         
                         jsonObj["channelType"] = "string";
-//                        jsonObj["files"] = files;
+                        //                        jsonObj["files"] = files;
                         
                         const std::string items = std::accumulate(
                                                                   std::next(files.begin()), files.end(), files[0],
@@ -248,7 +248,7 @@ public:
                         jsonObj["directory"] = value[0].get<std::string>();
                         jsonObj["fileType"] = value[1].get<std::string>();
                         
-                        std::vector<std::string> files = CabbageFile::getFilesOfType(value[0].get<std::string>(), CabbageFile::sanitisePath(value[1].get<std::string>()));
+                        std::vector<std::string> files = cabbage::File::getFilesOfType(value[0].get<std::string>(), cabbage::File::sanitisePath(value[1].get<std::string>()));
                         
                         jsonObj["channelType"] = "string";
                         jsonObj["files"] = files;
@@ -293,7 +293,7 @@ public:
                         std::cerr << "The samples identifier takes numeric parameters" << std::endl;
                     }
                 }
-                else if (key.find(CabbageUtils::toLower("colour")) != std::string::npos)
+                else if (key.find(cabbage::Utils::toLower("colour")) != std::string::npos)
                 {
                     if (value.is_array())
                     {
@@ -311,7 +311,7 @@ public:
                                 jsonObj[key]["on"] = rgbToHex(value["on"].get<std::vector<double>>());
                             else if(value["on"].is_string())
                                 jsonObj[key]["on"] = validateHexString(value["on"].get<std::string>());
-                            writeToLog(jsonObj[key]["on"].dump(4));
+                            //                            writeToLog(jsonObj[key]["on"].dump(4));
                         }
                         if(value.contains("off"))
                         {
@@ -319,7 +319,7 @@ public:
                                 jsonObj[key]["off"] = rgbToHex(value["off"].get<std::vector<double>>());
                             else if(value["off"].is_string())
                                 jsonObj[key]["off"] = validateHexString(value["off"].get<std::string>());
-                            writeToLog(jsonObj[key]["on"].dump(4));
+                            //                            writeToLog(jsonObj[key]["on"].dump(4));
                         }
                     }
                     else
@@ -329,12 +329,12 @@ public:
                     
                     
                 }
-
+                
                 else if (key == "file")
                 {
                     if (value.is_string())
                     {
-                        jsonObj["file"] = CabbageFile::sanitisePath(value.get<std::string>());
+                        jsonObj["file"] = cabbage::File::sanitisePath(value.get<std::string>());
                     }
                 }
                 else if (key == "text")
@@ -342,7 +342,7 @@ public:
                     if (value.is_string())
                     {
                         
-                        if(CabbageUtils::toLower(jsonObj["type"].get<std::string>()).find("button") != std::string::npos)
+                        if(cabbage::Utils::toLower(jsonObj["type"].get<std::string>()).find("button") != std::string::npos)
                         {
                             jsonObj["text"]["on"] = escapeJSON(value.get<std::string>());
                             jsonObj["text"]["off"] = escapeJSON(value.get<std::string>());
@@ -358,7 +358,7 @@ public:
                         for (auto& [innerKey, val] : value.items())
                         {
                             //if key is a colour, then convert to valid colour type
-                            if(CabbageUtils::toLower(key).find("colour") != std::string::npos)
+                            if(cabbage::Utils::toLower(key).find("colour") != std::string::npos)
                             {
                                 if(value.is_array())
                                     jsonObj[key][innerKey] = rgbToHex(value["on"].get<std::vector<double>>());
@@ -396,7 +396,7 @@ public:
                     }
                 }
             }
-//            _log(jsonObj.dump(4));
+            //            _log(jsonObj.dump(4));
         }
         catch (const nlohmann::json::exception& e)
         {
@@ -404,36 +404,36 @@ public:
         }
         
     }
-
+    
 private:
-
+    
     static std::string rgbToHex(const std::vector<double>& rgb)
     {
         std::ostringstream hex;
         hex << "#" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(rgb[0])
-            << std::setw(2) << std::setfill('0') << static_cast<int>(rgb[1])
-            << std::setw(2) << std::setfill('0') << static_cast<int>(rgb[2]);
+        << std::setw(2) << std::setfill('0') << static_cast<int>(rgb[1])
+        << std::setw(2) << std::setfill('0') << static_cast<int>(rgb[2]);
         return hex.str();
     }
-
+    
     static std::string validateHexString(const std::string& str)
     {
         std::regex hexRegex("^#([0-9A-Fa-f]{6})$");
-
+        
         if (std::regex_match(str, hexRegex))
         {
             return str;
         }
         else
         {
-            return CabbageColours::getColour(str);
+            return cabbage::Colours::getColour(str);
         }
     }
-
+    
     static std::string escapeJSON(const std::string& str)
     {
         std::string escaped;
-
+        
         for (char c : str)
         {
             switch (c)
@@ -448,7 +448,9 @@ private:
                 default: escaped += c; break;
             }
         }
-
+        
         return escaped;
     }
 };
+
+} // end of namespace

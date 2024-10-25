@@ -25,6 +25,7 @@ using namespace iplug;
 
 #define STRBUFSZ 100
 
+
 std::unique_ptr<IPlugAPPHost> IPlugAPPHost::sInstance;
 UINT gSCROLLMSG;
 
@@ -34,22 +35,22 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
     std::cout << file;
     cabbageProcessor = dynamic_cast<CabbageProcessor*>(mIPlug.get());
     
-    parameters = cabbageProcessor->getCabbage().getWidgets();
+    parameters = cabbageProcessor->getCabbageEngine().getWidgets();
 
     
     webSocket.setUrl("ws://localhost:9991");
     
     webSocket.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg)
             {
-                auto& cabbage = cabbageProcessor->getCabbage();
+                writeToLog("Incoming message");
+                auto& cabbage = cabbageProcessor->getCabbageEngine();
                 if (msg->type == ix::WebSocketMessageType::Message)
                 {
                     try{
-                        
-//                        _log(msg->str);
                         auto json = nlohmann::json::parse(msg->str, nullptr, false);
                         const std::string command = json["command"];
                         auto jsonObj = nlohmann::json::parse(json["obj"].get<std::string>());
+                        
                         if(command == "parameterChange")
                         {
                             for(int i = 0 ; i < cabbage.getNumberOfParameters() ; i++)
@@ -81,7 +82,6 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                         }
                         else if(command == "midiMessage")
                         {
-                            _log(jsonObj.dump(4));
                             iplug::IMidiMsg msg {0, jsonObj["statusByte"].get<uint8_t>(),
                                 jsonObj["dataByte1"].get<uint8_t>(),
                                 jsonObj["dataByte2"].get<uint8_t>()};
@@ -107,12 +107,12 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                         }
                     }
                     catch (nlohmann::json::exception& e) {
-                        _log("Error:" << e.what());
+                        writeToLog("Error:" << e.what());
                     }
                 }
                 else if (msg->type == ix::WebSocketMessageType::Open)
                 {
-                    _log("Connection established" << std::flush);
+                    writeToLog	("Connection established" << std::flush);
                     //if connection is ope we need to send all parse jSON objects to VS-Code..
                     for( auto& w : cabbage.getWidgets())
                     {
@@ -121,14 +121,17 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                         msg["channel"] = w["channel"];
                         msg["data"] = w.dump();
                         webSocket.send(msg.dump());
-
                     }
                     cabbageProcessor->interfaceHasLoaded();
+                }
+                else if (msg->type == ix::WebSocketMessageType::Close)
+                {
+                    writeToLog("websocket connection closed..");
                 }
                 else if (msg->type == ix::WebSocketMessageType::Error)
                 {
                     // Maybe SSL is not configured properly
-                    //std::cout << "Connection error: " << msg->errorInfo.reason << std::endl;
+                    writeToLog("Connection error: " << msg->errorInfo.reason);
                     //std::cout << "> " << std::flush;
                 }
             }
@@ -140,7 +143,7 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
     //this callback is triggered from CabbageProcessor.cpp and is responsible for
     //updating the widgets in the VSCode web panel
     auto callback = [&](CabbageOpcodeData data) {
-            auto& cabbage = cabbageProcessor->getCabbage();
+            auto& cabbage = cabbageProcessor->getCabbageEngine();
             auto widgetOpt = cabbage.getWidget(data.channel);
             if (widgetOpt.has_value())
             {
@@ -155,13 +158,27 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                     webSocket.send(msg.dump());
                 }
                 else{
-                    nlohmann::json json;
-                    CabbageParser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
-                    nlohmann::json msg;
-                    msg["command"] = "widgetUpdate";
-                    msg["channel"] = data.channel;
-                    msg["data"] = j.dump();
-                    webSocket.send(msg.dump());
+                    if(data.type == CabbageOpcodeData::MessageType::Value)
+                    {
+                        nlohmann::json json;
+                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+                        nlohmann::json msg;
+                        msg["command"] = "widgetUpdate";
+                        msg["channel"] = data.channel;
+                        msg["value"] = j["value"].get<float>();
+                        webSocket.send(msg.dump());
+//                        writeToLog(msg.dump());
+                    }
+                    else
+                    {
+//                        nlohmann::json json;
+//                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+//                        nlohmann::json msg;
+//                        msg["command"] = "widgetUpdate";
+//                        msg["channel"] = data.channel;
+//                        msg["data"] = j.dump();
+//                        webSocket.send(msg.dump());
+                    }
                 }
             }
         };
@@ -172,16 +189,16 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
 
 IPlugAPPHost::~IPlugAPPHost()
 {
-    //mExiting = true;
+    mExiting = true;
     
-    //CloseAudio();
+    CloseAudio();
     
     
-    //if(mMidiIn)
-    //    mMidiIn->cancelCallback();
-    //
-    //if(mMidiOut)
-    //    mMidiOut->closePort();
+    if(mMidiIn)
+        mMidiIn->cancelCallback();
+    
+    if(mMidiOut)
+        mMidiOut->closePort();
 }
 
 //static
@@ -280,7 +297,7 @@ bool IPlugAPPHost::InitState()
             
             if(stat(mJSONPath.c_str(), &st) == 0) // if settings file exists read values into state
             {
-                DBGMSG("Reading ini file from %s\n", mJSONPath.c_str());
+                DBGMSG("Reading json file from %s\n", mJSONPath.c_str());
 
                 mState.mAudioDriverType = settingsJson["currentConfig"]["audio"].value("driver", 0);
                 mState.mAudioInDev.Set(settingsJson["currentConfig"]["audio"].value("inputDevice", "Built-in Input").c_str());
@@ -295,12 +312,13 @@ bool IPlugAPPHost::InitState()
                 mState.mMidiOutDev.Set(settingsJson["currentConfig"]["midi"].value("outputDvice", "no output").c_str());
                 mState.mMidiInChan = settingsJson["currentConfig"]["midi"].value("inChan", 0);
                 mState.mMidiOutChan = settingsJson["currentConfig"]["midi"].value("outChan", 0);
+                mState.mJsSourceDirectory = settingsJson["currentConfig"].value("jsSourceDir", "add path to JS src directory");
             }
 
         }
         catch (const nlohmann::json::parse_error& e)
         {
-            _log("JSON parse error: " << e.what() << std::endl);
+            writeToLog("JSON parse error: " << e.what() << std::endl);
             auto t = e.what();
             cabAssert(false, "Can't parse settings file");
         }
@@ -362,7 +380,8 @@ void IPlugAPPHost::UpdateSettings()
 #else
     cabAssert(false, "Not implemented");
 #endif
-    settingsJSON["currentConfig"]["jsSrcDir"] = "add directory to source dir";
+    
+    settingsJSON["currentConfig"]["jsSourceDir"] = mState.mJsSourceDirectory;
     
     RtAudio audio;
     RtMidiIn midiIn;
@@ -426,14 +445,7 @@ void IPlugAPPHost::UpdateSettings()
     auto info = audio.getDeviceInfo(defaultOutputDevice);
     nlohmann::json json;
     json["numChannels"] = info.outputChannels;
-    if (info.sampleRates.size() > 0) 
-    {
-        json["sampleRates"] = info.sampleRates;
-    }
-    else
-    {
-        json["sampleRates"] = { 44100, 48200 };
-    }
+    json["sampleRates"] = info.sampleRates;
     settingsJSON["systemAudioMidiIOListing"]["audioOutputDevices"]["Default Device"] = json;
 
     // Get the number of input devices
