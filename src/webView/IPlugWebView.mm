@@ -46,25 +46,6 @@ using namespace iplug;
     return self;
 }
 
-- (void)evaluateJavaScriptOnMainThread:(std::string)script completionHandler:(completionHandlerFunc)func
-{
-    IPLUG_WKWEBVIEW* webView = self; // Assuming this method is within IPLUG_WKWEBVIEW context
-
-    if (![webView isLoading]) {
-        [webView evaluateJavaScript:[NSString stringWithUTF8String:script.c_str()] completionHandler:^(NSString *result, NSError *error) {
-            if (error != nil) {
-                _log(script);
-                NSLog(@"Error %@", error);
-                
-            } else if (func) {
-                func([result UTF8String]);
-            }
-        }];
-    } else {
-        // Handle the case where webView is still loading
-        NSLog(@"Web view is still loading. Cannot evaluate JavaScript.");
-    }
-}
 
 #ifdef OS_MAC
 // Override the rightMouseDown method to handle right-click events
@@ -344,18 +325,19 @@ void IWebView::LoadFile(const char* fileName, const char* bundleID)
 
 void IWebView::EvaluateJavaScript(const char* scriptStr, completionHandlerFunc func)
 {
-    auto cleanString = Cabbage::removeControlCharacters(scriptStr);
-    IPLUG_WKWEBVIEW* webView = (__bridge IPLUG_WKWEBVIEW*) mWKWebView;
-    
-    if (webView) {
-        if (![NSThread isMainThread]) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [webView evaluateJavaScriptOnMainThread:cleanString completionHandler:func];
-            });
-        } else {
-            [webView evaluateJavaScriptOnMainThread:cleanString completionHandler:func];
-        }
-    }
+  IPLUG_WKWEBVIEW* webView = (__bridge IPLUG_WKWEBVIEW*) mWKWebView;
+  
+  if (webView && ![webView isLoading])
+  {
+    [webView evaluateJavaScript:[NSString stringWithUTF8String:scriptStr] completionHandler:^(NSString *result, NSError *error) {
+      if (error != nil)
+        NSLog(@"Error %@",error);
+      else if(func)
+      {
+        func([result UTF8String]);
+      }
+    }];
+  }
 }
 
 void IWebView::EnableScroll(bool enable)

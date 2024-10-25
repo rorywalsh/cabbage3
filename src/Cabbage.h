@@ -25,7 +25,9 @@
 class CabbageProcessor;
 class CabbageOpcodeData;
 
-class Cabbage {
+namespace cabbage {
+
+class Engine {
     
     //a vector containined all Cabbage widgets
     std::vector<nlohmann::json> widgets;
@@ -52,8 +54,8 @@ public:
         
     };
     
-    Cabbage(CabbageProcessor& p, std::string file);
-    ~Cabbage();
+    Engine(CabbageProcessor& p, std::string file);
+    ~Engine();
     
     // Get the Csound object
     Csound* getCsound()                   { return csound.get(); }
@@ -77,12 +79,12 @@ public:
     void setSpIn(int index, MYFLT value)  { csSpin[index] = value * csScale; }
     
     // Get output value for a specific index in csSpout array
-    MYFLT getSpOut(int index)             
+    MYFLT getSpOut(int index)
     {
         auto spout = csound->GetSpout();
         return spout[index] / csScale;
     }
-
+    
     // Check if CSD compiled without error
     bool csdCompiledWithoutError()        { return csCompileResult == 0 ? true : false; }
     
@@ -117,7 +119,7 @@ public:
     
     //returns a JSON widget references from the lists of widget
     std::optional<std::reference_wrapper<nlohmann::json>> getWidget(const std::string& channel);
-
+    
     //returns number of plugin paremters - even though lots of widgets have channels, only a select few can be plugin parameters
     static int getNumberOfParameters(const std::string& csdFile);
     
@@ -127,7 +129,7 @@ public:
     //return a JS script that will trigger a widget's properties to be updated
     static std::string getWidgetUpdateScript(std::string channel, std::string data);
     static std::string getWidgetUpdateScript(std::string channel, float value);
-
+    
     
     //these two methods return combine with getWidgetIdentifierUpdateScript() to return a JS method
     //that packs samples for a given table
@@ -136,7 +138,7 @@ public:
     
     //returns a script that will update a csoundoutput widget
     const std::string getCsoundOutputUpdateScript(std::string output);
-
+    
     //utlity function to loads samples from a sound file on disk.
     static std::vector<double> readAudioFile(const std::string& filePath);
     
@@ -145,12 +147,14 @@ public:
     
     //setup reserved channel
     void setReservedChannels();
-        
+    
     //get full range value from widget
     static float remap(double n, double start1, double stop1, double start2, double stop2);
     float getFullRangeValue(std::string channel, float normalValue);
     
     moodycamel::ReaderWriterQueue<CabbageOpcodeData> opcodeData;
+    
+    void update();
     
     
 private:
@@ -159,16 +163,16 @@ private:
     std::vector<ParameterChannel> parameterChannels;
     int samplePosForMidi = 0;
     std::string csoundOutput = {};
-    std::unique_ptr<CSOUND_PARAMS> csoundParams;
     int csCompileResult = -1;
     int numCsoundOutputChannels = 0;
     int numCsoundInputChannels = 0;
     int csdKsmps = 0;
     MYFLT csScale = 0.0;
     MYFLT *csSpin = nullptr;
-    int samplingRate = 44100;
+    double sampleRate = 44100;
     std::vector<iplug::IMidiMsg> midiQueue;
     std::string csdFile = {};
     std::unique_ptr<Csound> csound;
     CabbageProcessor& processor;
 };
+}

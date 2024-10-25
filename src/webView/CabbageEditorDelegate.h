@@ -63,7 +63,7 @@ public:
 
     void SendMidiMsgFromDelegate(const iplug::IMidiMsg& msg) override
     {
-        std::string message =  StringFormatter::format(R"(
+        std::string message =  cabbage::StringFormatter::format(R"(
         
           // Create a custom event with the MIDI message details
           let customEvent = new CustomEvent('midiEvent', {

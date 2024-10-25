@@ -109,6 +109,9 @@ public:
         uint32_t mAudioOutChanL;
         uint32_t mAudioOutChanR;
         
+        //custom app state fields
+        std::string mJsSourceDirectory;
+        
         AppState()
         : mAudioInDev(DEFAULT_INPUT_DEV)
         , mAudioOutDev(DEFAULT_OUTPUT_DEV)
@@ -185,7 +188,7 @@ public:
     
     bool Init();
     bool InitState();
-    void UpdateINI();
+    void UpdateSettings();
     
     /** Returns the name of the audio device at idx
      * @param idx The index RTAudio has given the audio device
@@ -275,8 +278,8 @@ private:
     int32_t mDefaultInputDev = -1;
     /** The index of the operating systems default output device, -1 if not detected */
     int32_t mDefaultOutputDev = -1;
-    
-    WDL_String mINIPath;
+
+    std::string mJSONPath;
     
     std::vector<uint32_t> mAudioInputDevs;
     std::vector<uint32_t> mAudioOutputDevs;

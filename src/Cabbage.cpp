@@ -3,24 +3,34 @@
 #include "opcodes/CabbageSetOpcodes.h"
 #include "opcodes/CabbageGetOpcodes.h"
 
-Cabbage::Cabbage(CabbageProcessor& p, std::string file): processor(p), csdFile(file)
+namespace cabbage {
+
+Engine::Engine(CabbageProcessor& p, std::string file): processor(p), csdFile(file)
 {
-    
+    sampleRate = p.GetSampleRate();
 };
 
-Cabbage::~Cabbage()
+Engine::~Engine()
 {
     if (csound)
     {
         csCompileResult = false;
         csound = nullptr;
-        csoundParams = nullptr;
     }
 }
 
-void Cabbage::addOpcodes()
+void Engine::addOpcodes()
 {
-    csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Sk", csnd::thread::k);
+    //template <typename T>
+    //int32_t plugin(Csound * csound, const char* name, const char* oargs,
+    //    const char* iargs, uint32_t thr, uint32_t flags = 0) {
+    //    CSOUND* cs = (CSOUND*)csound;
+    //    if (thr == thread::ia || thr == thread::a) {
+    //        return cs->AppendOpcode(cs, (char*)name, sizeof(T), flags,
+    //            (char*)oargs, (char*)iargs, (SUBR)init<T>,
+    //            (SUBR)aperf<T>, (SUBR)deinit<T>);
+    //auto t = csoundAppendOpcode(getCsound()->GetCsound(), "cabbageSetValue", sizeof(), 0, "null", "", nullptr, nullptr, nullptr);
+    auto ret = csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Sk", csnd::thread::k);
     csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Si", csnd::thread::i);
     
     csnd::plugin<CabbageSetPerfString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSSW", csnd::thread::k);
@@ -28,7 +38,7 @@ void Cabbage::addOpcodes()
     csnd::plugin<CabbageSetPerfMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSSM", csnd::thread::k);
     csnd::plugin<CabbageSetInitMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "SSM", csnd::thread::i);
     
-    csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
+    ret = csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "i", "S", csnd::thread::i);
     csnd::plugin<CabbageGetValueString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "S", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValueWithTrigger>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "kk", "S", csnd::thread::ik);
@@ -38,12 +48,12 @@ void Cabbage::addOpcodes()
     csnd::plugin<CabbageGetMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "i", "SS", csnd::thread::i);
     csnd::plugin<CabbageGetString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "S", "SS", csnd::thread::i);
     csnd::plugin<CabbageGetStringWithTrigger>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGet", "Sk", "SS", csnd::thread::k);
-
+    
     csnd::plugin<CabbageDump>((csnd::Csound*) getCsound()->GetCsound(), "cabbageDump", "", "So", csnd::thread::i);
     csnd::plugin<CabbageDumpWithTrigger>((csnd::Csound*) getCsound()->GetCsound(), "cabbageDump", "", "kSo", csnd::thread::ik);
 }
 
-bool Cabbage::setupCsound()
+bool Engine::setupCsound()
 {
     csound = std::make_unique<Csound>();
     csound->SetHostMIDIIO();
@@ -57,24 +67,18 @@ bool Cabbage::setupCsound()
     csound->SetExternalMidiReadCallback(CabbageProcessor::ReadMidiData);
     csound->SetExternalMidiOutOpenCallback(CabbageProcessor::OpenMidiOutputDevice);
     csound->SetExternalMidiWriteCallback(CabbageProcessor::WriteMidiData);
-    csoundParams = nullptr;
-    csoundParams = std::make_unique<CSOUND_PARAMS> ();
     
-    csoundParams->displays = 0;
     
     csound->SetOption((char*)"-n");
     csound->SetOption((char*)"-d");
     csound->SetOption((char*)"-b0");
+    csound->SetOption(std::string("--sample-rate="+std::to_string(sampleRate)).c_str());
     
     //    csoundParams->nchnls_override = numCsoundOutputChannels;
     //    csoundParams->nchnls_i_override = numCsoundInputChannels;
     
-    csoundParams->sample_rate_override = 44100;
-    csound->SetParams(csoundParams.get());
-    //    compileCsdFile(csdFile);
-    
-//    csdFile = "/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/CabbagePluginEffect.csd";
-    std::filesystem::path file = csdFile.empty() ? CabbageFile::getCsdFileAndPath() : csdFile;
+    //    csdFile = "/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/CabbagePluginEffect.csd";
+    std::filesystem::path file = csdFile.empty() ? cabbage::File::getCsdFileAndPath() : csdFile;
     csdFile = file.string();
     
     bool exists = std::filesystem::exists(csdFile);
@@ -94,22 +98,21 @@ bool Cabbage::setupCsound()
             //Csound could not compile your file?
             while (csound->GetMessageCnt() > 0)
             {
-                std::string message(csound->GetFirstMessage());
-                std::cout << message << std::endl;
+                writeToLog(csound->GetFirstMessage());
                 csound->PopFirstMessage();
             }
             return false;
         }
         
         widgets.clear();
-        widgets =  CabbageParser::parseCsdForWidgets(csdFile);
+        widgets =  cabbage::Parser::parseCsdForWidgets(csdFile);
         std::vector<std::string> rangeTypes = getRangeWidgetTypes(widgets);
         for(auto& w : widgets)
         {
             if (w.contains("automatable") && w["automatable"] == 1 &&
                 (!w.contains("channelType") || w["channelType"] == "number"))
             {
-
+                
                 
                 const std::string widgetType = w["type"].get<std::string>();
                 //check if widget has a range - range widget parameters are initialised differently to other widgets
@@ -127,12 +130,12 @@ bool Cabbage::setupCsound()
                                                                            iplug::IParam::EFlags::kFlagsNone,
                                                                            "",
                                                                            iplug::IParam::ShapePowCurve(w["range"]["skew"].get<float>()));
-                        parameterChannels.push_back({CabbageParser::removeQuotes(w["channel"].get<std::string>()), w["range"]["defaultValue"].get<float>()});
+                        parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()), w["range"]["defaultValue"].get<float>()});
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {
-                        _log(w.dump(4));
-                        _log(e.what());
+                        writeToLog(w.dump(4));
+                        writeToLog(e.what());
                         cabAssert(false, "");
                     }
                 }
@@ -140,25 +143,25 @@ bool Cabbage::setupCsound()
                 {
                     try{
                         processor.GetParam(numberOfParameters)->InitInt(w["channel"].get<std::string>().c_str(),
-                                                                           w["value"].get<int>(),
-                                                                           w["min"].get<int>(),
-                                                                           w["max"].get<int>(),
-                                                                           std::string(w["channel"].get<std::string>()+"Label1").c_str(),
-                                                                           iplug::IParam::EFlags::kFlagsNone,
-                                                                           "");
-                        parameterChannels.push_back({CabbageParser::removeQuotes(w["channel"].get<std::string>()), w["value"].get<float>()});
+                                                                        w["value"].get<int>(),
+                                                                        w["min"].get<int>(),
+                                                                        w["max"].get<int>(),
+                                                                        std::string(w["channel"].get<std::string>()+"Label1").c_str(),
+                                                                        iplug::IParam::EFlags::kFlagsNone,
+                                                                        "");
+                        parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()), w["value"].get<float>()});
                         csound->SetControlChannel(w["channel"].get<std::string>().c_str(), w["value"].get<float>());
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {
-                        _log(w.dump(4));
-                        _log(e.what());
-//                        cabAssert(false, "");
+                        writeToLog(w.dump(4));
+                        writeToLog(e.what());
+                        //                        cabAssert(false, "");
                     }
                 }
             }
         }
-                
+        
         return true;
     }
     else
@@ -167,14 +170,14 @@ bool Cabbage::setupCsound()
 }
 
 //===========================================================================================
-void Cabbage::setReservedChannels()
+void Engine::setReservedChannels()
 {
-    auto path = CabbageFile::getCsdPath();
-    csound->SetStringChannel("CSD_PATH", (char*)path.c_str());
+    auto path = cabbage::File::getCsdPath();
+    //csound->SetStringChannel("CSD_PATH", (char*)path.c_str());
 }
 
 //==========================================================================================
-std::vector<std::string> Cabbage::getRangeWidgetTypes(const std::vector<nlohmann::json> widgets)
+std::vector<std::string> Engine::getRangeWidgetTypes(const std::vector<nlohmann::json> widgets)
 {
     std::vector<std::string> typesWithRange;
     for (const auto& obj : widgets) {
@@ -187,9 +190,9 @@ std::vector<std::string> Cabbage::getRangeWidgetTypes(const std::vector<nlohmann
     return typesWithRange;
 }
 //===========================================================================================
-int Cabbage::getNumberOfParameters(const std::string& csdFile)
+int Engine::getNumberOfParameters(const std::string& csdFile)
 {
-    std::vector<nlohmann::json> widgets = CabbageParser::parseCsdForWidgets(csdFile.empty() ? CabbageFile::getCsdFileAndPath() : csdFile);
+    std::vector<nlohmann::json> widgets = cabbage::Parser::parseCsdForWidgets(csdFile.empty() ? cabbage::File::getCsdFileAndPath() : csdFile);
     int numParams = 0;
     for(auto& w : widgets)
     {
@@ -201,14 +204,14 @@ int Cabbage::getNumberOfParameters(const std::string& csdFile)
 }
 
 
-void Cabbage::setControlChannel(const std::string channel, MYFLT value)
+void Engine::setControlChannel(const std::string channel, MYFLT value)
 {
     //update Csound channel, and update ParameterChannel values..
     csound->SetControlChannel(channel.c_str(), value);
-
+    
 }
 
-void Cabbage::setStringChannel(const std::string channel, std::string data)
+void Engine::setStringChannel(const std::string channel, std::string data)
 {
     //update Csound channel
     csound->SetStringChannel(channel.c_str(), (char*)data.c_str());
@@ -216,12 +219,12 @@ void Cabbage::setStringChannel(const std::string channel, std::string data)
 
 //===========================================================================================
 
-size_t  Cabbage::getIndexForParamChannel(std::string name)
+size_t  Engine::getIndexForParamChannel(std::string name)
 {
     auto it = std::find_if(parameterChannels.begin(), parameterChannels.end(), [&name](const ParameterChannel& paramChannel) {
         return paramChannel.name == name;
     });
-
+    
     if (it != parameterChannels.end()) {
         size_t index = std::distance(parameterChannels.begin(), it);
         return index;
@@ -231,11 +234,11 @@ size_t  Cabbage::getIndexForParamChannel(std::string name)
 }
 //===========================================================================================
 
-std::optional<std::reference_wrapper<nlohmann::json>> Cabbage::getWidget(const std::string& channel)
+std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidget(const std::string& channel)
 {
     for (auto& w : widgets)
     {
-        if (CabbageParser::removeQuotes(w["channel"]) == channel)
+        if (cabbage::Parser::removeQuotes(w["channel"]) == channel)
         {
             return std::ref(w); // Use std::ref to wrap the reference
         }
@@ -243,7 +246,7 @@ std::optional<std::reference_wrapper<nlohmann::json>> Cabbage::getWidget(const s
     return std::nullopt;
 }
 
-const std::string Cabbage::updateWidgetState(nlohmann::json j)
+const std::string Engine::updateWidgetState(nlohmann::json j)
 {
     auto const channel = j["channel"].get<std::string>();
     auto widgetOpt = getWidget(channel);
@@ -259,7 +262,7 @@ const std::string Cabbage::updateWidgetState(nlohmann::json j)
 }
 //===========================================================================================
 
-std::string Cabbage::getWidgetUpdateScript(std::string channel, std::string data)
+std::string Engine::getWidgetUpdateScript(std::string channel, std::string data)
 {
     std::string result;
     result = StringFormatter::format(R"(
@@ -269,12 +272,12 @@ std::string Cabbage::getWidgetUpdateScript(std::string channel, std::string data
             data: `<>`
         });
     )",
-    channel,
-    data);
+                                     channel,
+                                     data);
     return result.c_str();
 }
 
-std::string Cabbage::getWidgetUpdateScript(std::string channel, float value)
+std::string Engine::getWidgetUpdateScript(std::string channel, float value)
 {
     std::string result;
     result = StringFormatter::format(R"(
@@ -284,16 +287,16 @@ std::string Cabbage::getWidgetUpdateScript(std::string channel, float value)
             value: <>
         });
     )",
-    channel,
-    value);
+                                     channel,
+                                     value);
     return result.c_str();
 }
 
-void Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonObj)
+void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonObj)
 {
     if(data.cabbageJson.contains("tableNumber"))
     {
-        CabbageParser::updateJson(jsonObj, data.cabbageJson, widgets.size());
+        cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size());
         const int tableNumber = jsonObj["tableNumber"];
         const int tableSize = getCsound()->TableLength(tableNumber);
         if(tableSize != -1)
@@ -308,15 +311,15 @@ void Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonOb
     {
         if(jsonObj["type"].get<std::string>() == "gentable")
         {
-            CabbageParser::updateJson(jsonObj, data.cabbageJson, widgets.size());
+            cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size());
             const int tableNumber = jsonObj["tableNumber"];
-            auto samples = Cabbage::readAudioFile(jsonObj["file"].get<std::string>());
+            auto samples = Engine::readAudioFile(jsonObj["file"].get<std::string>());
             
             if(samples.size() == 0)
                 return;
             
             auto createTable = StringFormatter::format(R"(giTable<> ftgen <>, 0, <>, -7, 0, 0)", tableNumber, tableNumber, samples.size());
-
+            
             getCsound()->CompileOrc(createTable.c_str());
             const int tableSize = getCsound()->TableLength(tableNumber);
             if(tableSize != -1)
@@ -330,7 +333,7 @@ void Cabbage::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonOb
     }
 }
 
-void Cabbage::setTableJSON(std::string channel, std::vector<double> samples, nlohmann::json& jsonObj)
+void Engine::setTableJSON(std::string channel, std::vector<double> samples, nlohmann::json& jsonObj)
 {
     
     //this is a condensed version of the sample data that is passed around between C++ and JS
@@ -352,38 +355,40 @@ void Cabbage::setTableJSON(std::string channel, std::vector<double> samples, nlo
     jsonObj["samples"] = widgetSampleData;
 }
 
-const std::string Cabbage::getCsoundOutputUpdateScript(std::string output)
+const std::string Engine::getCsoundOutputUpdateScript(std::string output)
 {
     StringFormatter::removeBackticks(output);
     std::string result;
-        result = StringFormatter::format(R"(
+    result = StringFormatter::format(R"(
          window.postMessage({ command: "csoundOutputUpdate", text: `<>` });
         )",
-    output);
+                                     output);
     return result.c_str();
 }
 
 //===========================================================================================
 
-float Cabbage::remap(double n, double start1, double stop1, double start2, double stop2) {
+float Engine::remap(double n, double start1, double stop1, double start2, double stop2) {
     return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
 }
 
-float Cabbage::getFullRangeValue(std::string channel, float normalValue)
+float Engine::getFullRangeValue(std::string channel, float normalValue)
 {
     for( const auto& w : getWidgets())
     {
         if(w["channel"] == channel && w.contains("range"))
         {
-            return Cabbage::remap(normalValue, 0.f, 1.f, w["range"]["min"], w["range"]["max"]);
+            return Engine::remap(normalValue, 0.f, 1.f, w["range"]["min"], w["range"]["max"]);
         }
         else
             return normalValue;
     }
+    
+    return normalValue;
 }
-//===========================================================================================
 
-std::string Cabbage::removeControlCharacters(const std::string& input) {
+//===========================================================================================
+std::string Engine::removeControlCharacters(const std::string& input) {
     std::string result;
     for (char c : input) {
         if (!iscntrl(static_cast<unsigned char>(c)) || c == ' ') {
@@ -395,9 +400,9 @@ std::string Cabbage::removeControlCharacters(const std::string& input) {
 
 //===========================================================================================
 
-std::vector<double> Cabbage::readAudioFile(const std::string &filePath)
+std::vector<double> Engine::readAudioFile(const std::string &filePath)
 {
-    if(!CabbageFile::fileExists(filePath))
+    if(!cabbage::File::fileExists(filePath))
         return {};
     
     choc::audio::AudioFileFormatList formats;
@@ -420,7 +425,7 @@ std::vector<double> Cabbage::readAudioFile(const std::string &filePath)
     
     // Create a vector of the appropriate size
     std::vector<double> audioData(totalSamples);
-
+    
     for (int frame = 0; frame < numFrames; ++frame)
     {
         for (int channel = 0; channel < numChannels; ++channel)
@@ -431,6 +436,7 @@ std::vector<double> Cabbage::readAudioFile(const std::string &filePath)
     return audioData;
 }
 
+} //end of namespace
 
 
 

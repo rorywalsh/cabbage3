@@ -25,6 +25,7 @@ using namespace iplug;
 
 #define STRBUFSZ 100
 
+
 std::unique_ptr<IPlugAPPHost> IPlugAPPHost::sInstance;
 UINT gSCROLLMSG;
 
@@ -34,22 +35,22 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
     std::cout << file;
     cabbageProcessor = dynamic_cast<CabbageProcessor*>(mIPlug.get());
     
-    parameters = cabbageProcessor->getCabbage().getWidgets();
+    parameters = cabbageProcessor->getCabbageEngine().getWidgets();
 
     
     webSocket.setUrl("ws://localhost:9991");
     
     webSocket.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg)
             {
-                auto& cabbage = cabbageProcessor->getCabbage();
+                writeToLog("Incoming message");
+                auto& cabbage = cabbageProcessor->getCabbageEngine();
                 if (msg->type == ix::WebSocketMessageType::Message)
                 {
                     try{
-                        
-//                        _log(msg->str);
                         auto json = nlohmann::json::parse(msg->str, nullptr, false);
                         const std::string command = json["command"];
                         auto jsonObj = nlohmann::json::parse(json["obj"].get<std::string>());
+                        
                         if(command == "parameterChange")
                         {
                             for(int i = 0 ; i < cabbage.getNumberOfParameters() ; i++)
@@ -81,7 +82,6 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                         }
                         else if(command == "midiMessage")
                         {
-                            _log(jsonObj.dump(4));
                             iplug::IMidiMsg msg {0, jsonObj["statusByte"].get<uint8_t>(),
                                 jsonObj["dataByte1"].get<uint8_t>(),
                                 jsonObj["dataByte2"].get<uint8_t>()};
@@ -107,29 +107,31 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                         }
                     }
                     catch (nlohmann::json::exception& e) {
-                        std::cout << "JSON Error:" << e.what() << std::endl;
+                        writeToLog("Error:" << e.what());
                     }
                 }
                 else if (msg->type == ix::WebSocketMessageType::Open)
                 {
-                    _log("Connection established" << std::flush);
+                    writeToLog	("Connection established" << std::flush);
                     //if connection is ope we need to send all parse jSON objects to VS-Code..
                     for( auto& w : cabbage.getWidgets())
                     {
-                        _log(w.dump(4));
                         nlohmann::json msg;
                         msg["command"] = "widgetUpdate";
                         msg["channel"] = w["channel"];
                         msg["data"] = w.dump();
                         webSocket.send(msg.dump());
-
                     }
                     cabbageProcessor->interfaceHasLoaded();
+                }
+                else if (msg->type == ix::WebSocketMessageType::Close)
+                {
+                    writeToLog("websocket connection closed..");
                 }
                 else if (msg->type == ix::WebSocketMessageType::Error)
                 {
                     // Maybe SSL is not configured properly
-                    //std::cout << "Connection error: " << msg->errorInfo.reason << std::endl;
+                    writeToLog("Connection error: " << msg->errorInfo.reason);
                     //std::cout << "> " << std::flush;
                 }
             }
@@ -141,7 +143,7 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
     //this callback is triggered from CabbageProcessor.cpp and is responsible for
     //updating the widgets in the VSCode web panel
     auto callback = [&](CabbageOpcodeData data) {
-            auto& cabbage = cabbageProcessor->getCabbage();
+            auto& cabbage = cabbageProcessor->getCabbageEngine();
             auto widgetOpt = cabbage.getWidget(data.channel);
             if (widgetOpt.has_value())
             {
@@ -157,7 +159,7 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                 }
                 else{
                     nlohmann::json json;
-                    CabbageParser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+                    cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
                     nlohmann::json msg;
                     msg["command"] = "widgetUpdate";
                     msg["channel"] = data.channel;
@@ -227,67 +229,105 @@ bool IPlugAPPHost::InitState()
 #if defined OS_WIN
     TCHAR strPath[MAX_PATH_LEN];
     SHGetFolderPathA( NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath );
-    mINIPath.SetFormatted(MAX_PATH_LEN, "%s\\%s\\", strPath, BUNDLE_NAME);
+    // Use std::string for path concatenation
+    mJSONPath = std::string(strPath) + "\\" + BUNDLE_NAME + "\\";
 #elif defined OS_MAC
-    mINIPath.SetFormatted(MAX_PATH_LEN, "%s/Library/Application Support/%s/", getenv("HOME"), BUNDLE_NAME);
+    const char* homePath = getenv("HOME");
+    mJSONPath = std::string(homePath) + "/Library/Application Support/" + BUNDLE_NAME + "/";
+
 #else
 #error NOT IMPLEMENTED
 #endif
     
+    /* 
+     todo - set default locations for widget src
+    if (mState->GetString("jsSrcDir", nullptr) == nullptr)
+        mState->SetString("jsSrcDir", "path to JS src dir");
+     */
+
     struct stat st;
     
-    if(stat(mINIPath.Get(), &st) == 0) // if directory exists
+    if(stat(mJSONPath.c_str(), &st) == 0) // if directory exists
     {
-        mINIPath.Append("settings.ini"); // add file name to path
+        mJSONPath+=("settings.json"); // add file name to path
         
-        char buf[STRBUFSZ];
         
-        if(stat(mINIPath.Get(), &st) == 0) // if settings file exists read values into state
+        try{
+            std::ifstream file(mJSONPath);
+            nlohmann::json settingsJson = {};
+            
+            if (file.is_open()) {
+                // Check if the file is empty
+                if (file.peek() == std::ifstream::traits_type::eof()) {
+                    std::cout << "File is empty, using default settings." << std::endl;
+                    UpdateSettings();
+                    return true;
+                }
+                else {
+                    try {
+                        // Use the extraction operator to read JSON data from the file
+                        file >> settingsJson;
+                    }
+                    catch (const nlohmann::json::parse_error& e) {
+                        std::cerr << "JSON parse error: " << e.what() << std::endl;
+                    }
+                }
+            }
+            else {
+                std::cerr << "Failed to open the file." << std::endl;
+            }
+                
+            file.close();
+            
+            char buf[STRBUFSZ];
+            
+            if(stat(mJSONPath.c_str(), &st) == 0) // if settings file exists read values into state
+            {
+                DBGMSG("Reading json file from %s\n", mJSONPath.c_str());
+
+                mState.mAudioDriverType = settingsJson["currentConfig"]["audio"].value("driver", 0);
+                mState.mAudioInDev.Set(settingsJson["currentConfig"]["audio"].value("inputDevice", "Built-in Input").c_str());
+                mState.mAudioOutDev.Set(settingsJson["currentConfig"]["audio"].value("outputDevice", "Built-in Output").c_str());
+                mState.mAudioInChanL = settingsJson["currentConfig"]["audio"].value("in1", 1);
+                mState.mAudioInChanR = settingsJson["currentConfig"]["audio"].value("in2", 2);
+                mState.mAudioOutChanL = settingsJson["currentConfig"]["audio"].value("out1", 1);
+                mState.mAudioOutChanR = settingsJson["currentConfig"]["audio"].value("out2", 2);
+                mState.mBufferSize = settingsJson["currentConfig"]["audio"].value("buffer", 512);
+                mState.mAudioSR = settingsJson["currentConfig"]["audio"].value("sr", 44100);
+                mState.mMidiInDev.Set(settingsJson["currentConfig"]["midi"].value("inputDevice", "no input").c_str());
+                mState.mMidiOutDev.Set(settingsJson["currentConfig"]["midi"].value("outputDvice", "no output").c_str());
+                mState.mMidiInChan = settingsJson["currentConfig"]["midi"].value("inChan", 0);
+                mState.mMidiOutChan = settingsJson["currentConfig"]["midi"].value("outChan", 0);
+                mState.mJsSourceDirectory = settingsJson["currentConfig"].value("jsSourceDir", "add path to JS src directory");
+            }
+
+        }
+        catch (const nlohmann::json::parse_error& e)
         {
-            DBGMSG("Reading ini file from %s\n", mINIPath.Get());
-            
-            mState.mAudioDriverType = GetPrivateProfileInt("audio", "driver", 0, mINIPath.Get());
-            
-            GetPrivateProfileString("audio", "indev", "Built-in Input", buf, STRBUFSZ, mINIPath.Get()); mState.mAudioInDev.Set(buf);
-            GetPrivateProfileString("audio", "outdev", "Built-in Output", buf, STRBUFSZ, mINIPath.Get()); mState.mAudioOutDev.Set(buf);
-            
-            //audio
-            mState.mAudioInChanL = GetPrivateProfileInt("audio", "in1", 1, mINIPath.Get()); // 1 is first audio input
-            mState.mAudioInChanR = GetPrivateProfileInt("audio", "in2", 2, mINIPath.Get());
-            mState.mAudioOutChanL = GetPrivateProfileInt("audio", "out1", 1, mINIPath.Get()); // 1 is first audio output
-            mState.mAudioOutChanR = GetPrivateProfileInt("audio", "out2", 2, mINIPath.Get());
-            //mState.mAudioInIsMono = GetPrivateProfileInt("audio", "monoinput", 0, mINIPath.Get());
-            
-            mState.mBufferSize = GetPrivateProfileInt("audio", "buffer", 512, mINIPath.Get());
-            mState.mAudioSR = GetPrivateProfileInt("audio", "sr", 44100, mINIPath.Get());
-            
-            //midi
-            GetPrivateProfileString("midi", "indev", "no input", buf, STRBUFSZ, mINIPath.Get()); mState.mMidiInDev.Set(buf);
-            GetPrivateProfileString("midi", "outdev", "no output", buf, STRBUFSZ, mINIPath.Get()); mState.mMidiOutDev.Set(buf);
-            
-            mState.mMidiInChan = GetPrivateProfileInt("midi", "inchan", 0, mINIPath.Get()); // 0 is any
-            mState.mMidiOutChan = GetPrivateProfileInt("midi", "outchan", 0, mINIPath.Get()); // 1 is first chan
+            writeToLog("JSON parse error: " << e.what() << std::endl);
+            auto t = e.what();
+            cabAssert(false, "Can't parse settings file");
         }
         
         // if settings file doesn't exist, populate with default values, otherwise overrwrite
-        UpdateINI();
+        UpdateSettings();
     }
     else   // folder doesn't exist - make folder and make file
     {
 #if defined OS_WIN
         // folder doesn't exist - make folder and make file
-        CreateDirectory(mINIPath.Get(), NULL);
-        mINIPath.Append("settings.ini");
-        UpdateINI(); // will write file if doesn't exist
+        CreateDirectory(mJSONPath.c_str(), NULL);
+        mJSONPath+=("\\settings.json");
+        UpdateSettings(); // will write file if doesn't exist
 #elif defined OS_MAC
         mode_t process_mask = umask(0);
-        int result_code = mkdir(mINIPath.Get(), S_IRWXU | S_IRWXG | S_IRWXO);
+        int result_code = mkdir(mJSONPath.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
         umask(process_mask);
         
         if(!result_code)
         {
-            mINIPath.Append("\\settings.ini");
-            UpdateINI(); // will write file if doesn't exist
+            mJSONPath+=("\\settings.json");
+            UpdateSettings(); // will write file if doesn't exist
         }
         else
         {
@@ -301,42 +341,128 @@ bool IPlugAPPHost::InitState()
     return true;
 }
 
-void IPlugAPPHost::UpdateINI()
+void IPlugAPPHost::UpdateSettings()
 {
-    char buf[STRBUFSZ]; // temp buffer for writing integers to profile strings
-    const char* ini = mINIPath.Get();
+	nlohmann::json settingsJSON, deviceJSON;
+
+    settingsJSON["currentConfig"]["audio"]["driver"] = mState.mAudioDriverType;
+    settingsJSON["currentConfig"]["audio"]["inputDevice"] = mState.mAudioInDev.Get();
+    settingsJSON["currentConfig"]["audio"]["outputDevice"] = mState.mAudioOutDev.Get();
+    settingsJSON["currentConfig"]["audio"]["in1"] = mState.mAudioInChanL;
+    settingsJSON["currentConfig"]["audio"]["in2"] = mState.mAudioInChanR;
+    settingsJSON["currentConfig"]["audio"]["out1"] = mState.mAudioOutChanL;
+    settingsJSON["currentConfig"]["audio"]["out2"] = mState.mAudioOutChanR;
+    settingsJSON["currentConfig"]["audio"]["buffer"] = mState.mBufferSize;
+    settingsJSON["currentConfig"]["audio"]["sr"] = mState.mAudioSR;
+    settingsJSON["currentConfig"]["midi"]["inputDevice"] = mState.mMidiInDev.Get();
+    settingsJSON["currentConfig"]["midi"]["outputDevice"] = mState.mMidiOutDev.Get();
+    settingsJSON["currentConfig"]["midi"]["inChan"] = mState.mMidiInChan;
+    settingsJSON["currentConfig"]["midi"]["outChan"] = mState.mMidiOutChan;
+
+#ifdef OS_WIN
+    settingsJSON["audioDrivers"] = { "DirectSound", "ASIO" };
+#elif defined OS_MAC
+    settingsJSON["systemAudioMidiIOListing"]["audioDrivers"] = "CoreAudio";
+#else
+    cabAssert(false, "Not implemented");
+#endif
     
-    sprintf(buf, "%u", mState.mAudioDriverType);
-    WritePrivateProfileString("audio", "driver", buf, ini);
+    settingsJSON["currentConfig"]["jsSourceDir"] = mState.mJsSourceDirectory;
     
-    WritePrivateProfileString("audio", "indev", mState.mAudioInDev.Get(), ini);
-    WritePrivateProfileString("audio", "outdev", mState.mAudioOutDev.Get(), ini);
-    
-    sprintf(buf, "%u", mState.mAudioInChanL);
-    WritePrivateProfileString("audio", "in1", buf, ini);
-    sprintf(buf, "%u", mState.mAudioInChanR);
-    WritePrivateProfileString("audio", "in2", buf, ini);
-    sprintf(buf, "%u", mState.mAudioOutChanL);
-    WritePrivateProfileString("audio", "out1", buf, ini);
-    sprintf(buf, "%u", mState.mAudioOutChanR);
-    WritePrivateProfileString("audio", "out2", buf, ini);
-    //sprintf(buf, "%u", mState.mAudioInIsMono);
-    //WritePrivateProfileString("audio", "monoinput", buf, ini);
-    
-    WDL_String str;
-    str.SetFormatted(32, "%i", mState.mBufferSize);
-    WritePrivateProfileString("audio", "buffer", str.Get(), ini);
-    
-    str.SetFormatted(32, "%i", mState.mAudioSR);
-    WritePrivateProfileString("audio", "sr", str.Get(), ini);
-    
-    WritePrivateProfileString("midi", "indev", mState.mMidiInDev.Get(), ini);
-    WritePrivateProfileString("midi", "outdev", mState.mMidiOutDev.Get(), ini);
-    
-    sprintf(buf, "%u", mState.mMidiInChan);
-    WritePrivateProfileString("midi", "inchan", buf, ini);
-    sprintf(buf, "%u", mState.mMidiOutChan);
-    WritePrivateProfileString("midi", "outchan", buf, ini);
+    RtAudio audio;
+    RtMidiIn midiIn;
+    RtMidiOut midiOut;
+
+    unsigned int deviceCount = audio.getDeviceCount();
+    int inputCnt = 1;
+    int outputCnt = 1;
+    for (unsigned int i = 0; i < deviceCount; ++i)
+    {
+        // Get information about each device and save to settings.ini file
+        RtAudio::DeviceInfo info = audio.getDeviceInfo(i);
+
+        // Handle output devices
+        if (info.outputChannels > 0)
+        {
+            const std::string outs = "output" + std::to_string(outputCnt);
+            auto outputDevice = info.name;
+            // Remove manufacturer from device list...
+            size_t colonPos = outputDevice.find(':');
+            if (colonPos != std::string::npos)
+                outputDevice = outputDevice.substr(colonPos + 1);  // Skip the ':' character
+            //remove any leading spaces
+            outputDevice.erase(outputDevice.begin(), std::find_if(outputDevice.begin(), outputDevice.end(), [](unsigned char ch) {
+                return !std::isspace(ch);
+            }));
+            
+            nlohmann::json j;
+            j["deviceNum"] = outputCnt;
+            j["numChannels"] = info.outputChannels;
+            j["sampleRates"] = info.sampleRates;
+            settingsJSON["systemAudioMidiIOListing"]["audioOutputDevices"][outputDevice] = j;
+            outputCnt++;
+        }
+
+        // Handle input devices
+        if (info.inputChannels > 0)
+        {
+            const std::string ins = "input" + std::to_string(inputCnt);
+            auto inputDevice = info.name;
+            // Remove manufacturer from device list...
+            size_t colonPos = inputDevice.find(':');
+            if (colonPos != std::string::npos)
+                inputDevice = inputDevice.substr(colonPos + 1);  // Skip the ':' character
+            //remove any leading spaces
+            inputDevice.erase(inputDevice.begin(), std::find_if(inputDevice.begin(), inputDevice.end(), [](unsigned char ch) {
+                return !std::isspace(ch);
+            }));
+
+            nlohmann::json j;
+            j["deviceId"] = inputCnt;
+            j["numChannels"] = info.inputChannels;
+
+            settingsJSON["systemAudioMidiIOListing"]["audioInputDevices"][inputDevice] = j;
+            inputCnt++;
+        }
+    }
+
+    // Get the default output device ID
+    unsigned int defaultOutputDevice = audio.getDefaultOutputDevice();
+    auto info = audio.getDeviceInfo(defaultOutputDevice);
+    nlohmann::json json;
+    json["numChannels"] = info.outputChannels;
+    json["sampleRates"] = info.sampleRates;
+    settingsJSON["systemAudioMidiIOListing"]["audioOutputDevices"]["Default Device"] = json;
+
+    // Get the number of input devices
+    inputCnt = 1;
+    outputCnt = 1;
+    unsigned int inputCount = midiIn.getPortCount();
+    for (unsigned int i = 0; i < inputCount; ++i) 
+    {
+        nlohmann::json j;
+        j["deviceId"] = i;
+        settingsJSON["systemAudioMidiIOListing"]["midiInputDevices"][midiIn.getPortName(i)] = j;
+    }
+
+    // Get the number of output devices
+    unsigned int outputCount = midiOut.getPortCount();
+    for (unsigned int i = 0; i < outputCount; ++i) 
+    {
+        nlohmann::json j;
+        j["deviceId"] = i;
+        settingsJSON["systemAudioMidiIOListing"]["midiOutputDevices"][midiOut.getPortName(i)] = j;
+    }
+        
+    std::ofstream settingsFile(mJSONPath);
+    if (settingsFile.is_open()) {
+        settingsFile << settingsJSON.dump(4);  // Pretty print JSON with 4-space indentation
+        settingsFile.close();
+        std::cout << "Settings written to: " << mJSONPath << std::endl;
+    } else {
+        std::cerr << "Unable to open file for writing: " << mJSONPath << std::endl;
+    }
+
 }
 
 std::string IPlugAPPHost::GetAudioDeviceName(int idx) const
@@ -584,7 +710,7 @@ bool IPlugAPPHost::TryToChangeAudio()
     {
         DBGMSG("couldn't find previous audio device, reseting to default\n");
         
-        UpdateINI();
+        UpdateSettings();
     }
     
     if (failedToFindDevice)
@@ -607,7 +733,7 @@ bool IPlugAPPHost::SelectMIDIDevice(ERoute direction, const char* pPortName)
         if(port == -1)
         {
             mState.mMidiInDev.Set(OFF_TEXT);
-            UpdateINI();
+            UpdateSettings();
             port = 0;
         }
         
@@ -649,7 +775,7 @@ bool IPlugAPPHost::SelectMIDIDevice(ERoute direction, const char* pPortName)
         if(port == -1)
         {
             mState.mMidiOutDev.Set(OFF_TEXT);
-            UpdateINI();
+            UpdateSettings();
             port = 0;
         }
         

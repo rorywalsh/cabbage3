@@ -15,7 +15,7 @@
 //=====================================================================================
 int CabbageSetValue::setValue(int pass)
 {
-    auto* hostData = static_cast<Cabbage*>(csound->host_data());
+    auto* hostData = static_cast<cabbage::Engine*>(csound->host_data());
 
     if(csound->get_csound()->GetChannelPtr(csound->get_csound(), (void**)&value, args.str_data(0).data,
                                                        CSOUND_CONTROL_CHANNEL | CSOUND_INPUT_CHANNEL) == CSOUND_SUCCESS)
@@ -45,7 +45,7 @@ int CabbageSetValue::setValue(int pass)
 //=====================================================================================
 int CabbageSetPerfString::setIdentifier(int /*pass*/)
 {
-    auto* hostData = static_cast<Cabbage*>(csound->host_data());
+    auto* hostData = static_cast<cabbage::Engine*>(csound->host_data());
     const int argIndex = 2;
     auto data = getIdentData(csound, args, true, 1, argIndex);
     data.type = CabbageOpcodeData::MessageType::Identifier;
@@ -82,7 +82,7 @@ int CabbageSetPerfString::setIdentifier(int /*pass*/)
 int CabbageSetInitString::setIdentifier(int pass)
 {
 
-    auto* hostData = static_cast<Cabbage*>(csound->host_data());
+    auto* hostData = static_cast<cabbage::Engine*>(csound->host_data());
     const int argIndex = 1;
     auto data = getIdentData(csound, args, true, 0, argIndex);
     data.type = CabbageOpcodeData::MessageType::Identifier;
@@ -108,7 +108,7 @@ int CabbageSetInitString::setIdentifier(int pass)
 //=====================================================================================
 int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
 {
-    auto* hostData = static_cast<Cabbage*>(csound->host_data());
+    auto* hostData = static_cast<cabbage::Engine*>(csound->host_data());
     auto data = getIdentData(csound, args, true, 1, 2);
     data.type = CabbageOpcodeData::MessageType::Identifier;
     
@@ -141,7 +141,7 @@ int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
 //=====================================================================================
 int CabbageSetInitMYFLT::setIdentifier(int /*pass*/)
 {
-    auto* hostData = static_cast<Cabbage*>(csound->host_data());
+    auto* hostData = static_cast<cabbage::Engine*>(csound->host_data());
     auto data = getIdentData(csound, args, true, 0, 1);
     data.type = CabbageOpcodeData::MessageType::Identifier;
     const int argIndex = 1;

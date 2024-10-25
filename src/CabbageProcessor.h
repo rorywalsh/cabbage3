@@ -24,8 +24,7 @@
 #include "IPlugPaths.h"
 #include "CabbageParser.h"
 #include "Cabbage.h"
-#include <future> // For std::async and std::future
-#include <mutex>  // For std::mutex and std::lock_guard
+
 
 #ifndef CabbageApp
 #include "CabbageServer.h"
@@ -79,6 +78,7 @@ public:
     void OnReset() override;
     void OnIdle() override;
     bool OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData) override;
+
     void OnParamChange(int paramIdx) override;
     
     //Csound API functions for deailing with midi input
@@ -88,23 +88,22 @@ public:
     static int WriteMidiData (CSOUND* csound, void* userData, const unsigned char* mbuf, int nbytes);
    
     void stopProcessing(){        cabbage.stopProcessing();    }
-    Cabbage& getCabbage(){        return cabbage;              }
+    cabbage::Engine& getCabbageEngine(){        return cabbage;              }
     
     void setupCallbacks();
     void interfaceHasLoaded();
     void updateJSWidgets();
+
+    void pollFIFOQueue();
     
 #ifdef CabbageApp
     std::function<void(CabbageOpcodeData)> hostCallback = nullptr;
 #endif
     
 private:
-    
-    TimerThread timer;
-    std::mutex mMutex;
-    void timerCallback();
+
     std::string host = {"127.0.0.1"};
-    Cabbage cabbage;
+    cabbage::Engine cabbage;
     std::function<void(std::string)> triggerScript;
     int csndIndex = 0;
     int csdKsmps = 0;
