@@ -15,7 +15,7 @@ cabbage(*this, csdFile)
 }
 #else
 CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info)
-: iplug::Plugin(info, iplug::MakeConfig(cabbage::Engine::getNumberOfParameters(""), 0)),
+: iplug::Plugin(info, iplug::MakeConfig(Cabbage::getNumberOfParameters(""), 0)),
 cabbage(*this, "")
 {
     
@@ -53,7 +53,7 @@ void CabbageProcessor::setupCallbacks()
     {
 #ifndef CabbageApp
         if(!server.isThreadRunning())
-            server.start(cabbage::File::getCsdPath());
+            server.start(CabbageFile::getCsdPath());
         const std::string mntPoint = "http://127.0.0.1:" + std::to_string(server.getCurrentPort()) + "/index.html";
         LoadURL(mntPoint.c_str());
 #endif
@@ -265,7 +265,7 @@ void CabbageProcessor::OnIdle()
             {
                 std::string message(cabbage.getCsound()->GetFirstMessage());
                 writeToVSCode(message);
-                EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
+                EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str(), false);
                 cabbage.getCsound()->PopFirstMessage();
             }
 
@@ -273,7 +273,7 @@ void CabbageProcessor::OnIdle()
             if (data.type == CabbageOpcodeData::MessageType::Value)
             {
                 message = cabbage.getWidgetUpdateScript(data.channel, data.cabbageJson["value"].get<float>());
-                EvaluateJavaScript(message.c_str());
+                EvaluateJavaScript(message.c_str(), false);
             }
             else
             {
@@ -290,11 +290,11 @@ void CabbageProcessor::OnIdle()
                     else
                     {
                         //                        _log(data.cabbageJson.dump(4));
-                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+                        CabbageParser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
                         message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
                     }
                 }
-                EvaluateJavaScript(message.c_str());
+                EvaluateJavaScript(message.c_str(), false);
             }
 #endif
         }
