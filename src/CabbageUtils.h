@@ -35,33 +35,42 @@ EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 
 #include <algorithm> // for std::sort
 
-namespace cabbage {
 
-#define writeToLog(message) \
-    do { \
-        std::ostringstream oss; \
-        oss << "Cabbage DEBUG: " << __FILE__ << " (" << __LINE__ << ") " \
-            << __FUNCTION__ << ": " << message \
-            << " [Thread ID: " << std::this_thread::get_id() << "]" << std::endl; \
-        std::string logMessage = oss.str(); \
-        std::cout << logMessage; \
-    } while (0)
 
-#define writeToVSCode(message) \
-    do { \
-        std::ostringstream oss2; \
-        oss2 << message << std::endl; \
-        std::string logMessage = oss2.str(); \
-        std::cout << logMessage; \
-    } while (0)
+// Function to write detailed log messages
+template<typename... Args>
+void writeDetailed(const char* file, int line, const char* function, Args&&... args) {
+    std::ostringstream oss;
+    oss << "Cabbage DEBUG: " << file << " (" << line << ") "
+        << function << ": ";
+
+    // Use fold expression to append all arguments to the string stream
+    (oss << ... << std::forward<Args>(args)); // C++17 fold expression
+
+    oss << " [Thread ID: " << std::this_thread::get_id() << "]" << std::endl;
+
+    std::cout << oss.str();
+}
+
+template<typename... Args>
+void writeBasic(Args&&... args) {
+    std::ostringstream oss;
+    // Use fold expression to append all arguments to the string stream
+    (oss << ... << std::forward<Args>(args)); // C++17 fold expression
+    std::cout << oss.str();
+}
+// Variadic macro to simplify calling the writeDetailed function
+#define LOG_VERBOSE(...) writeDetailed(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+#define LOG_INFO(...) writeBasic(__VA_ARGS__)
 
 // Function to handle debug output in VS
-//inline void logToDebug(const std::string& message) {
-//#ifdef _WIN32
-//    OutputDebugStringA(message.c_str());
-//#endif
-//}
+inline void logToDebug(const std::string& message) {
+#ifdef _WIN32
+    OutputDebugStringA(message.c_str());
+#endif
+}
 
+namespace cabbage {
 
 
 class Utils {
@@ -357,8 +366,7 @@ public:
             }
             catch (const nlohmann::json::parse_error& e)
             {
-                writeToLog("JSON parse error: " << e.what() << "\nOffending JSON:\n" << cabbage::Utils::getJsonWithLineNumbers(propsString));
-                //                std::cerr << "JSON parse error: " << e.what() << std::endl;
+                LOG_INFO("JSON parse error: ", e.what(), "\nOffending JSON:\n", cabbage::Utils::getJsonWithLineNumbers(propsString));
                 return {};
             }
         }
@@ -771,7 +779,7 @@ public:
             return cabbage::File::extractPropsFromJS(jsFileContents);
         }
         
-        writeToLog("Invalid widget type:" << widgetType);
+        LOG_INFO("Invalid widget type:", widgetType);
         cabAssert(false, "Invalid widget type:");
         return {};
     }

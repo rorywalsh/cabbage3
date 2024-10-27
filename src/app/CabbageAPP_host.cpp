@@ -42,7 +42,6 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
     
     webSocket.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg)
             {
-                writeToLog("Incoming message");
                 auto& cabbage = cabbageProcessor->getCabbageEngine();
                 if (msg->type == ix::WebSocketMessageType::Message)
                 {
@@ -107,12 +106,12 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                         }
                     }
                     catch (nlohmann::json::exception& e) {
-                        writeToLog("Error:" << e.what());
+                        LOG_VERBOSE("Error:", e.what());
                     }
                 }
                 else if (msg->type == ix::WebSocketMessageType::Open)
                 {
-                    writeToLog	("Connection established" << std::flush);
+                    LOG_VERBOSE("Connection established");
                     //if connection is ope we need to send all parse jSON objects to VS-Code..
                     for( auto& w : cabbage.getWidgets())
                     {
@@ -126,12 +125,12 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                 }
                 else if (msg->type == ix::WebSocketMessageType::Close)
                 {
-                    writeToLog("websocket connection closed..");
+                    LOG_VERBOSE("websocket connection closed..");
                 }
                 else if (msg->type == ix::WebSocketMessageType::Error)
                 {
                     // Maybe SSL is not configured properly
-                    writeToLog("Connection error: " << msg->errorInfo.reason);
+                    LOG_VERBOSE("Connection error: ", msg->errorInfo.reason);
                     //std::cout << "> " << std::flush;
                 }
             }
@@ -318,7 +317,7 @@ bool IPlugAPPHost::InitState()
         }
         catch (const nlohmann::json::parse_error& e)
         {
-            writeToLog("JSON parse error: " << e.what() << std::endl);
+            LOG_VERBOSE("JSON parse error: ", e.what());
             auto t = e.what();
             cabAssert(false, "Can't parse settings file");
         }

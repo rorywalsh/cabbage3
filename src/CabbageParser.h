@@ -125,12 +125,12 @@ public:
             }
             else
             {
-                std::cerr << "JSON content is not an array" << std::endl;
+                LOG_INFO("JSON content is not an array");
             }
         }
         catch (const nlohmann::json::parse_error& e)
         {
-            writeToLog("JSON parse error: " << e.what() << std::endl);
+            LOG_VERBOSE("JSON parse error: ", e.what());
         }
     }
     
@@ -181,7 +181,7 @@ public:
                     }
                     else
                     {
-                        writeToLog("Expected a JSON object for \"bounds\" key...");
+                        LOG_INFO("Expected a JSON object for \"bounds\" key...");
                     }
                 }
                 else if (key == "range")
@@ -195,7 +195,7 @@ public:
                     }
                     else
                     {
-                        writeToLog("Expected a JSON object for \"range\" key...");
+                        LOG_INFO("Expected a JSON object for \"range\" key...");
                     }
                 }
                 else if (key == "size")
@@ -209,7 +209,7 @@ public:
                     }
                     else
                     {
-                        writeToLog("Expected a JSON object for \"size\" key...");
+                        LOG_INFO("Expected a JSON object for \"size\" key...");
                     }
                 }
                 else if (key == "sampleRange")
@@ -221,7 +221,7 @@ public:
                     }
                     else
                     {
-                        std::cerr << "The sampleRange identifier takes 2 parameters" << std::endl;
+                        LOG_INFO("The sampleRange identifier takes 2 parameters");
                     }
                 }
                 else if (key == "populate")
@@ -262,7 +262,7 @@ public:
                     }
                     else
                     {
-                        std::cerr << "The populate identifier takes 2 parameters" << std::endl;
+                        LOG_INFO("The populate identifier takes 2 parameters");
                     }
                 }
                 else if (key == "items") // items is provided as an array..
@@ -279,7 +279,7 @@ public:
                     }
                     else
                     {
-                        std::cerr << "The items identifier takes string parameters" << std::endl;
+                        LOG_INFO("The items identifier takes string parameters");
                     }
                 }
                 else if (key == "samples")
@@ -290,7 +290,7 @@ public:
                     }
                     else
                     {
-                        std::cerr << "The samples identifier takes numeric parameters" << std::endl;
+                        LOG_INFO("The samples identifier takes numeric parameters");
                     }
                 }
                 else if (key.find(cabbage::Utils::toLower("colour")) != std::string::npos)
@@ -324,7 +324,7 @@ public:
                     }
                     else
                     {
-                        std::cerr << "Token does not contain valid colour information" << std::endl;
+                        LOG_INFO("Token does not contain valid colour information");
                     }
                     
                     
@@ -392,7 +392,7 @@ public:
                     }
                     else
                     {
-                        std::cerr << "The " << key << " identifier has no valid arguments" << std::endl;
+                        LOG_INFO("The ", key, " property has no valid arguments");
                     }
                 }
             }
@@ -400,7 +400,7 @@ public:
         }
         catch (const nlohmann::json::exception& e)
         {
-            std::cerr << "JSON exception: " << e.what() << std::endl;
+            LOG_INFO("JSON exception: ", e.what());
         }
         
     }
