@@ -326,7 +326,6 @@ void IWebView::LoadFile(const char* fileName, const char* bundleID)
 void IWebView::EvaluateJavaScript(const char* scriptStr, completionHandlerFunc func)
 {
   IPLUG_WKWEBVIEW* webView = (__bridge IPLUG_WKWEBVIEW*) mWKWebView;
-  
   if (webView && ![webView isLoading])
   {
     [webView evaluateJavaScript:[NSString stringWithUTF8String:scriptStr] completionHandler:^(NSString *result, NSError *error) {

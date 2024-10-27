@@ -14,12 +14,12 @@
 #include "CabbageParser.h"
 #include <readerwriterqueue.h>
 //choc classes for reading audio files
-#include "choc/audio/choc_AudioFileFormat.h"
-#include "choc/audio/choc_AudioFileFormat_Ogg.h"
-#include "choc/audio/choc_AudioFileFormat_WAV.h"
-#include "choc/audio/choc_AudioFileFormat_FLAC.h"
-#include "choc/audio/choc_AudioFileFormat_MP3.h"
-#include "choc/audio/choc_SampleBuffers.h"
+#include "../../choc/audio/choc_AudioFileFormat.h"
+#include "../../choc/audio/choc_AudioFileFormat_Ogg.h"
+#include "../../choc/audio/choc_AudioFileFormat_WAV.h"
+#include "../../choc/audio/choc_AudioFileFormat_FLAC.h"
+#include "../../choc/audio/choc_AudioFileFormat_MP3.h"
+#include "../../choc/audio/choc_SampleBuffers.h"
 
 
 class CabbageProcessor;

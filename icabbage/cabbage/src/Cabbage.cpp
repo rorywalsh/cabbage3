@@ -98,7 +98,7 @@ bool Engine::setupCsound()
             //Csound could not compile your file?
             while (csound->GetMessageCnt() > 0)
             {
-                writeToLog(csound->GetFirstMessage());
+                LOG_INFO(csound->GetFirstMessage());
                 csound->PopFirstMessage();
             }
             return false;
@@ -134,8 +134,8 @@ bool Engine::setupCsound()
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {
-                        writeToLog(w.dump(4));
-                        writeToLog(e.what());
+                        LOG_VERBOSE(w.dump(4));
+                        LOG_VERBOSE(e.what());
                         cabAssert(false, "");
                     }
                 }
@@ -154,8 +154,8 @@ bool Engine::setupCsound()
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {
-                        writeToLog(w.dump(4));
-                        writeToLog(e.what());
+                        LOG_INFO(w.dump(4));
+                        LOG_INFO(e.what());
                         //                        cabAssert(false, "");
                     }
                 }
@@ -338,11 +338,11 @@ void Engine::setTableJSON(std::string channel, std::vector<double> samples, nloh
     
     //this is a condensed version of the sample data that is passed around between C++ and JS
     std::vector<double> widgetSampleData;
-    const int startSample = jsonObj["startSample"].get<int>() != -1 ? jsonObj["startSample"].get<int>() : 0;
-    const int endSample = jsonObj["endSample"].get<int>() != -1 ? jsonObj["endSample"].get<int>() : static_cast<int>(samples.size());
+    const int startSample = jsonObj["sample"]["start"].get<int>() != -1 ? jsonObj["sample"]["start"].get<int>() : 0;
+    const int endSample = jsonObj["sample"]["end"].get<int>() != -1 ? jsonObj["sample"]["end"].get<int>() : static_cast<int>(samples.size());
     
     //no point in sending more samples that can be displayed per pixel...
-    const float incr = float(endSample-startSample) / (jsonObj["width"].get<float>())-1;
+    const float incr = float(endSample-startSample) / (jsonObj["bounds"]["width"].get<float>())-1;
     
     std::string data = "samples(";
     for(float i = startSample ; i < static_cast<int>(samples.size()) ; i+=incr)

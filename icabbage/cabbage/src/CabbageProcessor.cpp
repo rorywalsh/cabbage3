@@ -15,14 +15,17 @@ cabbage(*this, csdFile)
 }
 #else
 CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info)
-: iplug::Plugin(info, iplug::MakeConfig(Cabbage::getNumberOfParameters(""), 0)),
+: iplug::Plugin(info, iplug::MakeConfig(cabbage::Engine::getNumberOfParameters(""), 0)),
 cabbage(*this, "")
 {
     
     cabbage.getMidiQueue().clear();
     
     if(!cabbage.setupCsound())
+    {
+        LOG_INFO("Csound file could not be compiled");
         cabAssert(false, "couldn't set up Csound");
+    }
     
 #ifdef DEBUG
     SetEnableDevTools(true);
@@ -32,7 +35,7 @@ cabbage(*this, "")
     setupCallbacks();
 
     //timer.Start(this, &CabbageProcessor::timerCallback, 10);
-    writeToLog("Cabbage Processor constructor finished setting up");
+    LOG_VERBOSE("Cabbage Processor constructor finished setting up\n");
 }
 #endif
 
@@ -53,7 +56,7 @@ void CabbageProcessor::setupCallbacks()
     {
 #ifndef CabbageApp
         if(!server.isThreadRunning())
-            server.start(CabbageFile::getCsdPath());
+            server.start(cabbage::File::getCsdPath());
         const std::string mntPoint = "http://127.0.0.1:" + std::to_string(server.getCurrentPort()) + "/index.html";
         LoadURL(mntPoint.c_str());
 #endif
@@ -73,7 +76,7 @@ void CabbageProcessor::setupCallbacks()
                     }
                 }
                 catch (nlohmann::json::exception& e) {
-                    writeToLog(e.what());
+                    LOG_VERBOSE(e.what());
 //                    cabAssert(false, "");
                 }
             }
@@ -127,7 +130,7 @@ void CabbageProcessor::setupCallbacks()
 //===============================================================================
 void CabbageProcessor::interfaceHasLoaded()
 {
-    writeToLog("Interface has loaded..");
+    LOG_VERBOSE("Interface has loaded.");
     uiIsOpen = true;
     allowDequeuing = true;
 }
@@ -139,7 +142,6 @@ void CabbageProcessor::updateJSWidgets()
     {
         if(w.contains("channel")) //only let valid object through.
         {
-            writeToLog(w.dump(4));
             auto result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
             EvaluateJavaScript(result.c_str());
         }
@@ -170,7 +172,6 @@ void CabbageProcessor::OnParamChange(int paramIdx)
             p.setValue(GetParam(paramIdx)->Value());
             //update channel..
             cabbage.setControlChannel(p.name.c_str(), GetParam(paramIdx)->Value());
-            writeToLog(p.name.c_str() << ":" << GetParam(paramIdx)->Value());
         }
     }
 }
@@ -231,7 +232,7 @@ void CabbageProcessor::OnIdle()
         while (cabbage.getCsound()->GetMessageCnt() > 0)
         {
             std::string message(cabbage.getCsound()->GetFirstMessage());
-            writeToVSCode(message);
+            LOG_INFO(message);
             EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
             cabbage.getCsound()->PopFirstMessage();
         }
@@ -264,8 +265,8 @@ void CabbageProcessor::OnIdle()
             while (cabbage.getCsound()->GetMessageCnt() > 0)
             {
                 std::string message(cabbage.getCsound()->GetFirstMessage());
-                writeToVSCode(message);
-                EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str(), false);
+                LOG_INFO(message);
+                EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
                 cabbage.getCsound()->PopFirstMessage();
             }
 
@@ -273,7 +274,7 @@ void CabbageProcessor::OnIdle()
             if (data.type == CabbageOpcodeData::MessageType::Value)
             {
                 message = cabbage.getWidgetUpdateScript(data.channel, data.cabbageJson["value"].get<float>());
-                EvaluateJavaScript(message.c_str(), false);
+                EvaluateJavaScript(message.c_str());
             }
             else
             {
@@ -282,19 +283,19 @@ void CabbageProcessor::OnIdle()
                 if (widgetOpt.has_value())
                 {
                     auto& j = widgetOpt.value().get();
-                    if (j["type"].get<std::string>() == "gentable")
+                    // one of the special cases where we need to check the widget type
+                    if (j["type"].get<std::string>() == "genTable")
                     {
                         cabbage.updateFunctionTable(data, j);
                         message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
                     }
                     else
                     {
-                        //                        _log(data.cabbageJson.dump(4));
-                        CabbageParser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
                         message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
                     }
                 }
-                EvaluateJavaScript(message.c_str(), false);
+                EvaluateJavaScript(message.c_str());
             }
 #endif
         }
