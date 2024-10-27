@@ -9,7 +9,7 @@
 	<key>CFBundleGetInfoString</key>
 	<string>Cabbage v1.0.0 Copyright 2020 Acme Inc</string>
 	<key>CFBundleIconFile</key>
-	<string>Cabbage.icns</string>
+	<string>CabbageApp.icns</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.CabbageAudio.app.Cabbage</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -31,7 +31,7 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>10.11.0</string>
 	<key>NSMainNibFile</key>
-	<string>Cabbage-macOS-MainMenu</string>
+	<string>CabbageApp-macOS-MainMenu</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app needs mic access to process audio.</string>
 	<key>NSPrincipalClass</key>
