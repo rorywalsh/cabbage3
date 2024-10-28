@@ -29,6 +29,6 @@ and
 
 **Cabbage: Path To JS Source**
 
-The folder you need to point to for the JS source is `vscabbage/src/`. Once these paths are set up can try opening and running some of the examples in the `test/widgets` folder, the slider examples should all work fine for testing. `Ctrl+S` will run the new instrument. `Ctrl+E` will stop the instrument and bring you to edit mode. 
+The folder you need to point to for the JS source is `vscabbage/src/`. Once these paths are set up can try opening and running some of the examples in the `cabbage3/test/widgets` folder, the slider examples should all work fine for testing. `Ctrl+S` will run the new instrument. `Ctrl+E` will stop the instrument and bring you to edit mode. 
 
 
