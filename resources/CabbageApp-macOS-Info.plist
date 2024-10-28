@@ -9,7 +9,7 @@
 	<key>CFBundleGetInfoString</key>
 	<string>Cabbage v1.0.0 Copyright 2020 Acme Inc</string>
 	<key>CFBundleIconFile</key>
-	<string>Cabbage.icns</string>
+	<string>CabbageApp.icns</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.CabbageAudio.app.Cabbage</string>
 	<key>CFBundleInfoDictionaryVersion</key>
