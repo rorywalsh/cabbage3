@@ -605,7 +605,7 @@ public:
         std::ifstream file(getSettingsFile());
         if (!file.is_open())
         {
-            std::cerr << "Error: Could not open the file " << getSettingsFile() << std::endl;
+            //std::cerr << "Error: Could not open the file " << getSettingsFile() << std::endl;
             return "";
         }
         

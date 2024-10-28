@@ -32,12 +32,85 @@ UINT gSCROLLMSG;
 IPlugAPPHost::IPlugAPPHost(std::string file)
 : csdFile(file), mIPlug(MakePlug(InstanceInfo{this}, file))
 {
-    std::cout << file;
-    cabbageProcessor = dynamic_cast<CabbageProcessor*>(mIPlug.get());
     
+    
+}
+
+IPlugAPPHost::~IPlugAPPHost()
+{
+    mExiting = true;
+    
+    CloseAudio();
+    
+    
+    if(mMidiIn)
+        mMidiIn->cancelCallback();
+    
+    if(mMidiOut)
+        mMidiOut->closePort();
+}
+
+//static
+IPlugAPPHost* IPlugAPPHost::Create(std::string filePath)
+{
+    sInstance = std::make_unique<IPlugAPPHost>(filePath);
+    return sInstance.get();
+}
+
+bool IPlugAPPHost::InitProcessor()
+{
+    cabbageProcessor = dynamic_cast<CabbageProcessor*>(mIPlug.get());
     parameters = cabbageProcessor->getCabbageEngine().getWidgets();
 
+   
+    //this callback is triggered from CabbageProcessor.cpp and is responsible for
+    //updating the widgets in the VSCode web panel
+    auto callback = [&](CabbageOpcodeData data) {
+            auto& cabbage = cabbageProcessor->getCabbageEngine();
+            auto widgetOpt = cabbage.getWidget(data.channel);
+            if (widgetOpt.has_value())
+            {
+                auto& j = widgetOpt.value().get();
+                if(j["type"].get<std::string>() == "gentable")
+                {
+                    cabbage.updateFunctionTable(data, j);
+                    nlohmann::json msg;
+                    msg["command"] = "widgetUpdate";
+                    msg["channel"] = data.channel;
+                    msg["data"] = j.dump();
+                    webSocket.send(msg.dump());
+                }
+                else{
+                    if(data.type == CabbageOpcodeData::MessageType::Value)
+                    {
+                        nlohmann::json json;
+                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+                        nlohmann::json msg;
+                        msg["command"] = "widgetUpdate";
+                        msg["channel"] = data.channel;
+                        msg["value"] = j["value"].get<float>();
+                        webSocket.send(msg.dump());
+//                        writeToLog(msg.dump());
+                    }
+                    else
+                    {
+//                        nlohmann::json json;
+//                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+//                        nlohmann::json msg;
+//                        msg["command"] = "widgetUpdate";
+//                        msg["channel"] = data.channel;
+//                        msg["data"] = j.dump();
+//                        webSocket.send(msg.dump());
+                    }
+                }
+            }
+        };
     
+    cabbageProcessor->hostCallback = callback;
+}
+
+bool IPlugAPPHost::InitWebSocket()
+{
     webSocket.setUrl("ws://localhost:9991");
     
     webSocket.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg)
@@ -139,76 +212,11 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
     // Now that our callback is setup, we can start our background thread and receive messages
     webSocket.start();
     
-    //this callback is triggered from CabbageProcessor.cpp and is responsible for
-    //updating the widgets in the VSCode web panel
-    auto callback = [&](CabbageOpcodeData data) {
-            auto& cabbage = cabbageProcessor->getCabbageEngine();
-            auto widgetOpt = cabbage.getWidget(data.channel);
-            if (widgetOpt.has_value())
-            {
-                auto& j = widgetOpt.value().get();
-                if(j["type"].get<std::string>() == "gentable")
-                {
-                    cabbage.updateFunctionTable(data, j);
-                    nlohmann::json msg;
-                    msg["command"] = "widgetUpdate";
-                    msg["channel"] = data.channel;
-                    msg["data"] = j.dump();
-                    webSocket.send(msg.dump());
-                }
-                else{
-                    if(data.type == CabbageOpcodeData::MessageType::Value)
-                    {
-                        nlohmann::json json;
-                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
-                        nlohmann::json msg;
-                        msg["command"] = "widgetUpdate";
-                        msg["channel"] = data.channel;
-                        msg["value"] = j["value"].get<float>();
-                        webSocket.send(msg.dump());
-//                        writeToLog(msg.dump());
-                    }
-                    else
-                    {
-//                        nlohmann::json json;
-//                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
-//                        nlohmann::json msg;
-//                        msg["command"] = "widgetUpdate";
-//                        msg["channel"] = data.channel;
-//                        msg["data"] = j.dump();
-//                        webSocket.send(msg.dump());
-                    }
-                }
-            }
-        };
-    
-    cabbageProcessor->hostCallback = callback;
-    
-}
-
-IPlugAPPHost::~IPlugAPPHost()
-{
-    mExiting = true;
-    
-    CloseAudio();
-    
-    
-    if(mMidiIn)
-        mMidiIn->cancelCallback();
-    
-    if(mMidiOut)
-        mMidiOut->closePort();
-}
-
-//static
-IPlugAPPHost* IPlugAPPHost::Create(std::string filePath)
-{
-    sInstance = std::make_unique<IPlugAPPHost>(filePath);
-    return sInstance.get();
 }
 
 bool IPlugAPPHost::Init()
 {
+    LOG_INFO("\nInit\n");
     mIPlug->SetHost("standalone", mIPlug->GetPluginVersion(false));
     
     if (!InitState())
@@ -239,6 +247,7 @@ void IPlugAPPHost::CloseWindow()
 
 bool IPlugAPPHost::InitState()
 {
+    LOG_INFO("\nInitState\n");
 #if defined OS_WIN
     TCHAR strPath[MAX_PATH_LEN];
     SHGetFolderPathA( NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath );
@@ -287,7 +296,7 @@ bool IPlugAPPHost::InitState()
                 }
             }
             else {
-                std::cerr << "Failed to open the file." << std::endl;
+                std::cerr << "ERROR: Failed to open the settings file. If this is the first time running Cabbage from vscode, you can ignore this error";
             }
                 
             file.close();
@@ -357,7 +366,6 @@ bool IPlugAPPHost::InitState()
 void IPlugAPPHost::UpdateSettings()
 {
 	nlohmann::json settingsJSON, deviceJSON;
-
     settingsJSON["currentConfig"]["audio"]["driver"] = mState.mAudioDriverType;
     settingsJSON["currentConfig"]["audio"]["inputDevice"] = mState.mAudioInDev.Get();
     settingsJSON["currentConfig"]["audio"]["outputDevice"] = mState.mAudioOutDev.Get();
@@ -471,9 +479,9 @@ void IPlugAPPHost::UpdateSettings()
     if (settingsFile.is_open()) {
         settingsFile << settingsJSON.dump(4);  // Pretty print JSON with 4-space indentation
         settingsFile.close();
-        std::cout << "Settings written to: " << mJSONPath << std::endl;
+//        std::cout << "Settings written to: " << mJSONPath << std::endl;
     } else {
-        std::cerr << "Unable to open file for writing: " << mJSONPath << std::endl;
+        std::cerr << "Unable to open settings file for writing: " << mJSONPath << std::endl;
     }
 
 }

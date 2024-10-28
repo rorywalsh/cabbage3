@@ -187,6 +187,8 @@ public:
     void CloseWindow();
     
     bool Init();
+    bool InitProcessor();
+    bool InitWebSocket();
     bool InitState();
     void UpdateSettings();
     
