@@ -72,6 +72,22 @@ inline void logToDebug(const std::string& message) {
 
 namespace cabbage {
 
+//simple utlity function to suppress error noise from rtaudio..
+class StdOut{
+public:
+    static std::streambuf* suppressErrors()
+    {
+        std::ostringstream local;
+        auto cerr_buff = std::cerr.rdbuf();
+        std::cerr.rdbuf(local.rdbuf());
+        return cerr_buff;
+    }
+    
+    // Function to restore std::cerr
+    static void restoreErrors(std::streambuf* originalBuffer) {
+        std::cerr.rdbuf(originalBuffer);  // Restore the original buffer
+    }
+};
 
 class Utils {
 public:
@@ -605,7 +621,7 @@ public:
         std::ifstream file(getSettingsFile());
         if (!file.is_open())
         {
-            std::cerr << "Error: Could not open the file " << getSettingsFile() << std::endl;
+            //std::cerr << "Error: Could not open the file " << getSettingsFile() << std::endl;
             return "";
         }
         

@@ -32,17 +32,89 @@ UINT gSCROLLMSG;
 IPlugAPPHost::IPlugAPPHost(std::string file)
 : csdFile(file), mIPlug(MakePlug(InstanceInfo{this}, file))
 {
-    std::cout << file;
-    cabbageProcessor = dynamic_cast<CabbageProcessor*>(mIPlug.get());
     
+    
+}
+
+IPlugAPPHost::~IPlugAPPHost()
+{
+    mExiting = true;
+    
+    CloseAudio();
+    
+    
+    if(mMidiIn)
+        mMidiIn->cancelCallback();
+    
+    if(mMidiOut)
+        mMidiOut->closePort();
+}
+
+//static
+IPlugAPPHost* IPlugAPPHost::Create(std::string filePath)
+{
+    sInstance = std::make_unique<IPlugAPPHost>(filePath);
+    return sInstance.get();
+}
+
+bool IPlugAPPHost::InitProcessor()
+{
+    cabbageProcessor = dynamic_cast<CabbageProcessor*>(mIPlug.get());
     parameters = cabbageProcessor->getCabbageEngine().getWidgets();
 
+   
+    //this callback is triggered from CabbageProcessor.cpp and is responsible for
+    //updating the widgets in the VSCode web panel
+    auto callback = [&](CabbageOpcodeData data) {
+            auto& cabbage = cabbageProcessor->getCabbageEngine();
+            auto widgetOpt = cabbage.getWidget(data.channel);
+            if (widgetOpt.has_value())
+            {
+                auto& j = widgetOpt.value().get();
+                if(j["type"].get<std::string>() == "gentable")
+                {
+                    cabbage.updateFunctionTable(data, j);
+                    nlohmann::json msg;
+                    msg["command"] = "widgetUpdate";
+                    msg["channel"] = data.channel;
+                    msg["data"] = j.dump();
+                    webSocket.send(msg.dump());
+                }
+                else{
+                    if(data.type == CabbageOpcodeData::MessageType::Value)
+                    {
+                        nlohmann::json json;
+                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+                        nlohmann::json msg;
+                        msg["command"] = "widgetUpdate";
+                        msg["channel"] = data.channel;
+                        msg["value"] = j["value"].get<float>();
+                        webSocket.send(msg.dump());
+//                        writeToLog(msg.dump());
+                    }
+                    else
+                    {
+//                        nlohmann::json json;
+//                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+//                        nlohmann::json msg;
+//                        msg["command"] = "widgetUpdate";
+//                        msg["channel"] = data.channel;
+//                        msg["data"] = j.dump();
+//                        webSocket.send(msg.dump());
+                    }
+                }
+            }
+        };
     
+    cabbageProcessor->hostCallback = callback;
+}
+
+bool IPlugAPPHost::InitWebSocket()
+{
     webSocket.setUrl("ws://localhost:9991");
     
     webSocket.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg)
             {
-                writeToLog("Incoming message");
                 auto& cabbage = cabbageProcessor->getCabbageEngine();
                 if (msg->type == ix::WebSocketMessageType::Message)
                 {
@@ -107,12 +179,12 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                         }
                     }
                     catch (nlohmann::json::exception& e) {
-                        writeToLog("Error:" << e.what());
+                        LOG_VERBOSE("Error:", e.what());
                     }
                 }
                 else if (msg->type == ix::WebSocketMessageType::Open)
                 {
-                    writeToLog	("Connection established" << std::flush);
+                    LOG_VERBOSE("Connection established");
                     //if connection is ope we need to send all parse jSON objects to VS-Code..
                     for( auto& w : cabbage.getWidgets())
                     {
@@ -126,12 +198,12 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
                 }
                 else if (msg->type == ix::WebSocketMessageType::Close)
                 {
-                    writeToLog("websocket connection closed..");
+                    LOG_VERBOSE("websocket connection closed..");
                 }
                 else if (msg->type == ix::WebSocketMessageType::Error)
                 {
                     // Maybe SSL is not configured properly
-                    writeToLog("Connection error: " << msg->errorInfo.reason);
+                    LOG_VERBOSE("Connection error: ", msg->errorInfo.reason);
                     //std::cout << "> " << std::flush;
                 }
             }
@@ -140,72 +212,6 @@ IPlugAPPHost::IPlugAPPHost(std::string file)
     // Now that our callback is setup, we can start our background thread and receive messages
     webSocket.start();
     
-    //this callback is triggered from CabbageProcessor.cpp and is responsible for
-    //updating the widgets in the VSCode web panel
-    auto callback = [&](CabbageOpcodeData data) {
-            auto& cabbage = cabbageProcessor->getCabbageEngine();
-            auto widgetOpt = cabbage.getWidget(data.channel);
-            if (widgetOpt.has_value())
-            {
-                auto& j = widgetOpt.value().get();
-                if(j["type"].get<std::string>() == "gentable")
-                {
-                    cabbage.updateFunctionTable(data, j);
-                    nlohmann::json msg;
-                    msg["command"] = "widgetUpdate";
-                    msg["channel"] = data.channel;
-                    msg["data"] = j.dump();
-                    webSocket.send(msg.dump());
-                }
-                else{
-                    if(data.type == CabbageOpcodeData::MessageType::Value)
-                    {
-                        nlohmann::json json;
-                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
-                        nlohmann::json msg;
-                        msg["command"] = "widgetUpdate";
-                        msg["channel"] = data.channel;
-                        msg["value"] = j["value"].get<float>();
-                        webSocket.send(msg.dump());
-//                        writeToLog(msg.dump());
-                    }
-                    else
-                    {
-//                        nlohmann::json json;
-//                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
-//                        nlohmann::json msg;
-//                        msg["command"] = "widgetUpdate";
-//                        msg["channel"] = data.channel;
-//                        msg["data"] = j.dump();
-//                        webSocket.send(msg.dump());
-                    }
-                }
-            }
-        };
-    
-    cabbageProcessor->hostCallback = callback;
-    
-}
-
-IPlugAPPHost::~IPlugAPPHost()
-{
-    mExiting = true;
-    
-    CloseAudio();
-    
-    
-    if(mMidiIn)
-        mMidiIn->cancelCallback();
-    
-    if(mMidiOut)
-        mMidiOut->closePort();
-}
-
-//static
-IPlugAPPHost* IPlugAPPHost::Create(std::string filePath)
-{
-    sInstance = std::make_unique<IPlugAPPHost>(filePath);
-    return sInstance.get();
 }
 
 bool IPlugAPPHost::Init()
@@ -288,7 +294,7 @@ bool IPlugAPPHost::InitState()
                 }
             }
             else {
-                std::cerr << "Failed to open the file." << std::endl;
+                std::cerr << "ERROR: Failed to open the settings file. If this is the first time running Cabbage from vscode, you can ignore this error";
             }
                 
             file.close();
@@ -318,7 +324,7 @@ bool IPlugAPPHost::InitState()
         }
         catch (const nlohmann::json::parse_error& e)
         {
-            writeToLog("JSON parse error: " << e.what() << std::endl);
+            LOG_VERBOSE("JSON parse error: ", e.what());
             auto t = e.what();
             cabAssert(false, "Can't parse settings file");
         }
@@ -358,7 +364,6 @@ bool IPlugAPPHost::InitState()
 void IPlugAPPHost::UpdateSettings()
 {
 	nlohmann::json settingsJSON, deviceJSON;
-
     settingsJSON["currentConfig"]["audio"]["driver"] = mState.mAudioDriverType;
     settingsJSON["currentConfig"]["audio"]["inputDevice"] = mState.mAudioInDev.Get();
     settingsJSON["currentConfig"]["audio"]["outputDevice"] = mState.mAudioOutDev.Get();
@@ -383,7 +388,10 @@ void IPlugAPPHost::UpdateSettings()
     
     settingsJSON["currentConfig"]["jsSourceDir"] = mState.mJsSourceDirectory;
     
+    
     RtAudio audio;
+    
+    
     RtMidiIn midiIn;
     RtMidiOut midiOut;
 
@@ -393,7 +401,11 @@ void IPlugAPPHost::UpdateSettings()
     for (unsigned int i = 0; i < deviceCount; ++i)
     {
         // Get information about each device and save to settings.ini file
+        auto cerr = cabbage::StdOut::suppressErrors();
         RtAudio::DeviceInfo info = audio.getDeviceInfo(i);
+        // Restore std::cerr to its original state
+        cabbage::StdOut::restoreErrors(cerr);
+
 
         // Handle output devices
         if (info.outputChannels > 0)
@@ -442,7 +454,9 @@ void IPlugAPPHost::UpdateSettings()
 
     // Get the default output device ID
     unsigned int defaultOutputDevice = audio.getDefaultOutputDevice();
+    auto cerr = cabbage::StdOut::suppressErrors();
     auto info = audio.getDeviceInfo(defaultOutputDevice);
+    cabbage::StdOut::restoreErrors(cerr);
     nlohmann::json json;
     json["numChannels"] = info.outputChannels;
     json["sampleRates"] = info.sampleRates;
@@ -472,9 +486,9 @@ void IPlugAPPHost::UpdateSettings()
     if (settingsFile.is_open()) {
         settingsFile << settingsJSON.dump(4);  // Pretty print JSON with 4-space indentation
         settingsFile.close();
-        std::cout << "Settings written to: " << mJSONPath << std::endl;
+//        std::cout << "Settings written to: " << mJSONPath << std::endl;
     } else {
-        std::cerr << "Unable to open file for writing: " << mJSONPath << std::endl;
+        std::cerr << "Unable to open settings file for writing: " << mJSONPath << std::endl;
     }
 
 }
@@ -535,7 +549,7 @@ int IPlugAPPHost::GetMIDIPortNumber(ERoute direction, const char* nameToTest) co
 
 void IPlugAPPHost::ProbeAudioIO()
 {
-    std::cout << "\nRtAudio Version " << RtAudio::getVersion() << std::endl;
+//    auto cerr = cabbage::StdOut::suppressErrors();
     
     RtAudio::DeviceInfo info;
     
@@ -547,7 +561,9 @@ void IPlugAPPHost::ProbeAudioIO()
     
     for (int i=0; i<nDevices; i++)
     {
+        auto cerr = cabbage::StdOut::suppressErrors();
         info = mDAC->getDeviceInfo(i);
+        cabbage::StdOut::restoreErrors(cerr);
         std::string deviceName = info.name;
         
 #ifdef OS_MAC
@@ -560,12 +576,12 @@ void IPlugAPPHost::ProbeAudioIO()
         
         mAudioIDDevNames.push_back(deviceName);
         
-        if ( info.probed == false )
-            std::cout << deviceName << ": Probe Status = Unsuccessful\n";
-        else if ( !strcmp("Generic Low Latency ASIO Driver", deviceName.c_str() ))
-            std::cout << deviceName << ": Probe Status = Unsuccessful\n";
-        else
-        {
+//        if ( info.probed == false )
+//            std::cout << deviceName << ": Probe Status = Unsuccessful\n";
+//        else if ( !strcmp("Generic Low Latency ASIO Driver", deviceName.c_str() ))
+//            std::cout << deviceName << ": Probe Status = Unsuccessful\n";
+//        else
+//        {
             if(info.inputChannels > 0)
                 mAudioInputDevs.push_back(i);
             
@@ -577,8 +593,10 @@ void IPlugAPPHost::ProbeAudioIO()
             
             if (info.isDefaultOutput)
                 mDefaultOutputDev = i;
-        }
+//        }
     }
+    
+//    cabbage::StdOut::restoreErrors(cerr);
 }
 
 void IPlugAPPHost::ProbeMidiIO()
@@ -856,6 +874,7 @@ void IPlugAPPHost::CloseAudio()
 bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_t iovs)
 {
     CloseAudio();
+    auto cerr = cabbage::StdOut::suppressErrors();
     
     RtAudio::StreamParameters iParams, oParams;
     iParams.deviceId = inId;
@@ -888,7 +907,7 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
     
     try
     {
-        mDAC->openStream(&oParams, iParams.nChannels > 0 ? &iParams : nullptr, RTAUDIO_FLOAT64, sr, &mBufferSize, &AudioCallback, this, &options /*, &ErrorCallback */);
+        mDAC->openStream(&oParams, iParams.nChannels > 0 ? &iParams : nullptr, RTAUDIO_FLOAT64, sr, &mBufferSize, &AudioCallback, this, &options, &ErrorCallback);
         
         for (int i = 0; i < iParams.nChannels; i++)
         {
@@ -909,6 +928,8 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
         e.printMessage();
         return false;
     }
+    
+    cabbage::StdOut::restoreErrors(cerr);
     
     return true;
 }

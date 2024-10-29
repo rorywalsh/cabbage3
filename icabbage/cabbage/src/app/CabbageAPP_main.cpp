@@ -206,6 +206,8 @@ INT_PTR SWELLAppMain(int msg, INT_PTR parm1, INT_PTR parm2)
             else
                 pAppHost = IPlugAPPHost::Create("");
             pAppHost->Init();
+            pAppHost->InitProcessor();
+            pAppHost->InitWebSocket();
             pAppHost->TryToChangeAudio();
             break;
         case SWELLAPP_LOADED:

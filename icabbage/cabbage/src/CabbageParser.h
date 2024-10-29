@@ -110,12 +110,11 @@ public:
                 {
                     if (item.is_object())
                     {
-                        
                         auto j = cabbage::WidgetDescriptors::get(item["type"]);
-                        //                        _log(j.dump(4));
-                        updateJson(j, item, widgets.size());
-                        
-                        widgets.push_back(j);
+                        if(!j.is_null()){
+                            updateJson(j, item, widgets.size());
+                            widgets.push_back(j);
+                        }
                     }
                     else
                     {
