@@ -216,7 +216,6 @@ bool IPlugAPPHost::InitWebSocket()
 
 bool IPlugAPPHost::Init()
 {
-    LOG_INFO("\nInit\n");
     mIPlug->SetHost("standalone", mIPlug->GetPluginVersion(false));
     
     if (!InitState())
@@ -247,7 +246,6 @@ void IPlugAPPHost::CloseWindow()
 
 bool IPlugAPPHost::InitState()
 {
-    LOG_INFO("\nInitState\n");
 #if defined OS_WIN
     TCHAR strPath[MAX_PATH_LEN];
     SHGetFolderPathA( NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath );
@@ -390,7 +388,10 @@ void IPlugAPPHost::UpdateSettings()
     
     settingsJSON["currentConfig"]["jsSourceDir"] = mState.mJsSourceDirectory;
     
+    
     RtAudio audio;
+    
+    
     RtMidiIn midiIn;
     RtMidiOut midiOut;
 
@@ -400,7 +401,11 @@ void IPlugAPPHost::UpdateSettings()
     for (unsigned int i = 0; i < deviceCount; ++i)
     {
         // Get information about each device and save to settings.ini file
+        auto cerr = cabbage::StdOut::suppressErrors();
         RtAudio::DeviceInfo info = audio.getDeviceInfo(i);
+        // Restore std::cerr to its original state
+        cabbage::StdOut::restoreErrors(cerr);
+
 
         // Handle output devices
         if (info.outputChannels > 0)
@@ -449,7 +454,9 @@ void IPlugAPPHost::UpdateSettings()
 
     // Get the default output device ID
     unsigned int defaultOutputDevice = audio.getDefaultOutputDevice();
+    auto cerr = cabbage::StdOut::suppressErrors();
     auto info = audio.getDeviceInfo(defaultOutputDevice);
+    cabbage::StdOut::restoreErrors(cerr);
     nlohmann::json json;
     json["numChannels"] = info.outputChannels;
     json["sampleRates"] = info.sampleRates;
@@ -542,7 +549,7 @@ int IPlugAPPHost::GetMIDIPortNumber(ERoute direction, const char* nameToTest) co
 
 void IPlugAPPHost::ProbeAudioIO()
 {
-    std::cout << "\nRtAudio Version " << RtAudio::getVersion() << std::endl;
+//    auto cerr = cabbage::StdOut::suppressErrors();
     
     RtAudio::DeviceInfo info;
     
@@ -554,7 +561,9 @@ void IPlugAPPHost::ProbeAudioIO()
     
     for (int i=0; i<nDevices; i++)
     {
+        auto cerr = cabbage::StdOut::suppressErrors();
         info = mDAC->getDeviceInfo(i);
+        cabbage::StdOut::restoreErrors(cerr);
         std::string deviceName = info.name;
         
 #ifdef OS_MAC
@@ -567,12 +576,12 @@ void IPlugAPPHost::ProbeAudioIO()
         
         mAudioIDDevNames.push_back(deviceName);
         
-        if ( info.probed == false )
-            std::cout << deviceName << ": Probe Status = Unsuccessful\n";
-        else if ( !strcmp("Generic Low Latency ASIO Driver", deviceName.c_str() ))
-            std::cout << deviceName << ": Probe Status = Unsuccessful\n";
-        else
-        {
+//        if ( info.probed == false )
+//            std::cout << deviceName << ": Probe Status = Unsuccessful\n";
+//        else if ( !strcmp("Generic Low Latency ASIO Driver", deviceName.c_str() ))
+//            std::cout << deviceName << ": Probe Status = Unsuccessful\n";
+//        else
+//        {
             if(info.inputChannels > 0)
                 mAudioInputDevs.push_back(i);
             
@@ -584,8 +593,10 @@ void IPlugAPPHost::ProbeAudioIO()
             
             if (info.isDefaultOutput)
                 mDefaultOutputDev = i;
-        }
+//        }
     }
+    
+//    cabbage::StdOut::restoreErrors(cerr);
 }
 
 void IPlugAPPHost::ProbeMidiIO()
@@ -863,6 +874,7 @@ void IPlugAPPHost::CloseAudio()
 bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_t iovs)
 {
     CloseAudio();
+    auto cerr = cabbage::StdOut::suppressErrors();
     
     RtAudio::StreamParameters iParams, oParams;
     iParams.deviceId = inId;
@@ -895,7 +907,7 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
     
     try
     {
-        mDAC->openStream(&oParams, iParams.nChannels > 0 ? &iParams : nullptr, RTAUDIO_FLOAT64, sr, &mBufferSize, &AudioCallback, this, &options /*, &ErrorCallback */);
+        mDAC->openStream(&oParams, iParams.nChannels > 0 ? &iParams : nullptr, RTAUDIO_FLOAT64, sr, &mBufferSize, &AudioCallback, this, &options, &ErrorCallback);
         
         for (int i = 0; i < iParams.nChannels; i++)
         {
@@ -916,6 +928,8 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
         e.printMessage();
         return false;
     }
+    
+    cabbage::StdOut::restoreErrors(cerr);
     
     return true;
 }
