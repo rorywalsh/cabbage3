@@ -179,6 +179,7 @@ void CabbageProcessor::OnParamChange(int paramIdx)
 //===============================================================================
 void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outputs, int nFrames)
 {    
+
     if (cabbage.csdCompiledWithoutError())
     {
         for(int i = 0; i < nFrames ; i++, ++csndIndex)

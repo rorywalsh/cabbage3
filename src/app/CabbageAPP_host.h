@@ -225,6 +225,24 @@ public:
     static void MIDICallback(double deltatime, std::vector<uint8_t>* pMsg, void* pUserData);
     static void errorCallback(RtAudioErrorType type, const std::string& errorText);
     
+    static std::string cleanDeviceName(const std::string& deviceName)
+    {
+        // Remove manufacturer part of the device name after ':'
+        size_t colonPos = deviceName.find(':');
+        std::string cleanName = (colonPos != std::string::npos)
+                                ? deviceName.substr(colonPos + 1)
+                                : deviceName;
+
+        // Remove leading spaces
+        cleanName.erase(cleanName.begin(), std::find_if(cleanName.begin(), cleanName.end(), [](unsigned char ch) {
+            return !std::isspace(ch);
+        }));
+
+        return cleanName;
+    }
+    
+    void addDevicesToSettings( RtAudio& audio, nlohmann::json& settings);
+    
     static WDL_DLGRET PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
     static WDL_DLGRET MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
     
@@ -232,21 +250,6 @@ public:
     
     std::string getCsdFile(){   return csdFile; }
     
-    void showMessage(std::string message)
-    {
-           /* NSString* result = [NSString stringWithUTF8String:message.c_str()];
-            NSString* alternative = [[NSString alloc] initWithUTF8String:message.c_str()];
-        
-            NSAlert *alert = [[NSAlert alloc] init];
-                [alert addButtonWithTitle:@"OK"];
-                [alert addButtonWithTitle:@"Cancel"];
-                [alert setMessageText:result];
-                [alert setInformativeText:result];
-                [alert setAlertStyle:NSWarningAlertStyle];
-        
-                if ([alert runModal] == NSAlertFirstButtonReturn) {
-                }*/
-    }
 private:
     void updateHost(CabbageOpcodeData data);
     std::vector<nlohmann::json> parameters;

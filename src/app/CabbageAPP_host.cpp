@@ -361,9 +361,47 @@ bool IPlugAPPHost::InitState()
     return true;
 }
 
+void IPlugAPPHost::addDevicesToSettings( RtAudio& audio, nlohmann::json& settingsJSON)
+{
+    RtAudio::DeviceInfo info;
+    int inputCnt = 0;
+    int outputCnt = 0;
+    std::vector<unsigned int> devices = audio.getDeviceIds();
+    
+    for (unsigned int i=0; i<devices.size(); i++)
+    {
+        info = audio.getDeviceInfo( devices[i] );
+        
+        if (info.outputChannels > 0)
+        {
+            const std::string outs = "output" + std::to_string(outputCnt);
+            auto outputDevice = cleanDeviceName(info.name);
+            nlohmann::json j;
+            j["deviceId"] = info.ID;
+            j["numChannels"] = info.outputChannels;
+            j["sampleRates"] = info.sampleRates;
+            settingsJSON["systemAudioMidiIOListing"]["audioOutputDevices"][outputDevice] = j;
+            outputCnt++;
+        }
+        
+        // Handle input devices
+        if (info.inputChannels > 0)
+        {
+            const std::string ins = "input" + std::to_string(inputCnt);
+            auto inputDevice = cleanDeviceName(info.name);
+            nlohmann::json j;
+            j["deviceId"] = info.ID;
+            j["numChannels"] = info.inputChannels;
+            
+            settingsJSON["systemAudioMidiIOListing"]["audioInputDevices"][inputDevice] = j;
+            inputCnt++;
+        }
+    }
+}
+    
 void IPlugAPPHost::UpdateSettings()
 {
-	nlohmann::json settingsJSON, deviceJSON;
+	nlohmann::json settingsJSON;
     settingsJSON["currentConfig"]["audio"]["driver"] = mState.mAudioDriverType;
     settingsJSON["currentConfig"]["audio"]["inputDevice"] = mState.mAudioInDev.Get();
     settingsJSON["currentConfig"]["audio"]["outputDevice"] = mState.mAudioOutDev.Get();
@@ -378,6 +416,10 @@ void IPlugAPPHost::UpdateSettings()
     settingsJSON["currentConfig"]["midi"]["inChan"] = mState.mMidiInChan;
     settingsJSON["currentConfig"]["midi"]["outChan"] = mState.mMidiOutChan;
 
+    
+    std::vector<RtAudio::Api> apis;
+    RtAudio::getCompiledApi(apis);
+    
 #ifdef OS_WIN
     settingsJSON["audioDrivers"] = { "DirectSound", "ASIO" };
 #elif defined OS_MAC
@@ -388,82 +430,27 @@ void IPlugAPPHost::UpdateSettings()
     
     settingsJSON["currentConfig"]["jsSourceDir"] = mState.mJsSourceDirectory;
     
-    RtAudio audio(RtAudio::Api::MACOSX_CORE, errorCallback);  // For Windows);
     
-    
+    RtAudio audio(apis[0], errorCallback);
+    addDevicesToSettings(audio, settingsJSON);
+
     RtMidiIn midiIn;
     RtMidiOut midiOut;
 
-    unsigned int deviceCount = audio.getDeviceCount();
-    int inputCnt = 1;
-    int outputCnt = 1;
-    for (unsigned int i = 0; i < deviceCount; ++i)
-    {
-        // Get information about each device and save to settings.ini file
-        auto cerr = cabbage::StdOut::suppressErrors();
-        RtAudio::DeviceInfo info = audio.getDeviceInfo(i);
-        // Restore std::cerr to its original state
-        cabbage::StdOut::restoreErrors(cerr);
-
-
-        // Handle output devices
-        if (info.outputChannels > 0)
-        {
-            const std::string outs = "output" + std::to_string(outputCnt);
-            auto outputDevice = info.name;
-            // Remove manufacturer from device list...
-            size_t colonPos = outputDevice.find(':');
-            if (colonPos != std::string::npos)
-                outputDevice = outputDevice.substr(colonPos + 1);  // Skip the ':' character
-            //remove any leading spaces
-            outputDevice.erase(outputDevice.begin(), std::find_if(outputDevice.begin(), outputDevice.end(), [](unsigned char ch) {
-                return !std::isspace(ch);
-            }));
-            
-            nlohmann::json j;
-            j["deviceNum"] = outputCnt;
-            j["numChannels"] = info.outputChannels;
-            j["sampleRates"] = info.sampleRates;
-            settingsJSON["systemAudioMidiIOListing"]["audioOutputDevices"][outputDevice] = j;
-            outputCnt++;
-        }
-
-        // Handle input devices
-        if (info.inputChannels > 0)
-        {
-            const std::string ins = "input" + std::to_string(inputCnt);
-            auto inputDevice = info.name;
-            // Remove manufacturer from device list...
-            size_t colonPos = inputDevice.find(':');
-            if (colonPos != std::string::npos)
-                inputDevice = inputDevice.substr(colonPos + 1);  // Skip the ':' character
-            //remove any leading spaces
-            inputDevice.erase(inputDevice.begin(), std::find_if(inputDevice.begin(), inputDevice.end(), [](unsigned char ch) {
-                return !std::isspace(ch);
-            }));
-
-            nlohmann::json j;
-            j["deviceId"] = inputCnt;
-            j["numChannels"] = info.inputChannels;
-
-            settingsJSON["systemAudioMidiIOListing"]["audioInputDevices"][inputDevice] = j;
-            inputCnt++;
-        }
-    }
+    int inputCnt = 0;
+    int outputCnt = 0;
 
     // Get the default output device ID
     unsigned int defaultOutputDevice = audio.getDefaultOutputDevice();
-    auto cerr = cabbage::StdOut::suppressErrors();
     auto info = audio.getDeviceInfo(defaultOutputDevice);
-    cabbage::StdOut::restoreErrors(cerr);
     nlohmann::json json;
     json["numChannels"] = info.outputChannels;
     json["sampleRates"] = info.sampleRates;
     settingsJSON["systemAudioMidiIOListing"]["audioOutputDevices"]["Default Device"] = json;
 
     // Get the number of input devices
-    inputCnt = 1;
-    outputCnt = 1;
+    inputCnt = 0;
+    outputCnt = 0;
     unsigned int inputCount = midiIn.getPortCount();
     for (unsigned int i = 0; i < inputCount; ++i) 
     {
@@ -499,8 +486,12 @@ std::string IPlugAPPHost::GetAudioDeviceName(int idx) const
 
 int IPlugAPPHost::GetAudioDeviceIdx(const char* deviceNameToTest) const
 {
-    for(int i = 0; i < mAudioIDDevNames.size(); i++)
+    for(int i = 0; i < mAudioIDDevNames.size(); ++i)
+        LOG_INFO(mAudioIDDevNames.at(i).c_str());
+    
+    for(int i = 0; i < mAudioIDDevNames.size(); ++i)
     {
+        LOG_INFO(mAudioIDDevNames.at(i).c_str());
         if(!strcmp(deviceNameToTest, mAudioIDDevNames.at(i).c_str() ))
             return i;
     }
@@ -529,6 +520,7 @@ int IPlugAPPHost::GetMIDIPortNumber(ERoute direction, const char* nameToTest) co
     }
     else
     {
+        auto pCnt = mMidiOut->getPortCount();
         if(!strcmp(nameToTest, OFF_TEXT)) return 0;
         
 #ifdef OS_MAC
@@ -536,7 +528,7 @@ int IPlugAPPHost::GetMIDIPortNumber(ERoute direction, const char* nameToTest) co
         if(!strcmp(nameToTest, "virtual output")) return 1;
 #endif
         
-        for (int i = 0; i < mMidiOut->getPortCount(); i++)
+        for (int i = 0; i < pCnt; i++)
         {
             if(!strcmp(nameToTest, mMidiOut->getPortName(i).c_str()))
                 return (i + start);
@@ -548,7 +540,7 @@ int IPlugAPPHost::GetMIDIPortNumber(ERoute direction, const char* nameToTest) co
 
 void IPlugAPPHost::ProbeAudioIO()
 {
-//    auto cerr = cabbage::StdOut::suppressErrors();
+    std::cout << "\nRtAudio Version " << RtAudio::getVersion() << std::endl;
     
     RtAudio::DeviceInfo info;
     
@@ -556,13 +548,11 @@ void IPlugAPPHost::ProbeAudioIO()
     mAudioOutputDevs.clear();
     mAudioIDDevNames.clear();
     
-    uint32_t nDevices = mDAC->getDeviceCount();
+    std::vector<unsigned int> devices = mDAC->getDeviceIds();
     
-    for (int i=0; i<nDevices; i++)
+    for (unsigned int i=0; i<devices.size(); i++)
     {
-        auto cerr = cabbage::StdOut::suppressErrors();
-        info = mDAC->getDeviceInfo(i);
-        cabbage::StdOut::restoreErrors(cerr);
+        info = mDAC->getDeviceInfo( devices[i] );
         std::string deviceName = info.name;
         
 #ifdef OS_MAC
@@ -586,10 +576,6 @@ void IPlugAPPHost::ProbeAudioIO()
             
             if (info.isDefaultOutput)
                 mDefaultOutputDev = i;
-//        }
-    }
-    
-//    cabbage::StdOut::restoreErrors(cerr);
 
     }
 }
@@ -658,7 +644,7 @@ bool IPlugAPPHost::MIDISettingsInStateAreEqual(AppState& os, AppState& ns)
 bool IPlugAPPHost::TryToChangeAudioDriverType()
 {
     CloseAudio();
-    
+    LOG_INFO("Closing audio");
     if (mDAC)
     {
         mDAC = nullptr;
@@ -666,19 +652,27 @@ bool IPlugAPPHost::TryToChangeAudioDriverType()
     
 #if defined OS_WIN
     if(mState.mAudioDriverType == kDeviceASIO)
-        mDAC = std::make_unique<RtAudio>(RtAudio::WINDOWS_ASIO);
+        mDAC = std::make_unique<RtAudio>(RtAudio::WINDOWS_ASIO, errorCallback);
     else
-        mDAC = std::make_unique<RtAudio>(RtAudio::WINDOWS_DS);
+        mDAC = std::make_unique<RtAudio>(RtAudio::WINDOWS_DS, errorCallback);
 #elif defined OS_MAC
     if(mState.mAudioDriverType == kDeviceCoreAudio)
-        mDAC = std::make_unique<RtAudio>(RtAudio::MACOSX_CORE);
+    {
+        LOG_INFO("Setting audio to coreaudio");
+        std::vector<RtAudio::Api> apis;
+        RtAudio::getCompiledApi(apis);
+        RtAudio audio(apis[0], errorCallback);
+        mDAC = std::make_unique<RtAudio>(apis[0], errorCallback);
+    }
+        
     
     //else
     //mDAC = std::make_unique<RtAudio>(RtAudio::UNIX_JACK);
 #else
 #error NOT IMPLEMENTED
 #endif
-    mDAC->setErrorCallback(errorCallback);
+    LOG_INFO("Audio reopended");
+
     if(mDAC)
         return true;
     else
@@ -687,6 +681,24 @@ bool IPlugAPPHost::TryToChangeAudioDriverType()
 
 bool IPlugAPPHost::TryToChangeAudio()
 {
+    auto settingsFile = cabbage::File::getSettingsFile();
+    std::ifstream file(settingsFile);
+    if (!file.is_open())
+    {
+        std::cerr << "Error: Could not open the file " << settingsFile << std::endl;
+        return "";
+    }
+    
+    // Parse the JSON content from the file
+    nlohmann::json jsonData;
+    try {
+        file >> jsonData;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: Failed to parse JSON - " << e.what() << std::endl;
+        return "";
+    }
+    
     int inputID = -1;
     int outputID = -1;
     
@@ -696,11 +708,11 @@ bool IPlugAPPHost::TryToChangeAudio()
     else
         inputID = GetAudioDeviceIdx(mState.mAudioInDev.Get());
 #elif defined OS_MAC
-    inputID = GetAudioDeviceIdx(mState.mAudioInDev.Get());
+    inputID = jsonData["systemAudioMidiIOListing"]["audioInputDevices"][mState.mAudioInDev.Get()]["deviceId"];
 #else
 #error NOT IMPLEMENTED
 #endif
-    outputID = GetAudioDeviceIdx(mState.mAudioOutDev.Get());
+    outputID = jsonData["systemAudioMidiIOListing"]["audioOutputDevices"][mState.mAudioOutDev.Get()]["deviceId"];
     
     bool failedToFindDevice = false;
     bool resetToDefault = false;
@@ -870,7 +882,6 @@ void IPlugAPPHost::CloseAudio()
 bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_t iovs)
 {
     CloseAudio();
-    auto cerr = cabbage::StdOut::suppressErrors();
     
     RtAudio::StreamParameters iParams, oParams;
     iParams.deviceId = inId;
@@ -883,8 +894,11 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
     
     mBufferSize = iovs; // mBufferSize may get changed by stream
     
-    DBGMSG("\ntrying to start audio stream @ %i sr, %i buffer size\nindev = %i:%s\noutdev = %i:%s\ninputs = %i\noutputs = %i\n",
-           sr, mBufferSize, inId, GetAudioDeviceName(inId).c_str(), outId, GetAudioDeviceName(outId).c_str(), iParams.nChannels, oParams.nChannels);
+    auto inDevName = cleanDeviceName(mDAC->getDeviceInfo(inId).name);
+    auto outDevName = cleanDeviceName(mDAC->getDeviceInfo(outId).name);
+    
+    LOG_INFO("Attempting to start audio with the following settings:\nSR: ", sr, "\nBuffer Size: ", mBufferSize, "\nInput device: ", inDevName, "\nNumber of channels: ", iParams.nChannels, "\nOutput device: ", outDevName, "\nNumber of channels: ", oParams.nChannels);
+
     
     RtAudio::StreamOptions options;
     options.flags = RTAUDIO_NONINTERLEAVED;
@@ -903,7 +917,7 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
     
     try
     {
-        mDAC->openStream(&oParams, iParams.nChannels > 0 ? &iParams : nullptr, RTAUDIO_FLOAT64, sr, &mBufferSize, &AudioCallback, this, &options, &ErrorCallback);
+        mDAC->openStream(&oParams, iParams.nChannels > 0 ? &iParams : nullptr, RTAUDIO_FLOAT64, sr, &mBufferSize, &AudioCallback, this, &options);
         
         for (int i = 0; i < iParams.nChannels; i++)
         {
@@ -921,11 +935,9 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
     }
     catch (const std::runtime_error &e)
     {
-        LOG_INFO(e.what());
+        LOG_INFO("Issue opening audio stream: ", e.what());
         return false;
     }
-    
-    cabbage::StdOut::restoreErrors(cerr);
     
     return true;
 }
@@ -1078,6 +1090,6 @@ void IPlugAPPHost::MIDICallback(double deltatime, std::vector<uint8_t>* pMsg, vo
 // static
 void IPlugAPPHost::errorCallback(RtAudioErrorType type, const std::string &errorText )
 {
-    //TODO:
+    LOG_INFO(errorText);
 }
 
