@@ -390,7 +390,7 @@ void IPlugAPPHost::UpdateSettings()
     
     settingsJSON["currentConfig"]["jsSourceDir"] = mState.mJsSourceDirectory;
     
-    RtAudio audio;
+    RtAudio audio(RtAudio::Api::MACOSX_CORE, errorCallback);  // For Windows);
     RtMidiIn midiIn;
     RtMidiOut midiOut;
 
@@ -566,13 +566,7 @@ void IPlugAPPHost::ProbeAudioIO()
 #endif
         
         mAudioIDDevNames.push_back(deviceName);
-        
-        if ( info.probed == false )
-            std::cout << deviceName << ": Probe Status = Unsuccessful\n";
-        else if ( !strcmp("Generic Low Latency ASIO Driver", deviceName.c_str() ))
-            std::cout << deviceName << ": Probe Status = Unsuccessful\n";
-        else
-        {
+
             if(info.inputChannels > 0)
                 mAudioInputDevs.push_back(i);
             
@@ -584,7 +578,7 @@ void IPlugAPPHost::ProbeAudioIO()
             
             if (info.isDefaultOutput)
                 mDefaultOutputDev = i;
-        }
+
     }
 }
 
@@ -666,12 +660,13 @@ bool IPlugAPPHost::TryToChangeAudioDriverType()
 #elif defined OS_MAC
     if(mState.mAudioDriverType == kDeviceCoreAudio)
         mDAC = std::make_unique<RtAudio>(RtAudio::MACOSX_CORE);
+    
     //else
     //mDAC = std::make_unique<RtAudio>(RtAudio::UNIX_JACK);
 #else
 #error NOT IMPLEMENTED
 #endif
-    
+    mDAC->setErrorCallback(errorCallback);
     if(mDAC)
         return true;
     else
@@ -850,9 +845,9 @@ void IPlugAPPHost::CloseAudio()
             {
                 mDAC->abortStream();
             }
-            catch (RtAudioError& e)
+            catch (const std::runtime_error &e)
             {
-                e.printMessage();
+                LOG_INFO(e.what());
             }
         }
         
@@ -911,9 +906,9 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
         
         mActiveState = mState;
     }
-    catch (RtAudioError& e)
+    catch (const std::runtime_error &e)
     {
-        e.printMessage();
+        LOG_INFO(e.what());
         return false;
     }
     
@@ -1066,7 +1061,7 @@ void IPlugAPPHost::MIDICallback(double deltatime, std::vector<uint8_t>* pMsg, vo
 }
 
 // static
-void IPlugAPPHost::ErrorCallback(RtAudioError::Type type, const std::string &errorText )
+void IPlugAPPHost::errorCallback(RtAudioErrorType type, const std::string &errorText )
 {
     //TODO:
 }

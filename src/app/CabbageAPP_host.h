@@ -223,7 +223,7 @@ public:
     
     static int AudioCallback(void* pOutputBuffer, void* pInputBuffer, uint32_t nFrames, double streamTime, RtAudioStreamStatus status, void* pUserData);
     static void MIDICallback(double deltatime, std::vector<uint8_t>* pMsg, void* pUserData);
-    static void ErrorCallback(RtAudioError::Type type, const std::string& errorText);
+    static void errorCallback(RtAudioErrorType type, const std::string& errorText);
     
     static WDL_DLGRET PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
     static WDL_DLGRET MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);

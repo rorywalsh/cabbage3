@@ -36,8 +36,6 @@ void IPlugAPPHost::PopulateSampleRateList(HWND hwndDlg, RtAudio::DeviceInfo* inp
 
   std::vector<int> matchedSRs;
 
-  if (inputDevInfo->probed && outputDevInfo->probed)
-  {
     for (int i=0; i<inputDevInfo->sampleRates.size(); i++)
     {
       for (int j=0; j<outputDevInfo->sampleRates.size(); j++)
@@ -46,7 +44,7 @@ void IPlugAPPHost::PopulateSampleRateList(HWND hwndDlg, RtAudio::DeviceInfo* inp
           matchedSRs.push_back(inputDevInfo->sampleRates[i]);
       }
     }
-  }
+
 
   for (int k=0; k<matchedSRs.size(); k++)
   {
@@ -64,8 +62,6 @@ void IPlugAPPHost::PopulateSampleRateList(HWND hwndDlg, RtAudio::DeviceInfo* inp
 
 void IPlugAPPHost::PopulateAudioInputList(HWND hwndDlg, RtAudio::DeviceInfo* info)
 {
-  if(!info->probed)
-    return;
 
   WDL_String buf;
 
@@ -91,9 +87,6 @@ void IPlugAPPHost::PopulateAudioInputList(HWND hwndDlg, RtAudio::DeviceInfo* inf
 
 void IPlugAPPHost::PopulateAudioOutputList(HWND hwndDlg, RtAudio::DeviceInfo* info)
 {
-  if(!info->probed)
-    return;
-
   WDL_String buf;
 
   SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_L,CB_RESETCONTENT,0,0);
