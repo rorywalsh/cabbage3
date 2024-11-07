@@ -1,0 +1,53 @@
+name: cabbage3-build
+# This workflow represents a set of basic End-to-End tests
+on:
+  push:
+    branches:
+
+jobs:
+  macos_build:
+    name: MacOS build
+    runs-on: macos-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Download CsoundLib64 Package
+        run: |
+          # Download the package using curl
+          curl -L -o CsoundLib64-7.0-vanilla-universal.pkg "https://www.dropbox.com/scl/fi/8afz58gvjvwsa0u0nwr9g/CsoundLib64-7.0-vanilla-universal.pkg?rlkey=6kw4upth3olvmymhfjsndwgt9&st=mcxkg1hx&dl=1"
+          
+          # Verify the file exists
+          ls -l CsoundLib64-7.0-vanilla-universal.pkg
+
+          # Make the downloaded file executable
+          chmod +x CsoundLib64-7.0-vanilla-universal.pkg
+
+          # Install the package
+          sudo installer -pkg CsoundLib64-7.0-vanilla-universal.pkg -target /
+
+
+      - name: Configure build
+        run: |
+          cmake -GXcode -B build -S . -DCABBAGE_BUILD_TARGET=CabbageApp -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15"
+
+
+      - name: Build macOS app
+        run: |
+          cmake --build build --config Debug
+
+
+      - name: Zip the macOS app bundle
+        run: |
+          cd build/out
+          zip -r CabbageApp.zip CabbageApp.app  # Replace with the correct app name if needed
+
+
+      - name: Upload macOS app artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: CabbageApp-macos
+          path: build/out/CabbageApp.zip  # Adjust the path if necessary
