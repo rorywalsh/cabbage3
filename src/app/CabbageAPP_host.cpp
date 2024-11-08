@@ -703,16 +703,32 @@ bool IPlugAPPHost::TryToChangeAudio()
     int outputID = -1;
     
 #if defined OS_WIN
+    cabAssert(false, "Need to handle default IO here...");
     if(mState.mAudioDriverType == kDeviceASIO)
         inputID = GetAudioDeviceIdx(mState.mAudioOutDev.Get());
     else
         inputID = GetAudioDeviceIdx(mState.mAudioInDev.Get());
+    
+    outputID = jsonData["systemAudioMidiIOListing"]["audioOutputDevices"][mState.mAudioOutDev.Get()]["deviceId"];
 #elif defined OS_MAC
-    inputID = jsonData["systemAudioMidiIOListing"]["audioInputDevices"][mState.mAudioInDev.Get()]["deviceId"];
+    std::string input = mState.mAudioInDev.Get();
+    std::string output = mState.mAudioOutDev.Get();
+    RtAudio defaultIO;
+    if(input == "Built-in Input")
+        inputID = defaultIO.getDefaultInputDevice();
+    else
+        inputID = jsonData["systemAudioMidiIOListing"]["audioInputDevices"][mState.mAudioInDev.Get()]["deviceId"];
+    
+    if(output == "Built-in Output")
+        outputID = defaultIO.getDefaultOutputDevice();
+    else
+        outputID = jsonData["systemAudioMidiIOListing"]["audioOutputDevices"][mState.mAudioOutDev.Get()]["deviceId"];
+  
+    
 #else
 #error NOT IMPLEMENTED
 #endif
-    outputID = jsonData["systemAudioMidiIOListing"]["audioOutputDevices"][mState.mAudioOutDev.Get()]["deviceId"];
+    
     
     bool failedToFindDevice = false;
     bool resetToDefault = false;
