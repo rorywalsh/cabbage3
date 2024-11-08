@@ -94,13 +94,13 @@ bool IPlugAPPHost::InitProcessor()
                     }
                     else
                     {
-//                        nlohmann::json json;
-//                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
-//                        nlohmann::json msg;
-//                        msg["command"] = "widgetUpdate";
-//                        msg["channel"] = data.channel;
-//                        msg["data"] = j.dump();
-//                        webSocket.send(msg.dump());
+                        nlohmann::json json;
+                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+                        nlohmann::json msg;
+                        msg["command"] = "widgetUpdate";
+                        msg["channel"] = data.channel;
+                        msg["data"] = j.dump();
+                        webSocket.send(msg.dump());
                     }
                 }
             }

@@ -292,41 +292,34 @@ public:
                         LOG_INFO("The samples identifier takes numeric parameters");
                     }
                 }
-                else if (key.find(cabbage::Utils::toLower("colour")) != std::string::npos)
+                //colour properties are a little complicated as they can be nested, and appear as arrays, string hex, tc..
+                else if (key == "colour") 
                 {
-                    if (value.is_array())
+                    if (value.is_object()) 
                     {
-                        jsonObj[key] = rgbToHex(value.get<std::vector<double>>());
-                    }
-                    else if (value.is_string())
-                    {
-                        jsonObj[key] = validateHexString(value.get<std::string>());
-                    }
-                    else if (value.is_object())
-                    {
-                        if(value.contains("on"))
+                        // Parse top-level properties like fill, background, and stroke
+                        parseColourProperties(value, jsonObj[key]);
+                        // Optionally handle "on" and "off" states
+                        for (const std::string& state : {"on", "off"}) 
                         {
-                            if(value["on"].is_array())
-                                jsonObj[key]["on"] = rgbToHex(value["on"].get<std::vector<double>>());
-                            else if(value["on"].is_string())
-                                jsonObj[key]["on"] = validateHexString(value["on"].get<std::string>());
-                            //                            writeToLog(jsonObj[key]["on"].dump(4));
+                            if (value.contains(state)) 
+                            {
+                                if (value[state].is_object())
+                                {
+                                    parseColourProperties(value[state], jsonObj[key][state]);
+                                } 
+                                else
+                                {
+                                    jsonObj[key][state] = parseColorValue(value[state]);
+                                }
+                            }
                         }
-                        if(value.contains("off"))
-                        {
-                            if(value["off"].is_array())
-                                jsonObj[key]["off"] = rgbToHex(value["off"].get<std::vector<double>>());
-                            else if(value["off"].is_string())
-                                jsonObj[key]["off"] = validateHexString(value["off"].get<std::string>());
-                            //                            writeToLog(jsonObj[key]["on"].dump(4));
-                        }
-                    }
+                    } 
                     else
                     {
-                        LOG_INFO("Token does not contain valid colour information");
+                        // For simpler color values directly under "colour"
+                        jsonObj[key] = parseColorValue(value);
                     }
-                    
-                    
                 }
                 
                 else if (key == "file")
@@ -405,6 +398,49 @@ public:
     }
     
 private:
+    // Helper function to parse stroke if it exists
+    static void parseStroke(const nlohmann::json& strokeValue, nlohmann::json& target)
+    {
+        if (strokeValue.contains("colour")) 
+        {
+            target["colour"] = parseColorValue(strokeValue["colour"]);
+        }
+        if (strokeValue.contains("width") && strokeValue["width"].is_number()) 
+        {
+            target["width"] = strokeValue["width"];
+        }
+    }
+
+    // Helper function to parse colour properties for each state (e.g., fill, background, stroke)
+    static void parseColourProperties(const nlohmann::json& value, nlohmann::json& target) 
+    {
+        if (value.contains("fill")) 
+        {
+            target["fill"] = parseColorValue(value["fill"]);
+        }
+        if (value.contains("background"))
+        {
+            target["background"] = parseColorValue(value["background"]);
+        }
+        if (value.contains("stroke") && value["stroke"].is_object())
+        {
+            parseStroke(value["stroke"], target["stroke"]);
+        }
+    }
+
+    
+    // Parse a JSON color value, automatically handling arrays and strings
+    static std::string parseColorValue(const nlohmann::json& value) {
+        if (value.is_array() && value.size() >= 3) {
+            // Convert an RGB array to hex
+            return rgbToHex(value.get<std::vector<double>>());
+        } else if (value.is_string()) {
+            // Validate and return a hex string directly
+            return validateHexString(value.get<std::string>());
+        }
+        LOG_INFO("Unrecognized color format");
+        return "#000000"; // Default fallback color
+    }
     
     static std::string rgbToHex(const std::vector<double>& rgb)
     {
