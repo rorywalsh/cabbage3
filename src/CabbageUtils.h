@@ -301,9 +301,12 @@ public:
         //if in CabbageApp mode, the widget src dir is set by the Cabbage .ini settings
         WDL_String iniPath;
 #if defined OS_WIN
-        TCHAR strPath[2048];
+        //TCHAR strPath[2048];
+        //SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
+        //iniPath.SetFormatted(2048, "%s\\%s\\", strPath, "Cabbage");
+        char strPath[2048];
         SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
-        iniPath.SetFormatted(2048, "%s\\%s\\", strPath, "Cabbage");
+
 #elif defined OS_MAC
         iniPath.SetFormatted(2048, "%s/Library/Application Support/%s/", getenv("HOME"), "Cabbage");
 #else
@@ -656,7 +659,7 @@ private:
         char   DllPath[MAX_PATH] = { 0 };
         GetModuleFileNameA(reinterpret_cast<HMODULE>(&__ImageBase), DllPath, _countof(DllPath));
         std::string fileName = DllPath;
-        writeToLog(fileName);
+        LOG_INFO(fileName);
         return std::string(fileName);
     }
     
