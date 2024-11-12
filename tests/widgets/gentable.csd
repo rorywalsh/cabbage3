@@ -1,11 +1,11 @@
 <Cabbage>[
 {"type": "form", "caption": "Gentable Example", "size": {"width": 400.0, "height": 650.0}, "guiMode": "queue", "colour": [2.0, 145.0, 209.0], "pluginId": "def1"},
 {"type": "genTable", "bounds": {"left": 10.0, "top": 7.0, "width": 380.0, "height": 200.0}, "channel": "gentable1", "stroke":{"width":3}, "tableNumber": 1.0},
-{"type": "horizontalSlider", "bounds": {"left": 14.0, "top": 212.0, "width": 368.0, "height": 14.0}, "channel": "harm1", "range": {"min": 0.0, "max": 1.0, "value": 1.0, "skew": 1.0, "increment": 0.01}, "fontColour": [255.0, 255.0, 255.0, 255.0], "text": "Harm1"},
-{"type": "horizontalSlider", "bounds": {"left": 14.0, "top": 244.0, "width": 368.0, "height": 14.0}, "channel": "harm2", "range": {"min": 0.0, "max": 1.0, "value": 0.0, "skew": 1.0, "increment": 0.01}, "fontColour": [255.0, 255.0, 255.0, 255.0], "text": "Harm2"},
-{"type": "horizontalSlider", "bounds": {"left": 14.0, "top": 276.0, "width": 368.0, "height": 14.0}, "channel": "harm3", "range": {"min": 0.0, "max": 1.0, "value": 0.0, "skew": 1.0, "increment": 0.01}, "fontColour": [255.0, 255.0, 255.0, 255.0], "text": "Harm3"},
-{"type": "horizontalSlider", "bounds": {"left": 14.0, "top": 308.0, "width": 368.0, "height": 14.0}, "channel": "harm4", "range": {"min": 0.0, "max": 1.0, "value": 0.0, "skew": 1.0, "increment": 0.01}, "fontColour": [255.0, 255.0, 255.0, 255.0], "text": "Harm4"},
-{"type": "horizontalSlider", "bounds": {"left": 14.0, "top": 340.0, "width": 368.0, "height": 14.0}, "channel": "harm5", "range": {"min": 0.0, "max": 1.0, "value": 0.0, "skew": 1.0, "increment": 0.01}, "fontColour": [255.0, 255.0, 255.0, 255.0], "text": "Harm5"},
+{"type": "horizontalSlider", "bounds": {"left": 14.0, "top": 212.0, "width": 368.0, "height": 14.0}, "channel": "harm1", "range": {"min": 0.0, "max": 1.0, "value": 1.0, "skew": 1.0, "increment": 0.01}, "text": "Harm1"},
+{"type": "horizontalSlider", "bounds": {"left": 14.0, "top": 244.0, "width": 368.0, "height": 14.0}, "channel": "harm2", "range": {"min": 0.0, "max": 1.0, "value": 0.0, "skew": 1.0, "increment": 0.01}, "text": "Harm2"},
+{"type": "horizontalSlider", "bounds": {"left": 14.0, "top": 276.0, "width": 368.0, "height": 14.0}, "channel": "harm3", "range": {"min": 0.0, "max": 1.0, "value": 0.0, "skew": 1.0, "increment": 0.01}, "text": "Harm3"},
+{"type": "horizontalSlider", "bounds": {"left": 14.0, "top": 308.0, "width": 368.0, "height": 14.0}, "channel": "harm4", "range": {"min": 0.0, "max": 1.0, "value": 0.0, "skew": 1.0, "increment": 0.01}, "text": "Harm4"},
+{"type": "horizontalSlider", "bounds": {"left": 14.0, "top": 340.0, "width": 368.0, "height": 14.0}, "channel": "harm5", "range": {"min": 0.0, "max": 1.0, "value": 0.0, "skew": 1.0, "increment": 0.01}, "text": "Harm5"},
 {"type": "checkBox", "bounds": {"left": 16.0, "top": 380.0, "width": 120.0, "height": 20.0}, "channel": "normal", "text": "Normalise", "value": 1.0, "1": [255.0, 255.0, 255.0, 255.0]},
 {"type": "checkBox", "bounds": {"left": 140.0, "top": 380.0, "width": 120.0, "height": 20.0}, "channel": "fill", "text": "Fill Table", "value": 1.0, "1": [255.0, 255.0, 255.0, 255.0]}
 ]</Cabbage>

@@ -1,10 +1,9 @@
 <Cabbage>[
-{"type": "form", "caption": "Button Example", "size": {"width": 380.0, "height": 300.0}, "pluginId": "def1"},
-{"type": "button", "bounds": {"left": 16.0, "top": 12.0, "width": 117.0, "height": 30.0}, "channel": "trigger", "text": {"off":"Start Synth", "on":"Stop Synth"}, "corners": 2.0},
-{"type": "button", "bounds": {"left": 146.0, "top": 12.0, "width": 80.0, "height": 30.0}, "channel": "mute", "text": {"off": "Unmute", "on": "Mute"}, "corners": 2.0},
-{"type": "button", "bounds": {"left": 240.0, "top": 12.0, "width": 121.0, "height": 30.0}, "channel": "toggleFreq", "text": "Toggle Freq"}
-]
-</Cabbage>
+    {"type":"form","caption":"Button Example","size":{"width":380,"height":300},"pluginId":"def1"},
+    {"type":"button","bounds":{"left":16,"top":12,"width":117,"height":30},"channel":"trigger","text":{"off":"Start Synth","on":"Stop Synth"},"corners":2},
+    {"type":"button","bounds":{"left":146,"top":12,"width":80,"height":30},"channel":"mute","text":{"off":"Unmute","on":"Mute"},"corners":2},
+    {"type":"button","channel":"toggleFreq","bounds":{"left":240,"top":12,"width":121,"height":30},"text":{"off":"Toggle Freq","on":"Toggle Freq"},"colour":{"off":{"fill":"#ff0000","stroke":"#000000"},"on":{"fill":"#0295cf","stroke":"#000000"}}}
+]</Cabbage>
 <CsoundSynthesizer>
 <CsOptions>
 -n -d -+rtmidi=NULL -M0 -m0d 
