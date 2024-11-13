@@ -9,7 +9,7 @@
 {"type": "verticalSlider", "bounds": {"left": 220.0, "top": 20.0, "width": 40.0, "height": 180.0}, "channel": "harmonic6", "range": {"min": 0.0, "max": 1.0, "value": 0.0, "skew": 1.0, "increment": 0.001}},
 {"type": "verticalSlider", "bounds": {"left": 260.0, "top": 20.0, "width": 40.0, "height": 180.0}, "channel": "harmonic7", "range": {"min": 0.0, "max": 1.0, "value": 0.0, "skew": 1.0, "increment": 0.001}},
 {"type": "verticalSlider", "bounds": {"left": 300.0, "top": 20.0, "width": 40.0, "height": 180.0}, "channel": "harmonic8", "range": {"min": 0.0, "max": 1.0, "value": 0.0, "skew": 1.0, "increment": 0.001}},
-{"type": "checkBox", "bounds": {"left": 24.0, "top": 208.0, "width": 180.0, "height": 16.0}, "channel": "randomise", "colour":{"on":"white", "off":[0, 0, 0, 255]}, "text": "Randomise"}
+{"type": "checkBox", "bounds": {"left": 24.0, "top": 208.0, "width": 180.0, "height": 16.0}, "channel": "randomise", "text": "Randomise"}
 ]
 </Cabbage>
 <CsoundSynthesizer>
