@@ -11,7 +11,7 @@
 
 #include "CabbageOpcodes.h"
 //==================================================================================
-struct CabbageSetValue : csnd::InPlug<2>, CabbageOpcodes<2>
+struct CabbageSetValue : csnd::InPlug<3>, CabbageOpcodes<3>
 {
     MYFLT* value;
     int init(){ return setValue(CabbageOpcodeData::PassType::Init); };

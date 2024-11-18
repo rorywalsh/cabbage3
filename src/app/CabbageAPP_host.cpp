@@ -125,6 +125,7 @@ bool IPlugAPPHost::InitWebSocket()
                         
                         if(command == "parameterChange")
                         {
+                            
                             for(int i = 0 ; i < cabbage.getNumberOfParameters() ; i++)
                             {
                                 if(cabbage.getParameterChannel(i).name == jsonObj["channel"].get<std::string>())

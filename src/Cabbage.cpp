@@ -30,7 +30,7 @@ void Engine::addOpcodes()
     //            (char*)oargs, (char*)iargs, (SUBR)init<T>,
     //            (SUBR)aperf<T>, (SUBR)deinit<T>);
     //auto t = csoundAppendOpcode(getCsound()->GetCsound(), "cabbageSetValue", sizeof(), 0, "null", "", nullptr, nullptr, nullptr);
-    auto ret = csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Sk", csnd::thread::k);
+    auto ret = csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "SkP", csnd::thread::k);
     csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Si", csnd::thread::i);
     
     csnd::plugin<CabbageSetPerfString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSSW", csnd::thread::k);
@@ -109,6 +109,7 @@ bool Engine::setupCsound()
         std::vector<std::string> rangeTypes = getRangeWidgetTypes(widgets);
         for(auto& w : widgets)
         {
+            LOG_VERBOSE(w.dump(4));
             if (w.contains("automatable") && w["automatable"] == 1 &&
                 (!w.contains("channelType") || w["channelType"] == "number"))
             {

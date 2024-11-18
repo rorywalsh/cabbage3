@@ -412,19 +412,20 @@ private:
     }
 
     // Helper function to parse colour properties for each state (e.g., fill, background, stroke)
-    static void parseColourProperties(const nlohmann::json& value, nlohmann::json& target) 
-    {
-        if (value.contains("fill")) 
-        {
-            target["fill"] = parseColorValue(value["fill"]);
-        }
-        if (value.contains("background"))
-        {
-            target["background"] = parseColorValue(value["background"]);
-        }
-        if (value.contains("stroke") && value["stroke"].is_object())
-        {
-            parseStroke(value["stroke"], target["stroke"]);
+    // this should handle arbitrary nested objects
+    static void parseColourProperties(const nlohmann::json& value, nlohmann::json& target) {
+        for (auto& [key, val] : value.items()) {
+            if (key == "fill" || key == "background") {
+                target[key] = parseColorValue(val);
+            } else if (key == "stroke" && val.is_object()) {
+                parseStroke(val, target[key]);
+            } else if (val.is_object()) {
+                // Recursively handle nested color objects (e.g., "tracker")
+                parseColourProperties(val, target[key]);
+            } else {
+                // Fallback for unhandled cases (could add further validation if needed)
+                target[key] = parseColorValue(val);
+            }
         }
     }
 

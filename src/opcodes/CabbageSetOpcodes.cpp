@@ -11,30 +11,38 @@
 
 
 //=====================================================================================
-// cabbageSetValue "channel", xValue
+// cabbageSetValue "channel", xValue, [kTrig]
 //=====================================================================================
 int CabbageSetValue::setValue(int pass)
 {
     auto* hostData = static_cast<cabbage::Engine*>(csound->host_data());
-
-    if(csound->get_csound()->GetChannelPtr(csound->get_csound(), (void**)&value, args.str_data(0).data,
-                                                       CSOUND_CONTROL_CHANNEL | CSOUND_INPUT_CHANNEL) == CSOUND_SUCCESS)
+    
+    int trigger = 1;
+    
+    if(in_count() == 3)
+        trigger = args[2];
+    
+    if(trigger == 1)
+    {
+        if(csound->get_csound()->GetChannelPtr(csound->get_csound(), (void**)&value, args.str_data(0).data,
+                                               CSOUND_CONTROL_CHANNEL | CSOUND_INPUT_CHANNEL) == CSOUND_SUCCESS)
         {
             *value = args[1];
         }
- 
-    //this needs to be throttled as sending some many messages
-    //to the UI will choke it. Only update the widget's value
-    //every 32 k-cycles.
-    if(kCycles==32)
-    {
-        CabbageOpcodeData data = getValueIdentData(args, true, 0, 1);
-        data.cabbageJson["value"] = *value;
-        data.type = CabbageOpcodeData::MessageType::Value;
-        hostData->opcodeData.enqueue(data);
-        kCycles = 0;
+        
+        //this needs to be throttled as sending some many messages
+        //to the UI will choke it. Only update the widget's value
+        //every 32 k-cycles.
+        if(kCycles==32)
+        {
+            CabbageOpcodeData data = getValueIdentData(args, true, 0, 1);
+            data.cabbageJson["value"] = *value;
+            data.type = CabbageOpcodeData::MessageType::Value;
+            hostData->opcodeData.enqueue(data);
+            kCycles = 0;
+        }
+        kCycles++;
     }
-    kCycles++;
     
     return IS_OK;
 }
