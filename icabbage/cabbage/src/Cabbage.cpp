@@ -112,8 +112,6 @@ bool Engine::setupCsound()
             if (w.contains("automatable") && w["automatable"] == 1 &&
                 (!w.contains("channelType") || w["channelType"] == "number"))
             {
-                
-                
                 const std::string widgetType = w["type"].get<std::string>();
                 //check if widget has a range - range widget parameters are initialised differently to other widgets
                 if (std::any_of(rangeTypes.begin(), rangeTypes.end(), [&](const std::string& type) {
@@ -156,7 +154,6 @@ bool Engine::setupCsound()
                     catch (nlohmann::json::exception& e) {
                         LOG_INFO(w.dump(4));
                         LOG_INFO(e.what());
-                        //                        cabAssert(false, "");
                     }
                 }
             }

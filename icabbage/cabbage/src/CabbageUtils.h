@@ -49,7 +49,7 @@ void writeDetailed(const char* file, int line, const char* function, Args&&... a
 
     oss << " [Thread ID: " << std::this_thread::get_id() << "]" << std::endl;
 
-    std::cout << oss.str();
+    std::cout << oss.str() << std::endl;
 }
 
 template<typename... Args>
@@ -57,7 +57,7 @@ void writeBasic(Args&&... args) {
     std::ostringstream oss;
     // Use fold expression to append all arguments to the string stream
     (oss << ... << std::forward<Args>(args)); // C++17 fold expression
-    std::cout << oss.str();
+    std::cout << oss.str() << std::endl;
 }
 // Variadic macro to simplify calling the writeDetailed function
 #define LOG_VERBOSE(...) writeDetailed(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
@@ -72,22 +72,6 @@ inline void logToDebug(const std::string& message) {
 
 namespace cabbage {
 
-//simple utlity function to suppress error noise from rtaudio..
-class StdOut{
-public:
-    static std::streambuf* suppressErrors()
-    {
-        std::ostringstream local;
-        auto cerr_buff = std::cerr.rdbuf();
-        std::cerr.rdbuf(local.rdbuf());
-        return cerr_buff;
-    }
-    
-    // Function to restore std::cerr
-    static void restoreErrors(std::streambuf* originalBuffer) {
-        std::cerr.rdbuf(originalBuffer);  // Restore the original buffer
-    }
-};
 
 class Utils {
 public:
@@ -317,9 +301,12 @@ public:
         //if in CabbageApp mode, the widget src dir is set by the Cabbage .ini settings
         WDL_String iniPath;
 #if defined OS_WIN
-        TCHAR strPath[2048];
+        //TCHAR strPath[2048];
+        //SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
+        //iniPath.SetFormatted(2048, "%s\\%s\\", strPath, "Cabbage");
+        char strPath[2048];
         SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
-        iniPath.SetFormatted(2048, "%s\\%s\\", strPath, "Cabbage");
+
 #elif defined OS_MAC
         iniPath.SetFormatted(2048, "%s/Library/Application Support/%s/", getenv("HOME"), "Cabbage");
 #else
@@ -672,7 +659,7 @@ private:
         char   DllPath[MAX_PATH] = { 0 };
         GetModuleFileNameA(reinterpret_cast<HMODULE>(&__ImageBase), DllPath, _countof(DllPath));
         std::string fileName = DllPath;
-        writeToLog(fileName);
+        LOG_INFO(fileName);
         return std::string(fileName);
     }
     

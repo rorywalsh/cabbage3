@@ -17,16 +17,16 @@
 
 struct CabbageOpcodeData
 {
-    enum MessageType{
+    enum MessageType {
         Value,
         Identifier
     };
-    
-    enum PassType{
+
+    enum PassType {
         Init,
         Perf
     };
-        
+
     nlohmann::json cabbageJson = {};
     std::string channel = {};
     std::string identifier = {};
@@ -42,21 +42,21 @@ struct CabbageOpcodes
     MYFLT* value = {};
     MYFLT lastValue = 0;
     MYFLT* str = {};
-    
+
     static bool hasNullTerminator(const char* str, size_t length)
     {
-        for (size_t i = 0; i < length; ++i) 
+        for (size_t i = 0; i < length; ++i)
         {
-            if (str[i] == '\0') 
+            if (str[i] == '\0')
             {
                 return true;
             }
         }
         return false;
     }
-    
-    
-    static std::string removeNullTerminator(const std::string& str) 
+
+
+    static std::string removeNullTerminator(const std::string& str)
     {
         // Create a copy of the string
         std::string result = str;
@@ -68,7 +68,7 @@ struct CabbageOpcodes
 
         return result;
     }
-    
+
     bool hasNullTerminator(const std::string& str)
     {
         const char* cStr = str.c_str();
@@ -77,10 +77,10 @@ struct CabbageOpcodes
         // Check if the character after the last element is a null terminator
         return cStr[length] == '\0';
     }
-    
+
     //run identifier strings through this to make sure things are correctly escaped - they will form part
     //of a JSON string
-    static std::string sanitiseString(const std::string& input) 
+    static std::string sanitiseString(const std::string& input)
     {
         std::string sanitized;
         sanitized.reserve(input.size() * 2); // Reserve space to avoid frequent reallocations
@@ -88,26 +88,27 @@ struct CabbageOpcodes
         for (char c : input) {
             if (c == '\n') {
                 sanitized += "\\n"; // Replace newline with literal "\\n"
-            } else {
+            }
+            else {
                 switch (c) {
-                    case '\\': sanitized += "\\\\"; break;
-                    case '\"': sanitized += "\\\""; break;
-                    case '\r': sanitized += "\\r"; break;
-                    case '\t': sanitized += "\\t"; break;
-                    default: sanitized += c; break;
+                case '\\': sanitized += "\\\\"; break;
+                case '\"': sanitized += "\\\""; break;
+                case '\r': sanitized += "\\r"; break;
+                case '\t': sanitized += "\\t"; break;
+                default: sanitized += c; break;
                 }
             }
         }
 
         return sanitized;
     }
-    
+
     CabbageOpcodeData getValueIdentData(csnd::Param<NumInputParams>& args, bool init, int nameIndex, int identIndex)
     {
         CabbageOpcodeData data;
-        if(init)
+        if (init)
         {
-            if(args.str_data(nameIndex).size == 0)
+            if (args.str_data(nameIndex).size == 0)
                 name = {};
             else
                 name = args.str_data(nameIndex).data;
@@ -117,43 +118,43 @@ struct CabbageOpcodes
         data.channel = name;
         return data;
     }
-    
+
 
     //this check for brackets within strings, when argument is in form of text("this is a string")
-    bool containsIllegalCharsWithinParentheses(const std::string& str) 
+    bool containsIllegalCharsWithinParentheses(const std::string& str)
     {
         size_t openParenthesis = str.find('(');
-        if (openParenthesis == std::string::npos) 
+        if (openParenthesis == std::string::npos)
         {
             return false;  // No opening parenthesis found
         }
 
         size_t closeParenthesis = str.rfind(')');
-        if (closeParenthesis == std::string::npos || closeParenthesis < openParenthesis) 
+        if (closeParenthesis == std::string::npos || closeParenthesis < openParenthesis)
         {
             return false;  // No closing parenthesis found or closing parenthesis is before opening parenthesis
         }
 
         // Check for () character within the parentheses
-        for (size_t i = openParenthesis + 1; i < closeParenthesis; ++i) 
+        for (size_t i = openParenthesis + 1; i < closeParenthesis; ++i)
         {
             if (str[i] == ')' || str[i] == '(')
                 return true;
         }
         return false;
     }
-    
+
     //this check for brackets within strings, when argument is in form of "this is a string", i.e, no identifier
-    bool containsIllegalChars(const std::string& str) 
+    bool containsIllegalChars(const std::string& str)
     {
         // Check for both '(' and ')' using ||
-        if (str.find('(') != std::string::npos || str.find(')') != std::string::npos) 
+        if (str.find('(') != std::string::npos || str.find(')') != std::string::npos)
         {
             return true;
         }
         return false;
     }
-    
+
     // Function to split a dot notation string into a vector of keys
     std::vector<std::string> split(const std::string& str, char delimiter = '.')
     {
@@ -161,7 +162,7 @@ struct CabbageOpcodes
         std::stringstream ss(str);
         std::string token;
 
-        while (std::getline(ss, token, delimiter)) 
+        while (std::getline(ss, token, delimiter))
         {
             tokens.push_back(token);
         }
@@ -174,18 +175,19 @@ struct CabbageOpcodes
         std::vector<std::string> keys = split(dotNotation, '.');
         nlohmann::json* current = &jsonObj;
 
-        for (size_t i = 0; i < keys.size(); ++i) 
+        for (size_t i = 0; i < keys.size(); ++i)
         {
             const std::string& key = keys[i];
 
             // If we're at the last key, set the value
-            if (i == keys.size() - 1) 
+            if (i == keys.size() - 1)
             {
                 (*current)[key] = value;
-            } else 
+            }
+            else
             {
                 // If the key doesn't exist, create a new object
-                if (!(*current).contains(key)) 
+                if (!(*current).contains(key))
                 {
                     (*current)[key] = nlohmann::json::object();
                 }
@@ -194,29 +196,29 @@ struct CabbageOpcodes
             }
         }
     }
-    
+
     // Function to access a JSON object using dot notation
     nlohmann::json getJsonValue(const nlohmann::json& jsonObj, const std::string& jsonString)
     {
-        if(jsonString.find(".") == std::string::npos)
+        if (jsonString.find(".") == std::string::npos)
         {
-            if(jsonObj.contains(jsonString))
+            if (jsonObj.contains(jsonString))
                 return jsonObj[jsonString];
-            
-            return jsonObj;            
-            
+
+            return jsonObj;
+
         }
-        
-//        _log(jsonObj.dump(4));
-        //else deal with dot notation
+
+        //        _log(jsonObj.dump(4));
+                //else deal with dot notation
         std::vector<std::string> keys = split(jsonString, '.');
         nlohmann::json current = jsonObj;
         for (const auto& key : keys)
         {
-            if (current.contains(key)) 
+            if (current.contains(key))
             {
                 current = current[key];
-            } 
+            }
             else
             {
                 return nullptr; // Return null if the key does not exist
@@ -224,14 +226,14 @@ struct CabbageOpcodes
         }
         return current;
     }
-    
+
     template <typename T>
     void updateWidgetJson(nlohmann::json& jsonObj, csnd::Param<NumInputParams>& args, int argIndex, int numIns, std::string identifier)
     {
         std::vector<T> params;
-        if(numIns>argIndex+2) //dealing with array...
+        if (numIns > argIndex + 2) //dealing with array...
         {
-            for( int i = argIndex ; i < numIns ; i++)
+            for (int i = argIndex; i < numIns; i++)
             {
                 if constexpr (std::is_same_v<T, std::string>)
                     params.push_back(args.str_data(i).data);
@@ -248,7 +250,7 @@ struct CabbageOpcodes
             auto it = j.begin();
             if (it.value().is_null())
             {
-                if(identifier.find(".") == std::string::npos)
+                if (identifier.find(".") == std::string::npos)
                 {
                     if constexpr (std::is_same_v<T, std::string>)
                         jsonObj[identifier] = args.str_data(argIndex).data;
@@ -259,9 +261,9 @@ struct CabbageOpcodes
                 {
                     //dot notation
                     if constexpr (std::is_same_v<T, std::string>)
-                        setJsonValue(jsonObj, args.str_data(argIndex-1).data, args.str_data(argIndex).data);
+                        setJsonValue(jsonObj, args.str_data(argIndex - 1).data, args.str_data(argIndex).data);
                     else
-                        setJsonValue(jsonObj, args.str_data(argIndex-1).data, args[argIndex]);
+                        setJsonValue(jsonObj, args.str_data(argIndex - 1).data, args[argIndex]);
                 }
             }
             else
@@ -271,12 +273,12 @@ struct CabbageOpcodes
             }
         }
     }
-    
+
     bool testForValidNumberOfInputs(int totalInputs, int minInputs)
     {
         return (totalInputs >= minInputs);
     }
-    
+
     nlohmann::json parseAndFormatJson(const std::string& jsonString)
     {
         // Wrap the input string with braces to form a complete JSON object
@@ -284,49 +286,56 @@ struct CabbageOpcodes
 
         try {
             // Attempt to parse the wrapped JSON string
-            return nlohmann::json::parse(wrappedJson);
-        } catch (const nlohmann::json::parse_error&) {
-            // If parsing fails, create a new JSON object with an empty key
-            nlohmann::json fallbackJson;
-            fallbackJson[split(jsonString)[0]] = nullptr;
-            return fallbackJson;
+            if (nlohmann::json::accept(wrappedJson))
+                return nlohmann::json::parse(wrappedJson);
+            else
+            {
+                // If parsing fails, create a new JSON object with an empty key
+                nlohmann::json fallbackJson;
+                fallbackJson[split(jsonString)[0]] = nullptr;
+                return fallbackJson;
+            }
         }
+        catch (const nlohmann::json::parse_error& e) {
+            std::cerr << "JSON parse error: " << e.what() << std::endl;
+        }
+        return {};
     }
-    
+
     CabbageOpcodeData getIdentData(csnd::Csound* csound, csnd::Param<NumInputParams>& args, bool init, int channelIndex, int identIndex)
     {
         CabbageOpcodeData data;
-        if(init)
+        if (init)
         {
-            if(args.str_data(channelIndex).size == 0)
+            if (args.str_data(channelIndex).size == 0)
                 name = {};
             else
             {
                 name = args.str_data(channelIndex).data;
             }
 
-            if(args.str_data(identIndex).size == 0)
+            if (args.str_data(identIndex).size == 0)
                 identifier = {};
             else
             {
-                if(containsIllegalCharsWithinParentheses(args.str_data(identIndex).data))
+                if (containsIllegalCharsWithinParentheses(args.str_data(identIndex).data))
                 {
-                    csound->message("Cabbage Warning: Ill-formatted arguments passed to channel:\""+data.channel+"\" Check for brackets within strings..");
+                    csound->message("Cabbage Warning: Ill-formatted arguments passed to channel:\"" + data.channel + "\" Check for brackets within strings..");
                 }
                 identifier = args.str_data(identIndex).data;
             }
         }
-        
+
         data.identifier = identifier;
         data.channel = name;
         try {
             data.cabbageJson = parseAndFormatJson(identifier);
         }
-        catch (const nlohmann::json::parse_error& e){
+        catch (const nlohmann::json::parse_error& e) {
             std::cerr << "JSON parse error: " << e.what() << std::endl;
         }
 
         return data;
     }
-    
+
 };
