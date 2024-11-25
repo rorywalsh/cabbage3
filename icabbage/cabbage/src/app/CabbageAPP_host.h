@@ -110,7 +110,7 @@ public:
         uint32_t mAudioOutChanR;
         
         //custom app state fields
-        std::string mJsSourceDirectory;
+        WDL_String mJsSourceDirectory;
         
         AppState()
         : mAudioInDev(DEFAULT_INPUT_DEV)
@@ -195,7 +195,7 @@ public:
     /** Returns the name of the audio device at idx
      * @param idx The index RTAudio has given the audio device
      * @return The device name. Core Audio device names are truncated. */
-    std::string GetAudioDeviceName(int idx) const;
+    WDL_String GetAudioDeviceName(int idx) const;
     // returns the rtaudio device ID, based on the (truncated) device name
     
     /** Returns the audio device index linked to a particular name
@@ -284,13 +284,13 @@ private:
     /** The index of the operating systems default output device, -1 if not detected */
     int32_t mDefaultOutputDev = -1;
 
-    std::string mJSONPath;
+    WDL_String mJSONPath;
     
     std::vector<uint32_t> mAudioInputDevs;
     std::vector<uint32_t> mAudioOutputDevs;
-    std::vector<std::string> mAudioIDDevNames;
-    std::vector<std::string> mMidiInputDevNames;
-    std::vector<std::string> mMidiOutputDevNames;
+    std::vector<WDL_String> mAudioIDDevNames;
+    std::vector<WDL_String> mMidiInputDevNames;
+    std::vector<WDL_String> mMidiOutputDevNames;
     
     WDL_PtrList<double> mInputBufPtrs;
     WDL_PtrList<double> mOutputBufPtrs;

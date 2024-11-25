@@ -50,6 +50,7 @@ void writeDetailed(const char* file, int line, const char* function, Args&&... a
     oss << " [Thread ID: " << std::this_thread::get_id() << "]" << std::endl;
 
     std::cout << oss.str() << std::endl;
+    logToDebug(oss.str());
 }
 
 template<typename... Args>
@@ -58,6 +59,7 @@ void writeBasic(Args&&... args) {
     // Use fold expression to append all arguments to the string stream
     (oss << ... << std::forward<Args>(args)); // C++17 fold expression
     std::cout << oss.str() << std::endl;
+    logToDebug(oss.str());
 }
 // Variadic macro to simplify calling the writeDetailed function
 #define LOG_VERBOSE(...) writeDetailed(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
@@ -552,12 +554,28 @@ public:
     }
     
     
-    static std::string convertToForwardSlashes(const std::string& path)
+    static const char* convertToForwardSlashes(const char* path)
     {
-        std::string convertedPath = path;
-        std::replace(convertedPath.begin(), convertedPath.end(), '\\', '/');
-        return convertedPath;
+        // Find the length of the input path
+        size_t length = std::strlen(path);
+
+        // Dynamically allocate memory for the result
+        char* result = new char[length + 1];  // +1 for the null terminator
+
+        // Copy the input path into the result buffer
+        std::memcpy(result, path, length + 1);
+
+        // Traverse the result buffer and replace '\\' with '/'
+        for (size_t i = 0; i < length; ++i) {
+            if (result[i] == '\\') {
+                result[i] = '/';
+            }
+        }
+
+        // Return the modified path
+        return result;  // Caller must delete[] the result when done
     }
+
     
     static std::string getFileName(const std::string& absolutePath)
     {

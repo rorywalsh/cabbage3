@@ -16,6 +16,7 @@
 
 #include "opcodes/CabbageOpcodes.h"
 #include "IPlugLogger.h"
+#include "CabbageUtils.h"
 
 using namespace iplug;
 
@@ -107,6 +108,7 @@ bool IPlugAPPHost::InitProcessor()
         };
     
     cabbageProcessor->hostCallback = callback;
+    return true;
 }
 
 bool IPlugAPPHost::InitWebSocket()
@@ -180,6 +182,7 @@ bool IPlugAPPHost::InitWebSocket()
                     }
                     catch (nlohmann::json::exception& e) {
                         LOG_VERBOSE("Error:", e.what());
+                        return false;
                     }
                 }
                 else if (msg->type == ix::WebSocketMessageType::Open)
@@ -206,12 +209,14 @@ bool IPlugAPPHost::InitWebSocket()
                     LOG_VERBOSE("Connection error: ", msg->errorInfo.reason);
                     //std::cout << "> " << std::flush;
                 }
+
+                return true;
             }
     );
 
     // Now that our callback is setup, we can start our background thread and receive messages
     webSocket.start();
-    
+    return true;
 }
 
 bool IPlugAPPHost::Init()
@@ -249,8 +254,11 @@ bool IPlugAPPHost::InitState()
 #if defined OS_WIN
     TCHAR strPath[MAX_PATH_LEN];
     SHGetFolderPathA( NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath );
-    // Use std::string for path concatenation
-    mJSONPath = std::string(strPath) + "\\" + BUNDLE_NAME + "\\";
+    // Can't use std::string for this udes to isses with utf8 encoding..
+    mJSONPath.Set(strPath);           
+    mJSONPath.Append("\\");           
+    mJSONPath.Append(BUNDLE_NAME);    
+    mJSONPath.Append("\\");          
 #elif defined OS_MAC
     const char* homePath = getenv("HOME");
     mJSONPath = std::string(homePath) + "/Library/Application Support/" + BUNDLE_NAME + "/";
@@ -259,23 +267,18 @@ bool IPlugAPPHost::InitState()
 #error NOT IMPLEMENTED
 #endif
     
-    /* 
-     todo - set default locations for widget src
-    if (mState->GetString("jsSrcDir", nullptr) == nullptr)
-        mState->SetString("jsSrcDir", "path to JS src dir");
-     */
 
     struct stat st;
     
-    if(stat(mJSONPath.c_str(), &st) == 0) // if directory exists
+    if(stat(mJSONPath.Get(), &st) == 0) // if directory exists
     {
-        mJSONPath+=("settings.json"); // add file name to path
+        mJSONPath.Append("settings.json"); // add file name to path
         
         
         try{
-            std::ifstream file(mJSONPath);
+            std::ifstream file(mJSONPath.Get());
             nlohmann::json settingsJson = {};
-            
+
             if (file.is_open()) {
                 // Check if the file is empty
                 if (file.peek() == std::ifstream::traits_type::eof()) {
@@ -290,6 +293,7 @@ bool IPlugAPPHost::InitState()
                     }
                     catch (const nlohmann::json::parse_error& e) {
                         std::cerr << "JSON parse error: " << e.what() << std::endl;
+                        std::cerr << "Byte position: " << e.byte << std::endl;
                     }
                 }
             }
@@ -301,24 +305,24 @@ bool IPlugAPPHost::InitState()
             
             char buf[STRBUFSZ];
             
-            if(stat(mJSONPath.c_str(), &st) == 0) // if settings file exists read values into state
+            if(stat(mJSONPath.Get(), &st) == 0) // if settings file exists read values into state
             {
-                DBGMSG("Reading json file from %s\n", mJSONPath.c_str());
+                DBGMSG("Reading json file from %s\n", mJSONPath.Get());
 
                 mState.mAudioDriverType = settingsJson["currentConfig"]["audio"].value("driver", 0);
-                mState.mAudioInDev.Set(settingsJson["currentConfig"]["audio"].value("inputDevice", "Built-in Input").c_str());
-                mState.mAudioOutDev.Set(settingsJson["currentConfig"]["audio"].value("outputDevice", "Built-in Output").c_str());
+                mState.mAudioInDev.Set(settingsJson["currentConfig"]["audio"].value("inputDevice", "Built-in Input").Get());
+                mState.mAudioOutDev.Set(settingsJson["currentConfig"]["audio"].value("outputDevice", "Built-in Output").Get());
                 mState.mAudioInChanL = settingsJson["currentConfig"]["audio"].value("in1", 1);
                 mState.mAudioInChanR = settingsJson["currentConfig"]["audio"].value("in2", 2);
                 mState.mAudioOutChanL = settingsJson["currentConfig"]["audio"].value("out1", 1);
                 mState.mAudioOutChanR = settingsJson["currentConfig"]["audio"].value("out2", 2);
                 mState.mBufferSize = settingsJson["currentConfig"]["audio"].value("buffer", 512);
                 mState.mAudioSR = settingsJson["currentConfig"]["audio"].value("sr", 44100);
-                mState.mMidiInDev.Set(settingsJson["currentConfig"]["midi"].value("inputDevice", "no input").c_str());
-                mState.mMidiOutDev.Set(settingsJson["currentConfig"]["midi"].value("outputDvice", "no output").c_str());
+                mState.mMidiInDev.Set(settingsJson["currentConfig"]["midi"].value("inputDevice", "no input").Get());
+                mState.mMidiOutDev.Set(settingsJson["currentConfig"]["midi"].value("outputDvice", "no output").Get());
                 mState.mMidiInChan = settingsJson["currentConfig"]["midi"].value("inChan", 0);
                 mState.mMidiOutChan = settingsJson["currentConfig"]["midi"].value("outChan", 0);
-                mState.mJsSourceDirectory = settingsJson["currentConfig"].value("jsSourceDir", "add path to JS src directory");
+                mState.mJsSourceDirectory = cabbage::File::convertToForwardSlashes(settingsJson["currentConfig"].value("jsSourceDir", "add path to JS src directory"));
             }
 
         }
@@ -359,7 +363,7 @@ bool IPlugAPPHost::InitState()
     }
     
     return true;
-}
+}  
 
 void IPlugAPPHost::addDevicesToSettings( RtAudio& audio, nlohmann::json& settingsJSON)
 {
@@ -421,17 +425,21 @@ void IPlugAPPHost::UpdateSettings()
     RtAudio::getCompiledApi(apis);
     
 #ifdef OS_WIN
-    settingsJSON["audioDrivers"] = { "DirectSound", "ASIO" };
+    settingsJSON["systemAudioMidiIOListing"]["audioDrivers"] = { "DirectSound" };
+    //todo fix this, ASIO is shitting the bed - using DirectSound only for now
+    RtAudio audio(apis[1], errorCallback);
 #elif defined OS_MAC
     settingsJSON["systemAudioMidiIOListing"]["audioDrivers"] = "CoreAudio";
+    RtAudio audio(apis[0], errorCallback);
 #else
     cabAssert(false, "Not implemented");
 #endif
     
-    settingsJSON["currentConfig"]["jsSourceDir"] = mState.mJsSourceDirectory;
+    settingsJSON["currentConfig"]["jsSourceDir"] = cabbage::File::convertToForwardSlashes(mState.mJsSourceDirectory);
     
+    LOG_INFO(settingsJSON.dump(4));
+
     
-    RtAudio audio(apis[0], errorCallback);
     addDevicesToSettings(audio, settingsJSON);
 
     RtMidiIn midiIn;

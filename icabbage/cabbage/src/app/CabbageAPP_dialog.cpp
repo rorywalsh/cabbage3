@@ -134,17 +134,17 @@ void IPlugAPPHost::PopulateDriverSpecificControls(HWND hwndDlg)
 
   for (int i = 0; i<mAudioInputDevs.size(); i++)
   {
-    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_DEV,CB_ADDSTRING,0,(LPARAM)GetAudioDeviceName(mAudioInputDevs[i]).c_str());
+    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_DEV,CB_ADDSTRING,0,(LPARAM)GetAudioDeviceName(mAudioInputDevs[i]).Get());
 
-    if(!strcmp(GetAudioDeviceName(mAudioInputDevs[i]).c_str(), mState.mAudioInDev.Get()))
+    if(!strcmp(GetAudioDeviceName(mAudioInputDevs[i]).Get(), mState.mAudioInDev.Get()))
       indevidx = i;
   }
 
   for (int i = 0; i<mAudioOutputDevs.size(); i++)
   {
-    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_DEV,CB_ADDSTRING,0,(LPARAM)GetAudioDeviceName(mAudioOutputDevs[i]).c_str());
+    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_DEV,CB_ADDSTRING,0,(LPARAM)GetAudioDeviceName(mAudioOutputDevs[i]).Get());
 
-    if(!strcmp(GetAudioDeviceName(mAudioOutputDevs[i]).c_str(), mState.mAudioOutDev.Get()))
+    if(!strcmp(GetAudioDeviceName(mAudioOutputDevs[i]).Get(), mState.mAudioOutDev.Get()))
       outdevidx = i;
   }
 
@@ -209,7 +209,7 @@ bool IPlugAPPHost::PopulateMidiDialogs(HWND hwndDlg)
   {
     for (int i=0; i<mMidiInputDevNames.size(); i++ )
     {
-      SendDlgItemMessage(hwndDlg,IDC_COMBO_MIDI_IN_DEV,CB_ADDSTRING,0,(LPARAM)mMidiInputDevNames[i].c_str());
+      SendDlgItemMessage(hwndDlg,IDC_COMBO_MIDI_IN_DEV,CB_ADDSTRING,0,(LPARAM)mMidiInputDevNames[i].Get());
     }
 
     LRESULT indevidx = SendDlgItemMessage(hwndDlg,IDC_COMBO_MIDI_IN_DEV,CB_FINDSTRINGEXACT, -1, (LPARAM)mState.mMidiInDev.Get());
@@ -226,7 +226,7 @@ bool IPlugAPPHost::PopulateMidiDialogs(HWND hwndDlg)
 
     for (int i=0; i<mMidiOutputDevNames.size(); i++ )
     {
-      SendDlgItemMessage(hwndDlg,IDC_COMBO_MIDI_OUT_DEV,CB_ADDSTRING,0,(LPARAM)mMidiOutputDevNames[i].c_str());
+      SendDlgItemMessage(hwndDlg,IDC_COMBO_MIDI_OUT_DEV,CB_ADDSTRING,0,(LPARAM)mMidiOutputDevNames[i].Get());
     }
 
     LRESULT outdevidx = SendDlgItemMessage(hwndDlg,IDC_COMBO_MIDI_OUT_DEV,CB_FINDSTRINGEXACT, -1, (LPARAM)mState.mMidiOutDev.Get());
@@ -352,10 +352,10 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
               _this->ProbeAudioIO();
 
               if (_this->mAudioInputDevs.size())
-                mState.mAudioInDev.Set(_this->GetAudioDeviceName(_this->mAudioInputDevs[0]).c_str());
+                mState.mAudioInDev.Set(_this->GetAudioDeviceName(_this->mAudioInputDevs[0]).Get());
 
               if (_this->mAudioOutputDevs.size())
-                mState.mAudioOutDev.Set(_this->GetAudioDeviceName(_this->mAudioOutputDevs[0]).c_str());
+                mState.mAudioOutDev.Set(_this->GetAudioDeviceName(_this->mAudioOutputDevs[0]).Get());
 
               // Reset IO
               mState.mAudioOutChanL = 1;
@@ -555,7 +555,7 @@ WDL_DLGRET IPlugAPPHost::MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
 
       ClientResize(hwndDlg, width, height);
 
-      //ShowWindow(hwndDlg, SW_SHOW);
+      ShowWindow(hwndDlg, SW_SHOW);
       return 1;
     }
     case WM_DESTROY:
