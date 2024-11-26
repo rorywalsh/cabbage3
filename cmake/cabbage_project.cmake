@@ -151,4 +151,54 @@ if(APPLE)
             ${CABBAGE_LIBRARIES}
             ${CSOUND_FRAMEWORK}
     )
+
+else() # WIN32    
+
+    set(CABBAGE_WEBVIEW_SOURCES
+        "src/webView/IPlugWebView.h"
+        "src/webView/IPlugWebView.cpp"
+        "src/webView/CabbageEditorDelegate.h"
+        "src/webView/CabbageEditorDelegate.cpp"
+    )
+
+    set(CABBAGE_DEFINES
+        WIN32_LEAN_AND_MEAN
+        _WIN32
+    )
+
+    set(CABBAGE_INCLUDE_DIRS
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include"
+        "${FETCHCONTENT_BASE_DIR}/choc-src/include"
+        "${iplug2_SOURCE_DIR}/Dependencies/Build/mac/include"
+        "${CMAKE_SOURCE_DIR}"
+        "${CMAKE_SOURCE_DIR}/src"
+        "${CMAKE_SOURCE_DIR}/src/app"
+    )
+
+    # Very possible we don't need some of these - not super familiar with mac frameworks
+    set(CABBAGE_LIBRARIES
+        ixwebsocket::ixwebsocket
+        readerwriterqueue
+    )
+
+    add_library(_base INTERFACE)
+
+    iplug_target_add(_base INTERFACE
+    DEFINE
+        CUSTOM_EDITOR="${CMAKE_SOURCE_DIR}/src/webView/CabbageEditorDelegate.h"
+        CUSTOM_EDITOR_CLASS=CabbageEditorDelegate
+        NO_IGRAPHICS
+        ${CABBAGE_DEFINES}
+        FEATURE cxx_std_17
+        
+    INCLUDE
+        "${CMAKE_SOURCE_DIR}/resources"
+        ${CABBAGE_INCLUDE_DIRS}
+        ${CSOUND_INCLUDE_DIRS}
+        ${iplug2_SOURCE_DIR}/Dependencies/Extras/nlohmann
+    LINK
+        iPlug2_GL2
+        ${CABBAGE_LIBRARIES}
+        ${CSOUND_FRAMEWORK}
+    )
 endif()

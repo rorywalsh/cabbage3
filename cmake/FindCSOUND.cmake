@@ -18,14 +18,7 @@ if(APPLE)
             /Applications/Csound/CsoundLib64.framework
             ${CSOUND_FRAMEWORK_DIR_HINT}
     )
-else()
-    find_path(CSOUND_INCLUDE_DIR csound.h
-        PATH_SUFFIXES csound
-        HINTS ${CSOUND_INCLUDE_DIR_HINT}
-    )
-endif()
 
-if(APPLE)
     find_library(CSOUND_LIBRARY
         NAMES CsoundLib64
         HINTS
@@ -33,12 +26,21 @@ if(APPLE)
             "$ENV{HOME}/Applications/Csound/CsoundLib64.framework"
             ${CSOUND_LIBRARY_DIR_HINT}
     )
+
 else()
-    find_library(CSOUND_LIBRARY
-        NAMES csound64 csound
-        HINTS ${CSOUND_LIBRARY_DIR_HINT}
+
+    find_path(CSOUND_INCLUDE_DIR csound.h
+        HINTS "C:\\Program Files\\Csound7\\include\\csound"
+        ${CSOUND_INCLUDE_DIR_HINT}
     )
+
+    find_library(CSOUND_LIBRARY 
+        NAMES csound64 
+        HINTS 
+            "c:\\Program Files\\Csound6_x64\\lib")
+
 endif()
+
 
 include(FindPackageHandleStandardArgs)
 
