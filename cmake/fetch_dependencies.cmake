@@ -26,8 +26,8 @@ fetch_github_dependency(
 fetch_github_dependency(
     iplug2
     GIT_REPOSITORY https://github.com/rorywalsh/iPlug2.git
-    GIT_TAG 5556f99838cca232ba484bda2f99d766f41207fe
-    URL_MD5 3f318fa09fcc8272f094506ef69d9e92
+    GIT_TAG ff77fe80834d602da56513213f96196ca66453ce
+    URL_MD5 9b18a1fef9c1fb6c0f686ef16fa94e65
     # USE_GIT
 )
 
