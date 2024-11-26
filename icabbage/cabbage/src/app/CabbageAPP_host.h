@@ -44,7 +44,9 @@
 #include "IPlugConstants.h"
 
 #include "config.h"
-#include <ixwebsocket/IXWebSocketServer.h>
+#if defined(CabbageApp)
+    #include <ixwebsocket/IXWebSocketServer.h>
+#endif
 
 #ifdef OS_WIN
 #include <WindowsX.h>
@@ -225,22 +227,40 @@ public:
     static void MIDICallback(double deltatime, std::vector<uint8_t>* pMsg, void* pUserData);
     static void errorCallback(RtAudioErrorType type, const std::string& errorText);
     
-    static std::string cleanDeviceName(const std::string& deviceName)
-    {
-        // Remove manufacturer part of the device name after ':'
-        size_t colonPos = deviceName.find(':');
-        std::string cleanName = (colonPos != std::string::npos)
-                                ? deviceName.substr(colonPos + 1)
-                                : deviceName;
+#include <cstring>
+#include <cctype>
+
+    static const char* cleanDeviceName(const char* deviceName) {
+        if (!deviceName) {
+            return ""; // Handle null input gracefully
+        }
+
+        // Allocate a static buffer for the result
+        static char cleanName[256]; // Adjust size as needed
+        std::strncpy(cleanName, deviceName, sizeof(cleanName) - 1);
+        cleanName[sizeof(cleanName) - 1] = '\0'; // Ensure null-termination
+
+        // Find the colon in the string
+        char* colonPos = std::strchr(cleanName, ':');
+        if (colonPos) {
+            // Skip the colon and point to the part after it
+            std::memmove(cleanName, colonPos + 1, std::strlen(colonPos + 1) + 1);
+        }
 
         // Remove leading spaces
-        cleanName.erase(cleanName.begin(), std::find_if(cleanName.begin(), cleanName.end(), [](unsigned char ch) {
-            return !std::isspace(ch);
-        }));
+        char* firstNonSpace = cleanName;
+        while (*firstNonSpace && std::isspace(static_cast<unsigned char>(*firstNonSpace))) {
+            ++firstNonSpace;
+        }
+
+        // Shift the string to remove leading spaces
+        if (firstNonSpace != cleanName) {
+            std::memmove(cleanName, firstNonSpace, std::strlen(firstNonSpace) + 1);
+        }
 
         return cleanName;
     }
-    
+
     void addDevicesToSettings( RtAudio& audio, nlohmann::json& settings);
     
     static WDL_DLGRET PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -251,7 +271,6 @@ public:
     std::string getCsdFile(){   return csdFile; }
     
 private:
-    void updateHost(CabbageOpcodeData data);
     std::vector<nlohmann::json> parameters;
     std::unique_ptr<IPlugAPP> mIPlug = nullptr;
     std::unique_ptr<RtAudio> mDAC = nullptr;
@@ -261,7 +280,10 @@ private:
     int mMidiOutChannel = -1;
     int mMidiInChannel = -1;
     std::string csdFile;
+#if defined CabbageApp
+    void updateHost(CabbageOpcodeData data);
     ix::WebSocket webSocket;
+#endif
     CabbageProcessor* cabbageProcessor;
     /**  */
     AppState mState;

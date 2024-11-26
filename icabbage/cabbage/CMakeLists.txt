@@ -17,7 +17,7 @@ elseif(DEFINED CabbagePluginSynth)
 endif()
 
 if(NOT DEFINED BUILD_VERSION)
-	set(BUILD_VERSION 0.0.125)
+	set(BUILD_VERSION 0.0.126)
 endif()
 
 
@@ -259,7 +259,6 @@ if(WIN32)
     FEATURE cxx_std_17
     DEFINE NO_IGRAPHICS ${EXTRA_DEFINES} CUSTOM_EDITOR="${PROJECT_DIR}/src/webView/CabbageEditorDelegate.h" CUSTOM_EDITOR_CLASS=CabbageEditorDelegate)
 
-  if (DEFINED CabbageApp)
     set(CUSTOM_APP_SRC
     ../src/app/CabbageAPP.cpp 
     ../src/app/CabbageAPP_host.h
@@ -268,24 +267,26 @@ if(WIN32)
     ../src/app/CabbageAPP_main.cpp
     ../src/app/CabbageAPP.h
     )
+
+  if (DEFINED CabbageApp)
     # this is the taget for the command line app that runs from vscode
     set(TARGET app)    
     add_executable(${TARGET} WIN32 ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
     iplug_target_add(${TARGET} PUBLIC 
     LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} 
-    DEFINE ${ProductName} WIN32_LEAN_AND_MEAN CUSTOM_APP_SRC)
+    DEFINE ${ProductName} _WIN32 WIN32_LEAN_AND_MEAN CUSTOM_APP_SRC)
     iplug_configure_target(${TARGET} app)
     source_group("Cabbage App" FILES ${CUSTOM_APP_SRC})
   else()
 
-    message("Setting up standalone app taget")
+    message("Setting up standalone app target")
     
 
     set(TARGET app)
     add_executable(${TARGET}  WIN32 ${SRC_FILES} ${WEBVIEW_SRC_FILES} ${OPCODE_SRC_FILES})
     iplug_target_add(${TARGET} PUBLIC 
     LINK iPlug2_APP ZLIB::ZLIB _base  ${CSOUND_LIBRARY} ${LIB_SNDFILE} RESOURCE ${RESOURCES} 
-    DEFINE WIN32_LEAN_AND_MEAN)
+    DEFINE _WIN32 WIN32_LEAN_AND_MEAN CUSTOM_APP_SRC)
     iplug_configure_target(${TARGET} app )
 
     message("Setting up VST3 target")

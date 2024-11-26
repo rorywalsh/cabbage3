@@ -63,7 +63,7 @@ bool IPlugAPPHost::InitProcessor()
     cabbageProcessor = dynamic_cast<CabbageProcessor*>(mIPlug.get());
     parameters = cabbageProcessor->getCabbageEngine().getWidgets();
 
-   
+#if defined CabbageApp
     //this callback is triggered from CabbageProcessor.cpp and is responsible for
     //updating the widgets in the VSCode web panel
     auto callback = [&](CabbageOpcodeData data) {
@@ -108,11 +108,13 @@ bool IPlugAPPHost::InitProcessor()
         };
     
     cabbageProcessor->hostCallback = callback;
+#endif
     return true;
 }
 
 bool IPlugAPPHost::InitWebSocket()
 {
+#if defined CabbageApp
     webSocket.setUrl("ws://localhost:9991");
     
     webSocket.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg)
@@ -216,6 +218,7 @@ bool IPlugAPPHost::InitWebSocket()
 
     // Now that our callback is setup, we can start our background thread and receive messages
     webSocket.start();
+#endif
     return true;
 }
 
@@ -310,19 +313,19 @@ bool IPlugAPPHost::InitState()
                 DBGMSG("Reading json file from %s\n", mJSONPath.Get());
 
                 mState.mAudioDriverType = settingsJson["currentConfig"]["audio"].value("driver", 0);
-                mState.mAudioInDev.Set(settingsJson["currentConfig"]["audio"].value("inputDevice", "Built-in Input").Get());
-                mState.mAudioOutDev.Set(settingsJson["currentConfig"]["audio"].value("outputDevice", "Built-in Output").Get());
+                mState.mAudioInDev.Set(settingsJson["currentConfig"]["audio"].value("inputDevice", "Built-in Input").c_str());
+                mState.mAudioOutDev.Set(settingsJson["currentConfig"]["audio"].value("outputDevice", "Built-in Output").c_str());
                 mState.mAudioInChanL = settingsJson["currentConfig"]["audio"].value("in1", 1);
                 mState.mAudioInChanR = settingsJson["currentConfig"]["audio"].value("in2", 2);
                 mState.mAudioOutChanL = settingsJson["currentConfig"]["audio"].value("out1", 1);
                 mState.mAudioOutChanR = settingsJson["currentConfig"]["audio"].value("out2", 2);
                 mState.mBufferSize = settingsJson["currentConfig"]["audio"].value("buffer", 512);
                 mState.mAudioSR = settingsJson["currentConfig"]["audio"].value("sr", 44100);
-                mState.mMidiInDev.Set(settingsJson["currentConfig"]["midi"].value("inputDevice", "no input").Get());
-                mState.mMidiOutDev.Set(settingsJson["currentConfig"]["midi"].value("outputDvice", "no output").Get());
+                mState.mMidiInDev.Set(settingsJson["currentConfig"]["midi"].value("inputDevice", "no input").c_str());
+                mState.mMidiOutDev.Set(settingsJson["currentConfig"]["midi"].value("outputDvice", "no output").c_str());
                 mState.mMidiInChan = settingsJson["currentConfig"]["midi"].value("inChan", 0);
                 mState.mMidiOutChan = settingsJson["currentConfig"]["midi"].value("outChan", 0);
-                mState.mJsSourceDirectory = cabbage::File::convertToForwardSlashes(settingsJson["currentConfig"].value("jsSourceDir", "add path to JS src directory"));
+                mState.mJsSourceDirectory.Set(cabbage::File::convertToForwardSlashes(settingsJson["currentConfig"].value("jsSourceDir", "add path to JS src directory").c_str()));
             }
 
         }
@@ -340,8 +343,8 @@ bool IPlugAPPHost::InitState()
     {
 #if defined OS_WIN
         // folder doesn't exist - make folder and make file
-        CreateDirectory(mJSONPath.c_str(), NULL);
-        mJSONPath+=("\\settings.json");
+        CreateDirectory(mJSONPath.Get(), NULL);
+        mJSONPath.Append("\\settings.json");
         UpdateSettings(); // will write file if doesn't exist
 #elif defined OS_MAC
         mode_t process_mask = umask(0);
@@ -379,7 +382,7 @@ void IPlugAPPHost::addDevicesToSettings( RtAudio& audio, nlohmann::json& setting
         if (info.outputChannels > 0)
         {
             const std::string outs = "output" + std::to_string(outputCnt);
-            auto outputDevice = cleanDeviceName(info.name);
+            auto outputDevice = info.name;
             nlohmann::json j;
             j["deviceId"] = info.ID;
             j["numChannels"] = info.outputChannels;
@@ -392,7 +395,7 @@ void IPlugAPPHost::addDevicesToSettings( RtAudio& audio, nlohmann::json& setting
         if (info.inputChannels > 0)
         {
             const std::string ins = "input" + std::to_string(inputCnt);
-            auto inputDevice = cleanDeviceName(info.name);
+            auto inputDevice = info.name;
             nlohmann::json j;
             j["deviceId"] = info.ID;
             j["numChannels"] = info.inputChannels;
@@ -435,7 +438,7 @@ void IPlugAPPHost::UpdateSettings()
     cabAssert(false, "Not implemented");
 #endif
     
-    settingsJSON["currentConfig"]["jsSourceDir"] = cabbage::File::convertToForwardSlashes(mState.mJsSourceDirectory);
+    settingsJSON["currentConfig"]["jsSourceDir"] = cabbage::File::convertToForwardSlashes(mState.mJsSourceDirectory.Get());
     
     LOG_INFO(settingsJSON.dump(4));
 
@@ -476,18 +479,18 @@ void IPlugAPPHost::UpdateSettings()
         settingsJSON["systemAudioMidiIOListing"]["midiOutputDevices"][midiOut.getPortName(i)] = j;
     }
         
-    std::ofstream settingsFile(mJSONPath);
+    std::ofstream settingsFile(mJSONPath.Get());
     if (settingsFile.is_open()) {
         settingsFile << settingsJSON.dump(4);  // Pretty print JSON with 4-space indentation
         settingsFile.close();
 //        std::cout << "Settings written to: " << mJSONPath << std::endl;
     } else {
-        std::cerr << "Unable to open settings file for writing: " << mJSONPath << std::endl;
+        std::cerr << "Unable to open settings file for writing: " << mJSONPath.Get() << std::endl;
     }
 
 }
 
-std::string IPlugAPPHost::GetAudioDeviceName(int idx) const
+WDL_String IPlugAPPHost::GetAudioDeviceName(int idx) const
 {
     return mAudioIDDevNames.at(idx);
 }
@@ -495,12 +498,12 @@ std::string IPlugAPPHost::GetAudioDeviceName(int idx) const
 int IPlugAPPHost::GetAudioDeviceIdx(const char* deviceNameToTest) const
 {
     for(int i = 0; i < mAudioIDDevNames.size(); ++i)
-        LOG_INFO(mAudioIDDevNames.at(i).c_str());
+        LOG_INFO(mAudioIDDevNames.at(i).Get());
     
     for(int i = 0; i < mAudioIDDevNames.size(); ++i)
     {
-        LOG_INFO(mAudioIDDevNames.at(i).c_str());
-        if(!strcmp(deviceNameToTest, mAudioIDDevNames.at(i).c_str() ))
+        LOG_INFO(mAudioIDDevNames.at(i).Get());
+        if(!strcmp(deviceNameToTest, mAudioIDDevNames.at(i).Get() ))
             return i;
     }
     
@@ -561,7 +564,7 @@ void IPlugAPPHost::ProbeAudioIO()
     for (unsigned int i=0; i<devices.size(); i++)
     {
         info = mDAC->getDeviceInfo( devices[i] );
-        std::string deviceName = info.name;
+        WDL_String deviceName(info.name.c_str());
         
 #ifdef OS_MAC
         size_t colonIdx = deviceName.rfind(": ");
@@ -595,8 +598,8 @@ void IPlugAPPHost::ProbeMidiIO()
     else
     {
         int nInputPorts = mMidiIn->getPortCount();
-        
-        mMidiInputDevNames.push_back(OFF_TEXT);
+        const WDL_String offText(OFF_TEXT);
+        mMidiInputDevNames.push_back(offText);
         
 #ifdef OS_MAC
         mMidiInputDevNames.push_back("virtual input");
@@ -604,12 +607,13 @@ void IPlugAPPHost::ProbeMidiIO()
         
         for (int i=0; i<nInputPorts; i++ )
         {
-            mMidiInputDevNames.push_back(mMidiIn->getPortName(i));
+			const WDL_String portName(mMidiIn->getPortName(i).c_str());
+            mMidiInputDevNames.push_back(portName);
         }
         
         int nOutputPorts = mMidiOut->getPortCount();
         
-        mMidiOutputDevNames.push_back(OFF_TEXT);
+        mMidiOutputDevNames.push_back(offText);
         
 #ifdef OS_MAC
         mMidiOutputDevNames.push_back("virtual output");
@@ -617,7 +621,8 @@ void IPlugAPPHost::ProbeMidiIO()
         
         for (int i=0; i<nOutputPorts; i++ )
         {
-            mMidiOutputDevNames.push_back(mMidiOut->getPortName(i));
+			const WDL_String portName(mMidiOut->getPortName(i).c_str());
+            mMidiOutputDevNames.push_back(portName);
             //This means the virtual output port wont be added as an input
         }
     }
@@ -749,7 +754,7 @@ bool IPlugAPPHost::TryToChangeAudio()
             inputID = mDefaultInputDev;
             
             if (mAudioInputDevs.size())
-                mState.mAudioInDev.Set(GetAudioDeviceName(inputID).c_str());
+                mState.mAudioInDev.Set(GetAudioDeviceName(inputID).Get());
         }
         else
             failedToFindDevice = true;
@@ -764,7 +769,7 @@ bool IPlugAPPHost::TryToChangeAudio()
             outputID = mDefaultOutputDev;
             
             if (mAudioOutputDevs.size())
-                mState.mAudioOutDev.Set(GetAudioDeviceName(outputID).c_str());
+                mState.mAudioOutDev.Set(GetAudioDeviceName(outputID).Get());
         }
         else
             failedToFindDevice = true;
@@ -918,8 +923,8 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
     
     mBufferSize = iovs; // mBufferSize may get changed by stream
     
-    auto inDevName = cleanDeviceName(mDAC->getDeviceInfo(inId).name);
-    auto outDevName = cleanDeviceName(mDAC->getDeviceInfo(outId).name);
+    auto inDevName = mDAC->getDeviceInfo(inId).name;
+    auto outDevName = mDAC->getDeviceInfo(outId).name;
     
     LOG_INFO("Attempting to start audio with the following settings:\nSR: ", sr, "\nBuffer Size: ", mBufferSize, "\nInput device: ", inDevName, "\nNumber of channels: ", iParams.nChannels, "\nOutput device: ", outDevName, "\nNumber of channels: ", oParams.nChannels);
 
