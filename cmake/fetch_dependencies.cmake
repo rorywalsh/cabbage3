@@ -41,7 +41,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set(iplug2_dependencies_zip_file "IPLUG2_DEPS_WIN")
     # TODO: Update iPlug2 dependencies zip file md5 hash for Windows.
-    set(iplug2_dependencies_url_md5 ef6cec00694e5791e21368483f8f8a65)
+    set(iplug2_dependencies_url_md5 951BD51FF2F82470624C44AA5400B6D2)
 else()
     message(FATAL_ERROR "Unsupported system for iPlug2: ${CMAKE_SYSTEM_NAME}")
 endif()
