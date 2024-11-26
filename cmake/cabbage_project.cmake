@@ -136,7 +136,7 @@ if(APPLE)
 
     iplug_target_add(_base INTERFACE
         DEFINE
-            CUSTOM_EDITOR=" /src/webView/CabbageEditorDelegate.h"
+            CUSTOM_EDITOR="${CMAKE_SOURCE_DIR}/src/webView/CabbageEditorDelegate.h"
             CUSTOM_EDITOR_CLASS=CabbageEditorDelegate
             NO_IGRAPHICS
         FEATURE cxx_std_17
