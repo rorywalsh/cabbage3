@@ -7,7 +7,7 @@ This repository contains the **Cabbage3** project.
 ### Build Instructions
 
 ```bash
-//todo
+cmake -S . -B build -DCABBAGE_BUILD_TARGET=CabbageApp
 ```
 
 
