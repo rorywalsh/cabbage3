@@ -191,15 +191,17 @@ else() # WIN32
         CUSTOM_EDITOR_CLASS=CabbageEditorDelegate
         NO_IGRAPHICS
         ${CABBAGE_DEFINES}
-        FEATURE cxx_std_17        
+        FEATURE cxx_std_17  
     INCLUDE
         "${CMAKE_SOURCE_DIR}/resources"
         ${CABBAGE_INCLUDE_DIRS}
         ${CSOUND_INCLUDE_DIRS}
         ${iplug2_SOURCE_DIR}/Dependencies/Extras/nlohmann
+    LINK_DIR
+        "${CMAKE_SOURCE_DIR}/packages/Microsoft.Web.WebView2-1.0.2478.35/build/native/x64"      
     LINK
         iPlug2_GL2
         ${CABBAGE_LIBRARIES}
-        ${CSOUND_FRAMEWORK}
+        ${CSOUND_LIBRARY}
     )
 endif()
