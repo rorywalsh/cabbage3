@@ -31,7 +31,54 @@ fetch_github_dependency(
     # USE_GIT
 )
 
+if(WIN32) 
+    # Specify the output directory for NuGet packages (relative to the project root)
+    set(NUGET_DOWNLOAD_DIR "${CMAKE_SOURCE_DIR}/packages")
 
+    # Create the packages directory
+    file(MAKE_DIRECTORY ${NUGET_DOWNLOAD_DIR})
+
+    # Specify the packages and their versions
+    set(NUGET_PACKAGES
+        "Microsoft.Web.WebView2/1.0.2478.35"
+        "Microsoft.Windows.ImplementationLibrary/1.0.240122.1"
+    )
+
+
+    # Download and extract NuGet packages
+    foreach(package_and_version IN LISTS NUGET_PACKAGES)
+        # Parse package name and version
+        string(REPLACE "/" ";" package_split ${package_and_version})
+        list(GET package_split 0 package_name)
+        list(GET package_split 1 package_version)
+
+        # Set file paths
+        set(package_url "https://www.nuget.org/api/v2/package/${package_name}/${package_version}")
+        set(package_file "${NUGET_DOWNLOAD_DIR}/${package_name}.${package_version}.nupkg")
+        set(package_extract_dir "${NUGET_DOWNLOAD_DIR}/${package_name}-${package_version}")
+
+        # Download the package if it doesn't already exist
+        if (NOT EXISTS "${package_file}")
+            message(STATUS "Downloading ${package_name} version ${package_version} from ${package_url}")
+            file(DOWNLOAD ${package_url} ${package_file} SHOW_PROGRESS)
+            message(STATUS "Downloaded ${package_name} to ${package_file}")
+        else()
+            message(STATUS "${package_name} version ${package_version} already downloaded")
+        endif()
+
+        # Extract the package if it hasn't been extracted yet
+        if (NOT EXISTS "${package_extract_dir}")
+            message(STATUS "Extracting ${package_name} to ${package_extract_dir}")
+            file(MAKE_DIRECTORY "${package_extract_dir}")
+            file(ARCHIVE_EXTRACT INPUT ${package_file} DESTINATION "${package_extract_dir}")
+            message(STATUS "Extracted ${package_name}")
+        else()
+            message(STATUS "${package_name} already extracted")
+        endif()
+    endforeach()
+
+    message(STATUS "All NuGet packages have been downloaded to ${NUGET_DOWNLOAD_DIR}")
+endif()
 
 message(DEBUG "Fetching iPlug2 dependencies")
 

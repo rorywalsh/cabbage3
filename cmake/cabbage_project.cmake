@@ -169,16 +169,18 @@ else() # WIN32
     set(CABBAGE_INCLUDE_DIRS
         "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include"
         "${FETCHCONTENT_BASE_DIR}/choc-src/include"
-        "${iplug2_SOURCE_DIR}/Dependencies/Build/mac/include"
         "${CMAKE_SOURCE_DIR}"
         "${CMAKE_SOURCE_DIR}/src"
         "${CMAKE_SOURCE_DIR}/src/app"
+        "${CMAKE_SOURCE_DIR}/packages/Microsoft.Web.WebView2-1.0.2478.35/build/native/include"
+        "${CMAKE_SOURCE_DIR}/packages/Microsoft.Windows.ImplementationLibrary-1.0.240122.1/include"
     )
 
     # Very possible we don't need some of these - not super familiar with mac frameworks
     set(CABBAGE_LIBRARIES
         ixwebsocket::ixwebsocket
         readerwriterqueue
+        WebView2LoaderStatic.lib
     )
 
     add_library(_base INTERFACE)
