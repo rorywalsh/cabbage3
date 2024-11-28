@@ -1,11 +1,15 @@
 /*
- ==============================================================================
- 
- This file is part of the iPlug 2 library. Copyright (C) the iPlug 2 developers.
- 
- See LICENSE.txt for  more info.
- 
- ==============================================================================
+ * Copyright (C) the iPlug 2 developers, Rory Walsh (c) 2024
+ * 
+ * Cabbage3 is licensed under the MIT License. See the LICENSE file for details.
+ * This software is provided "as-is", without any express or implied warranty.
+ * See the LICENSE file for more details.
+ * 
+ * Modifications made by Rory Walsh in 2024.
+ * 
+ * This file is based on the iPlug 2 library, which is licensed under the
+ * [iPlug 2 License Information]. The original copyright notice and license
+ * must remain intact in the portions of the code that have not been modified.
  */
 
 #if __has_feature(objc_arc)

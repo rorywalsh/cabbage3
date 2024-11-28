@@ -1,9 +1,11 @@
-//
-//  CabbageColours.h
-//  CabbageApp
-//
-//  Created by Rory on 23/10/2024.
-//
+/*
+ * Copyright (c) 2024 Rory Walsh
+ * 
+ * Cabbage3 is licensed under the MIT License. See the LICENSE file for details.
+ * This software is provided "as-is", without any express or implied warranty.
+ * See the LICENSE file for more details.
+ */
+
 
 #ifndef CabbageColours_h
 #define CabbageColours_h

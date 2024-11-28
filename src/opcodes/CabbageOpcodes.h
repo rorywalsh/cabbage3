@@ -1,11 +1,19 @@
+/*
+ * Copyright (c) 2024 Rory Walsh
+ * 
+ * Cabbage3 is licensed under the MIT License. See the LICENSE file for details.
+ * This software is provided "as-is", without any express or implied warranty.
+ * See the LICENSE file for more details.
+ */
 
+#undef _CR
 /**
  * There is a conflict between the preprocessor definition "_CR" in the
  * standard C++ library and in Csound. To work around this, undefine "_CR" and
  * include ALL standard library include files BEFORE including ANY Csound
  * include files.
  */
-#undef _CR
+
 
 #include <readerwriterqueue.h>
 #include <plugin.h>
