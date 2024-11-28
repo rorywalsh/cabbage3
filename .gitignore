@@ -1,1 +1,5 @@
+_deps/
+build/
+packages/
 .DS_Store
+.vscode/
