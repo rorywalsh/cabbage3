@@ -1,9 +1,7 @@
 
 ## Copyright 2024 Rory Walsh
 
-Cabbage3 is licensed under the terms of the MIT open source license. The full license text is given at the bottom of the page. Prior to that is a summary of the key points. 
-
-### Key Points 
+Cabbage3 is licensed under the terms of the MIT open source license. The full license text is given at the bottom of the page. Prior to that is a brief summary of the key points. 
 
 #### Retention of the Copyright and License Notice:
 Any copy or distribution of the software, whether modified or unmodified, must include:
