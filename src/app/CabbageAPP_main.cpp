@@ -201,7 +201,7 @@ INT_PTR SWELLAppMain(int msg, INT_PTR parm1, INT_PTR parm2)
     switch (msg)
     {
         case SWELLAPP_ONLOAD:
-#ifdef CabbageAp
+#ifdef CabbageApp
             if(argCnt>1)
                 pAppHost = IPlugAPPHost::Create(arguments[1]);
             else
