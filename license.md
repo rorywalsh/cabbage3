@@ -1,5 +1,5 @@
 
-Copyright 2024 Rory Walsh
+## Copyright 2024 Rory Walsh
 
 Cabbage3 is licensed under the terms of the MIT open source license. The full license text is given at the bottom of the page. Prior to that is a summary of the key points. 
 
