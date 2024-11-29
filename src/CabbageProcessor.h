@@ -110,7 +110,6 @@ public:
 #endif
     
 private:
-
     std::string host = {"127.0.0.1"};
     cabbage::Engine cabbage;
     std::function<void(std::string)> triggerScript;

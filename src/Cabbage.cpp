@@ -100,6 +100,10 @@ bool Engine::setupCsound()
             csSpin = csound->GetSpin();
             csScale = csound->Get0dBFS();
             setReservedChannels();
+            
+            std::string csoundAddress = cabbage::StringFormatter::format("Resetting csound ...\ncsound = 0x<>", csound.get());
+            LOG_INFO(csoundAddress);
+            csound->Message(csoundAddress.c_str());
         }
         else
         {

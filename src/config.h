@@ -6,11 +6,13 @@
  * See the LICENSE file for more details.
  */
 
+//uniqueId    int    -475805922
+//UniqueID:-1599879394
 
 #define PLUG_MFR "CabbageAudio"
 #define PLUG_VERSION_HEX 0x00010000
 #define PLUG_VERSION_STR "1.0.0"
-#define PLUG_UNIQUE_ID 'JfNF'
+#define PLUG_UNIQUE_ID 'fx2B'
 #define PLUG_MFR_ID 'Acme'
 #define PLUG_URL_STR "https://iplug2.github.io"
 #define PLUG_EMAIL_STR "spam@me.com"

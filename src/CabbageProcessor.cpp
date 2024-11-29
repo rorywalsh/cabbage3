@@ -145,6 +145,9 @@ void CabbageProcessor::interfaceHasLoaded()
     allowDequeuing = true;
 }
 
+
+// This is called when the editor has finished loading. If en editor is losed and reopened
+// we can update its values here.
 void CabbageProcessor::updateJSWidgets()
 {
     //iterate over all widget objects and send to webview
@@ -154,6 +157,11 @@ void CabbageProcessor::updateJSWidgets()
         {
             auto result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
             EvaluateJavaScript(result.c_str());
+            if(w.contains("value"))
+            {
+                result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w["value"].get<float>());
+                EvaluateJavaScript(result.c_str());
+            }
         }
     }
     
@@ -182,14 +190,22 @@ void CabbageProcessor::OnParamChange(int paramIdx)
             p.setValue(GetParam(paramIdx)->Value());
             //update channel..
             cabbage.setControlChannel(p.name.c_str(), GetParam(paramIdx)->Value());
+//            LOG_VERBOSE("OnParameter:" , p.name.c_str(), ":"  GetParam(paramIdx)->Value());
+            for( auto& w : cabbage.getWidgets())
+            {
+                if(w.contains("channel")) //only let valid object through.
+                {
+                    w["value"] = GetParam(paramIdx)->Value();
+                }
+            }
         }
     }
 }
 
 //===============================================================================
 void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outputs, int nFrames)
-{    
-
+{   
+    //must be careful here that we sum our newly processed signal with the current input.
     if (cabbage.csdCompiledWithoutError())
     {
         for(int i = 0; i < nFrames ; i++, ++csndIndex)
@@ -204,7 +220,7 @@ void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
             {
                 pos = csndIndex*NOutChansConnected();
                 cabbage.setSpIn(channel+pos, inputs[channel][i]);
-                outputs[channel][i] = cabbage.getSpOut(channel+pos);
+                outputs[channel][i] = inputs[channel][i] + cabbage.getSpOut(channel+pos);
             }
         }
     }

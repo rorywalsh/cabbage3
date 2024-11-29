@@ -173,31 +173,6 @@ public:
         str.erase(new_end, str.end());
     }
     
-    static std::string getCabbageSectionAsJSEscapedString(const std::string& input)
-    {
-        // Find the positions of <Cabbage> and </Cabbage>
-        size_t start_pos = input.find("<Cabbage>");
-        size_t end_pos = input.find("</Cabbage>");
-        std::string cabbageSection;
-        // Check if both markers are found
-        if (start_pos != std::string::npos && end_pos != std::string::npos)
-        {
-            start_pos = input.find("<Cabbage>");
-            end_pos = input.find("</Cabbage>");
-            size_t length = end_pos + strlen("</Cabbage>") - start_pos;
-            cabbageSection = input.substr(start_pos, length);
-        }
-        else
-        {
-            // If markers are not found, return empty string or handle error as needed
-            // For simplicity, returning the entire input if markers are not found
-            cabbageSection = input;
-        }
-        std::string sanitisedString = sanitiseString(cabbageSection);
-        
-        return sanitisedString + "\n";
-    }
-    
 private:
     template <typename T>
     static std::string toString(T&& value)
@@ -421,6 +396,21 @@ public:
         }
     }
     
+    static std::string getCsdWithoutExtension()
+    {
+        std::string binaryFileName = getBinaryFileName(); // Get the full filename
+        size_t pos = binaryFileName.find_last_of("."); // Find the last period (.)
+        
+        if (pos != std::string::npos)
+        {
+            // Return the substring before the last period
+            return binaryFileName.substr(0, pos);
+        }
+        
+        // If there's no period (i.e., no extension), return the full filename
+        return binaryFileName;
+    }
+    
     static std::string getCsdFileAndPath()
     {
         std::string resourceDir = getCabbageResourceDir();
@@ -446,8 +436,22 @@ public:
     //return a JS escaped string
     static std::string getCabbageSection()
     {
-        auto csdText = getFileAsString();
-        return StringFormatter::getCabbageSectionAsJSEscapedString(csdText);
+        auto input = getFileAsString();
+        size_t startPos = input.find("<Cabbage>");
+        size_t endPos = input.find("</Cabbage>", startPos);
+        
+        if (startPos != std::string::npos && endPos != std::string::npos)
+        {
+            // Extract the content between <Cabbage> and </Cabbage>
+            startPos += std::strlen("<Cabbage>");
+            std::string cabbageContent = input.substr(startPos, endPos - startPos);
+            return cabbageContent;
+        } else
+        {
+            // Return an empty string if the <Cabbage> tag is not found
+            return "";
+        }
+
     }
     
     //return the file contents, if the file path is not provided, finds
