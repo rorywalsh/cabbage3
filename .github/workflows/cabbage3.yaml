@@ -32,22 +32,28 @@ jobs:
 
       - name: Configure build
         run: |
-          cmake -GXcode -B build -S . -DCABBAGE_BUILD_TARGET=CabbageApp -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15"
+          cmake -B build -G Xcode -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15"
 
 
       - name: Build macOS app
         run: |
-          cmake --build build --config Debug
+          cmake --build build --config Release -- -parallelizeTargets=NO
 
 
       - name: Zip the macOS app bundle
         run: |
-          cd build/out
-          zip -r CabbageApp.zip CabbageApp.app  # Replace with the correct app name if needed
+          cd build
+          zip -r CabbageBundle.zip \
+            CabbageAUv2Effect/out/CabbageAUv2Effect.component \
+            CabbageAUv2Synth/out/CabbageAUv2Synth.component \
+            CabbageApp/out/CabbageApp.app \
+            CabbageStandaloneApp/out/CabbageStandaloneApp.app \
+            CabbageVST3Effect/out/CabbageVST3Effect.vst3 \
+            CabbageVST3Synth/out/CabbageVST3Synth.vst3
 
 
       - name: Upload macOS app artifact
         uses: actions/upload-artifact@v3
         with:
-          name: CabbageApp-macos
-          path: build/out/CabbageApp.zip  # Adjust the path if necessary
+          name: CabbageBundle-macos
+          path: build/CabbageBundle.zip
