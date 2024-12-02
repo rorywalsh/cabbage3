@@ -68,12 +68,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
         IPlugAPPHost* pAppHost = nullptr;
         if (argv == NULL || argc == 1)
         {
+#ifdef CabbageApp
             pAppHost = IPlugAPPHost::Create("");
+#else
+			pAppHost = IPlugAPPHost::Create();
+#endif
         }
         else
         {
             std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+#ifdef CabbageApp
             pAppHost = IPlugAPPHost::Create(converter.to_bytes(argv[1]));
+#else
+			pAppHost = IPlugAPPHost::Create();
+#endif
         }
 
         pAppHost->Init();

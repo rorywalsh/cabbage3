@@ -162,6 +162,7 @@ else() # WIN32
     )
 
     set(CABBAGE_DEFINES
+        WIN32
         WIN32_LEAN_AND_MEAN
         _WIN32
     )
@@ -184,6 +185,7 @@ else() # WIN32
     )
 
     add_library(_base INTERFACE)
+    
 
     iplug_target_add(_base INTERFACE
     DEFINE
