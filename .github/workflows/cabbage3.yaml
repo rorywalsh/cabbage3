@@ -81,7 +81,10 @@ jobs:
 
       - name: Build Windows app
         shell: cmd
-        run: cmake --build build --config Release
+        run: |
+          echo "cmake_minimum_required(VERSION 3.10)" > _deps/readerwriterqueue-src/CMakeLists.txt
+          sed -i 's/cmake_minimum_required(VERSION 2.8)/cmake_minimum_required(VERSION 3.10)/' _deps/readerwriterqueue-src/CMakeLists.txt
+          cmake --build build --config Release
 
       # - name: Zip the Windows app artifacts
       #   shell: pwsh
