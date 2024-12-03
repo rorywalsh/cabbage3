@@ -15,6 +15,7 @@ message(DEBUG "FETCHCONTENT_BASE_DIR = ${FETCHCONTENT_BASE_DIR}")
 # Initialize vcpkg. Must be done before project() call.
 include("cmake/init_vcpkg.cmake")
 
+
 project(${CABBAGE_PROJECT_NAME} VERSION ${CABBAGE_VERSION})
 
 find_package(ixwebsocket CONFIG REQUIRED)

@@ -23,3 +23,16 @@ iplug_target_add(${CABBAGE_PROJECT_NAME} PUBLIC
 iplug_configure_target(${CABBAGE_PROJECT_NAME} app)
 
 set_target_properties(${CABBAGE_PROJECT_NAME} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME "${CABBAGE_PROJECT_NAME}")
+
+if(WIN32)
+    # Having to do this here because I can't seem to get it to work during the generation process. 
+    # This is an ugly hack, but I'm out of ideas.
+    add_custom_command(
+        TARGET ${CABBAGE_PROJECT_NAME} PRE_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "Modifying ${CABBAGE_PROJECT_NAME}.vcxproj file"
+        COMMAND powershell -Command "(Get-Content ${CMAKE_BINARY_DIR}/${CABBAGE_PROJECT_NAME}.vcxproj) -replace '<RuntimeLibrary>MultiThreadedDebug', '<RuntimeLibrary>MultiThreadedDebugDLL' | Set-Content ${CMAKE_BINARY_DIR}/${CABBAGE_PROJECT_NAME}.vcxproj"
+    )
+    target_link_options(MyApp PRIVATE "/SUBSYSTEM:WINDOWS")
+else()
+    target_link_options(${CABBAGE_PROJECT_NAME} PRIVATE LINKER:-adhoc_codesign)
+endif()
