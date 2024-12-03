@@ -38,7 +38,7 @@ if(WIN32)
         COMMAND ${CMAKE_COMMAND} -E echo "Modifying ${CABBAGE_PROJECT_NAME}.vcxproj file"
         COMMAND powershell -Command "(Get-Content ${CMAKE_BINARY_DIR}/${CABBAGE_PROJECT_NAME}.vcxproj) -replace '<RuntimeLibrary>MultiThreadedDebug', '<RuntimeLibrary>MultiThreadedDebugDLL' | Set-Content ${CMAKE_BINARY_DIR}/${CABBAGE_PROJECT_NAME}.vcxproj"
     )
-    target_link_options(MyApp PRIVATE "/SUBSYSTEM:WINDOWS")
+    target_link_options(${CABBAGE_PROJECT_NAME} PRIVATE "/SUBSYSTEM:WINDOWS")
 else()
     target_link_options(${CABBAGE_PROJECT_NAME} PRIVATE LINKER:-adhoc_codesign)
 endif()
