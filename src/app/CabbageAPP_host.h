@@ -157,7 +157,7 @@ public:
     };
     
 #ifdef CabbageApp
-    static IPlugAPPHost* Create(std::string filePath);
+    static IPlugAPPHost* Create(std::string filePath, int portNumber);
 #else
     static IPlugAPPHost* Create();
 #endif
@@ -172,7 +172,7 @@ public:
     void PopulatePreferencesDialog(HWND hwndDlg);
     
 #ifdef CabbageApp
-    IPlugAPPHost(std::string csdFile);
+    IPlugAPPHost(std::string csdFile, int portNumber);
 #else
     IPlugAPPHost();
 #endif
@@ -272,6 +272,7 @@ private:
     std::function<void(std::string, std::string)> updateStringChannelCallback = nullptr;
     int mMidiOutChannel = -1;
     int mMidiInChannel = -1;
+    int portNumber = 9991;
     std::string csdFile;
 #if defined CabbageApp
     void updateHost(CabbageOpcodeData data);
