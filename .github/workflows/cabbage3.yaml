@@ -5,9 +5,62 @@ on:
     branches:
 
 jobs:
-  macos_build:
-    name: MacOS build
-    runs-on: macos-latest
+  # macos_build:
+  #   name: MacOS build
+  #   runs-on: macos-latest
+  #   steps:
+  #     - name: Checkout source code
+  #       uses: actions/checkout@v1
+  #       with:
+  #         fetch-depth: 1
+  #         submodules: true
+
+  #     - name: Download CsoundLib64 Package
+  #       run: |
+  #         # Download the package using curl
+  #         curl -L -o CsoundLib64-7.0-vanilla-universal.pkg "https://www.dropbox.com/scl/fi/8afz58gvjvwsa0u0nwr9g/CsoundLib64-7.0-vanilla-universal.pkg?rlkey=6kw4upth3olvmymhfjsndwgt9&st=mcxkg1hx&dl=1"
+          
+  #         # Verify the file exists
+  #         ls -l CsoundLib64-7.0-vanilla-universal.pkg
+
+  #         # Make the downloaded file executable
+  #         chmod +x CsoundLib64-7.0-vanilla-universal.pkg
+
+  #         # Install the package
+  #         sudo installer -pkg CsoundLib64-7.0-vanilla-universal.pkg -target /
+
+
+  #     - name: Configure build
+  #       run: |
+  #         cmake -B build -G Xcode -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15"
+
+
+  #     - name: Build macOS app
+  #       run: |
+  #         cmake --build build --config Release -- -parallelizeTargets=NO
+
+
+  #     - name: Zip the macOS app bundle
+  #       run: |
+  #         cd build
+  #         zip -r CabbageBundle.zip \
+  #           CabbageAUv2Effect/out/CabbageAUv2Effect.component \
+  #           CabbageAUv2Synth/out/CabbageAUv2Synth.component \
+  #           CabbageApp/out/CabbageApp.app \
+  #           CabbageStandaloneApp/out/CabbageStandaloneApp.app \
+  #           CabbageVST3Effect/out/CabbageVST3Effect.vst3 \
+  #           CabbageVST3Synth/out/CabbageVST3Synth.vst3
+
+
+  #     - name: Upload macOS app artifact
+  #       uses: actions/upload-artifact@v3
+  #       with: 
+  #         name: CabbageBundle-macos
+  #         path: build/CabbageBundle.zip
+
+  windows_build:
+    name: Windows build
+    runs-on: windows-latest
     steps:
       - name: Checkout source code
         uses: actions/checkout@v1
@@ -15,45 +68,38 @@ jobs:
           fetch-depth: 1
           submodules: true
 
-      - name: Download CsoundLib64 Package
+      - name: Download and Extract Csound
+        shell: pwsh
         run: |
-          # Download the package using curl
-          curl -L -o CsoundLib64-7.0-vanilla-universal.pkg "https://www.dropbox.com/scl/fi/8afz58gvjvwsa0u0nwr9g/CsoundLib64-7.0-vanilla-universal.pkg?rlkey=6kw4upth3olvmymhfjsndwgt9&st=mcxkg1hx&dl=1"
-          
-          # Verify the file exists
-          ls -l CsoundLib64-7.0-vanilla-universal.pkg
-
-          # Make the downloaded file executable
-          chmod +x CsoundLib64-7.0-vanilla-universal.pkg
-
-          # Install the package
-          sudo installer -pkg CsoundLib64-7.0-vanilla-universal.pkg -target /
-
+          Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/41g11e00yb4v66fduyw3f/Csound7.zip?rlkey=231ot83u6rmnxapwe03krm04z&st=5bzhtada&dl=1" -OutFile "Csound7.zip"
+          Expand-Archive -Path "Csound7.zip" -DestinationPath "$env:ProgramFiles"
+          Get-ChildItem "$env:ProgramFiles\Csound7"
 
       - name: Configure build
-        run: |
-          cmake -B build -G Xcode -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15"
+        shell: cmd
+        run: cmake -S . -B build -DCABBAGE_BUILD_TARGET=CabbageApp
+
+      - name: Build Windows app
+        shell: cmd
+        run: cmake --build build --config Release
+
+      # - name: Zip the Windows app artifacts
+      #   shell: pwsh
+      #   run: |
+      #     cd build
+      #     Compress-Archive -Path @(
+      #       "CabbageAUv2Effect\out\Release\CabbageAUv2Effect.dll",
+      #       "CabbageAUv2Synth\out\Release\CabbageAUv2Synth.dll",
+      #       "CabbageApp\out\Release\CabbageApp.exe",
+      #       "CabbageStandaloneApp\out\Release\CabbageStandaloneApp.exe",
+      #       "CabbageVST3Effect\out\Release\CabbageVST3Effect.vst3",
+      #       "CabbageVST3Synth\out\Release\CabbageVST3Synth.vst3"
+      #     ) -DestinationPath CabbageBundle.zip
+
+      # - name: Upload Windows app artifact
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: CabbageBundle-windows
+      #     path: build\CabbageBundle.zip
 
 
-      - name: Build macOS app
-        run: |
-          cmake --build build --config Release -- -parallelizeTargets=NO
-
-
-      - name: Zip the macOS app bundle
-        run: |
-          cd build
-          zip -r CabbageBundle.zip \
-            CabbageAUv2Effect/out/CabbageAUv2Effect.component \
-            CabbageAUv2Synth/out/CabbageAUv2Synth.component \
-            CabbageApp/out/CabbageApp.app \
-            CabbageStandaloneApp/out/CabbageStandaloneApp.app \
-            CabbageVST3Effect/out/CabbageVST3Effect.vst3 \
-            CabbageVST3Synth/out/CabbageVST3Synth.vst3
-
-
-      - name: Upload macOS app artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: CabbageBundle-macos
-          path: build/CabbageBundle.zip
