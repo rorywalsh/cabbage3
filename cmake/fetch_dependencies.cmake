@@ -17,8 +17,9 @@ fetch_github_dependency(
 
 fetch_github_dependency(
     readerwriterqueue
-    GIT_REPOSITORY https://github.com/rorywalsh/readerwriterqueue.git
-    GIT_TAG master
+    GIT_REPOSITORY https://github.com/cameron314/readerwriterqueue.git
+    GIT_TAG v1.0.6
+    URL_MD5 a22feb68840ba44cbc2b01853fb4a503
     # USE_GIT
 )
 
