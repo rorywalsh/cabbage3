@@ -89,6 +89,7 @@ jobs:
       - name: Rebuild Windows app
         shell: cmd
         run: |
+          echo "Building a secon time because of the CMake pre-build command that's not picked up the first we try to build"
           cmake --build build --config Debug
 
       - name: Zip the Windows app artifacts
