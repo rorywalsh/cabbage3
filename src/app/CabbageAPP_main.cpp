@@ -41,6 +41,23 @@ HWND gHWND;
 extern HINSTANCE gHINSTANCE;
 UINT gScrollMessage;
 
+// Helper function to convert LPWSTR to std::string (narrow string)
+std::string WideCharToString(LPWSTR wideStr) {
+    // Determine the size of the buffer needed for conversion
+    int bufferSize = WideCharToMultiByte(CP_UTF8, 0, wideStr, -1, nullptr, 0, nullptr, nullptr);
+
+    // Allocate a string to hold the converted result
+    std::string narrowStr(bufferSize, '\0');
+
+    // Perform the conversion
+    WideCharToMultiByte(CP_UTF8, 0, wideStr, -1, narrowStr.data(), bufferSize, nullptr, nullptr);
+
+    // Remove the extra null terminator added by the string constructor
+    narrowStr.pop_back();
+
+    return narrowStr;
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdParam, int nShowCmd)
 {
     try
@@ -69,7 +86,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
         if (argv == NULL || argc == 1)
         {
 #ifdef CabbageApp
-            pAppHost = IPlugAPPHost::Create("");
+            pAppHost = IPlugAPPHost::Create("", 9991);
 #else
 			pAppHost = IPlugAPPHost::Create();
 #endif
@@ -79,7 +96,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
             std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
 #ifdef CabbageApp
             if(argc>1)
-                pAppHost = IPlugAPPHost::Create(arguments[1], atoi(arguments[2]));
+                pAppHost = IPlugAPPHost::Create(WideCharToString(argv[1]), atoi(WideCharToString(argv[2]).c_str()));
             else
                 pAppHost = IPlugAPPHost::Create("", 9991);
 #else
