@@ -78,7 +78,7 @@ jobs:
       - name: Configure build
         shell: cmd
         run: |
-          cmake -G "Visual Studio 17 2022" -S . -B build -DCABBAGE_BUILD_TARGET=CabbageApp
+          cmake -G "Visual Studio 17 2022" -S . -B build
           
       - name: Build Windows app
         shell: cmd
@@ -91,23 +91,23 @@ jobs:
         run: |
           cmake --build build --config Debug
 
-      # - name: Zip the Windows app artifacts
-      #   shell: pwsh
-      #   run: |
-      #     cd build
-      #     Compress-Archive -Path @(
-      #       "CabbageAUv2Effect\out\Release\CabbageAUv2Effect.dll",
-      #       "CabbageAUv2Synth\out\Release\CabbageAUv2Synth.dll",
-      #       "CabbageApp\out\Release\CabbageApp.exe",
-      #       "CabbageStandaloneApp\out\Release\CabbageStandaloneApp.exe",
-      #       "CabbageVST3Effect\out\Release\CabbageVST3Effect.vst3",
-      #       "CabbageVST3Synth\out\Release\CabbageVST3Synth.vst3"
-      #     ) -DestinationPath CabbageBundle.zip
+      - name: Zip the Windows app artifacts
+        shell: pwsh
+        run: |
+          cd build
+          Compress-Archive -Path @(
+            "CabbageAUv2Effect\out\Release\CabbageAUv2Effect.dll",
+            # "CabbageAUv2Synth\out\Release\CabbageAUv2Synth.dll",
+            "CabbageApp\out\Release\CabbageApp.exe",
+            # "CabbageStandaloneApp\out\Release\CabbageStandaloneApp.exe",
+            "CabbageVST3Effect\out\Release\CabbageVST3Effect.vst3",
+            # "CabbageVST3Synth\out\Release\CabbageVST3Synth.vst3"
+          ) -DestinationPath CabbageBundle.zip
 
-      # - name: Upload Windows app artifact
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: CabbageBundle-windows
-      #     path: build\CabbageBundle.zip
+      - name: Upload Windows app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CabbageBundle-windows
+          path: build\CabbageBundle.zip
 
 
