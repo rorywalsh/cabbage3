@@ -103,7 +103,8 @@ jobs:
         shell: cmd
         run: |
           # echo "Checking if the build artifacts exist for CabbageApp"
-          # ls build/CabbageApp/out
+          ls build/CabbageApp/out
+          tree build/CabbageApp/out
           echo "Checking if the build artifacts exist for CabbageVST3Effect"
           ls build/CabbageVST3Effect/out
           
