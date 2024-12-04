@@ -17,11 +17,12 @@ fetch_github_dependency(
 
 fetch_github_dependency(
     readerwriterqueue
-    GIT_REPOSITORY https://github.com/cameron314/readerwriterqueue.git
-    GIT_TAG v1.0.6
-    URL_MD5 a22feb68840ba44cbc2b01853fb4a503
+    GIT_REPOSITORY https://github.com/rorywalsh/readerwriterqueue
+    GIT_TAG ab2082837bda45e8a1a2d6934b211212ae3e2d1b
+    URL_MD5 751cb052b563083e55672834d8d30e10
     # USE_GIT
 )
+
 
 fetch_github_dependency(
     iplug2
