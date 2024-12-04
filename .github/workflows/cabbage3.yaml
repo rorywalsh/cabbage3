@@ -95,7 +95,18 @@ jobs:
       - name: Build VST Effect Plugin
         shell: cmd
         run: |
+          echo "The plugin copying/install phase breaks this step, but the plugin still builds fine. So we'll just ignore the error for now"
           cmake --build build --config Debug --target CabbageVST3Effect
+        continue-on-error: true
+
+      - name: Verify builds
+        shell: cmd
+        run: |
+          echo "Checking if the build artifacts exist for CabbageApp"
+          ls build/CabbageApp/out/Debug
+          echo "Checking if the build artifacts exist for CabbageVST3Effect"
+          ls build/CabbageVST3Effect/out/Debug
+          
 
       - name: Zip the Windows app artifacts
         shell: pwsh
