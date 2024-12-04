@@ -102,7 +102,7 @@ jobs:
       - name: Verify builds
         shell: cmd
         run: |
-          # echo "Checking if the build artifacts exist for CabbageApp"
+          echo "Checking if the build artifacts exist for CabbageApp"
           ls build/CabbageApp/out
           tree build/CabbageApp/out
           echo "Checking if the build artifacts exist for CabbageVST3Effect"
@@ -114,7 +114,7 @@ jobs:
         run: |
           cd build
           Compress-Archive -Path @(
-            "CabbageApp\out\CabbageApp.exe",
+            "CabbageApp\out\CabbageApp_x64.exe",
             "CabbageVST3Effect\out\CabbageVST3Effect.vst3"
           ) -DestinationPath CabbageBundle.zip
 
