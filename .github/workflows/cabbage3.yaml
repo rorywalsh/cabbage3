@@ -79,13 +79,14 @@ jobs:
         shell: cmd
         run: |
           cmake -G "Visual Studio 17 2022" -S . -B build -DCABBAGE_BUILD_TARGET=CabbageApp
-
-      - name: Verify deps
-        shell: cmd
-        run: |
-          ls _deps/readerwriterqueue-src
           
       - name: Build Windows app
+        shell: cmd
+        run: |
+          cmake --build build --config Release
+          continue-on-error: true
+
+      - name: Rebuild Windows app
         shell: cmd
         run: |
           cmake --build build --config Release
