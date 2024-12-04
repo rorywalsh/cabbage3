@@ -37,7 +37,7 @@ else()
     find_library(CSOUND_LIBRARY 
         NAMES csound64 
         HINTS 
-            "c:\\Program Files\\Csound6_x64\\lib")
+            "c:\\Program Files\\Csound7\\lib")
 
 endif()
 
