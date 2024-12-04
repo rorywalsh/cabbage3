@@ -83,13 +83,13 @@ jobs:
       - name: Build Windows app
         shell: cmd
         run: |
-          cmake --build build --config Release
-          continue-on-error: true
+          cmake --build build --config Debug
+        continue-on-error: true
 
       - name: Rebuild Windows app
         shell: cmd
         run: |
-          cmake --build build --config Release
+          cmake --build build --config Debug
 
       # - name: Zip the Windows app artifacts
       #   shell: pwsh
