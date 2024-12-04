@@ -26,7 +26,8 @@ set_target_properties(${CABBAGE_PROJECT_NAME} PROPERTIES XCODE_ATTRIBUTE_PRODUCT
 
 if(WIN32)
     # Having to do this here because I can't seem to get it to work during the generation process. 
-    # This is an ugly hack, but I'm out of ideas.
+    # This is an ugly hack, but I'm out of ideas, none of the recommended CMake ways of changing the 
+    # runtime library work.
     add_custom_command(
         TARGET ${CABBAGE_PROJECT_NAME} PRE_BUILD
         COMMAND ${CMAKE_COMMAND} -E echo "Modifying ${CABBAGE_PROJECT_NAME}.vcxproj file"

@@ -36,7 +36,7 @@ if(WIN32)
     add_custom_command(
         TARGET ${CABBAGE_PROJECT_NAME} PRE_BUILD
         COMMAND ${CMAKE_COMMAND} -E echo "Modifying ${CABBAGE_PROJECT_NAME}.vcxproj file"
-        COMMAND powershell -Command "(Get-Content ${CMAKE_BINARY_DIR}/${CABBAGE_PROJECT_NAME}.vcxproj) -replace '<RuntimeLibrary>MultiThreadedDebug', '<RuntimeLibrary>MultiThreadedDebugDLL' | Set-Content ${CMAKE_BINARY_DIR}/${CABBAGE_PROJECT_NAME}.vcxproj"
+        COMMAND powershell -Command "(Get-Content ${CMAKE_BINARY_DIR}/${CABBAGE_PROJECT_NAME}.vcxproj) -replace '<RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>', '<RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>' | Set-Content ${CMAKE_BINARY_DIR}/${CABBAGE_PROJECT_NAME}.vcxproj"
     )
     target_link_options(${CABBAGE_PROJECT_NAME} PRIVATE "/SUBSYSTEM:WINDOWS")
 else()
