@@ -102,9 +102,11 @@ jobs:
       - name: Verify builds
         shell: cmd
         run: |
-          echo "Checking if the build artifacts exist for CabbageApp"
-          ls build/CabbageApp/out/Debug
+          # echo "Checking if the build artifacts exist for CabbageApp"
+          # ls build/CabbageApp/out/Debug
           echo "Checking if the build artifacts exist for CabbageVST3Effect"
+          ls build/CabbageVST3Effect
+          ls build/CabbageVST3Effect/out
           ls build/CabbageVST3Effect/out/Debug
           
 
