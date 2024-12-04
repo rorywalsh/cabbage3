@@ -180,12 +180,19 @@ else() # WIN32
         "${CMAKE_SOURCE_DIR}/packages/Microsoft.Windows.ImplementationLibrary-1.0.240122.1/include"
     )
 
-    # Very possible we don't need some of these - not super familiar with mac frameworks
-    set(CABBAGE_LIBRARIES
-        ixwebsocket::ixwebsocket
-        readerwriterqueue
-        WebView2LoaderStatic.lib
-    )
+    # We only need the websockets stuff in the CabbageApp target
+    if(CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
+        set(CABBAGE_LIBRARIES
+            ixwebsocket::ixwebsocket
+            readerwriterqueue
+            WebView2LoaderStatic.lib
+        )
+    else()
+        set(CABBAGE_LIBRARIES
+            readerwriterqueue
+            WebView2LoaderStatic.lib
+        )
+    endif()
 
     add_library(_base INTERFACE)
     
