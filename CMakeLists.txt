@@ -28,14 +28,23 @@ endif()
 if(NOT DEFINED CABBAGE_BUILD_TARGET)
     project(BuildAllCabbageProjects VERSION ${CABBAGE_VERSION})
 
-    set(CABBAGE_BUILD_TARGETS
-        CabbageApp
-        CabbageStandaloneApp
-        CabbageAUv2Effect
-        CabbageVST3Effect
-        # CabbageAUv2Synth
-        # CabbageVST3Synth
-    )
+    if(APPLE)
+        set(CABBAGE_BUILD_TARGETS
+            CabbageApp
+            CabbageStandaloneApp
+            CabbageAUv2Effect
+            CabbageVST3Effect
+            # CabbageAUv2Synth
+            # CabbageVST3Synth
+        )
+    else()
+        set(CABBAGE_BUILD_TARGETS
+            CabbageApp
+            CabbageStandaloneApp
+            CabbageVST3Effect
+            # CabbageVST3Synth
+        )
+    endif()
 
     message(DEBUG "CMAKE_MESSAGE_LOG_LEVEL = ${CMAKE_MESSAGE_LOG_LEVEL}")
 
