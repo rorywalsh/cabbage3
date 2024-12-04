@@ -113,6 +113,7 @@ if(APPLE)
     set(CABBAGE_INCLUDE_DIRS
         "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include"
         "${FETCHCONTENT_BASE_DIR}/choc-src/include"
+        "${FETCHCONTENT_BASE_DIR}/readerwriterqueue-src"
         "${iplug2_SOURCE_DIR}/Dependencies/Build/mac/include"
         "${CMAKE_SOURCE_DIR}"
         "${CMAKE_SOURCE_DIR}/src"
