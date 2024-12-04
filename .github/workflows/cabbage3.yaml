@@ -78,19 +78,24 @@ jobs:
       - name: Configure build
         shell: cmd
         run: |
-          cmake -G "Visual Studio 17 2022" -S . -B build
+          cmake -G "Visual Studio 17 2022" -S . -B build 
         
       - name: Build Windows app
         shell: cmd
         run: |
-          cmake --build build --config Debug
+          cmake --build build --config Debug --target CabbageApp
         continue-on-error: true
 
       - name: Rebuild Windows app
         shell: cmd
         run: |
-          echo "Building a secon time because of the CMake pre-build command that's not picked up the first we try to build"
-          cmake --build build --config Debug
+          echo "Building a second time because of the CMake pre-build command that's not picked up the first we try to build"
+          cmake --build build --config Debug --target CabbageApp
+
+      - name: Build VST Effect Plugin
+        shell: cmd
+        run: |
+          cmake --build build --config Debug --target CabbageVST3Effect
 
       - name: Zip the Windows app artifacts
         shell: pwsh
