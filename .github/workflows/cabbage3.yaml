@@ -103,11 +103,9 @@ jobs:
         shell: cmd
         run: |
           # echo "Checking if the build artifacts exist for CabbageApp"
-          # ls build/CabbageApp/out/Debug
+          # ls build/CabbageApp/out
           echo "Checking if the build artifacts exist for CabbageVST3Effect"
-          ls build/CabbageVST3Effect
           ls build/CabbageVST3Effect/out
-          ls build/CabbageVST3Effect/out/Debug
           
 
       - name: Zip the Windows app artifacts
@@ -115,9 +113,9 @@ jobs:
         run: |
           cd build
           Compress-Archive -Path @(
-            "CabbageApp\out\Release\CabbageApp.exe",
+            "CabbageApp\out\CabbageApp.exe",
             # "CabbageStandaloneApp\out\Release\CabbageStandaloneApp.exe",
-            "CabbageVST3Effect\out\Release\CabbageVST3Effect.vst3",
+            "CabbageVST3Effect\out\CabbageVST3Effect.vst3",
             # "CabbageVST3Synth\out\Release\CabbageVST3Synth.vst3"
           ) -DestinationPath CabbageBundle.zip
 
