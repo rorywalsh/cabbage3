@@ -172,6 +172,7 @@ else() # WIN32
     set(CABBAGE_INCLUDE_DIRS
         "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include"
         "${FETCHCONTENT_BASE_DIR}/choc-src/include"
+        "${FETCHCONTENT_BASE_DIR}/readerwriterqueue-src"
         "${CMAKE_SOURCE_DIR}"
         "${CMAKE_SOURCE_DIR}/src"
         "${CMAKE_SOURCE_DIR}/src/app"
