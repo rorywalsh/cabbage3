@@ -78,9 +78,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
         {
             std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
 #ifdef CabbageApp
-            pAppHost = IPlugAPPHost::Create(converter.to_bytes(argv[1]));
+            if(argc>1)
+                pAppHost = IPlugAPPHost::Create(arguments[1], atoi(arguments[2]));
+            else
+                pAppHost = IPlugAPPHost::Create("", 9991);
 #else
-			pAppHost = IPlugAPPHost::Create();
+            pAppHost = IPlugAPPHost::Create();
 #endif
         }
 
@@ -215,9 +218,9 @@ INT_PTR SWELLAppMain(int msg, INT_PTR parm1, INT_PTR parm2)
         case SWELLAPP_ONLOAD:
 #ifdef CabbageApp
             if(argCnt>1)
-                pAppHost = IPlugAPPHost::Create(arguments[1]);
+                pAppHost = IPlugAPPHost::Create(arguments[1], atoi(arguments[2]));
             else
-                pAppHost = IPlugAPPHost::Create("");
+                pAppHost = IPlugAPPHost::Create("", 9991);
 #else
             pAppHost = IPlugAPPHost::Create();
 #endif

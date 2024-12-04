@@ -35,8 +35,8 @@ std::unique_ptr<IPlugAPPHost> IPlugAPPHost::sInstance;
 UINT gSCROLLMSG;
 
 #ifdef CabbageApp
-IPlugAPPHost::IPlugAPPHost(std::string file)
-: csdFile(file), mIPlug(MakePlug(InstanceInfo{this}, file))
+IPlugAPPHost::IPlugAPPHost(std::string file, int port)
+: csdFile(file), mIPlug(MakePlug(InstanceInfo{this}, file)), portNumber(port)
 {
    //constructor for Cabbage service app
 }
@@ -65,9 +65,10 @@ IPlugAPPHost::~IPlugAPPHost()
 //static
 
 #ifdef CabbageApp
-IPlugAPPHost* IPlugAPPHost::Create(std::string filePath)
+IPlugAPPHost* IPlugAPPHost::Create(std::string filePath, int portNumber)
 {
-    sInstance = std::make_unique<IPlugAPPHost>(filePath);
+    sInstance = std::make_unique<IPlugAPPHost>(filePath, portNumber);
+    LOG_INFO("Attempted to run on port", portNumber);
     return sInstance.get();
 }
 #else
@@ -135,7 +136,9 @@ bool IPlugAPPHost::InitProcessor()
 bool IPlugAPPHost::InitWebSocket()
 {
 #if defined CabbageApp
-    webSocket.setUrl("ws://localhost:9991");
+    WDL_String address("ws://localhost:");
+    address.Append(std::to_string(portNumber).c_str());
+    webSocket.setUrl(address.Get());
     
     webSocket.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg)
             {
