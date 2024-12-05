@@ -45,6 +45,12 @@ EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 #include <algorithm> // for std::sort
 
 
+// Function to handle debug output in VS
+inline void logToDebug(const std::string& message) {
+#ifdef _WIN32
+    OutputDebugStringA(message.c_str());
+#endif
+}
 
 // Function to write detailed log messages
 template<typename... Args>
@@ -74,12 +80,7 @@ void writeBasic(Args&&... args) {
 #define LOG_VERBOSE(...) writeDetailed(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 #define LOG_INFO(...) writeBasic(__VA_ARGS__)
 
-// Function to handle debug output in VS
-inline void logToDebug(const std::string& message) {
-#ifdef _WIN32
-    OutputDebugStringA(message.c_str());
-#endif
-}
+
 
 namespace cabbage {
 
