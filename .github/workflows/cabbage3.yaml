@@ -5,58 +5,58 @@ on:
     branches:
 
 jobs:
-  # macos_build:
-  #   name: MacOS build
-  #   runs-on: macos-latest
-  #   steps:
-  #     - name: Checkout source code
-  #       uses: actions/checkout@v1
-  #       with:
-  #         fetch-depth: 1
-  #         submodules: true
+  macos_build:
+    name: MacOS build
+    runs-on: macos-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+          submodules: true
 
-  #     - name: Download CsoundLib64 Package
-  #       run: |
-  #         # Download the package using curl
-  #         curl -L -o CsoundLib64-7.0-vanilla-universal.pkg "https://www.dropbox.com/scl/fi/8afz58gvjvwsa0u0nwr9g/CsoundLib64-7.0-vanilla-universal.pkg?rlkey=6kw4upth3olvmymhfjsndwgt9&st=mcxkg1hx&dl=1"
+      - name: Download CsoundLib64 Package
+        run: |
+          # Download the package using curl
+          curl -L -o CsoundLib64-7.0-vanilla-universal.pkg "https://www.dropbox.com/scl/fi/8afz58gvjvwsa0u0nwr9g/CsoundLib64-7.0-vanilla-universal.pkg?rlkey=6kw4upth3olvmymhfjsndwgt9&st=mcxkg1hx&dl=1"
           
-  #         # Verify the file exists
-  #         ls -l CsoundLib64-7.0-vanilla-universal.pkg
+          # Verify the file exists
+          ls -l CsoundLib64-7.0-vanilla-universal.pkg
 
-  #         # Make the downloaded file executable
-  #         chmod +x CsoundLib64-7.0-vanilla-universal.pkg
+          # Make the downloaded file executable
+          chmod +x CsoundLib64-7.0-vanilla-universal.pkg
 
-  #         # Install the package
-  #         sudo installer -pkg CsoundLib64-7.0-vanilla-universal.pkg -target /
-
-
-  #     - name: Configure build
-  #       run: |
-  #         cmake -B build -G Xcode -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15"
+          # Install the package
+          sudo installer -pkg CsoundLib64-7.0-vanilla-universal.pkg -target /
 
 
-  #     - name: Build macOS app
-  #       run: |
-  #         cmake --build build --config Release -- -parallelizeTargets=NO
+      - name: Configure build
+        run: |
+          cmake -B build -G Xcode -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15"
 
 
-  #     - name: Zip the macOS app bundle
-  #       run: |
-  #         cd build
-  #         zip -r CabbageBundle.zip \
-  #           CabbageAUv2Effect/out/CabbageAUv2Effect.component \
-  #           CabbageAUv2Synth/out/CabbageAUv2Synth.component \
-  #           CabbageApp/out/CabbageApp.app \
-  #           CabbageStandaloneApp/out/CabbageStandaloneApp.app \
-  #           CabbageVST3Effect/out/CabbageVST3Effect.vst3 \
-  #           CabbageVST3Synth/out/CabbageVST3Synth.vst3
+      - name: Build macOS app
+        run: |
+          cmake --build build --config Release -- -parallelizeTargets=NO
 
 
-  #     - name: Upload macOS app artifact
-  #       uses: actions/upload-artifact@v3
-  #       with: 
-  #         name: CabbageBundle-macos
-  #         path: build/CabbageBundle.zip
+      - name: Zip the macOS app bundle
+        run: |
+          cd build
+          zip -r CabbageBundle.zip \
+            CabbageAUv2Effect/out/CabbageAUv2Effect.component \
+            CabbageAUv2Synth/out/CabbageAUv2Synth.component \
+            CabbageApp/out/CabbageApp.app \
+            CabbageStandaloneApp/out/CabbageStandaloneApp.app \
+            CabbageVST3Effect/out/CabbageVST3Effect.vst3 \
+            CabbageVST3Synth/out/CabbageVST3Synth.vst3
+
+
+      - name: Upload macOS app artifact
+        uses: actions/upload-artifact@v3
+        with: 
+          name: CabbageBundle-macos
+          path: build/CabbageBundle.zip
 
   windows_build:
     name: Windows build
@@ -114,7 +114,8 @@ jobs:
         run: |
           cd build
           Compress-Archive -Path @(
-            "CabbageApp\out\CabbageApp_x64.exe",
+            "CabbageApp\out\CabbageApp.exe",
+            "CabbageVST3Effect\out\CabbageVST3Effect.vst3",
             "CabbageVST3Effect\out\CabbageVST3Effect.vst3"
           ) -DestinationPath CabbageBundle.zip
 
