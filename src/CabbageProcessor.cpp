@@ -159,8 +159,11 @@ void CabbageProcessor::updateJSWidgets()
             EvaluateJavaScript(result.c_str());
             if(w.contains("value"))
             {
-                result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w["value"].get<float>());
-                EvaluateJavaScript(result.c_str());
+                if(w["value"].is_number())
+                {
+                    result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w["value"].get<float>());
+                    EvaluateJavaScript(result.c_str());
+                }
             }
         }
     }
@@ -190,12 +193,15 @@ void CabbageProcessor::OnParamChange(int paramIdx)
             p.setValue(GetParam(paramIdx)->Value());
             //update channel..
             cabbage.setControlChannel(p.name.c_str(), GetParam(paramIdx)->Value());
-//            LOG_VERBOSE("OnParameter:" , p.name.c_str(), ":"  GetParam(paramIdx)->Value());
+//            LOG_VERBOSE("OnParameter:" , p.name.c_str(), ":",  GetParam(paramIdx)->Value());
             for( auto& w : cabbage.getWidgets())
             {
-                if(w.contains("channel")) //only let valid object through.
+                if(w.contains("channel") && w["channel"] == p.name.c_str()) //only let valid object through.
                 {
-                    w["value"] = GetParam(paramIdx)->Value();
+                    if(w.contains("value"))
+                    {
+                        w["value"] = GetParam(paramIdx)->Value();
+                    }
                 }
             }
         }

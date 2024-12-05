@@ -129,9 +129,13 @@ if(APPLE)
         "-framework MetalKit"
         "-framework WebKit"
         "-framework CoreFoundation"
-        ixwebsocket::ixwebsocket
         readerwriterqueue
     )
+
+    # Append ixwebsocket based on the build target
+    if(CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}" OR CabbageStandaloneApp STREQUAL "${CABBAGE_BUILD_TARGET}")
+        list(APPEND CABBAGE_LIBRARIES ixwebsocket::ixwebsocket)
+    endif()
 
     set_source_files_properties("src/webView/IPlugWebView.mm" PROPERTIES COMPILE_OPTIONS -fobjc-arc)
 
@@ -182,7 +186,7 @@ else() # WIN32
     )
 
     # We only need the websockets stuff in the CabbageApp target
-    if(CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
+    if(CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}" OR CabbageStandaloneApp STREQUAL "${CABBAGE_BUILD_TARGET}")
         set(CABBAGE_LIBRARIES
             ixwebsocket::ixwebsocket
             readerwriterqueue
