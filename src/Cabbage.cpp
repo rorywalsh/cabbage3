@@ -320,7 +320,7 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonObj
     }
     else if(data.cabbageJson.contains("file"))
     {
-        if(jsonObj["type"].get<std::string>() == "gentable")
+        if(jsonObj["type"].get<std::string>() == "genTable")
         {
             cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size());
             const int tableNumber = jsonObj["tableNumber"];
