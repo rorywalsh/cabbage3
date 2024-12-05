@@ -116,7 +116,7 @@ jobs:
           Compress-Archive -Path @(
             "CabbageApp\out\CabbageApp.exe",
             "CabbageVST3Effect\out\CabbageVST3Effect.vst3",
-            "CabbageVST3Effect\out\CabbageVST3Effect.vst3"
+            "CabbageVST3Synth\out\CabbageVST3Synth.vst3"
           ) -DestinationPath CabbageBundle.zip
 
       - name: Upload Windows app artifact
