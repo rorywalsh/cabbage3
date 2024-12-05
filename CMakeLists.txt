@@ -35,14 +35,14 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
             CabbageAUv2Effect
             CabbageVST3Effect
             # CabbageAUv2Synth
-            # CabbageVST3Synth
+            CabbageVST3Synth
         )
     else()
         set(CABBAGE_BUILD_TARGETS
             CabbageApp
             CabbageStandaloneApp
             CabbageVST3Effect
-            # CabbageVST3Synth
+            CabbageVST3Synth
         )
     endif()
 
