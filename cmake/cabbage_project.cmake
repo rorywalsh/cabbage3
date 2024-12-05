@@ -18,9 +18,11 @@ include("cmake/init_vcpkg.cmake")
 
 project(${CABBAGE_PROJECT_NAME} VERSION ${CABBAGE_VERSION})
 
-find_package(ixwebsocket CONFIG REQUIRED)
+
+
 
 if(CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
+    find_package(ixwebsocket CONFIG REQUIRED)
     set(CABBAGE_BUILD_TARGET_TYPE app)
     set(CABBAGE_BUILD_APP_TYPE vscode_service)
 elseif(CabbageStandaloneApp STREQUAL "${CABBAGE_BUILD_TARGET}")
@@ -56,8 +58,6 @@ elseif(plugin STREQUAL "${CABBAGE_BUILD_TARGET_TYPE}")
     message(DEBUG "CABBAGE_BUILD_PLUGIN_PROCESSING_TYPE = ${CABBAGE_BUILD_PLUGIN_PROCESSING_TYPE}")
 endif()
 
-# Find packages provided by vcpkg.
-find_package(ixwebsocket CONFIG REQUIRED)
 
 # Find Csound.
 list(APPEND CMAKE_MODULE_PATH "cmake")

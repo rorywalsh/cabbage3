@@ -59,6 +59,7 @@ void writeDetailed(const char* file, int line, const char* function, Args&&... a
     oss << " [Thread ID: " << std::this_thread::get_id() << "]" << std::endl;
 
     std::cout << oss.str() << std::endl;
+    logToDebug(oss.str());
 }
 
 template<typename... Args>
@@ -67,6 +68,7 @@ void writeBasic(Args&&... args) {
     // Use fold expression to append all arguments to the string stream
     (oss << ... << std::forward<Args>(args)); // C++17 fold expression
     std::cout << oss.str() << std::endl;
+	logToDebug(oss.str());
 }
 // Variadic macro to simplify calling the writeDetailed function
 #define LOG_VERBOSE(...) writeDetailed(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
@@ -759,7 +761,7 @@ public:
     static std::vector<std::string> getWidgetTypes()
     {
         std::vector<std::string> widgetTypes;
-        std::string widgetPath = cabbage::File::getCsdPath() + "/widgets"; // Folder containing widget files
+        std::string widgetPath = cabbage::File::getCsdPath() + "/cabbage/widgets"; // Folder containing widget files
         
         // Check if the directory exists
         if (!std::filesystem::exists(widgetPath) || !std::filesystem::is_directory(widgetPath))

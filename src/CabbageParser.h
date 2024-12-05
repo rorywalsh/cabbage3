@@ -201,6 +201,11 @@ public:
                         {
                             jsonObj[key][propKey] = val;
                         }
+                        if (jsonObj["value"].is_null())
+                        {
+                            //special case for value, if it's null, set it to the default value
+                            jsonObj["value"] = jsonObj[key]["defaultValue"];
+                        }
                     }
                     else
                     {
@@ -376,7 +381,8 @@ public:
                 }
                 else
                 {
-                    
+                    if (key == "value")
+                        LOG_INFO("not sure about this");
                     if (value.is_string())
                     {
                         jsonObj[key] = value.get<std::string>();

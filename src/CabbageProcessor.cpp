@@ -146,8 +146,7 @@ void CabbageProcessor::interfaceHasLoaded()
 }
 
 
-// This is called when the editor has finished loading. If en editor is losed and reopened
-// we can update its values here.
+// This is called when the editor has finished loading. Or if an editor is closed and reopened
 void CabbageProcessor::updateJSWidgets()
 {
     //iterate over all widget objects and send to webview
@@ -155,6 +154,7 @@ void CabbageProcessor::updateJSWidgets()
     {
         if(w.contains("channel")) //only let valid object through.
         {
+            LOG_INFO(w.dump(4));
             auto result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
             EvaluateJavaScript(result.c_str());
             if(w.contains("value"))

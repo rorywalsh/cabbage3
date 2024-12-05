@@ -158,10 +158,7 @@ public:
     float getFullRangeValue(std::string channel, float normalValue);
     
     moodycamel::ReaderWriterQueue<CabbageOpcodeData> opcodeData;
-    
-    void update();
-    
-    
+
 private:
     void addOpcodes();
     int numberOfParameters = 0;

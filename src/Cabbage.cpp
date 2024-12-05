@@ -142,6 +142,7 @@ bool Engine::setupCsound()
                                                                            "",
                                                                            iplug::IParam::ShapePowCurve(w["range"]["skew"].get<float>()));
                         parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()), w["range"]["defaultValue"].get<float>()});
+                        csound->SetControlChannel(w["channel"].get<std::string>().c_str(), w["value"].get<float>());
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {
