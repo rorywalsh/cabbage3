@@ -93,7 +93,8 @@ bool IPlugAPPHost::InitProcessor()
             if (widgetOpt.has_value())
             {
                 auto& j = widgetOpt.value().get();
-                if(j["type"].get<std::string>() == "gentable")
+                //this will update a genTable
+                if(j["type"].get<std::string>() == "genTable")
                 {
                     cabbage.updateFunctionTable(data, j);
                     nlohmann::json msg;

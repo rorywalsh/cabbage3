@@ -71,7 +71,11 @@
 // #define AAX_PLUG_CATEGORY_STR "Effect"
 // #define AAX_DOES_AUDIOSUITE 1
 
-#define VST3_SUBCATEGORY "Fx"
+#ifdef CabbagePluginSynth
+    #define VST3_SUBCATEGORY "Instrument|Synth"
+#else
+    #define VST3_SUBCATEGORY "Fx"
+#endif
 
 #define APP_NUM_CHANNELS 2
 #define APP_N_VECTOR_WAIT 0
