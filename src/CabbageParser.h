@@ -381,8 +381,6 @@ public:
                 }
                 else
                 {
-                    if (key == "value")
-                        LOG_INFO("not sure about this");
                     if (value.is_string())
                     {
                         jsonObj[key] = value.get<std::string>();

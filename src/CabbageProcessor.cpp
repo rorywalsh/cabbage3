@@ -154,7 +154,6 @@ void CabbageProcessor::updateJSWidgets()
     {
         if(w.contains("channel")) //only let valid object through.
         {
-            LOG_INFO(w.dump(4));
             auto result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
             EvaluateJavaScript(result.c_str());
             if(w.contains("value"))

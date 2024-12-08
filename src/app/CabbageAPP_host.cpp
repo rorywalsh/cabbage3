@@ -467,9 +467,6 @@ void IPlugAPPHost::UpdateSettings()
     
     settingsJSON["currentConfig"]["jsSourceDir"] = cabbage::File::convertToForwardSlashes(mState.mJsSourceDirectory.Get());
     
-    LOG_INFO(settingsJSON.dump(4));
-
-    
     addDevicesToSettings(audio, settingsJSON);
 
     RtMidiIn midiIn;

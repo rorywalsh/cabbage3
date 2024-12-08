@@ -690,7 +690,6 @@ private:
         char   DllPath[MAX_PATH] = { 0 };
         GetModuleFileNameA(reinterpret_cast<HMODULE>(&__ImageBase), DllPath, _countof(DllPath));
         std::string fileName = DllPath;
-        LOG_INFO(fileName);
         return std::string(fileName);
     }
     
