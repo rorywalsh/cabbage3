@@ -1,13 +1,13 @@
 <Cabbage>[
-{"type": "form", "caption": "Gentable Example", "size": {"width": 400.0, "height": 650.0}, "guiMode": "queue", "colour": [2.0, 145.0, 209.0], "pluginId": "def1"},
-{"type": "genTable", "bounds": {"left": 10.0, "top": 7.0, "width": 380.0, "height": 200.0}, "channel": "gentable1", "stroke":{"width":3}, "tableNumber": 1.0},
-{"type": "horizontalSlider", "bounds": {"left": 14.0, "top": 212.0, "width": 368.0, "height": 14.0}, "channel": "harm1", "range": {"min": 0.0, "max": 1.0, "value": 1.0, "skew": 1.0, "increment": 0.01}, "text": "Harm1"},
-{"type": "horizontalSlider", "bounds": {"left": 14.0, "top": 244.0, "width": 368.0, "height": 14.0}, "channel": "harm2", "range": {"min": 0.0, "max": 1.0, "value": 0.0, "skew": 1.0, "increment": 0.01}, "text": "Harm2"},
-{"type": "horizontalSlider", "bounds": {"left": 14.0, "top": 276.0, "width": 368.0, "height": 14.0}, "channel": "harm3", "range": {"min": 0.0, "max": 1.0, "value": 0.0, "skew": 1.0, "increment": 0.01}, "text": "Harm3"},
-{"type": "horizontalSlider", "bounds": {"left": 14.0, "top": 308.0, "width": 368.0, "height": 14.0}, "channel": "harm4", "range": {"min": 0.0, "max": 1.0, "value": 0.0, "skew": 1.0, "increment": 0.01}, "text": "Harm4"},
-{"type": "horizontalSlider", "bounds": {"left": 14.0, "top": 340.0, "width": 368.0, "height": 14.0}, "channel": "harm5", "range": {"min": 0.0, "max": 1.0, "value": 0.0, "skew": 1.0, "increment": 0.01}, "text": "Harm5"},
-{"type": "checkBox", "bounds": {"left": 16.0, "top": 380.0, "width": 120.0, "height": 20.0}, "channel": "normal", "text": "Normalise", "value": 1.0, "1": [255.0, 255.0, 255.0, 255.0]},
-{"type": "checkBox", "bounds": {"left": 140.0, "top": 380.0, "width": 120.0, "height": 20.0}, "channel": "fill", "text": "Fill Table", "value": 1.0, "1": [255.0, 255.0, 255.0, 255.0]}
+    {"type":"form","caption":"Gentable Example","size":{"width":400,"height":650},"guiMode":"queue","pluginId":"def1"},
+    {"type":"genTable","channel":"gentable1","bounds":{"left":10,"top":7,"width":380,"height":200},"colour":{"background":"#c9c9c9","fill":"#d20000","stroke":{"colour":"#dddddd","width":1}}},
+    {"type":"horizontalSlider","channel":"harm1","bounds":{"left":14,"top":212,"width":368,"height":22},"text":"Harm1","value":0,"colour":{"fill":"#cf0202","stroke":{"colour":"#525252","width":2},"tracker":{"background":"#ffffff","fill":"#93d200"}},"decimalPlaces":2,"range":{"min":0,"max":10,"defaultValue":0,"skew":1,"increment":0.01}},
+    {"type":"horizontalSlider","bounds":{"left":14,"top":244,"width":368,"height":14},"channel":"harm2","range":{"min":0,"max":1,"value":0,"skew":1,"increment":0.01},"text":"Harm2"},
+    {"type":"horizontalSlider","bounds":{"left":14,"top":276,"width":368,"height":14},"channel":"harm3","range":{"min":0,"max":1,"value":0,"skew":1,"increment":0.01},"text":"Harm3"},
+    {"type":"horizontalSlider","bounds":{"left":14,"top":308,"width":368,"height":14},"channel":"harm4","range":{"min":0,"max":1,"value":0,"skew":1,"increment":0.01},"text":"Harm4"},
+    {"type":"horizontalSlider","bounds":{"left":14,"top":340,"width":368,"height":14},"channel":"harm5","range":{"min":0,"max":1,"value":0,"skew":1,"increment":0.01},"text":"Harm5"},
+    {"type":"checkBox","bounds":{"left":16,"top":380,"width":120,"height":20},"channel":"normal","text":"Normalise","value":1},
+    {"type":"checkBox","channel":"fill","bounds":{"left":140,"top":380,"width":120,"height":20},"text":"Fill Table","value":1,"colour":{"off":{"fill":"#00000000","stroke":"#000000"},"on":{"fill":"#ff0c0c","stroke":"#000000"}}}
 ]</Cabbage>
 <CsoundSynthesizer>
 <CsOptions>

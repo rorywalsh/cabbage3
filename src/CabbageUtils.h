@@ -19,7 +19,8 @@
 #include <regex>
 #include <filesystem>
 #include "json.hpp"
-
+#include "wdltypes.h"
+#include "wdlstring.h"
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -296,13 +297,13 @@ public:
         //char strPath[2048];
         //SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
 
-#elif defined OS_MAC
+#elif defined __APPLE__
         WDL_String iniPath;
         iniPath.SetFormatted(2048, "%s/Library/Application Support/%s/", getenv("HOME"), "Cabbage");
         iniPath.Append("settings.json"); // add file name to path
         return iniPath.Get();
 #else
-#error NOT IMPLEMENTED
+    #error NOT IMPLEMENTED
 #endif
         
     }

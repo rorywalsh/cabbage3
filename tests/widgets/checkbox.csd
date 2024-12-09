@@ -1,6 +1,6 @@
 <Cabbage>[
-{"type": "form", "caption": "Button Example", "size": {"width": 380.0, "height": 300.0}, "guiMode": "queue", "colour": [2.0, 145.0, 209.0], "pluginId": "def1"},
-{"type": "checkBox", "bounds": {"left": 10.0, "top": 16.0, "width": 126.0, "height": 18.0}, "fontColour":{"off":"white", "on":"white"}, "channel": "trigger", "text": "Synth Enabled", "corners": 2.0},
+{"type": "form", "caption": "Button Example", "size": {"width": 380.0, "height": 300.0}, "guiMode": "queue", "pluginId": "def1"},
+{"type": "checkBox", "bounds": {"left": 10.0, "top": 16.0, "width": 126.0, "height": 18.0}, "channel": "trigger", "text": "Synth Enabled", "corners": 2.0},
 {"type": "button", "bounds": {"left": 146.0, "top": 12.0, "width": 80.0, "height": 30.0}, "channel": "mute", "text": {"off": "Unmute", "on": "Mute"}, "corners": 2.0},
 {"type": "button", "bounds": {"left": 240.0, "top": 12.0, "width": 121.0, "height": 30.0}, "channel": "toggleFreq", "text": "Toggle Freq"}
 ]
