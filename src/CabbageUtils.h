@@ -20,8 +20,8 @@
 #include <filesystem>
 #include "json.hpp"
 
+
 #if defined(_WIN32)
-EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 #include <windows.h>
 #include <Shlobj.h>
 #include <wrl.h>
@@ -286,21 +286,25 @@ public:
     static std::string getSettingsFile()
     {
         //if in CabbageApp mode, the widget src dir is set by the Cabbage .ini settings
-        WDL_String iniPath;
-#if defined OS_WIN
-        //TCHAR strPath[2048];
-        //SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
-        //iniPath.SetFormatted(2048, "%s\\%s\\", strPath, "Cabbage");
-        char strPath[2048];
+        
+#if defined WIN32
+        TCHAR strPath[2048];
         SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
+		std::string settingsPath = std::string(strPath) + "\\Cabbage\\settings.json";
+		return settingsPath;
+        //iniPath.SetFormatted(2048, "%s\\%s\\", strPath, "Cabbage");
+        //char strPath[2048];
+        //SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
 
 #elif defined OS_MAC
+        WDL_String iniPath;
         iniPath.SetFormatted(2048, "%s/Library/Application Support/%s/", getenv("HOME"), "Cabbage");
+        iniPath.Append("settings.json"); // add file name to path
+        return iniPath.Get();
 #else
 #error NOT IMPLEMENTED
 #endif
-        iniPath.Append("settings.json"); // add file name to path
-        return iniPath.Get();
+        
     }
     
     // Function to crudely extract the props object from a corresponding JS file...
@@ -687,9 +691,12 @@ private:
 #if defined(_WIN32)
     static std::string getWindowsBinaryPath()
     {
-        char   DllPath[MAX_PATH] = { 0 };
-        GetModuleFileNameA(reinterpret_cast<HMODULE>(&__ImageBase), DllPath, _countof(DllPath));
-        std::string fileName = DllPath;
+        TCHAR DllPath[MAX_PATH] = { 0 };
+        //TCHAR szFileName[MAX_PATH];
+
+        GetModuleFileName(NULL, DllPath, MAX_PATH);
+        //GetModuleFileNameA(reinterpret_cast<HMODULE>(&imageBase), DllPath, _countof(DllPath));
+        std::string fileName(DllPath);
         return std::string(fileName);
     }
     
@@ -803,8 +810,12 @@ public:
         std::string widgetPath = cabbage::File::getCsdPath() + "/cabbage/widgets"; // Folder containing widget files
 #endif
         
-        if(!cabbage::File::directoryExists(widgetPath))
+        if (!cabbage::File::directoryExists(widgetPath))
+        {
+			LOG_VERBOSE("Error: Directory ", widgetPath, " does not exist or is not a directory.");
             return {};
+        }
+            
         
         auto jsFileContents = cabbage::File::loadJSFile(widgetPath + "/" + widgetType + ".js");
         if (!jsFileContents.empty())

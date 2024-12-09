@@ -195,7 +195,6 @@ void IWebView::EvaluateJavaScript(const char* scriptStr, completionHandlerFunc f
   {
     WCHAR scriptWide[IPLUG_WIN_MAX_WIDE_PATH]; // TODO: error check/size
     UTF8ToUTF16(scriptWide, scriptStr, IPLUG_WIN_MAX_WIDE_PATH); // TODO: error check/size
-
     mWebViewWnd->ExecuteScript(scriptWide, Callback<ICoreWebView2ExecuteScriptCompletedHandler>(
       [func](HRESULT errorCode, LPCWSTR resultObjectAsJson) -> HRESULT {
         if (func && resultObjectAsJson) {
@@ -205,6 +204,10 @@ void IWebView::EvaluateJavaScript(const char* scriptStr, completionHandlerFunc f
         }
         return S_OK;
       }).Get());
+  }
+  else
+  {
+      LOG_INFO("mWebView handle is null");
   }
 }
 

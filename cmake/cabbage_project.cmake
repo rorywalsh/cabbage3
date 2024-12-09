@@ -86,6 +86,7 @@ set(CABBAGE_SOURCES
     "src/config.h"
     "src/CabbageProcessor.h"
     "src/CabbageProcessor.cpp"
+    "src/CabbageParser.cpp"
     "src/CabbageParser.h"
     "src/Cabbage.h"
     "src/Cabbage.cpp"

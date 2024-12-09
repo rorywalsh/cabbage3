@@ -68,7 +68,6 @@ IPlugAPPHost::~IPlugAPPHost()
 IPlugAPPHost* IPlugAPPHost::Create(std::string filePath, int portNumber)
 {
     sInstance = std::make_unique<IPlugAPPHost>(filePath, portNumber);
-    LOG_INFO("Attempted to run on port", portNumber);
     return sInstance.get();
 }
 #else
@@ -140,9 +139,10 @@ bool IPlugAPPHost::InitWebSocket()
     WDL_String address("ws://localhost:");
     address.Append(std::to_string(portNumber).c_str());
     webSocket.setUrl(address.Get());
-    
+    LOG_INFO("Websocket address:", webSocket.getUrl());
     webSocket.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg)
             {
+		    LOG_INFO("Received message from VSCode:", msg->str);
                 auto& cabbage = cabbageProcessor->getCabbageEngine();
                 if (msg->type == ix::WebSocketMessageType::Message)
                 {
@@ -340,6 +340,7 @@ bool IPlugAPPHost::InitState()
                 DBGMSG("Reading json file from %s\n", mJSONPath.Get());
 
                 mState.mAudioDriverType = settingsJson["currentConfig"]["audio"].value("driver", 0);
+
                 mState.mAudioInDev.Set(settingsJson["currentConfig"]["audio"].value("inputDevice", "Built-in Input").c_str());
                 mState.mAudioOutDev.Set(settingsJson["currentConfig"]["audio"].value("outputDevice", "Built-in Output").c_str());
                 mState.mAudioInChanL = settingsJson["currentConfig"]["audio"].value("in1", 1);
@@ -405,6 +406,7 @@ void IPlugAPPHost::addDevicesToSettings( RtAudio& audio, nlohmann::json& setting
     for (unsigned int i=0; i<devices.size(); i++)
     {
         info = audio.getDeviceInfo( devices[i] );
+
         
         if (info.outputChannels > 0)
         {
@@ -455,9 +457,9 @@ void IPlugAPPHost::UpdateSettings()
     RtAudio::getCompiledApi(apis);
     
 #ifdef OS_WIN
-    settingsJSON["systemAudioMidiIOListing"]["audioDrivers"] = { "DirectSound" };
+    settingsJSON["systemAudioMidiIOListing"]["audioDrivers"] = { "DirectSound", "ASIO"};
     //todo fix this, ASIO is shitting the bed - using DirectSound only for now
-    RtAudio audio(apis[1], errorCallback);
+    RtAudio audio(apis[mState.mAudioDriverType], errorCallback);
 #elif defined OS_MAC
     settingsJSON["systemAudioMidiIOListing"]["audioDrivers"] = "CoreAudio";
     RtAudio audio(apis[0], errorCallback);
@@ -732,13 +734,40 @@ bool IPlugAPPHost::TryToChangeAudio()
     int outputID = -1;
     
 #if defined OS_WIN
-    cabAssert(false, "Need to handle default IO here...");
-    if(mState.mAudioDriverType == kDeviceASIO)
+    if (mState.mAudioDriverType == kDeviceASIO)
         inputID = GetAudioDeviceIdx(mState.mAudioOutDev.Get());
-    else
+    else 
+    {
         inputID = GetAudioDeviceIdx(mState.mAudioInDev.Get());
+
+        std::string input = mState.mAudioInDev.Get();
+        std::string output = mState.mAudioOutDev.Get();
+
+        if (input == "Default Device" || input == "Built-in Input" )
+        {
+            LOG_INFO(mDAC->getDeviceInfo(mDAC->getDefaultInputDevice()).name.c_str());
+            LOG_INFO(mDAC->getDeviceInfo(mDAC->getDefaultInputDevice()).isDefaultInput ? "Is default input" : "not default input");
+            inputID = mDAC->getDefaultInputDevice();
+        }
+        else
+        {
+            inputID = jsonData["systemAudioMidiIOListing"]["audioInputDevices"][input]["deviceId"];
+        }
+
+        if (output == "Default Device" || output == "Built-in Output")
+        {
+            LOG_INFO(mDAC->getDeviceInfo(mDAC->getDefaultOutputDevice()).name.c_str());
+            outputID = mDAC->getDefaultOutputDevice();
+        }
+        else
+        {
+			outputID = jsonData["systemAudioMidiIOListing"]["audioOutputDevices"][output]["deviceId"];
+        }
+    }
+
+
     
-    outputID = jsonData["systemAudioMidiIOListing"]["audioOutputDevices"][mState.mAudioOutDev.Get()]["deviceId"];
+    
 #elif defined OS_MAC
     std::string input = mState.mAudioInDev.Get();
     std::string output = mState.mAudioOutDev.Get();
@@ -746,12 +775,12 @@ bool IPlugAPPHost::TryToChangeAudio()
     if(input == "Built-in Input")
         inputID = defaultIO.getDefaultInputDevice();
     else
-        inputID = jsonData["systemAudioMidiIOListing"]["audioInputDevices"][mState.mAudioInDev.Get()]["deviceId"];
+        inputID = jsonData["systemAudioMidiIOListing"]["audioInputDevices"][input]["deviceId"];
     
     if(output == "Built-in Output")
         outputID = defaultIO.getDefaultOutputDevice();
     else
-        outputID = jsonData["systemAudioMidiIOListing"]["audioOutputDevices"][mState.mAudioOutDev.Get()]["deviceId"];
+        outputID = jsonData["systemAudioMidiIOListing"]["audioOutputDevices"][output]["deviceId"];
   
     
 #else

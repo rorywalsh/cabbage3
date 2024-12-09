@@ -105,6 +105,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
         }
 
         pAppHost->Init();
+        pAppHost->InitProcessor();
+        pAppHost->InitWebSocket();
         pAppHost->TryToChangeAudio();
         
         HACCEL hAccel = LoadAccelerators(gHINSTANCE, MAKEINTRESOURCE(IDR_ACCELERATOR1));

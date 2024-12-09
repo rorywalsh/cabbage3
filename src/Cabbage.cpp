@@ -121,7 +121,6 @@ bool Engine::setupCsound()
         std::vector<std::string> rangeTypes = getRangeWidgetTypes(widgets);
         for(auto& w : widgets)
         {
-            LOG_VERBOSE(w.dump(4));
             if (w.contains("automatable") && w["automatable"] == 1 &&
                 (!w.contains("channelType") || w["channelType"] == "number"))
             {
@@ -142,8 +141,7 @@ bool Engine::setupCsound()
                                                                            "",
                                                                            iplug::IParam::ShapePowCurve(w["range"]["skew"].get<float>()));
                         parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()), w["range"]["defaultValue"].get<float>()});
-                        //LOG_INFO(w.dump(4));
-                        csound->SetControlChannel(w["channel"].get<std::string>().c_str(), w["value"].get<float>());
+                        csound->SetControlChannel(w["channel"].get<std::string>().c_str(), w["range"]["defaultValue"].get<float>());
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {

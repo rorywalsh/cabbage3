@@ -559,6 +559,7 @@ WDL_DLGRET IPlugAPPHost::MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
 
       ClientResize(hwndDlg, width, height);
 
+      //Uncomment this to access the standalone UI
       //ShowWindow(hwndDlg, SW_SHOW);
       return 1;
     }

@@ -56,7 +56,9 @@
 
 #include "CabbageAPP.h"
 #include "CabbageProcessor.h"
-
+    
+#include <cstring>
+#include <cctype>
 
 #define OFF_TEXT "off"
 
@@ -219,9 +221,7 @@ public:
     static int AudioCallback(void* pOutputBuffer, void* pInputBuffer, uint32_t nFrames, double streamTime, RtAudioStreamStatus status, void* pUserData);
     static void MIDICallback(double deltatime, std::vector<uint8_t>* pMsg, void* pUserData);
     static void errorCallback(RtAudioErrorType type, const std::string& errorText);
-    
-#include <cstring>
-#include <cctype>
+
 
     static const char* cleanDeviceName(const char* deviceName) {
         if (!deviceName) {

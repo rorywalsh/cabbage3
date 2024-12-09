@@ -18,6 +18,7 @@
 #include "IPlugPlatform.h"
 #include "wdlstring.h"
 #include <functional>
+#include "../CabbageUtils.h"
 
 #if defined OS_MAC
 #define PLATFORM_VIEW NSView
@@ -65,7 +66,6 @@ public:
     /** Runs some JavaScript in the webview
      * @param scriptStr UTF8 encoded JavaScript code to run
      * @param func A function conforming to completionHandlerFunc that should be called on successful execution of the script */
-
     void EvaluateJavaScript(const char* scriptStr, completionHandlerFunc func = nullptr);
 
     
