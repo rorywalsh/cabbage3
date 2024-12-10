@@ -287,15 +287,17 @@ public:
     static std::string getSettingsFile()
     {
         //if in CabbageApp mode, the widget src dir is set by the Cabbage .ini settings
-        
+        WDL_String iniPath;
 #if defined WIN32
-        TCHAR strPath[2048];
+       /* TCHAR strPath[2048];
         SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
 		std::string settingsPath = std::string(strPath) + "\\Cabbage\\settings.json";
-		return settingsPath;
-        //iniPath.SetFormatted(2048, "%s\\%s\\", strPath, "Cabbage");
-        //char strPath[2048];
-        //SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
+		return settingsPath;*/
+        CHAR strPath[256];
+        SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
+        iniPath.SetFormatted(256, "%s\\%s\\", strPath, "Cabbage");
+        iniPath.Append("settings.json"); // add file name to path
+        return iniPath.Get();
 
 #elif defined __APPLE__
         WDL_String iniPath;
@@ -692,13 +694,27 @@ private:
 #if defined(_WIN32)
     static std::string getWindowsBinaryPath()
     {
-        TCHAR DllPath[MAX_PATH] = { 0 };
-        //TCHAR szFileName[MAX_PATH];
+        //char dllPath[MAX_PATH];
+        //GetModuleFileNameA(NULL, dllPath, MAX_PATH); // Use the 'A' version for ANSI
+        //std::string fileName(dllPath); // Convert char array to std::string
+        //return std::string(fileName);
+        char dllPath[MAX_PATH] = { 0 };
+        HMODULE hModule = NULL;
 
-        GetModuleFileName(NULL, DllPath, MAX_PATH);
-        //GetModuleFileNameA(reinterpret_cast<HMODULE>(&imageBase), DllPath, _countof(DllPath));
-        std::string fileName(DllPath);
-        return std::string(fileName);
+        // Get the handle to the module containing this function
+        if (GetModuleHandleExA(
+            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+            GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+            reinterpret_cast<LPCSTR>(&getWindowsBinaryPath),
+            &hModule)) {
+            GetModuleFileNameA(hModule, dllPath, sizeof(dllPath));
+        }
+        else {
+            // Handle the error
+            std::cerr << "Error retrieving module handle: " << GetLastError() << std::endl;
+        }
+
+        return std::string(dllPath);
     }
     
     static std::string getWindowsProgramDataDir()
