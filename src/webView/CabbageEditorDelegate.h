@@ -100,10 +100,24 @@ public:
         {
             auto jsonContent = nlohmann::json::parse(incomingJson["obj"].get<std::string>());
             
-            if(jsonContent["channelType"] == "string")
+            if (jsonContent["channelType"] == "string")
+            {
                 updateStringChannelCallback(jsonContent["channel"], jsonContent["value"].get<std::string>());
+            }
             else
-                SendParameterValueFromUI(jsonContent["paramIdx"], jsonContent["value"]);
+            {
+                if (jsonContent["paramIdx"].get<int>() != -1)
+                {
+                    SendParameterValueFromUI(jsonContent["paramIdx"], jsonContent["value"]);
+                }
+                else 
+                {
+                    // we have a parameter that is not automatable. Simply 
+                    // update the Csound channel in this instance
+                    updateChannelCallback(jsonContent["channel"], jsonContent["value"]);
+                }
+            }
+               
             
         }
         
