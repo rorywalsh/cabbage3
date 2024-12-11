@@ -83,14 +83,10 @@ jobs:
       - name: Build Windows app
         shell: cmd
         run: |
+          powershell -File ./scripts/modify_vcxproj.ps1 -projectName "CabbageApp" -buildDir ./build/CabbageApp
+          # powershell -File ./scripts/modify_vcxproj.ps1 -projectName "CabbageApp" -buildDir ./build/CabbageStandaloneApp
           cmake --build build --config Debug --target CabbageApp
         continue-on-error: true
-
-      - name: Rebuild Windows app
-        shell: cmd
-        run: |
-          echo "Building a second time because of the CMake pre-build command that's not picked up the first we try to build"
-          cmake --build build --config Debug --target CabbageApp
 
       - name: Build VST Effect Plugin
         shell: cmd
