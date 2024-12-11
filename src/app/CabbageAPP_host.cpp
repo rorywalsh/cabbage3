@@ -139,10 +139,8 @@ bool IPlugAPPHost::InitWebSocket()
     WDL_String address("ws://localhost:");
     address.Append(std::to_string(portNumber).c_str());
     webSocket.setUrl(address.Get());
-    LOG_INFO("Websocket address:", webSocket.getUrl());
     webSocket.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg)
             {
-		    LOG_INFO("Received message from VSCode:", msg->str);
                 auto& cabbage = cabbageProcessor->getCabbageEngine();
                 if (msg->type == ix::WebSocketMessageType::Message)
                 {
@@ -524,11 +522,7 @@ WDL_String IPlugAPPHost::GetAudioDeviceName(int idx) const
 int IPlugAPPHost::GetAudioDeviceIdx(const char* deviceNameToTest) const
 {
     for(int i = 0; i < mAudioIDDevNames.size(); ++i)
-        LOG_INFO(mAudioIDDevNames.at(i).Get());
-    
-    for(int i = 0; i < mAudioIDDevNames.size(); ++i)
     {
-        LOG_INFO(mAudioIDDevNames.at(i).Get());
         if(!strcmp(deviceNameToTest, mAudioIDDevNames.at(i).Get() ))
             return i;
     }
@@ -675,7 +669,6 @@ bool IPlugAPPHost::MIDISettingsInStateAreEqual(AppState& os, AppState& ns)
 bool IPlugAPPHost::TryToChangeAudioDriverType()
 {
     CloseAudio();
-    LOG_INFO("Closing audio");
     if (mDAC)
     {
         mDAC = nullptr;
@@ -689,7 +682,6 @@ bool IPlugAPPHost::TryToChangeAudioDriverType()
 #elif defined OS_MAC
     if(mState.mAudioDriverType == kDeviceCoreAudio)
     {
-        LOG_INFO("Setting audio to coreaudio");
         std::vector<RtAudio::Api> apis;
         RtAudio::getCompiledApi(apis);
         RtAudio audio(apis[0], errorCallback);
@@ -702,7 +694,6 @@ bool IPlugAPPHost::TryToChangeAudioDriverType()
 #else
 #error NOT IMPLEMENTED
 #endif
-    LOG_INFO("Audio reopended");
 
     if(mDAC)
         return true;
@@ -745,8 +736,6 @@ bool IPlugAPPHost::TryToChangeAudio()
 
         if (input == "Default Device" || input == "Built-in Input" )
         {
-            LOG_INFO(mDAC->getDeviceInfo(mDAC->getDefaultInputDevice()).name.c_str());
-            LOG_INFO(mDAC->getDeviceInfo(mDAC->getDefaultInputDevice()).isDefaultInput ? "Is default input" : "not default input");
             inputID = mDAC->getDefaultInputDevice();
         }
         else
@@ -756,7 +745,6 @@ bool IPlugAPPHost::TryToChangeAudio()
 
         if (output == "Default Device" || output == "Built-in Output")
         {
-            LOG_INFO(mDAC->getDeviceInfo(mDAC->getDefaultOutputDevice()).name.c_str());
             outputID = mDAC->getDefaultOutputDevice();
         }
         else

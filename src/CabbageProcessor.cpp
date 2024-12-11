@@ -265,7 +265,7 @@ void CabbageProcessor::OnIdle()
         {
             std::string message(cabbage.getCsound()->GetFirstMessage());
             LOG_INFO(message);
-            EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
+            //EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
             cabbage.getCsound()->PopFirstMessage();
         }
 #ifndef CabbageApp
@@ -298,7 +298,7 @@ void CabbageProcessor::OnIdle()
             {
                 std::string message(cabbage.getCsound()->GetFirstMessage());
                 LOG_INFO(message);
-                EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
+               // EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
                 cabbage.getCsound()->PopFirstMessage();
             }
 
@@ -327,6 +327,7 @@ void CabbageProcessor::OnIdle()
                         message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
                     }
                 }
+                //LOG_INFO(message);
                 EvaluateJavaScript(message.c_str());
             }
 #endif

@@ -102,7 +102,6 @@ bool Engine::setupCsound()
             setReservedChannels();
             
             std::string csoundAddress = cabbage::StringFormatter::format("Resetting csound ...\ncsound = 0x<>", csound.get());
-            LOG_INFO(csoundAddress);
             csound->Message(csoundAddress.c_str());
         }
         else
@@ -192,7 +191,7 @@ std::vector<std::string> Engine::getRangeWidgetTypes(const std::vector<nlohmann:
 {
     std::vector<std::string> typesWithRange;
     for (const auto& obj : widgets) {
-        if (obj.contains("range")) {
+        if (obj.contains("range") && obj["type"] != "genTable") {
             if (obj.contains("type")) {
                 typesWithRange.push_back(obj["type"].get<std::string>());
             }
@@ -305,17 +304,22 @@ std::string Engine::getWidgetUpdateScript(std::string channel, float value)
 
 void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonObj)
 {
-    if(data.cabbageJson.contains("tableNumber"))
+    if(data.cabbageJson.contains("tableNumber") || data.cabbageJson.contains("range"))
     {
+        
         cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size());
-        const int tableNumber = jsonObj["tableNumber"];
+        const int tableNumber = int(jsonObj["tableNumber"]);
         const int tableSize = getCsound()->TableLength(tableNumber);
+        
         if(tableSize != -1)
         {
+            
             MYFLT *tablePtr = nullptr;
             auto length = csound->GetTable(&tablePtr, tableNumber);
             std::vector<MYFLT> temp(tablePtr, tablePtr + length);
             setTableJSON(data.channel, temp, jsonObj);
+            
+            
         }
     }
     else if(data.cabbageJson.contains("file"))
@@ -349,14 +353,14 @@ void Engine::setTableJSON(std::string channel, std::vector<double> samples, nloh
     
     //this is a condensed version of the sample data that is passed around between C++ and JS
     std::vector<double> widgetSampleData;
-    const int startSample = jsonObj["sample"]["start"].get<int>() != -1 ? jsonObj["sample"]["start"].get<int>() : 0;
-    const int endSample = jsonObj["sample"]["end"].get<int>() != -1 ? jsonObj["sample"]["end"].get<int>() : static_cast<int>(samples.size());
+    const int startSample = jsonObj["range"]["start"].get<int>() != -1 ? jsonObj["range"]["start"].get<int>() : 0;
+    const int endSample = jsonObj["range"]["end"].get<int>() != -1 ? jsonObj["range"]["end"].get<int>() : static_cast<int>(samples.size());
     
     //no point in sending more samples that can be displayed per pixel...
-    const float incr = float(endSample-startSample) / (jsonObj["bounds"]["width"].get<float>())-1;
+    const float incr = float(endSample-startSample) / ((jsonObj["bounds"]["width"].get<float>())-1);
     
     std::string data = "samples(";
-    for(float i = startSample ; i < static_cast<int>(samples.size()) ; i+=incr)
+    for(float i = startSample ; i < static_cast<int>(endSample) ; i+=incr)
     {
         data += std::to_string(samples[int(i)]) + (i<endSample-incr ? "," : "");
         widgetSampleData.push_back(samples[int(i)]);
