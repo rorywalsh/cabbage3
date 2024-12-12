@@ -335,7 +335,7 @@ bool IPlugAPPHost::InitState()
             
             if(stat(mJSONPath.Get(), &st) == 0) // if settings file exists read values into state
             {
-                DBGMSG("Reading json file from %s\n", mJSONPath.Get());
+
 
                 mState.mAudioDriverType = settingsJson["currentConfig"]["audio"].value("driver", 0);
 
@@ -571,7 +571,7 @@ int IPlugAPPHost::GetMIDIPortNumber(ERoute direction, const char* nameToTest) co
 
 void IPlugAPPHost::ProbeAudioIO()
 {
-    std::cout << "\nRtAudio Version " << RtAudio::getVersion() << std::endl;
+    LOG_VERBOSE("\nRtAudio Version ", RtAudio::getVersion());
     
     RtAudio::DeviceInfo info;
     
@@ -959,7 +959,7 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
     auto inDevName = mDAC->getDeviceInfo(inId).name;
     auto outDevName = mDAC->getDeviceInfo(outId).name;
     
-    LOG_INFO("Attempting to start audio with the following settings:\nSR: ", sr, "\nBuffer Size: ", mBufferSize, "\nInput device: ", inDevName, "\nNumber of channels: ", iParams.nChannels, "\nOutput device: ", outDevName, "\nNumber of channels: ", oParams.nChannels);
+    LOG_VERBOSE("Attempting to start audio with the following settings:\nSR: ", sr, "\nBuffer Size: ", mBufferSize, "\nInput device: ", inDevName, "\nNumber of channels: ", iParams.nChannels, "\nOutput device: ", outDevName, "\nNumber of channels: ", oParams.nChannels);
 
     
     RtAudio::StreamOptions options;

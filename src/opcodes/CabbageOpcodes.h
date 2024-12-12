@@ -271,7 +271,6 @@ struct CabbageOpcodes
                     else
                         setJsonValue(jsonObj, args.str_data(argIndex-1).data, args[argIndex]);
                 }
-                LOG_INFO(jsonObj.dump(4));
             }
             else
             {

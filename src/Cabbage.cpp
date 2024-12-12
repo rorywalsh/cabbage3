@@ -102,7 +102,7 @@ bool Engine::setupCsound()
             setReservedChannels();
             
             std::string csoundAddress = cabbage::StringFormatter::format("Resetting csound ...\ncsound = 0x<>", csound.get());
-            csound->Message(csoundAddress.c_str());
+            LOG_VERBOSE(csoundAddress);
         }
         else
         {
@@ -144,8 +144,8 @@ bool Engine::setupCsound()
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {
-                        LOG_VERBOSE(w.dump(4));
-                        LOG_VERBOSE(e.what());
+                        LOG_INFO(w.dump(4));
+                        LOG_INFO(e.what());
                         cabAssert(false, "");
                     }
                 }
@@ -166,6 +166,7 @@ bool Engine::setupCsound()
                     catch (nlohmann::json::exception& e) {
                         LOG_INFO(w.dump(4));
                         LOG_INFO(e.what());
+                        cabAssert(false, "");
                         //                        cabAssert(false, "");
                     }
                 }
@@ -313,7 +314,6 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonObj
             
             if(tableSize != -1)
             {
-                
                 MYFLT *tablePtr = nullptr;
                 auto length = csound->GetTable(&tablePtr, tableNumber);
                 std::vector<MYFLT> temp(tablePtr, tablePtr + length);
