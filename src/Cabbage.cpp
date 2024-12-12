@@ -306,20 +306,22 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonObj
 {
     if(data.cabbageJson.contains("tableNumber") || data.cabbageJson.contains("range"))
     {
-        
-        cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size());
-        const int tableNumber = int(jsonObj["tableNumber"]);
-        const int tableSize = getCsound()->TableLength(tableNumber);
-        
-        if(tableSize != -1)
-        {
+        try{
+            cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size());
+            const int tableNumber = int(jsonObj["tableNumber"]);
+            const int tableSize = getCsound()->TableLength(tableNumber);
             
-            MYFLT *tablePtr = nullptr;
-            auto length = csound->GetTable(&tablePtr, tableNumber);
-            std::vector<MYFLT> temp(tablePtr, tablePtr + length);
-            setTableJSON(data.channel, temp, jsonObj);
-            
-            
+            if(tableSize != -1)
+            {
+                
+                MYFLT *tablePtr = nullptr;
+                auto length = csound->GetTable(&tablePtr, tableNumber);
+                std::vector<MYFLT> temp(tablePtr, tablePtr + length);
+                setTableJSON(data.channel, temp, jsonObj);
+            }
+        }
+        catch (nlohmann::json::exception& e) {
+            LOG_VERBOSE(e.what());
         }
     }
     else if(data.cabbageJson.contains("file"))
@@ -350,11 +352,10 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonObj
 
 void Engine::setTableJSON(std::string channel, std::vector<double> samples, nlohmann::json& jsonObj)
 {
-    
-    //this is a condensed version of the sample data that is passed around between C++ and JS
+    //this is a condensed version of the sample data that is passed around between C++ and JS.
     std::vector<double> widgetSampleData;
-    const int startSample = jsonObj["range"]["start"].get<int>() != -1 ? jsonObj["range"]["start"].get<int>() : 0;
-    const int endSample = jsonObj["range"]["end"].get<int>() != -1 ? jsonObj["range"]["end"].get<int>() : static_cast<int>(samples.size());
+    const int startSample = jsonObj["range"]["start"].get<int>() == 0 ? 0 : jsonObj["range"]["start"].get<int>();
+    const int endSample = jsonObj["range"]["end"].get<int>() == -1 ? static_cast<int>(samples.size()) : jsonObj["range"]["end"].get<int>();
     
     //no point in sending more samples that can be displayed per pixel...
     const float incr = float(endSample-startSample) / ((jsonObj["bounds"]["width"].get<float>())-1);

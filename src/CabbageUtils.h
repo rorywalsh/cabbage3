@@ -300,7 +300,6 @@ public:
         return iniPath.Get();
 
 #elif defined __APPLE__
-        WDL_String iniPath;
         iniPath.SetFormatted(2048, "%s/Library/Application Support/%s/", getenv("HOME"), "Cabbage");
         iniPath.Append("settings.json"); // add file name to path
         return iniPath.Get();
