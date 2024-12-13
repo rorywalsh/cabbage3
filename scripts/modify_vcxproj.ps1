@@ -19,4 +19,4 @@ if (-not (Test-Path $vcxprojPath)) {
 
 Write-Host "Modifying $vcxprojPath"
 
-(Get-Content $vcxprojPath) -replace '<RuntimeLibrary>MultiThreadedDebug', '<RuntimeLibrary>MultiThreadedDebugDLL' | Set-Content $vcxprojPath
+(Get-Content $vcxprojPath) -replace '<RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>', '<RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>' | Set-Content $vcxprojPath
