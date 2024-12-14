@@ -18,16 +18,19 @@ jobs:
       - name: Download CsoundLib64 Package
         run: |
           # Download the package using curl
-          curl -L -o CsoundLib64-7.0-vanilla-universal.pkg "https://www.dropbox.com/scl/fi/8afz58gvjvwsa0u0nwr9g/CsoundLib64-7.0-vanilla-universal.pkg?rlkey=6kw4upth3olvmymhfjsndwgt9&st=mcxkg1hx&dl=1"
+          curl -L -o csound-7.zip "https://www.dropbox.com/scl/fi/d5hnkcecizlwgvnaw1yjy/csound-7.zip?rlkey=pf9v3ucfo8hecyl5ahbacr0a0&dl=1"
           
+          # Extract the zip file
+          unzip csound-7.zip -d csound-7
+
           # Verify the file exists
-          ls -l CsoundLib64-7.0-vanilla-universal.pkg
+          ls -l csound-7/CsoundLib64-7.0-vanilla-universal.pkg
 
           # Make the downloaded file executable
-          chmod +x CsoundLib64-7.0-vanilla-universal.pkg
+          chmod +x csound-7/CsoundLib64-7.0-vanilla-universal.pkg
 
           # Install the package
-          sudo installer -pkg CsoundLib64-7.0-vanilla-universal.pkg -target /
+          sudo installer -pkg csound-7/CsoundLib64-7.0-vanilla-universal.pkg -target /
 
 
       - name: Configure build
