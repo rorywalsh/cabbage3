@@ -86,8 +86,6 @@ jobs:
       - name: Build Windows app
         shell: cmd
         run: |
-          powershell -File ./scripts/modify_vcxproj.ps1 -projectName "CabbageApp" -buildDir ./build/CabbageApp
-          # powershell -File ./scripts/modify_vcxproj.ps1 -projectName "CabbageApp" -buildDir ./build/CabbageStandaloneApp
           cmake --build build --config Debug --target CabbageApp
         continue-on-error: true
 
