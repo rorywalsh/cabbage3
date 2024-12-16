@@ -48,7 +48,6 @@ jobs:
           cd build
           zip -r CabbageBundle.zip \
             CabbageAUv2Effect/out/CabbageAUv2Effect.component \
-            # CabbageAUv2Synth/out/CabbageAUv2Synth.component \
             CabbageApp/out/CabbageApp.app \
             CabbageStandaloneApp/out/CabbageStandaloneApp.app \
             CabbageVST3Effect/out/CabbageVST3Effect.vst3 \
