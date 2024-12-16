@@ -19,8 +19,6 @@ include("cmake/init_vcpkg.cmake")
 project(${CABBAGE_PROJECT_NAME} VERSION ${CABBAGE_VERSION})
 
 
-
-
 if(CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
     find_package(ixwebsocket CONFIG REQUIRED)
     set(CABBAGE_BUILD_TARGET_TYPE app)

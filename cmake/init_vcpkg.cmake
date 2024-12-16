@@ -24,3 +24,7 @@ message(STATUS "Fetching vcpkg - done")
 set(VCPKG_INSTALLED_DIR "${FETCHCONTENT_BASE_DIR}/vcpkg-installed")
 set(CMAKE_TOOLCHAIN_FILE "${vcpkg_SOURCE_DIR}/scripts/buildsystems/vcpkg.cmake")
 set(X_VCPKG_APPLOCAL_DEPS_INSTALL ON CACHE BOOL "" FORCE)
+
+if(WIN32)
+    set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "Triplet for vcpkg")
+endif()
