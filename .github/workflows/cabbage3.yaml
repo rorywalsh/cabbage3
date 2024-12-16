@@ -48,7 +48,7 @@ jobs:
           cd build
           zip -r CabbageBundle.zip \
             CabbageAUv2Effect/out/CabbageAUv2Effect.component \
-            CabbageAUv2Synth/out/CabbageAUv2Synth.component \
+            # CabbageAUv2Synth/out/CabbageAUv2Synth.component \
             CabbageApp/out/CabbageApp.app \
             CabbageStandaloneApp/out/CabbageStandaloneApp.app \
             CabbageVST3Effect/out/CabbageVST3Effect.vst3 \
@@ -86,8 +86,6 @@ jobs:
       - name: Build Windows app
         shell: cmd
         run: |
-          powershell -File ./scripts/modify_vcxproj.ps1 -projectName "CabbageApp" -buildDir ./build/CabbageApp
-          # powershell -File ./scripts/modify_vcxproj.ps1 -projectName "CabbageApp" -buildDir ./build/CabbageStandaloneApp
           cmake --build build --config Debug --target CabbageApp
         continue-on-error: true
 
@@ -98,14 +96,22 @@ jobs:
           cmake --build build --config Debug --target CabbageVST3Effect
         continue-on-error: true
 
+      - name: Build VST Synth Plugin
+        shell: cmd
+        run: |
+          echo "The plugin copying/install phase breaks this step, but the plugin still builds fine. So we'll just ignore the error for now"
+          cmake --build build --config Debug --target CabbageVST3Synth
+        continue-on-error: true
+
       - name: Verify builds
         shell: cmd
         run: |
           echo "Checking if the build artifacts exist for CabbageApp"
           ls build/CabbageApp/out
           tree build/CabbageApp/out
-          echo "Checking if the build artifacts exist for CabbageVST3Effect"
+          echo "Checking if the build artifacts exist for CabbageVST3Synth/Effect"
           ls build/CabbageVST3Effect/out
+          ls build/CabbageVST3Synth/out
           
 
       - name: Zip the Windows app artifacts
