@@ -716,7 +716,7 @@ bool IPlugAPPHost::TryToChangeAudio()
     else
         inputID = GetAudioDeviceId(mState.mAudioInDev.Get());
 #elif defined OS_MAC
-    inputID = GetAudioDeviceIdx(mState.mAudioInDev.Get());
+    inputID = GetAudioDeviceId(mState.mAudioInDev.Get());
 #else
 #error NOT IMPLEMENTED
 #endif

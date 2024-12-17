@@ -367,7 +367,7 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
               _this->ProbeAudioIO();
 
               auto deviceIds = _this->mDAC->getDeviceIds();
-              for( int i = deviceIds.size() - 1 ; i >=0 ; i--)
+              for( size_t i = deviceIds.size() - 1 ; i >=0 ; i--)
               {
                   const auto deviceInfo = _this->mDAC->getDeviceInfo(deviceIds[0]);
                   if (deviceInfo.inputChannels>0)
