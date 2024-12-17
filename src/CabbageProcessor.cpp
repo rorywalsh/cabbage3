@@ -210,6 +210,11 @@ void CabbageProcessor::OnParamChange(int paramIdx)
 //===============================================================================
 void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outputs, int nFrames)
 {   
+    // if no audio input device is found in the standalone wrapper
+    // inputs will be null 
+    if (*inputs == nullptr)
+        hasValidInputs = false;
+
     //must be careful here that we sum our newly processed signal with the current input.
     if (cabbage.csdCompiledWithoutError())
     {
@@ -224,8 +229,18 @@ void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
             for (int channel = 0; channel < NOutChansConnected(); channel++)
             {
                 pos = csndIndex*NOutChansConnected();
-                cabbage.setSpIn(channel+pos, inputs[channel][i]);
-                outputs[channel][i] = inputs[channel][i] + cabbage.getSpOut(channel+pos);
+
+                // if valid inputs are detected, sum newly processed
+                // signal with incoming one
+                if(hasValidInputs)
+                {
+                    cabbage.setSpIn(channel + pos, inputs[channel][i]);
+                    outputs[channel][i] = inputs[channel][i] + cabbage.getSpOut(channel + pos);
+                }
+                else
+                {
+                    outputs[channel][i] = cabbage.getSpOut(channel + pos);
+                }
             }
         }
     }

@@ -189,16 +189,16 @@ public:
     bool InitState();
     void UpdateSettings();
     
-    /** Returns the name of the audio device at idx
-     * @param idx The index RTAudio has given the audio device
+    /** Returns the name of the audio device with a given id
+     * @param id The index RTAudio has given the audio device
      * @return The device name. Core Audio device names are truncated. */
-    WDL_String GetAudioDeviceName(int idx) const;
+    WDL_String GetAudioDeviceName(int id) const;
     // returns the rtaudio device ID, based on the (truncated) device name
     
-    /** Returns the audio device index linked to a particular name
+    /** Returns the audio device ID linked to a particular name
      * @param name The name of the audio device to test
-     * @return The integer index RTAudio has given the audio device */
-    int GetAudioDeviceIdx(const char* name) const;
+     * @return The integer ID RTAudio has given the audio device */
+    int GetAudioDeviceId(const char* name) const;
     
     /** @param direction Either kInput or kOutput
      * @param name The name of the midi device

@@ -119,6 +119,7 @@ private:
     bool uiIsOpen = false;
     bool firstTime = true;
     bool allowDequeuing = false;
+    bool hasValidInputs = true;
     
     
 };

@@ -39,6 +39,7 @@ IPlugAPPHost::IPlugAPPHost(std::string file, int port)
 : csdFile(file), mIPlug(MakePlug(InstanceInfo{this}, file)), portNumber(port)
 {
    //constructor for Cabbage service app
+    LOG_VERBOSE("IPlugAPPHost::IPlugAPPHost");
 }
 #else
 IPlugAPPHost::IPlugAPPHost()
@@ -138,6 +139,7 @@ bool IPlugAPPHost::InitWebSocket()
 #if defined CabbageApp
     WDL_String address("ws://localhost:");
     address.Append(std::to_string(portNumber).c_str());
+    
     webSocket.setUrl(address.Get());
     webSocket.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg)
             {
@@ -514,17 +516,19 @@ void IPlugAPPHost::UpdateSettings()
 
 }
 
-WDL_String IPlugAPPHost::GetAudioDeviceName(int idx) const
+WDL_String IPlugAPPHost::GetAudioDeviceName(int id) const
 {
-    return mAudioIDDevNames.at(idx);
+    return WDL_String(mDAC->getDeviceInfo(id).name.c_str());
 }
 
-int IPlugAPPHost::GetAudioDeviceIdx(const char* deviceNameToTest) const
+int IPlugAPPHost::GetAudioDeviceId(const char* deviceNameToTest) const
 {
-    for(int i = 0; i < mAudioIDDevNames.size(); ++i)
+    const auto ids = mDAC->getDeviceIds();
+    for(const auto& id : ids)
     {
-        if(!strcmp(deviceNameToTest, mAudioIDDevNames.at(i).Get() ))
-            return i;
+        const auto name = mDAC->getDeviceInfo(id).name;
+        if (!strcmp(deviceNameToTest, name.c_str()))
+            return id;
     }
     
     return -1;
@@ -703,126 +707,68 @@ bool IPlugAPPHost::TryToChangeAudioDriverType()
 
 bool IPlugAPPHost::TryToChangeAudio()
 {
-    auto settingsFile = cabbage::File::getSettingsFile();
-    std::ifstream file(settingsFile);
-    if (!file.is_open())
-    {
-        std::cerr << "Error: Could not open the file " << settingsFile << std::endl;
-        return "";
-    }
-    
-    // Parse the JSON content from the file
-    nlohmann::json jsonData;
-    try {
-        file >> jsonData;
-    }
-    catch (const std::exception& e) {
-        std::cerr << "Error: Failed to parse JSON - " << e.what() << std::endl;
-        return "";
-    }
-    
     int inputID = -1;
     int outputID = -1;
-    
+
 #if defined OS_WIN
     if (mState.mAudioDriverType == kDeviceASIO)
-        inputID = GetAudioDeviceIdx(mState.mAudioOutDev.Get());
-    else 
-    {
-        inputID = GetAudioDeviceIdx(mState.mAudioInDev.Get());
-
-        std::string input = mState.mAudioInDev.Get();
-        std::string output = mState.mAudioOutDev.Get();
-
-        if (input == "Default Device" || input == "Built-in Input" )
-        {
-            inputID = mDAC->getDefaultInputDevice();
-        }
-        else
-        {
-            inputID = jsonData["systemAudioMidiIOListing"]["audioInputDevices"][input]["deviceId"];
-        }
-
-        if (output == "Default Device" || output == "Built-in Output")
-        {
-            outputID = mDAC->getDefaultOutputDevice();
-        }
-        else
-        {
-			outputID = jsonData["systemAudioMidiIOListing"]["audioOutputDevices"][output]["deviceId"];
-        }
-    }
-
-
-    
-    
+        inputID = GetAudioDeviceId(mState.mAudioOutDev.Get());
+    else
+        inputID = GetAudioDeviceId(mState.mAudioInDev.Get());
 #elif defined OS_MAC
-    std::string input = mState.mAudioInDev.Get();
-    std::string output = mState.mAudioOutDev.Get();
-    RtAudio defaultIO;
-    if(input == "Built-in Input")
-        inputID = defaultIO.getDefaultInputDevice();
-    else
-        inputID = jsonData["systemAudioMidiIOListing"]["audioInputDevices"][input]["deviceId"];
-    
-    if(output == "Built-in Output")
-        outputID = defaultIO.getDefaultOutputDevice();
-    else
-        outputID = jsonData["systemAudioMidiIOListing"]["audioOutputDevices"][output]["deviceId"];
-  
-    
+    inputID = GetAudioDeviceIdx(mState.mAudioInDev.Get());
 #else
 #error NOT IMPLEMENTED
 #endif
-    
-    
+
+    outputID = GetAudioDeviceId(mState.mAudioOutDev.Get());
+
+    int defaultInputId = mDAC->getDefaultInputDevice();
     bool failedToFindDevice = false;
     bool resetToDefault = false;
-    
+
     if (inputID == -1)
     {
-        if (mDefaultInputDev > -1)
+        if (defaultInputId > -1)
         {
             resetToDefault = true;
-            inputID = mDefaultInputDev;
-            
-            if (mAudioInputDevs.size())
-                mState.mAudioInDev.Set(GetAudioDeviceName(inputID).Get());
+            inputID = defaultInputId;
+            mState.mAudioInDev.Set(mDAC->getDeviceInfo(inputID).name.c_str());
         }
         else
             failedToFindDevice = true;
     }
-    
+
     if (outputID == -1)
     {
         if (mDefaultOutputDev > -1)
         {
             resetToDefault = true;
-            
+
             outputID = mDefaultOutputDev;
-            
+
             if (mAudioOutputDevs.size())
                 mState.mAudioOutDev.Set(GetAudioDeviceName(outputID).Get());
         }
         else
             failedToFindDevice = true;
     }
-    
+
     if (resetToDefault)
     {
         DBGMSG("couldn't find previous audio device, reseting to default\n");
-        
+
         UpdateSettings();
     }
-    
+
     if (failedToFindDevice)
         MessageBox(gHWND, "Please check your soundcard settings in Preferences", "Error", MB_OK);
-    
+
     if (inputID != -1 && outputID != -1)
     {
         return InitAudio(inputID, outputID, mState.mAudioSR, mState.mBufferSize);
     }
-    
+
     return false;
 }
 
@@ -946,9 +892,26 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
     CloseAudio();
     
     RtAudio::StreamParameters iParams, oParams;
-    iParams.deviceId = inId;
-    iParams.nChannels = GetPlug()->MaxNChannels(ERoute::kInput); // TODO: flexible channel count
+    bool foundValidInputDevice = false;
+
+    const auto deviceIds = mDAC->getDeviceIds();
+
+    auto it = std::find(deviceIds.begin(), deviceIds.end(), inId);
+    if (it != deviceIds.end())
+    {
+        foundValidInputDevice = true;
+        iParams.deviceId = inId;
+        iParams.nChannels = GetPlug()->MaxNChannels(ERoute::kInput); // TODO: flexible channel count
+    }
+    else
+    {
+        // no input found on the soundcard
+        iParams.deviceId = -1;
+        iParams.nChannels = 0; //set this to 2, and fill some buffers with 0 to avoid issues
+    }
+
     iParams.firstChannel = 0; // TODO: flexible channel count
+
     
     oParams.deviceId = outId;
     oParams.nChannels = GetPlug()->MaxNChannels(ERoute::kOutput); // TODO: flexible channel count
@@ -956,7 +919,7 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
     
     mBufferSize = iovs; // mBufferSize may get changed by stream
     
-    auto inDevName = mDAC->getDeviceInfo(inId).name;
+    auto inDevName = foundValidInputDevice ? mDAC->getDeviceInfo(inId).name : "";
     auto outDevName = mDAC->getDeviceInfo(outId).name;
     
     LOG_VERBOSE("Attempting to start audio with the following settings:\nSR: ", sr, "\nBuffer Size: ", mBufferSize, "\nInput device: ", inDevName, "\nNumber of channels: ", iParams.nChannels, "\nOutput device: ", outDevName, "\nNumber of channels: ", oParams.nChannels);
@@ -979,11 +942,12 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
     
     try
     {
-        mDAC->openStream(&oParams, iParams.nChannels > 0 ? &iParams : nullptr, RTAUDIO_FLOAT64, sr, &mBufferSize, &AudioCallback, this, &options);
-        
+        // we need to pass a nullptr here is no audio input device is found
+        mDAC->openStream(&oParams, foundValidInputDevice ? &iParams : nullptr, RTAUDIO_FLOAT64, sr, &mBufferSize, &AudioCallback, this, &options);
+
         for (int i = 0; i < iParams.nChannels; i++)
         {
-            mInputBufPtrs.Add(nullptr); //will be set in callback
+           mInputBufPtrs.Add(nullptr); //will be set in callback
         }
         
         for (int i = 0; i < oParams.nChannels; i++)
@@ -1036,19 +1000,22 @@ bool IPlugAPPHost::InitMidi()
 
 void ApplyFades(double *pBuffer, int nChans, int nFrames, bool down)
 {
-    for (int i = 0; i < nChans; i++)
+    if (pBuffer)
     {
-        double *pIO = pBuffer + (i * nFrames);
-        
-        if (down)
+        for (int i = 0; i < nChans; i++)
         {
-            for (int j = 0; j < nFrames; j++)
-                pIO[j] *= ((double) (nFrames - (j + 1)) / (double) nFrames);
-        }
-        else
-        {
-            for (int j = 0; j < nFrames; j++)
-                pIO[j] *= ((double) j / (double) nFrames);
+            double* pIO = pBuffer + (i * nFrames);
+
+            if (down)
+            {
+                for (int j = 0; j < nFrames; j++)
+                    pIO[j] *= ((double)(nFrames - (j + 1)) / (double)nFrames);
+            }
+            else
+            {
+                for (int j = 0; j < nFrames; j++)
+                    pIO[j] *= ((double)j / (double)nFrames);
+            }
         }
     }
 }
@@ -1058,7 +1025,9 @@ int IPlugAPPHost::AudioCallback(void* pOutputBuffer, void* pInputBuffer, uint32_
 {
     IPlugAPPHost* _this = (IPlugAPPHost*) pUserData;
     
-    int nins = _this->GetPlug()->MaxNChannels(ERoute::kInput);
+
+
+    int nins = 0;// _this->GetPlug()->MaxNChannels(ERoute::kInput);
     int nouts = _this->GetPlug()->MaxNChannels(ERoute::kOutput);
     
     double* pInputBufferD = static_cast<double*>(pInputBuffer);

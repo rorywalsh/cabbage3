@@ -69,6 +69,7 @@ void IPlugAPPHost::PopulateAudioInputList(HWND hwndDlg, RtAudio::DeviceInfo* inf
 
   WDL_String buf;
 
+  LOG_VERBOSE(info->ID);
   SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_L,CB_RESETCONTENT,0,0);
   SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_R,CB_RESETCONTENT,0,0);
 
@@ -130,50 +131,60 @@ void IPlugAPPHost::PopulateDriverSpecificControls(HWND hwndDlg)
   }
 #endif
 
-  int indevidx = 0;
-  int outdevidx = 0;
+  int inDevIdx = 0;
+  int outDevIdx = 0;
 
   SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_DEV,CB_RESETCONTENT,0,0);
   SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_DEV,CB_RESETCONTENT,0,0);
 
-  for (int i = 0; i<mAudioInputDevs.size(); i++)
-  {
-    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_DEV,CB_ADDSTRING,0,(LPARAM)GetAudioDeviceName(mAudioInputDevs[i]).Get());
+  const auto deviceIds = mDAC->getDeviceIds();
 
-    if(!strcmp(GetAudioDeviceName(mAudioInputDevs[i]).Get(), mState.mAudioInDev.Get()))
-      indevidx = i;
+  for (int i = 0; i< deviceIds.size(); i++)
+  {
+      const bool isInput = mDAC->getDeviceInfo(deviceIds[i]).inputChannels > 0 ? true : false;
+
+      if (isInput)
+      {
+          SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_IN_DEV, CB_ADDSTRING, 0, (LPARAM)GetAudioDeviceName(deviceIds[i]).Get());
+
+          if (!strcmp(GetAudioDeviceName(deviceIds[i]).Get(), mState.mAudioInDev.Get()))
+              inDevIdx = i;
+      }
+
+      const bool isOuput = mDAC->getDeviceInfo(deviceIds[i]).outputChannels > 0 ? true : false;
+
+      if (isOuput)
+      {
+          SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_DEV, CB_ADDSTRING, 0, (LPARAM)GetAudioDeviceName(deviceIds[i]).Get());
+
+          if (!strcmp(GetAudioDeviceName(deviceIds[i]).Get(), mState.mAudioOutDev.Get()))
+              outDevIdx = i;
+      }
   }
 
-  for (int i = 0; i<mAudioOutputDevs.size(); i++)
-  {
-    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_DEV,CB_ADDSTRING,0,(LPARAM)GetAudioDeviceName(mAudioOutputDevs[i]).Get());
-
-    if(!strcmp(GetAudioDeviceName(mAudioOutputDevs[i]).Get(), mState.mAudioOutDev.Get()))
-      outdevidx = i;
-  }
 
 #ifdef OS_WIN
   if(driverType == kDeviceASIO)
-    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_DEV,CB_SETCURSEL, outdevidx, 0);
+    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_DEV,CB_SETCURSEL, outDevIdx, 0);
   else
 #endif
-    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_DEV,CB_SETCURSEL, indevidx, 0);
+    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_DEV,CB_SETCURSEL, inDevIdx, 0);
 
-  SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_DEV,CB_SETCURSEL, outdevidx, 0);
+  SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_DEV,CB_SETCURSEL, outDevIdx, 0);
 
   RtAudio::DeviceInfo inputDevInfo;
   RtAudio::DeviceInfo outputDevInfo;
 
-  if (mAudioInputDevs.size())
+  
+  for (int i = 0 ; i < deviceIds.size(); i++)
   {
-    inputDevInfo = mDAC->getDeviceInfo(mAudioInputDevs[indevidx]);
-    PopulateAudioInputList(hwndDlg, &inputDevInfo);
-  }
+    inputDevInfo = mDAC->getDeviceInfo(deviceIds[i]);
+    if(inputDevInfo.inputChannels > 0)
+        PopulateAudioInputList(hwndDlg, &inputDevInfo);
 
-  if (mAudioOutputDevs.size())
-  {
-    outputDevInfo = mDAC->getDeviceInfo(mAudioOutputDevs[outdevidx]);
-    PopulateAudioOutputList(hwndDlg, &outputDevInfo);
+    outputDevInfo = mDAC->getDeviceInfo(deviceIds[i]);
+    if(outputDevInfo.outputChannels > 0)
+        PopulateAudioOutputList(hwndDlg, &outputDevInfo);
   }
 
   PopulateSampleRateList(hwndDlg, &inputDevInfo, &outputDevInfo);
@@ -355,11 +366,17 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
               _this->TryToChangeAudioDriverType();
               _this->ProbeAudioIO();
 
-              if (_this->mAudioInputDevs.size())
-                mState.mAudioInDev.Set(_this->GetAudioDeviceName(_this->mAudioInputDevs[0]).Get());
+              auto deviceIds = _this->mDAC->getDeviceIds();
+              for( int i = deviceIds.size() - 1 ; i >=0 ; i--)
+              {
+                  const auto deviceInfo = _this->mDAC->getDeviceInfo(deviceIds[0]);
+                  if (deviceInfo.inputChannels>0)
+                    mState.mAudioInDev.Set(deviceInfo.name.c_str());
+                  else
+                    mState.mAudioOutDev.Set(deviceInfo.name.c_str());
 
-              if (_this->mAudioOutputDevs.size())
-                mState.mAudioOutDev.Set(_this->GetAudioDeviceName(_this->mAudioOutputDevs[0]).Get());
+
+              }
 
               // Reset IO
               mState.mAudioOutChanL = 1;
@@ -389,7 +406,6 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
           {
             int idx = (int) SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_DEV, CB_GETCURSEL, 0, 0);
             getComboString(mState.mAudioOutDev, IDC_COMBO_AUDIO_OUT_DEV, idx);
-
             // Reset IO
             mState.mAudioOutChanL = 1;
             mState.mAudioOutChanR = 2;
