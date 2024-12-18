@@ -458,7 +458,6 @@ void IPlugAPPHost::UpdateSettings()
     //todo fix this, ASIO is shitting the bed - using DirectSound only for now
 #elif defined OS_MAC
     settingsJSON["systemAudioMidiIOListing"]["audioDrivers"] = "CoreAudio";
-    RtAudio audio(apis[0], errorCallback);
 #else
     cabAssert(false, "Not implemented");
 #endif
