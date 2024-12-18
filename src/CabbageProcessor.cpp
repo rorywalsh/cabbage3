@@ -21,7 +21,10 @@ CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info, std::string 
 cabbage(*this, csdFile)
 {
     if(!cabbage.setupCsound())
+    {
+        LOG_VERBOSE(cabbage.getCompileErrors());
         return;
+    }
 }
 #else
 CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info)
@@ -279,6 +282,7 @@ void CabbageProcessor::OnIdle()
         while (cabbage.getCsound()->GetMessageCnt() > 0)
         {
             std::string message(cabbage.getCsound()->GetFirstMessage());
+            message.erase(std::remove(message.begin(), message.end(), '\n'), message.end());
             LOG_INFO(message);
             //EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
             cabbage.getCsound()->PopFirstMessage();

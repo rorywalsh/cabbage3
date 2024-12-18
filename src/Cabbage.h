@@ -159,6 +159,8 @@ public:
     
     moodycamel::ReaderWriterQueue<CabbageOpcodeData> opcodeData;
 
+    std::string getCompileErrors(){ return compileErrors;   }
+    
 private:
     void addOpcodes();
     int numberOfParameters = 0;
@@ -174,6 +176,7 @@ private:
     double sampleRate = 44100;
     std::vector<iplug::IMidiMsg> midiQueue;
     std::string csdFile = {};
+    std::string compileErrors;
     std::unique_ptr<Csound> csound;
     CabbageProcessor& processor;
 };

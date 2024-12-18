@@ -110,6 +110,7 @@ bool Engine::setupCsound()
             while (csound->GetMessageCnt() > 0)
             {
                 LOG_INFO(csound->GetFirstMessage());
+                compileErrors += csound->GetFirstMessage();
                 csound->PopFirstMessage();
             }
             return false;
