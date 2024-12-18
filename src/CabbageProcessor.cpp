@@ -238,7 +238,8 @@ void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
                 if(hasValidInputs)
                 {
                     cabbage.setSpIn(channel + pos, inputs[channel][i]);
-                    outputs[channel][i] = inputs[channel][i] + cabbage.getSpOut(channel + pos);
+                    //outputs[channel][i] = inputs[channel][i] + cabbage.getSpOut(channel + pos);
+                    outputs[channel][i] = cabbage.getSpOut(channel + pos);
                 }
                 else
                 {

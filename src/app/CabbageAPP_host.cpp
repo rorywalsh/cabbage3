@@ -259,6 +259,7 @@ bool IPlugAPPHost::Init()
     ProbeMidiIO(); // find out what midi IO devs are available and put their names in the global variables gMidiInputDevs / gMidiOutputDevs
     SelectMIDIDevice(ERoute::kInput, mState.mMidiInDev.Get());
     SelectMIDIDevice(ERoute::kOutput, mState.mMidiOutDev.Get());
+    UpdateSettings();
     
     mIPlug->OnParamReset(kReset);
     mIPlug->OnActivate(true);
@@ -313,7 +314,7 @@ bool IPlugAPPHost::InitState()
                 // Check if the file is empty
                 if (file.peek() == std::ifstream::traits_type::eof()) {
                     std::cout << "File is empty, using default settings." << std::endl;
-                    UpdateSettings();
+                    //UpdateSettings();
                     return true;
                 }
                 else {
@@ -365,7 +366,6 @@ bool IPlugAPPHost::InitState()
         }
         
         // if settings file doesn't exist, populate with default values, otherwise overrwrite
-        UpdateSettings();
     }
     else   // folder doesn't exist - make folder and make file
     {
@@ -373,7 +373,7 @@ bool IPlugAPPHost::InitState()
         // folder doesn't exist - make folder and make file
         CreateDirectory(mJSONPath.Get(), NULL);
         mJSONPath.Append("\\settings.json");
-        UpdateSettings(); // will write file if doesn't exist
+        //UpdateSettings(); // will write file if doesn't exist
 #elif defined OS_MAC
         mode_t process_mask = umask(0);
         int result_code = mkdir(mJSONPath.Get(), S_IRWXU | S_IRWXG | S_IRWXO);
@@ -382,7 +382,7 @@ bool IPlugAPPHost::InitState()
         if(!result_code)
         {
             mJSONPath.Append("\\settings.json");
-            UpdateSettings(); // will write file if doesn't exist
+           // UpdateSettings(); // will write file if doesn't exist
         }
         else
         {
@@ -396,16 +396,16 @@ bool IPlugAPPHost::InitState()
     return true;
 }
 
-void IPlugAPPHost::addDevicesToSettings( RtAudio& audio, nlohmann::json& settingsJSON)
+void IPlugAPPHost::addDevicesToSettings(nlohmann::json& settingsJSON)
 {
     RtAudio::DeviceInfo info;
     int inputCnt = 0;
     int outputCnt = 0;
-    std::vector<unsigned int> devices = audio.getDeviceIds();
+    std::vector<unsigned int> devices = mDAC->getDeviceIds();
     
     for (unsigned int i=0; i<devices.size(); i++)
     {
-        info = audio.getDeviceInfo( devices[i] );
+        info = mDAC->getDeviceInfo( devices[i] );
 
         
         if (info.outputChannels > 0)
@@ -453,13 +453,9 @@ void IPlugAPPHost::UpdateSettings()
     settingsJSON["currentConfig"]["midi"]["outChan"] = mState.mMidiOutChan;
 
     
-    std::vector<RtAudio::Api> apis;
-    RtAudio::getCompiledApi(apis);
-    
 #ifdef OS_WIN
     settingsJSON["systemAudioMidiIOListing"]["audioDrivers"] = { "DirectSound", "ASIO"};
     //todo fix this, ASIO is shitting the bed - using DirectSound only for now
-    RtAudio audio(apis[mState.mAudioDriverType], errorCallback);
 #elif defined OS_MAC
     settingsJSON["systemAudioMidiIOListing"]["audioDrivers"] = "CoreAudio";
     RtAudio audio(apis[0], errorCallback);
@@ -469,7 +465,7 @@ void IPlugAPPHost::UpdateSettings()
     
     settingsJSON["currentConfig"]["jsSourceDir"] = cabbage::File::convertToForwardSlashes(mState.mJsSourceDirectory.Get());
     
-    addDevicesToSettings(audio, settingsJSON);
+    addDevicesToSettings(settingsJSON);
 
     RtMidiIn midiIn;
     RtMidiOut midiOut;
@@ -478,8 +474,8 @@ void IPlugAPPHost::UpdateSettings()
     int outputCnt = 0;
 
     // Get the default output device ID
-    unsigned int defaultOutputDevice = audio.getDefaultOutputDevice();
-    auto info = audio.getDeviceInfo(defaultOutputDevice);
+    unsigned int defaultOutputDevice = mDAC->getDefaultOutputDevice();
+    auto info = mDAC->getDeviceInfo(defaultOutputDevice);
     nlohmann::json json;
     json["numChannels"] = info.outputChannels;
     json["sampleRates"] = info.sampleRates;
@@ -724,6 +720,7 @@ bool IPlugAPPHost::TryToChangeAudio()
     outputID = GetAudioDeviceId(mState.mAudioOutDev.Get());
 
     int defaultInputId = mDAC->getDefaultInputDevice();
+    int defaultOutputId = mDAC->getDefaultOutputDevice();
     bool failedToFindDevice = false;
     bool resetToDefault = false;
 
@@ -745,7 +742,7 @@ bool IPlugAPPHost::TryToChangeAudio()
         {
             resetToDefault = true;
 
-            outputID = mDefaultOutputDev;
+            outputID = defaultOutputId;
 
             if (mAudioOutputDevs.size())
                 mState.mAudioOutDev.Set(GetAudioDeviceName(outputID).Get());
@@ -756,9 +753,7 @@ bool IPlugAPPHost::TryToChangeAudio()
 
     if (resetToDefault)
     {
-        DBGMSG("couldn't find previous audio device, reseting to default\n");
-
-        UpdateSettings();
+        LOG_VERBOSE("couldn't find previous audio device, reseting to default\n");
     }
 
     if (failedToFindDevice)
@@ -1027,7 +1022,7 @@ int IPlugAPPHost::AudioCallback(void* pOutputBuffer, void* pInputBuffer, uint32_
     
 
 
-    int nins = 0;// _this->GetPlug()->MaxNChannels(ERoute::kInput);
+    int nins = _this->GetPlug()->MaxNChannels(ERoute::kInput);
     int nouts = _this->GetPlug()->MaxNChannels(ERoute::kOutput);
     
     double* pInputBufferD = static_cast<double*>(pInputBuffer);
