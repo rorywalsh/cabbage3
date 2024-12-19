@@ -27,11 +27,12 @@ fetch_github_dependency(
 
 fetch_github_dependency(
     iplug2
-    GIT_REPOSITORY https://github.com/rorywalsh/iplug2.git
-    GIT_TAG eadb7d4dc6282a56d870583fa3ff4eed37b7d861
-    URL_MD5 a01b2bc6c330a18e612214edcc3beeb2
+    GIT_REPOSITORY https://github.com/rorywalsh/iPlug2.git
+    GIT_TAG aefb4bdc53033e99761f7e737b098bbafc15b13d
+    URL_MD5 11f22530b3af623d229d114ab34cda50
     # USE_GIT
 )
+
 
 if(WIN32) 
     # Specify the output directory for NuGet packages (relative to the project root)
