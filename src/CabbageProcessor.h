@@ -120,6 +120,7 @@ private:
     bool firstTime = true;
     bool allowDequeuing = false;
     bool hasValidInputs = true;
+    bool matchingNumInputsOutputs = true;
     
     
 };

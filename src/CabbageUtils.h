@@ -470,7 +470,7 @@ public:
         auto input = getFileAsString(csdFile);
 
         // Define the regex for inputs (nchnls_i)
-        std::regex inputRegex(R"(^\s*nchnls_i\s*=\s*(\d+))", std::regex_constants::icase);
+        std::regex inputRegex(R"(^\s*nchnls_i\s*=\s*(\d+)\s*$)", std::regex_constants::icase);
         std::smatch match;
 
         // Search for each line individually using regex
@@ -492,9 +492,9 @@ public:
     static int getNumberOfOutputChannels(const std::string& csdFile)
     {
         auto input = getFileAsString(csdFile);
-
+        LOG_INFO(input);
         // Define the regex for outputs (nchnls)
-        std::regex outputRegex(R"(^\s*nchnls\s*=\s*(\d+))", std::regex_constants::icase);
+        std::regex outputRegex(R"(^\s*nchnls\s*=\s*(\d+)\s*$)", std::regex_constants::icase);
         std::smatch match;
 
         // Search for each line individually using regex

@@ -27,10 +27,14 @@ cabbage(*this, csdFile)
         LOG_VERBOSE(cabbage.getCompileErrors());
         return;
     }
+    
+    matchingNumInputsOutputs = (NInChansConnected() == NOutChansConnected());
 }
 #else
 CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info)
-: iplug::Plugin(info, iplug::MakeConfig(cabbage::Engine::getNumberOfParameters(""), 0, "")),
+: iplug::Plugin(info, iplug::MakeConfig(cabbage::Engine::getNumberOfParameters(""),
+                                        0,
+                                        cabbage::Engine::getIOChannalConfig(""))),
 cabbage(*this, "")
 {
     
@@ -42,6 +46,8 @@ cabbage(*this, "")
         return;
 //        cabAssert(false, "couldn't set up Csound");
     }
+    
+    matchingNumInputsOutputs = (NInChansConnected() == NOutChansConnected());
     
 #ifdef DEBUG
     SetEnableDevTools(true);
@@ -232,22 +238,44 @@ void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
                 csndIndex = 0;
             }
             
-            for (int channel = 0; channel < NOutChansConnected(); channel++)
+            if(matchingNumInputsOutputs)
             {
-                pos = csndIndex*NOutChansConnected();
+                for (int channel = 0; channel < NOutChansConnected(); channel++)
+                {
+                    pos = csndIndex*NOutChansConnected();
+                    
+                    // if valid inputs are detected, sum newly processed
+                    // signal with incoming one
+                    if(hasValidInputs)
+                    {
+                        cabbage.setSpIn(channel + pos, inputs[channel][i]);
+                        //outputs[channel][i] = inputs[channel][i] + cabbage.getSpOut(channel + pos);
+                        outputs[channel][i] = cabbage.getSpOut(channel + pos);
+                    }
+                    else
+                    {
+                        outputs[channel][i] = cabbage.getSpOut(channel + pos);
+                    }
+                }
+            }
+            else
+            {
+                // Process inputs
+                    for (int inputChannel = 0; inputChannel < NInChansConnected(); inputChannel++)
+                    {
+                        pos = csndIndex * NInChansConnected(); // Position in interleaved array
+                        
+                        cabbage.setSpIn(inputChannel + pos, inputs[inputChannel][i]);
+                    }
 
-                // if valid inputs are detected, sum newly processed
-                // signal with incoming one
-                if(hasValidInputs)
-                {
-                    cabbage.setSpIn(channel + pos, inputs[channel][i]);
-                    //outputs[channel][i] = inputs[channel][i] + cabbage.getSpOut(channel + pos);
-                    outputs[channel][i] = cabbage.getSpOut(channel + pos);
-                }
-                else
-                {
-                    outputs[channel][i] = cabbage.getSpOut(channel + pos);
-                }
+                    // Process outputs
+                    for (int outputChannel = 0; outputChannel < NOutChansConnected(); outputChannel++)
+                    {
+                        pos = csndIndex * NOutChansConnected(); // Position in interleaved array
+
+                        // Fill output buffer from Csound's processed output
+                        outputs[outputChannel][i] = cabbage.getSpOut(outputChannel + pos);
+                    }
             }
         }
     }

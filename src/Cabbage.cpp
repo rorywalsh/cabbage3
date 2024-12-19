@@ -83,10 +83,10 @@ bool Engine::setupCsound()
     csound->SetOption((char*)"-d");
     csound->SetOption((char*)"-b0");
     csound->SetOption(std::string("--sample-rate="+std::to_string(sampleRate)).c_str());
+    csound->SetOption(std::string("--nchnls="+std::to_string(processor.NOutChansConnected())).c_str());
+    csound->SetOption(std::string("--nchnls_i="+std::to_string(processor.NInChansConnected())).c_str());
     
-    //    csoundParams->nchnls_override = numCsoundOutputChannels;
-    //    csoundParams->nchnls_i_override = numCsoundInputChannels;
-    
+
     //    csdFile = "/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/CabbagePluginEffect.csd";
     std::filesystem::path file = csdFile.empty() ? cabbage::File::getCsdFileAndPath() : csdFile;
     csdFile = file.string();
@@ -217,7 +217,7 @@ int Engine::getNumberOfParameters(const std::string& csdFile)
     return numParams;
 }
 
-//===========================================================================================
+
 const std::string Engine::getIOChannalConfig(const std::string& csdFile)
 {
     const int numInputs = cabbage::File::getNumberOfInputChannels(csdFile);
@@ -225,6 +225,7 @@ const std::string Engine::getIOChannalConfig(const std::string& csdFile)
     return std::to_string(numInputs)+"-"+std::to_string(numOutputs);
 }
 
+//===========================================================================================
 
 void Engine::setControlChannel(const std::string channel, MYFLT value)
 {
