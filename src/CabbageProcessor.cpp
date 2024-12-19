@@ -17,7 +17,9 @@
 //===============================================================================
 #ifdef CabbageApp
 CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info, std::string csdFile)
-: iplug::Plugin(info, iplug::MakeConfig(cabbage::Engine::getNumberOfParameters(csdFile), 0)),
+: iplug::Plugin(info, iplug::MakeConfig(cabbage::Engine::getNumberOfParameters(csdFile),
+                                        0,
+                                        cabbage::Engine::getIOChannalConfig(csdFile))),
 cabbage(*this, csdFile)
 {
     if(!cabbage.setupCsound())
@@ -28,7 +30,7 @@ cabbage(*this, csdFile)
 }
 #else
 CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info)
-: iplug::Plugin(info, iplug::MakeConfig(cabbage::Engine::getNumberOfParameters(""), 0)),
+: iplug::Plugin(info, iplug::MakeConfig(cabbage::Engine::getNumberOfParameters(""), 0, "")),
 cabbage(*this, "")
 {
     
@@ -37,7 +39,8 @@ cabbage(*this, "")
     if(!cabbage.setupCsound())
     {
         LOG_INFO("Csound file could not be compiled");
-        cabAssert(false, "couldn't set up Csound");
+        return;
+//        cabAssert(false, "couldn't set up Csound");
     }
     
 #ifdef DEBUG
@@ -250,6 +253,8 @@ void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
     }
     else
     {
+        // calling this once here in case errors are missed in vscode logger
+        cabbage.displayAndClearCompileErrors();
         for(int i = 0; i < nFrames ; i++)
             for (int channel = 0; channel < NOutChansConnected(); channel++)
                 outputs[channel][i] = 0;
@@ -293,7 +298,7 @@ void CabbageProcessor::OnIdle()
 #endif
     CabbageOpcodeData data;
     //data contains the channel and the Cabbage code that can be comprised of any number of identifiers, i.e,
-    // bounds(10, 10, 100, 100), text("hello"), etc.
+	    // bounds(10, 10, 100, 100), text("hello"), etc.
 
     //only start accessing messages from the queue when the interface is open..
     if (allowDequeuing)

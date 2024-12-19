@@ -16,6 +16,8 @@ namespace cabbage {
 Engine::Engine(CabbageProcessor& p, std::string file): processor(p), csdFile(file)
 {
     sampleRate = p.GetSampleRate();
+    LOG_INFO(processor.NInChansConnected());
+    LOG_INFO(processor.NOutChansConnected());
 };
 
 Engine::~Engine()
@@ -154,14 +156,14 @@ bool Engine::setupCsound()
                 {
                     try{
                         processor.GetParam(numberOfParameters)->InitInt(w["channel"].get<std::string>().c_str(),
-                                                                        w["value"].get<int>(),
+                                                                        w["defaultValue"].get<int>(),
                                                                         w["min"].get<int>(),
                                                                         w["max"].get<int>(),
                                                                         std::string(w["channel"].get<std::string>()+"Label1").c_str(),
                                                                         iplug::IParam::EFlags::kFlagsNone,
                                                                         "");
-                        parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()), w["value"].get<float>()});
-                        csound->SetControlChannel(w["channel"].get<std::string>().c_str(), w["value"].get<float>());
+                        parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()), w["defaultValue"].get<float>()});
+                        csound->SetControlChannel(w["channel"].get<std::string>().c_str(), w["defaultValue"].get<float>());
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {
@@ -213,6 +215,14 @@ int Engine::getNumberOfParameters(const std::string& csdFile)
     }
     
     return numParams;
+}
+
+//===========================================================================================
+const std::string Engine::getIOChannalConfig(const std::string& csdFile)
+{
+    const int numInputs = cabbage::File::getNumberOfInputChannels(csdFile);
+    const int numOutputs = cabbage::File::getNumberOfOutputChannels(csdFile);
+    return std::to_string(numInputs)+"-"+std::to_string(numOutputs);
 }
 
 

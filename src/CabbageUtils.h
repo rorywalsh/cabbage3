@@ -462,6 +462,55 @@ public:
         }
 
     }
+        
+    
+    // Function to get the number of input channels (nchnls_i)
+    static int getNumberOfInputChannels(const std::string& csdFile)
+    {
+        auto input = getFileAsString(csdFile);
+
+        // Define the regex for inputs (nchnls_i)
+        std::regex inputRegex(R"(^\s*nchnls_i\s*=\s*(\d+))", std::regex_constants::icase);
+        std::smatch match;
+
+        // Search for each line individually using regex
+        std::istringstream stream(input);
+        std::string line;
+        while (std::getline(stream, line))
+        {
+            if (std::regex_match(line, match, inputRegex))
+            {
+                // Convert the matched number to an integer
+                return std::stoi(match[1].str());
+            }
+        }
+
+        return 2;
+    }
+
+    // Function to get the number of output channels (nchnls)
+    static int getNumberOfOutputChannels(const std::string& csdFile)
+    {
+        auto input = getFileAsString(csdFile);
+
+        // Define the regex for outputs (nchnls)
+        std::regex outputRegex(R"(^\s*nchnls\s*=\s*(\d+))", std::regex_constants::icase);
+        std::smatch match;
+
+        // Search for each line individually using regex
+        std::istringstream stream(input);
+        std::string line;
+        while (std::getline(stream, line))
+        {
+            if (std::regex_match(line, match, outputRegex))
+            {
+                // Convert the matched number to an integer
+                return std::stoi(match[1].str());
+            }
+        }
+
+        return 2;
+    }
     
     //return the file contents, if the file path is not provided, finds
     //the file based on the curren binary name

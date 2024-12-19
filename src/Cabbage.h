@@ -128,6 +128,9 @@ public:
     //returns number of plugin paremters - even though lots of widgets have channels, only a select few can be plugin parameters
     static int getNumberOfParameters(const std::string& csdFile);
     
+    // return the channel config string, e.g., '2-2'
+    static const std::string getIOChannalConfig(const std::string& csdFile);
+    
     //utility script to remove control characters from string - needed to santise Cabbage code going to JS
     static std::string removeControlCharacters(const std::string& input);
     
@@ -158,8 +161,17 @@ public:
     float getFullRangeValue(std::string channel, float normalValue);
     
     moodycamel::ReaderWriterQueue<CabbageOpcodeData> opcodeData;
-
+    
     std::string getCompileErrors(){ return compileErrors;   }
+    
+    void displayAndClearCompileErrors()
+    {
+        if(compileErrors.length() > 0)
+        {
+            LOG_INFO(compileErrors.c_str());
+            compileErrors.clear();
+        }
+    }
     
 private:
     void addOpcodes();
