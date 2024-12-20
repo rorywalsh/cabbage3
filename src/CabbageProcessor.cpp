@@ -227,7 +227,7 @@ void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
     if (*inputs == nullptr)
         hasValidInputs = false;
 
-    //must be careful here that we sum our newly processed signal with the current input.
+    // one process audio if Csound has compiled successfully.
     if (cabbage.csdCompiledWithoutError())
     {
         for(int i = 0; i < nFrames ; i++, ++csndIndex)
@@ -238,6 +238,10 @@ void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
                 csndIndex = 0;
             }
             
+            
+            // In the case we have teh same number of inputs/outputs it's a simple process
+            // of accessing the input, and writing to the output. In case where we have a different
+            // number of inputs/outputs we first iterate over the inputs, and then the outputs.
             if(matchingNumInputsOutputs)
             {
                 for (int channel = 0; channel < NOutChansConnected(); channel++)
@@ -260,22 +264,23 @@ void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
             }
             else
             {
-                // Process inputs
-                    for (int inputChannel = 0; inputChannel < NInChansConnected(); inputChannel++)
-                    {
-                        pos = csndIndex * NInChansConnected(); // Position in interleaved array
-                        
-                        cabbage.setSpIn(inputChannel + pos, inputs[inputChannel][i]);
-                    }
+                // Process inputs first
+                for (int inputChannel = 0; inputChannel < NInChansConnected(); inputChannel++)
+                {
+                    
+                    pos = csndIndex * NInChansConnected(); // Position in interleaved array
+                    
+                    cabbage.setSpIn(inputChannel + pos, inputs[inputChannel][i]);
+                }
 
-                    // Process outputs
-                    for (int outputChannel = 0; outputChannel < NOutChansConnected(); outputChannel++)
-                    {
-                        pos = csndIndex * NOutChansConnected(); // Position in interleaved array
+                // Process outputs
+                for (int outputChannel = 0; outputChannel < NOutChansConnected(); outputChannel++)
+                {
+                    pos = csndIndex * NOutChansConnected(); // Position in interleaved array
 
-                        // Fill output buffer from Csound's processed output
-                        outputs[outputChannel][i] = cabbage.getSpOut(outputChannel + pos);
-                    }
+                    // Fill output buffer from Csound's processed output
+                    outputs[outputChannel][i] = cabbage.getSpOut(outputChannel + pos);
+                }
             }
         }
     }

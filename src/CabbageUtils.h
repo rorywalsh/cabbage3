@@ -53,24 +53,38 @@ inline void logToDebug(const std::string& message) {
 #endif
 }
 
-// Function to write detailed log messages
 template<typename... Args>
-void writeDetailed(const char* file, int line, const char* function, Args&&... args) {
+void writeDetailed(const char* file, int line, const char* function, Args&&... args) 
+{
     std::ostringstream oss;
-    oss << "Cabbage DEBUG: " << file << " (" << line << ") "
-        << function << ": ";
+
+    // Get the current time
+    auto now = std::chrono::system_clock::now();
+    auto epoch = now.time_since_epoch();
+    auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(epoch).count();
+
+    // Add the timestamp with milliseconds
+    oss << milliseconds << " - ";
+
+    // Add the debug prefix
+    oss << " Cabbage DEBUG: ";
 
     // Use fold expression to append all arguments to the string stream
     (oss << ... << std::forward<Args>(args)); // C++17 fold expression
 
+    // Add file, line, function, and thread info
+    oss << "\n" << file << " (" << line << ") "
+        << function << ": ";
     oss << " [Thread ID: " << std::this_thread::get_id() << "]" << std::endl;
 
+    // Print and log the message
     std::cout << oss.str() << std::endl;
     logToDebug(oss.str());
 }
 
 template<typename... Args>
-void writeBasic(Args&&... args) {
+void writeBasic(Args&&... args) 
+{
     std::ostringstream oss;
     // Use fold expression to append all arguments to the string stream
     (oss << ... << std::forward<Args>(args)); // C++17 fold expression
@@ -485,14 +499,14 @@ public:
             }
         }
 
-        return 2;
+        // return -1 is nchnls_i is not found
+        return -1;
     }
 
     // Function to get the number of output channels (nchnls)
     static int getNumberOfOutputChannels(const std::string& csdFile)
     {
         auto input = getFileAsString(csdFile);
-        LOG_INFO(input);
         // Define the regex for outputs (nchnls)
         std::regex outputRegex(R"(^\s*nchnls\s*=\s*(\d+)\s*$)", std::regex_constants::icase);
         std::smatch match;

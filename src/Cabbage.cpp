@@ -222,7 +222,7 @@ const std::string Engine::getIOChannalConfig(const std::string& csdFile)
 {
     const int numInputs = cabbage::File::getNumberOfInputChannels(csdFile);
     const int numOutputs = cabbage::File::getNumberOfOutputChannels(csdFile);
-    return std::to_string(numInputs)+"-"+std::to_string(numOutputs);
+    return std::to_string(numInputs==-1 ? numOutputs : numInputs )+"-"+std::to_string(numOutputs);
 }
 
 //===========================================================================================
@@ -370,17 +370,21 @@ void Engine::setTableJSON(std::string channel, std::vector<double> samples, nloh
     const int endSample = jsonObj["range"]["end"].get<int>() == -1 ? static_cast<int>(samples.size()) : jsonObj["range"]["end"].get<int>();
     
     //no point in sending more samples that can be displayed per pixel...
-    const float incr = float(endSample-startSample) / ((jsonObj["bounds"]["width"].get<float>())-1);
-    
-    std::string data = "samples(";
+    const float incr = float(endSample-startSample) / ((jsonObj["bounds"]["width"].get<float>()));
+    LOG_VERBOSE("Updating function table");
     for(float i = startSample ; i < static_cast<int>(endSample) ; i+=incr)
     {
-        data += std::to_string(samples[int(i)]) + (i<endSample-incr ? "," : "");
         widgetSampleData.push_back(samples[int(i)]);
     }
-    data += ")";
+    LOG_VERBOSE("Table size", widgetSampleData.size());
+//
+//    while(widgetSampleData.size() < jsonObj["bounds"]["width"].get<int>()))
+//    {
+//        widgetSampleData.push_back(widgetSampleData[widgetSampleData.size()-1]);
+//    }
     
     jsonObj["samples"] = widgetSampleData;
+
 }
 
 const std::string Engine::getCsoundOutputUpdateScript(std::string output)
