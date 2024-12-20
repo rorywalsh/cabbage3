@@ -238,10 +238,10 @@ void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
                 csndIndex = 0;
             }
             
-            
-            // In the case we have teh same number of inputs/outputs it's a simple process
-            // of accessing the input, and writing to the output. In case where we have a different
-            // number of inputs/outputs we first iterate over the inputs, and then the outputs.
+            // In cases where we have the same number of inputs/outputs we can read
+            // and write in the same loop. In cases where we have a different number
+            // of inputs/outputs we first iterate over the inputs, and then the outputs.
+            // This adds a little overhead, hence this is only done when needed.
             if(matchingNumInputsOutputs)
             {
                 for (int channel = 0; channel < NOutChansConnected(); channel++)
@@ -267,9 +267,7 @@ void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
                 // Process inputs first
                 for (int inputChannel = 0; inputChannel < NInChansConnected(); inputChannel++)
                 {
-                    
                     pos = csndIndex * NInChansConnected(); // Position in interleaved array
-                    
                     cabbage.setSpIn(inputChannel + pos, inputs[inputChannel][i]);
                 }
 
@@ -277,7 +275,6 @@ void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
                 for (int outputChannel = 0; outputChannel < NOutChansConnected(); outputChannel++)
                 {
                     pos = csndIndex * NOutChansConnected(); // Position in interleaved array
-
                     // Fill output buffer from Csound's processed output
                     outputs[outputChannel][i] = cabbage.getSpOut(outputChannel + pos);
                 }
@@ -288,6 +285,8 @@ void CabbageProcessor::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
     {
         // calling this once here in case errors are missed in vscode logger
         cabbage.displayAndClearCompileErrors();
+        
+        //zero outputs so we don't get unwanted signal when csound fails
         for(int i = 0; i < nFrames ; i++)
             for (int channel = 0; channel < NOutChansConnected(); channel++)
                 outputs[channel][i] = 0;
