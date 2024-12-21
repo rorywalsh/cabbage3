@@ -220,9 +220,16 @@ int Engine::getNumberOfParameters(const std::string& csdFile)
 
 const std::string Engine::getIOChannalConfig(const std::string& csdFile)
 {
+    // get channel config from JSON
+    const std::string channelConfig = cabbage::File::getChannelConfig(csdFile);
+    // get channel config defined in Csd file
     const int numInputs = cabbage::File::getNumberOfInputChannels(csdFile);
     const int numOutputs = cabbage::File::getNumberOfOutputChannels(csdFile);
-    return std::to_string(numInputs==-1 ? numOutputs : numInputs )+"-"+std::to_string(numOutputs);
+ 
+    if(cabbage::Utils::validateChannelConfig(channelConfig, numInputs, numOutputs))
+        return std::to_string(numInputs==-1 ? numOutputs : numInputs )+"-"+std::to_string(numOutputs);
+    else
+        return "2-2";
 }
 
 //===========================================================================================

@@ -168,7 +168,7 @@ void Parser::updateJson(nlohmann::json& jsonObj, const nlohmann::json& incomingJ
                     jsonObj[key]["directory"] = value["directory"].get<std::string>();
                     jsonObj[key]["fileType"] = value["fileType"].get<std::string>();
 
-                    std::vector<std::string> files = File::getFilesOfType(value["directory"].get<std::string>(), File::sanitisePath(value["fileType"].get<std::string>()));
+                    std::vector<std::string> files = File::getFilesOfType(value["directory"].get<std::string>(), Utils::sanitisePath(value["fileType"].get<std::string>()));
 
                     jsonObj["channelType"] = "string";
 

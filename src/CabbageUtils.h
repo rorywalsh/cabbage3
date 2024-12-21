@@ -102,7 +102,65 @@ namespace cabbage {
 
 class Utils {
 public:
+
+    static std::string sanitisePath(const std::string& path)
+    {
+        std::string sanitisedPath = path;
+        
+        // Remove trailing backslashes
+        while (!sanitisedPath.empty() && sanitisedPath.back() == '\\')
+        {
+            sanitisedPath.pop_back();
+        }
+        
+        // Replace backslashes with forward slashes
+        for (char& c : sanitisedPath)
+        {
+            if (c == '\\') {
+                c = '/';
+            }
+        }
+        
+        return sanitisedPath;
+    }
     
+    // Function to check if any input/output pair exceeds the max number of inputs/outputs
+    static bool validateChannelConfig(const std::string& channelConfig, int maxInputs, int maxOutputs) {
+        // Split the channelConfig string into pairs
+        std::istringstream ss(channelConfig);
+        std::string pair;
+        
+        while (ss >> pair) {
+            size_t dashPos = pair.find('-');
+            size_t dotPos = pair.find('.');
+
+            int inputs = 0;
+            int outputs = 0;
+
+            if (dotPos != std::string::npos) {
+                // Handle the case where there is a decimal point, e.g., '2.1-2'
+                std::string inputPart = pair.substr(0, dashPos);
+                std::string outputPart = pair.substr(dashPos + 1);
+
+                // Sum the numbers before and after the dot for inputs
+                inputs = std::stoi(inputPart.substr(0, dotPos)) + std::stoi(inputPart.substr(dotPos + 1));
+                outputs = std::stoi(outputPart);
+            } else {
+                // Handle the case where there is no decimal point, e.g., '1-1'
+                inputs = std::stoi(pair.substr(0, dashPos));
+                outputs = std::stoi(pair.substr(dashPos + 1));
+            }
+
+            // Check if inputs or outputs exceed the max limits
+            if (inputs > maxInputs || outputs > maxOutputs) {
+                LOG_INFO("Error: Channel configuration exceeds the maximum limits. Inputs: ", inputs, ", Outputs: ", outputs);
+                return false;  // Invalid configuration
+            }
+        }
+
+        return true;  // Valid configuration
+    }
+
     //print JSON with line numbers
     static std::string getJsonWithLineNumbers(const nlohmann::json& j)
     {
@@ -220,30 +278,14 @@ private:
         
         return result;
     }
-    
-    static std::string sanitiseString(const std::string& input)
-    {
-        std::string sanitized;
-        sanitized.reserve(input.size() * 2); // Reserve space to avoid frequent reallocations
-        
-        for (char c : input)
-        {
-            switch (c) {
-                case '\\': sanitized += "\\\\"; break;
-                case '\"': sanitized += "\\\""; break;
-                case '\r': sanitized += "\\r"; break;
-                case '\n': sanitized += "\\n"; break;
-                default: sanitized += c; break;
-            }
-        }
-        
-        return sanitized;
-    }
+
 };
 
 
 /*
- Utility class to read and write files, query paths, etc.
+ Utility class to read and write files, query paths, etc. It also
+ includes some methods specific to Cabbage csd files, such as methods 
+ to retrieve the Cabbage section and query channel IO configs
  */
 class File {
 public:
@@ -504,7 +546,7 @@ public:
 	    return "2-2";
     }
 
-
+    
     // Function to get the number of input channels (nchnls_i)
     static int getNumberOfInputChannels(const std::string& csdFile)
     {
@@ -567,26 +609,6 @@ public:
         return csdContents;
     }
     
-    static std::string sanitisePath(const std::string& path)
-    {
-        std::string sanitizedPath = path;
-        
-        // Remove trailing backslashes
-        while (!sanitizedPath.empty() && sanitizedPath.back() == '\\')
-        {
-            sanitizedPath.pop_back();
-        }
-        
-        // Replace backslashes with forward slashes
-        for (char& c : sanitizedPath)
-        {
-            if (c == '\\') {
-                c = '/';
-            }
-        }
-        
-        return sanitizedPath;
-    }
     
     static std::vector<std::string> getFilesOfType(const std::string& dirPath, const std::string& fileTypes)
     {
