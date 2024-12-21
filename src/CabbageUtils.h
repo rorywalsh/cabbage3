@@ -457,9 +457,9 @@ public:
     }
     
     //return a JS escaped string
-    static std::string getCabbageSection()
+    static std::string getCabbageSection(const std::string& csdFile)
     {
-        auto input = getFileAsString();
+        auto input = getFileAsString(csdFile);
         size_t startPos = input.find("<Cabbage>");
         size_t endPos = input.find("</Cabbage>", startPos);
         
@@ -477,7 +477,34 @@ public:
 
     }
         
-    
+    static std::string getChannelConfig(const std::string& csdFile) 
+    {
+	    // Get the file contents
+	    auto input = getFileAsString(csdFile);
+	    
+	    // Get the cabbage section from the file
+	    const std::string cabbageContents = cabbage::File::getCabbageSection(csdFile);
+	
+	    // Parse the cabbageContents as a JSON object
+	    try {
+	        auto json = nlohmann::json::parse(cabbageContents);
+	
+	        // Iterate through the JSON array to find the object with "type": "form"
+	        for (const auto& item : json) {
+	            if (item.contains("type") && item["type"] == "form" && item.contains("channelConfig")) {
+	                return item["channelConfig"].get<std::string>();
+	            }
+	        }
+	    } catch (const nlohmann::json::parse_error& e) {
+	        // Handle JSON parsing error if needed
+	        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+	    }
+	
+	    // If no "channelConfig" is found, return the default value
+	    return "2-2";
+    }
+
+
     // Function to get the number of input channels (nchnls_i)
     static int getNumberOfInputChannels(const std::string& csdFile)
     {
