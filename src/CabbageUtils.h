@@ -499,7 +499,7 @@ public:
     }
     
     //return a JS escaped string
-    static std::string getCabbageSection(const std::string& csdFile)
+    static std::string getCabbageSection(const std::string& csdFile = "")
     {
         auto input = getFileAsString(csdFile);
         size_t startPos = input.find("<Cabbage>");
