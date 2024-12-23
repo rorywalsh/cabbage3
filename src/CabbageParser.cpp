@@ -215,7 +215,7 @@ void Parser::updateJson(nlohmann::json& jsonObj, const nlohmann::json& incomingJ
             {
                 if (value.is_string())
                 {
-                    jsonObj["file"] = File::sanitisePath(value.get<std::string>());
+                    jsonObj["file"] = Utils::sanitisePath(value.get<std::string>());
                 }
             }
             else if (key == "text")

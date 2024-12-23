@@ -615,7 +615,7 @@ public:
         std::vector<std::string> result;
         
         // Resolve the absolute path based on the current CSD file location
-        std::filesystem::path searchPath = cabbage::File::sanitisePath(dirPath);
+        std::filesystem::path searchPath = cabbage::Utils::sanitisePath(dirPath);
         if (searchPath.is_relative())
         {
             std::string csdFilePath = getCsdFileAndPath();
