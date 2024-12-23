@@ -498,7 +498,9 @@ public:
         return newPath;
     }
     
-    //return a JS escaped string
+    // return a JS escaped string representing the Cabbage JSON. If
+    // an empty string is passed, Cabbgae will search for the file based on the 
+    // binary path
     static std::string getCabbageSection(const std::string& csdFile = "")
     {
         auto input = getFileAsString(csdFile);
