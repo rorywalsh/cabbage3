@@ -188,10 +188,15 @@ bool IPlugAPPHost::InitWebSocket()
                                 canUpdateSoundfileFlag.store(false);
 
                                 // Read the new sound file
-                                const auto soundfile = cabbage::File::readAudioFile<double>(filename);
+                                const auto soundfile = cabbage::File::readAudioFile<double>(filename, mDAC->getStreamSampleRate());
                                 SoundfileInput fileInput;
                                 fileInput.filePath = filename;
+                                if(soundfile.audioData.size() == 0)
+                                    return true;
+                                
                                 fileInput.inputSignal = soundfile.audioData;
+
+                                
                                 fileInput.numSamples = soundfile.numSamples;
                                 fileInput.numChannels = soundfile.numChannels;
                                 fileInput.channels = jsonObj["channels"].get<int>();

@@ -357,10 +357,11 @@ public:
     
     //===========================================================================================
     template <typename T>
-    static Soundfile<T> readAudioFile(const std::string &filePath)
+    static Soundfile<T> readAudioFile(const std::string &filePath, int targetSampleRate)
     {
         if(!cabbage::File::fileExists(filePath))
         {
+            LOG_VERBOSE("reader is not valid");
             return {};
         }            
         
@@ -373,33 +374,39 @@ public:
         
         if(!reader.get())
         {
-            return Soundfile<T>();
+            LOG_VERBOSE("reader is not valid");
+            return {};
         }
         
         auto& p = reader->getProperties();
-        auto samples = reader->loadFileContent();
-        auto bufferView = samples.frames.getView();
-        int numFrames = bufferView.getChannel(0).getNumFrames();
-        int numChannels = bufferView.getNumChannels();
-        int totalSamples = numFrames * numChannels;
-        
-       
-        
-        
-        // Create a vector of the appropriate size
-        std::vector<T> audioData(totalSamples);
-        
-        for (int frame = 0; frame < numFrames; ++frame)
-        {
-            for (int channel = 0; channel < numChannels; ++channel)
+        try{
+            // pass a targetSampleRate in case resampling is needed
+            const double length = (p.numFrames/p.sampleRate);
+            auto samples = reader->loadFileContent(targetSampleRate, length * targetSampleRate + 10);
+            auto bufferView = samples.frames.getView();
+            int numFrames = bufferView.getChannel(0).getNumFrames();
+            int numChannels = bufferView.getNumChannels();
+            int totalSamples = numFrames * numChannels;
+            
+            // Create a vector of the appropriate size
+            std::vector<T> audioData(totalSamples);
+            
+            for (int frame = 0; frame < numFrames; ++frame)
             {
-                audioData[frame * numChannels + channel] = static_cast<T>(bufferView.getSample(channel, frame));
+                for (int channel = 0; channel < numChannels; ++channel)
+                {
+                    audioData[frame * numChannels + channel] = static_cast<T>(bufferView.getSample(channel, frame));
+                }
             }
+            
+            Soundfile<T> soundfile(audioData, numChannels, totalSamples);
+            
+            return soundfile;
         }
-        
-        Soundfile<T> soundfile(audioData, numChannels, totalSamples);
-        
-        return soundfile;
+        catch (std::exception& e) {
+            LOG_VERBOSE(e.what());
+            return {};
+        }
     }
     
     

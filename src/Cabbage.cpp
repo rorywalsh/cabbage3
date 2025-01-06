@@ -350,7 +350,7 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonObj
         {
             cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size());
             const int tableNumber = jsonObj["tableNumber"];
-            auto soundfile = File::readAudioFile<double>(jsonObj["file"].get<std::string>());
+            auto soundfile = File::readAudioFile<double>(jsonObj["file"].get<std::string>(), sampleRate);
             auto samples = soundfile.audioData;
             
             if(samples.size() == 0)
