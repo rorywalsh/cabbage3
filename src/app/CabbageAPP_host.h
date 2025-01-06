@@ -260,10 +260,27 @@ public:
     static WDL_DLGRET MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
     
     IPlugAPP* GetPlug() { return mIPlug.get(); }
+
+    struct SoundfileInput{
+        std::string filePath = {};
+        int numChannels = 0;
+        int numSamples = 0;
+        std::vector<double> inputSignal = {};
+        std::vector<double> newSignalData = {};
+        size_t currentSampleIndex = 0;
+        int channels = 12;
+    };
     
-    std::string getCsdFile(){   return csdFile; }
+    bool isFilePathPresent(const std::vector<SoundfileInput>& soundfileInputs, const std::string& targetPath) {
+        return std::find_if(soundfileInputs.begin(), soundfileInputs.end(),
+                            [&targetPath](const SoundfileInput& input) {
+                                return input.filePath == targetPath;
+                            }) != soundfileInputs.end();
+    }
     
 private:
+    std::atomic<bool> canUpdateSoundfileFlag;
+    std::vector<SoundfileInput> soundfileInputs;
     std::vector<nlohmann::json> parameters;
     std::unique_ptr<IPlugAPP> mIPlug = nullptr;
     std::unique_ptr<RtAudio> mDAC = nullptr;

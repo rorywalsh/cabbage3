@@ -150,7 +150,6 @@ bool IPlugAPPHost::InitWebSocket()
                         auto json = nlohmann::json::parse(msg->str, nullptr, false);
                         const std::string command = json["command"];
                         auto jsonObj = nlohmann::json::parse(json["obj"].get<std::string>());
-                        
                         if(command == "parameterChange")
                         {
                             for(int i = 0 ; i < cabbage.getNumberOfParameters() ; i++)
@@ -175,6 +174,83 @@ bool IPlugAPPHost::InitWebSocket()
                                 cabbage.setStringChannel(jsonObj["channel"].get<std::string>(), jsonObj["fileName"].get<std::string>());
                             }
                         }
+                        else if (command == "setFileAsInput")
+                        {
+                            const std::string filename = jsonObj["fileName"].get<std::string>();
+                            if (jsonObj["channels"].get<int>() < 0)
+                            {
+                                soundfileInputs.clear();
+                                return true;
+                            }
+                            
+                            if (!isFilePathPresent(soundfileInputs, filename))
+                            {
+                                canUpdateSoundfileFlag.store(false);
+
+                                // Read the new sound file
+                                const auto soundfile = cabbage::File::readAudioFile<double>(filename);
+                                SoundfileInput fileInput;
+                                fileInput.filePath = filename;
+                                fileInput.inputSignal = soundfile.audioData;
+                                fileInput.numSamples = soundfile.numSamples;
+                                fileInput.numChannels = soundfile.numChannels;
+                                fileInput.channels = jsonObj["channels"].get<int>();
+
+                                // Handle stereo channel configuration (12)
+                                if (jsonObj["channels"].get<int>() == 12)
+                                {
+                                    soundfileInputs.clear();
+                                }
+                                else
+                                {
+                                    // If there is a stereo configuration (12), split it into individual channels
+                                    // so it's easier to manage
+                                    for (auto& existing : soundfileInputs)
+                                    {
+                                        if (existing.channels == 12)
+                                        {
+                                            // Split stereo (12) into individual channels (1 and 2)
+                                            SoundfileInput leftChannel = existing;
+                                            leftChannel.channels = 1; // Left channel
+
+                                            SoundfileInput rightChannel = existing;
+                                            rightChannel.channels = 2; // Right channel
+
+                                            soundfileInputs.erase(
+                                                std::remove_if(soundfileInputs.begin(), soundfileInputs.end(),
+                                                               [&existing](const SoundfileInput& input) {
+                                                                   return input.channels == existing.channels && input.filePath == existing.filePath;
+                                                               }),
+                                                soundfileInputs.end()
+                                            );
+
+                                            // Add split channels back
+                                            soundfileInputs.push_back(leftChannel);
+                                            soundfileInputs.push_back(rightChannel);
+                                            break;
+                                        }
+                                    }
+
+                                    // Remove any existing SoundfileInput that overlaps with the new file's channels
+                                    auto it = std::remove_if(soundfileInputs.begin(), soundfileInputs.end(),
+                                                             [&fileInput](const SoundfileInput& existing)
+                                                             {
+                                                                 // Check for overlap in channels
+                                                                 int existingChannels = existing.channels;
+                                                                 
+                                                                 // Channel overlap logic: If any bit matches between the two configurations, they overlap
+                                                                 return (fileInput.channels & existingChannels) != 0;
+                                                             });
+                                    soundfileInputs.erase(it, soundfileInputs.end());
+                                }
+
+                                // Add the new SoundfileInput
+                                soundfileInputs.push_back(fileInput);
+
+                                canUpdateSoundfileFlag.store(true);
+                            }
+                        }
+
                         else if(command == "widgetStateUpdate")
                         {
                             cabbage.updateWidgetState(jsonObj);
@@ -1015,70 +1091,145 @@ void ApplyFades(double *pBuffer, int nChans, int nFrames, bool down)
 }
 
 // static
-int IPlugAPPHost::AudioCallback(void* pOutputBuffer, void* pInputBuffer, uint32_t nFrames, double streamTime, RtAudioStreamStatus status, void* pUserData)
+int IPlugAPPHost::AudioCallback(void* outputBuffer, void* inputBuffer, uint32_t numFrames, double streamTime, RtAudioStreamStatus status, void* userDataPtr)
 {
-    IPlugAPPHost* _this = (IPlugAPPHost*) pUserData;
-    
+    IPlugAPPHost* userData = (IPlugAPPHost*)userDataPtr;
 
+    int numInputs = userData->GetPlug()->MaxNChannels(ERoute::kInput);
+    int numOutputs = userData->GetPlug()->MaxNChannels(ERoute::kOutput);
 
-    int nins = _this->GetPlug()->MaxNChannels(ERoute::kInput);
-    int nouts = _this->GetPlug()->MaxNChannels(ERoute::kOutput);
-    
-    double* pInputBufferD = static_cast<double*>(pInputBuffer);
-    double* pOutputBufferD = static_cast<double*>(pOutputBuffer);
-    
-    bool startWait = _this->mVecWait >= APP_N_VECTOR_WAIT; // wait APP_N_VECTOR_WAIT * iovs before processing audio, to avoid clicks
-    bool doFade = _this->mVecWait == APP_N_VECTOR_WAIT || _this->mAudioEnding;
-    
-    if (startWait && !_this->mAudioDone)
+    double* inputBufferD = static_cast<double*>(inputBuffer);
+    double* outputBufferD = static_cast<double*>(outputBuffer);
+
+    bool startWait = userData->mVecWait >= APP_N_VECTOR_WAIT; // Wait APP_N_VECTOR_WAIT * iovs before processing audio, to avoid clicks
+    bool doFade = userData->mVecWait == APP_N_VECTOR_WAIT || userData->mAudioEnding;
+
+    // Clear the input buffer to prepare for summing signals
+    std::memset(inputBufferD, 0, numFrames * numInputs * sizeof(double));
+
+    if (startWait && !userData->mAudioDone)
     {
-        if (doFade)
-            ApplyFades(pInputBufferD, nins, nFrames, _this->mAudioEnding);
-        
-        for (int i = 0; i < nFrames; i++)
+        for (auto& soundfile : userData->soundfileInputs)
         {
-            _this->mBufIndex %= APP_SIGNAL_VECTOR_SIZE;
-            
-            if (_this->mBufIndex == 0)
+            const size_t totalSamples = soundfile.numSamples;
+            if (totalSamples == 0 || soundfile.numChannels == 0)
             {
-                for (int c = 0; c < nins; c++)
-                {
-                    _this->mInputBufPtrs.Set(c, (pInputBufferD + (c * nFrames)) + i);
-                }
-                
-                for (int c = 0; c < nouts; c++)
-                {
-                    _this->mOutputBufPtrs.Set(c, (pOutputBufferD + (c * nFrames)) + i);
-                }
-                
-                _this->mIPlug->AppProcess(_this->mInputBufPtrs.GetList(), _this->mOutputBufPtrs.GetList(), APP_SIGNAL_VECTOR_SIZE);
-                
-                _this->mSamplesElapsed += APP_SIGNAL_VECTOR_SIZE;
+                continue; // Skip empty signals
             }
-            
-            for (int c = 0; c < nouts; c++)
+
+            int numChannels = soundfile.numChannels;
+            int channelTarget = soundfile.channels;
+
+            for (uint32_t frame = 0; frame < numFrames; frame++)
             {
-                pOutputBufferD[c * nFrames + i] *= APP_MULT;
+                for (int inputChannel = 0; inputChannel < numInputs; inputChannel++)
+                {
+                    bool routeToChannel = false;
+
+                    if (channelTarget == 12)
+                    {
+                        // Route to both channels
+                        routeToChannel = (inputChannel == 0 || inputChannel == 1);
+                    }
+                    else if (channelTarget == inputChannel + 1)
+                    {
+                        // Route to a specific channel
+                        routeToChannel = true;
+                    }
+
+                    if (routeToChannel)
+                    {
+                        size_t sampleIndex = soundfile.currentSampleIndex + frame * numChannels;
+
+                        if (numChannels == 1)
+                        {
+                            // Mono source: Send to one or both channels
+                            double sample = soundfile.inputSignal[sampleIndex % totalSamples];
+                            inputBufferD[inputChannel * numFrames + frame] += sample;
+                        }
+                        else if (numChannels == 2)
+                        {
+                            // Stereo source: Mix to mono or distribute
+                            double leftSample = soundfile.inputSignal[sampleIndex % totalSamples];
+                            double rightSample = soundfile.inputSignal[(sampleIndex + 1) % totalSamples];
+
+                            if (channelTarget == 12)
+                            {
+                                // Stereo to both input channels
+                                inputBufferD[0 * numFrames + frame] += leftSample;
+                                inputBufferD[1 * numFrames + frame] += rightSample;
+                            }
+                            else if (channelTarget == inputChannel + 1)
+                            {
+                                // Mix stereo to mono for the target channel
+                                inputBufferD[inputChannel * numFrames + frame] += (leftSample + rightSample) * 0.5;
+                            }
+                        }
+                    }
+                }
             }
-            
-            _this->mBufIndex++;
+
+            // Update the current sample index
+            soundfile.currentSampleIndex = (soundfile.currentSampleIndex + numFrames * numChannels) % totalSamples;
         }
-        
+
         if (doFade)
-            ApplyFades(pOutputBufferD, nouts, nFrames, _this->mAudioEnding);
-        
-        if (_this->mAudioEnding)
-            _this->mAudioDone = true;
+        {
+            ApplyFades(inputBufferD, numInputs, numFrames, userData->mAudioEnding);
+        }
+
+        for (int frame = 0; frame < numFrames; frame++)
+        {
+            userData->mBufIndex %= APP_SIGNAL_VECTOR_SIZE;
+
+            if (userData->mBufIndex == 0)
+            {
+                for (int inputChannel = 0; inputChannel < numInputs; inputChannel++)
+                {
+                    userData->mInputBufPtrs.Set(inputChannel, (inputBufferD + (inputChannel * numFrames)) + frame);
+                }
+
+                for (int outputChannel = 0; outputChannel < numOutputs; outputChannel++)
+                {
+                    userData->mOutputBufPtrs.Set(outputChannel, (outputBufferD + (outputChannel * numFrames)) + frame);
+                }
+
+                userData->mIPlug->AppProcess(userData->mInputBufPtrs.GetList(), userData->mOutputBufPtrs.GetList(), APP_SIGNAL_VECTOR_SIZE);
+
+                userData->mSamplesElapsed += APP_SIGNAL_VECTOR_SIZE;
+            }
+
+            for (int outputChannel = 0; outputChannel < numOutputs; outputChannel++)
+            {
+                outputBufferD[outputChannel * numFrames + frame] *= APP_MULT;
+            }
+
+            userData->mBufIndex++;
+        }
+
+        if (doFade)
+        {
+            ApplyFades(outputBufferD, numOutputs, numFrames, userData->mAudioEnding);
+        }
+
+        if (userData->mAudioEnding)
+        {
+            userData->mAudioDone = true;
+        }
     }
     else
     {
-        memset(pOutputBufferD, 0, nFrames * nouts * sizeof(double));
+        std::memset(outputBufferD, 0, numFrames * numOutputs * sizeof(double));
     }
-    
-    _this->mVecWait = std::min(_this->mVecWait + 1, uint32_t(APP_N_VECTOR_WAIT + 1));
-    
+
+    userData->mVecWait = std::min(userData->mVecWait + 1, uint32_t(APP_N_VECTOR_WAIT + 1));
+
     return 0;
 }
+
+
+
+
 
 // static
 void IPlugAPPHost::MIDICallback(double deltatime, std::vector<uint8_t>* pMsg, void* pUserData)

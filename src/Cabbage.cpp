@@ -186,8 +186,8 @@ bool Engine::setupCsound()
 //===========================================================================================
 void Engine::setReservedChannels()
 {
-    auto path = cabbage::File::getCsdPath();
-    //csound->SetStringChannel("CSD_PATH", (char*)path.c_str());
+    auto path = cabbage::File::getCsdPath(csdFile);
+    csound->SetStringChannel("CSD_PATH", (char*)path.c_str());
 }
 
 //==========================================================================================
@@ -223,11 +223,12 @@ const std::string Engine::getIOChannalConfig(const std::string& csdFile)
     // get channel config from JSON
     const std::string channelConfig = cabbage::File::getChannelConfig(csdFile);
     // get channel config defined in Csd file
-    const int numInputs = cabbage::File::getNumberOfInputChannels(csdFile);
     const int numOutputs = cabbage::File::getNumberOfOutputChannels(csdFile);
- 
+    const int numInputs = cabbage::File::getNumberOfInputChannels(csdFile) == -1 ? numOutputs :
+                                                cabbage::File::getNumberOfInputChannels(csdFile);
+    
     if(cabbage::Utils::validateChannelConfig(channelConfig, numInputs, numOutputs))
-        return std::to_string(numInputs==-1 ? numOutputs : numInputs )+"-"+std::to_string(numOutputs);
+        return std::to_string(numInputs)+"-"+std::to_string(numOutputs);
     else
         return "2-2";
 }
@@ -349,7 +350,8 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonObj
         {
             cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size());
             const int tableNumber = jsonObj["tableNumber"];
-            auto samples = Engine::readAudioFile(jsonObj["file"].get<std::string>());
+            auto soundfile = File::readAudioFile<double>(jsonObj["file"].get<std::string>());
+            auto samples = soundfile.audioData;
             
             if(samples.size() == 0)
                 return;
@@ -435,44 +437,6 @@ std::string Engine::removeControlCharacters(const std::string& input) {
         }
     }
     return result;
-}
-
-//===========================================================================================
-
-std::vector<double> Engine::readAudioFile(const std::string &filePath)
-{
-    if(!cabbage::File::fileExists(filePath))
-        return {};
-    
-    choc::audio::AudioFileFormatList formats;
-    formats.addFormat<choc::audio::WAVAudioFileFormat<false>>();
-    formats.addFormat<choc::audio::OggAudioFileFormat<false>>();
-    formats.addFormat<choc::audio::MP3AudioFileFormat>();
-    formats.addFormat<choc::audio::FLACAudioFileFormat<false>>();
-    auto reader = formats.createReader (filePath);
-    
-    if(!reader.get())
-        return {};
-    
-    
-    auto& p = reader->getProperties();
-    auto samples = reader->loadFileContent();
-    auto bufferView = samples.frames.getView();
-    int numFrames = bufferView.getChannel(0).getNumFrames();
-    int numChannels = bufferView.getNumChannels();
-    int totalSamples = numFrames * numChannels;
-    
-    // Create a vector of the appropriate size
-    std::vector<double> audioData(totalSamples);
-    
-    for (int frame = 0; frame < numFrames; ++frame)
-    {
-        for (int channel = 0; channel < numChannels; ++channel)
-        {
-            audioData[frame * numChannels + channel] = static_cast<double>(bufferView.getSample(channel, frame));
-        }
-    }
-    return audioData;
 }
 
 } //end of namespace

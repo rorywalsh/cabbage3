@@ -21,6 +21,7 @@
 #include "json.hpp"
 #include "wdltypes.h"
 #include "wdlstring.h"
+#include <filesystem>
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -45,6 +46,13 @@
 
 #include <algorithm> // for std::sort
 
+//choc classes for reading audio files
+#include "choc/audio/choc_AudioFileFormat.h"
+#include "choc/audio/choc_AudioFileFormat_Ogg.h"
+#include "choc/audio/choc_AudioFileFormat_WAV.h"
+#include "choc/audio/choc_AudioFileFormat_FLAC.h"
+#include "choc/audio/choc_AudioFileFormat_MP3.h"
+#include "choc/audio/choc_SampleBuffers.h"
 
 // Function to handle debug output in VS
 inline void logToDebug(const std::string& message) {
@@ -58,16 +66,8 @@ void writeDetailed(const char* file, int line, const char* function, Args&&... a
 {
     std::ostringstream oss;
 
-    // Get the current time
-    auto now = std::chrono::system_clock::now();
-    auto epoch = now.time_since_epoch();
-    auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(epoch).count();
-
-    // Add the timestamp with milliseconds
-    oss << milliseconds << " - ";
-
     // Add the debug prefix
-    oss << " Cabbage DEBUG: ";
+    oss << "Cabbage DEBUG: ";
 
     // Use fold expression to append all arguments to the string stream
     (oss << ... << std::forward<Args>(args)); // C++17 fold expression
@@ -127,6 +127,7 @@ public:
     // Function to check if any input/output pair exceeds the max number of inputs/outputs
     static bool validateChannelConfig(const std::string& channelConfig, int maxInputs, int maxOutputs) {
         // Split the channelConfig string into pairs
+        LOG_VERBOSE("ChannalrConfig", channelConfig);
         std::istringstream ss(channelConfig);
         std::string pair;
         
@@ -153,7 +154,7 @@ public:
 
             // Check if inputs or outputs exceed the max limits
             if (inputs > maxInputs || outputs > maxOutputs) {
-                LOG_INFO("Error: Channel configuration exceeds the maximum limits. Inputs: ", inputs, ", Outputs: ", outputs);
+                LOG_INFO("Error: Channel configuration exceeds the maximum limits. Inputs: ", inputs, ", MaxInputs:", maxInputs, "Outputs: ", outputs, ", MaxOutputs:", maxOutputs);
                 return false;  // Invalid configuration
             }
         }
@@ -289,6 +290,19 @@ private:
  */
 class File {
 public:
+    template <typename T>
+    struct Soundfile{
+        std::vector<T> audioData;
+        int numChannels;
+        int numSamples;
+        Soundfile(std::vector<T> data = {}, int numChans = 0, int numSamps = 0):
+        audioData(data),
+        numSamples(numSamps),
+        numChannels(numChans)
+        {}
+        
+    };
+    
     static std::string getBinaryPath()
     {
 #if defined(_WIN32)
@@ -339,6 +353,55 @@ public:
         std::string jsContent((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         return jsContent;
     }
+    
+    
+    //===========================================================================================
+    template <typename T>
+    static Soundfile<T> readAudioFile(const std::string &filePath)
+    {
+        if(!cabbage::File::fileExists(filePath))
+        {
+            return {};
+        }            
+        
+        choc::audio::AudioFileFormatList formats;
+        formats.addFormat<choc::audio::WAVAudioFileFormat<false>>();
+        formats.addFormat<choc::audio::OggAudioFileFormat<false>>();
+        formats.addFormat<choc::audio::MP3AudioFileFormat>();
+        formats.addFormat<choc::audio::FLACAudioFileFormat<false>>();
+        auto reader = formats.createReader (filePath);
+        
+        if(!reader.get())
+        {
+            return Soundfile<T>();
+        }
+        
+        auto& p = reader->getProperties();
+        auto samples = reader->loadFileContent();
+        auto bufferView = samples.frames.getView();
+        int numFrames = bufferView.getChannel(0).getNumFrames();
+        int numChannels = bufferView.getNumChannels();
+        int totalSamples = numFrames * numChannels;
+        
+       
+        
+        
+        // Create a vector of the appropriate size
+        std::vector<T> audioData(totalSamples);
+        
+        for (int frame = 0; frame < numFrames; ++frame)
+        {
+            for (int channel = 0; channel < numChannels; ++channel)
+            {
+                audioData[frame * numChannels + channel] = static_cast<T>(bufferView.getSample(channel, frame));
+            }
+        }
+        
+        Soundfile<T> soundfile(audioData, numChannels, totalSamples);
+        
+        return soundfile;
+    }
+    
     
     static std::string getSettingsFile()
     {
@@ -487,15 +550,23 @@ public:
         return joinPath(newPath, binaryFileName + ".csd");
     }
     
-    static std::string getCsdPath()
+    static std::string getCsdPath(const std::string file = "")
     {
-        std::string resourceDir = getCabbageResourceDir();
-        std::string binaryFileName = getBinaryFileName();
-        size_t pos = binaryFileName.find_last_of(".");
-        if (pos != std::string::npos)
-            binaryFileName = binaryFileName.substr(0, pos);
-        const std::string newPath = joinPath(resourceDir, binaryFileName);
-        return newPath;
+        if(file.empty())
+        {
+            std::string resourceDir = getCabbageResourceDir();
+            std::string binaryFileName = getBinaryFileName();
+            size_t pos = binaryFileName.find_last_of(".");
+            if (pos != std::string::npos)
+                binaryFileName = binaryFileName.substr(0, pos);
+            const std::string newPath = joinPath(resourceDir, binaryFileName);
+            return newPath;
+        }
+        else
+        {
+            std::filesystem::path path(file);
+            return path.parent_path().string();
+        }
     }
     
     // return a JS escaped string representing the Cabbage JSON. If
@@ -570,7 +641,7 @@ public:
             }
         }
 
-        // return -1 is nchnls_i is not found
+        // return 2 if nchnls_i is not found
         return -1;
     }
 

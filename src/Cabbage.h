@@ -18,13 +18,7 @@
 #include "csound.hpp"
 #include "CabbageParser.h"
 #include <readerwriterqueue.h>
-//choc classes for reading audio files
-#include "choc/audio/choc_AudioFileFormat.h"
-#include "choc/audio/choc_AudioFileFormat_Ogg.h"
-#include "choc/audio/choc_AudioFileFormat_WAV.h"
-#include "choc/audio/choc_AudioFileFormat_FLAC.h"
-#include "choc/audio/choc_AudioFileFormat_MP3.h"
-#include "choc/audio/choc_SampleBuffers.h"
+
 
 
 class CabbageProcessor;
@@ -146,10 +140,7 @@ public:
     
     //returns a script that will update a csoundoutput widget
     const std::string getCsoundOutputUpdateScript(std::string output);
-    
-    //utlity function to loads samples from a sound file on disk.
-    static std::vector<double> readAudioFile(const std::string& filePath);
-    
+        
     //return a vector of all widget types that have a range object
     static std::vector<std::string> getRangeWidgetTypes(const std::vector<nlohmann::json> widgets);
     
