@@ -221,7 +221,7 @@ int Engine::getNumberOfParameters(const std::string& csdFile)
 const std::string Engine::getIOChannalConfig(const std::string& csdFile)
 {
     // get channel config from JSON
-    const std::string channelConfig = cabbage::File::getChannelConfig(csdFile);
+    const std::string channelConfig = cabbage::Utils::getChannelConfig(csdFile);
     // get channel config defined in Csd file
     const int numOutputs = cabbage::File::getNumberOfOutputChannels(csdFile);
     const int numInputs = cabbage::File::getNumberOfInputChannels(csdFile) == -1 ? numOutputs :

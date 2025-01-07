@@ -19,7 +19,7 @@ std::string Parser::removeQuotes(const std::string& str)
 
 bool Parser::isWidget(const std::string& target)
 {
-    std::vector<std::string> widgetTypes = WidgetDescriptors::getWidgetTypes();
+    std::vector<std::string> widgetTypes = cabbage::WidgetDescriptors::getWidgetTypes();
     return std::find(widgetTypes.begin(), widgetTypes.end(), target) != widgetTypes.end();
 }
 

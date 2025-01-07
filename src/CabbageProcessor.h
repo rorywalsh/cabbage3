@@ -96,14 +96,17 @@ public:
     static int ReadMidiData (CSOUND* csound, void* userData, unsigned char* mbuf, int nbytes);
     static int WriteMidiData (CSOUND* csound, void* userData, const unsigned char* mbuf, int nbytes);
    
-    void stopProcessing(){        cabbage.stopProcessing();    }
+    void stopProcessing(){                      cabbage.stopProcessing();    }
     cabbage::Engine& getCabbageEngine(){        return cabbage;              }
+    
+    //serialize functions
+    bool SerializeState(iplug::IByteChunk& chunk) const override;
+    int UnserializeState(const iplug::IByteChunk& chunk, int startPos) override;
     
     void setupCallbacks();
     void interfaceHasLoaded();
     void updateJSWidgets();
 
-    void pollFIFOQueue();
     
 #ifdef CabbageApp
     std::function<void(CabbageOpcodeData)> hostCallback = nullptr;

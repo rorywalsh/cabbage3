@@ -50,7 +50,8 @@ cabbage(*this, "")
     matchingNumInputsOutputs = (NInChansConnected() == NOutChansConnected());
     
 #ifdef DEBUG
-    SetEnableDevTools(true);
+    if(cabbage::Utils::getEnableDevTools(cabbage.getCsdFile()))
+        SetEnableDevTools(true);
 #endif
     
     
@@ -78,7 +79,7 @@ void CabbageProcessor::setupCallbacks()
     {
 #ifndef CabbageApp
         if(!server.isThreadRunning())
-            server.start(cabbage::File::getCsdPath());
+            server.start(cabbage::File::getCsdPath(cabbage.getCsdFile()));
         const std::string mntPoint = "http://127.0.0.1:" + std::to_string(server.getCurrentPort()) + "/index.html";
         LoadURL(mntPoint.c_str());
 #endif
@@ -184,14 +185,6 @@ void CabbageProcessor::updateJSWidgets()
 }
 
 //===============================================================================
-//timer thread listens for incoming data from Csound using a lock free fifo
-//===============================================================================
-void CabbageProcessor::pollFIFOQueue()
-{
-
-}
-
-//===============================================================================
 void CabbageProcessor::OnParamChange(int paramIdx)
 {
     if(cabbage.getNumberOfParameters() > 0)
@@ -202,9 +195,10 @@ void CabbageProcessor::OnParamChange(int paramIdx)
         {
             //update parameter value..
             p.setValue(GetParam(paramIdx)->Value());
+            
             //update channel..
             cabbage.setControlChannel(p.name.c_str(), GetParam(paramIdx)->Value());
-//            LOG_VERBOSE("OnParameter:" , p.name.c_str(), ":",  GetParam(paramIdx)->Value());
+
             for( auto& w : cabbage.getWidgets())
             {
                 if(w.contains("channel") && w["channel"] == p.name.c_str()) //only let valid object through.
@@ -390,6 +384,21 @@ void CabbageProcessor::OnIdle()
 #endif
         }
     }
+}
+
+//===============================================================================
+bool CabbageProcessor::SerializeState(iplug::IByteChunk& chunk) const
+{
+    LOG_VERBOSE("CabbageProcessor::SerializeState");
+    
+    return SerializeParams(chunk); // must remember to call SerializeParams at the end
+}
+
+int CabbageProcessor::UnserializeState(const iplug::IByteChunk& chunk, int startPos)
+{
+    LOG_VERBOSE("CabbageProcessor::UnserializeState");
+    
+    return UnserializeParams(chunk, startPos);
 }
 
 //===============================================================================
