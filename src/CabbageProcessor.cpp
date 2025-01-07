@@ -389,14 +389,14 @@ void CabbageProcessor::OnIdle()
 //===============================================================================
 bool CabbageProcessor::SerializeState(iplug::IByteChunk& chunk) const
 {
-    LOG_VERBOSE("CabbageProcessor::SerializeState");
+//    LOG_VERBOSE("CabbageProcessor::SerializeState");
     
     return SerializeParams(chunk); // must remember to call SerializeParams at the end
 }
 
 int CabbageProcessor::UnserializeState(const iplug::IByteChunk& chunk, int startPos)
 {
-    LOG_VERBOSE("CabbageProcessor::UnserializeState");
+//    LOG_VERBOSE("CabbageProcessor::UnserializeState");
     
     return UnserializeParams(chunk, startPos);
 }

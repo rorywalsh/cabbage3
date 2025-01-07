@@ -197,6 +197,81 @@ std::string File::getCsdWithoutExtension()
     return binaryFileName;
 }
 
+std::string File::getSettingsFile()
+{
+    //if in CabbageApp mode, the widget src dir is set by the Cabbage .ini settings
+    WDL_String iniPath;
+#if defined WIN32
+   /* TCHAR strPath[2048];
+    SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
+    std::string settingsPath = std::string(strPath) + "\\Cabbage\\settings.json";
+    return settingsPath;*/
+    CHAR strPath[256];
+    SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
+    iniPath.SetFormatted(256, "%s\\%s\\", strPath, "Cabbage");
+    iniPath.Append("settings.json"); // add file name to path
+    return iniPath.Get();
+
+#elif defined __APPLE__
+    iniPath.SetFormatted(2048, "%s/Library/Application Support/%s/", getenv("HOME"), "Cabbage");
+    iniPath.Append("settings.json"); // add file name to path
+    return iniPath.Get();
+#else
+#error NOT IMPLEMENTED
+#endif
+    
+}
+
+std::string File::getSettingsProperty(const std::string& section, const std::string& key)
+{
+    // Open the settings file
+    std::ifstream file(getSettingsFile());
+    if (!file.is_open())
+    {
+        //std::cerr << "Error: Could not open the file " << getSettingsFile() << std::endl;
+        return "";
+    }
+    
+    // Parse the JSON content from the file
+    nlohmann::json jsonData;
+    try {
+        file >> jsonData;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: Failed to parse JSON - " << e.what() << std::endl;
+        return "";
+    }
+    
+    // Check if the section exists
+    if (jsonData.contains(section))
+    {
+        // Get the section object
+        nlohmann::json sectionObj = jsonData[section];
+        
+        // Check if the key exists within the section
+        if (sectionObj.contains(key))
+        {
+            try {
+                // Return the value as a string
+                return sectionObj[key].get<std::string>();
+            }
+            catch (const std::exception& e) {
+                std::cerr << "Error: Failed to retrieve the key '" << key << "' as a string - " << e.what() << std::endl;
+                return "";
+            }
+        }
+        else
+        {
+            std::cerr << "Error: Key '" << key << "' not found in section '" << section << "'." << std::endl;
+        }
+    }
+    else
+    {
+        std::cerr << "Error: Section '" << section << "' not found in the JSON file." << std::endl;
+    }
+    
+    return "";
+}
 //===========================================================================================
 std::string File::getFileAsString(std::string csdFile) {
     if (csdFile.empty())

@@ -435,7 +435,7 @@ bool IPlugAPPHost::InitState()
                 mState.mMidiOutDev.Set(settingsJson["currentConfig"]["midi"].value("outputDvice", "no output").c_str());
                 mState.mMidiInChan = settingsJson["currentConfig"]["midi"].value("inChan", 0);
                 mState.mMidiOutChan = settingsJson["currentConfig"]["midi"].value("outChan", 0);
-                mState.mJsSourceDirectory.Set(cabbage::File::convertToForwardSlashes(settingsJson["currentConfig"].value("jsSourceDir", "add path to JS src directory").c_str()));
+                mState.mJsSourceDirectory.Set(cabbage::File::formatPath(settingsJson["currentConfig"].value("jsSourceDir", "add path to JS src directory")).c_str());
             }
 
         }
@@ -543,7 +543,7 @@ void IPlugAPPHost::UpdateSettings()
     cabAssert(false, "Not implemented");
 #endif
     
-    settingsJSON["currentConfig"]["jsSourceDir"] = cabbage::File::convertToForwardSlashes(mState.mJsSourceDirectory.Get());
+    settingsJSON["currentConfig"]["jsSourceDir"] = cabbage::File::formatPath(mState.mJsSourceDirectory.Get());
     
     addDevicesToSettings(settingsJSON);
 

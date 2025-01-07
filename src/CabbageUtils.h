@@ -255,6 +255,8 @@ public:
     
     // Reads and parses the cabbage section from the file
     static std::optional<nlohmann::json> parseCabbageSection(const std::string& csdFile);
+    static std::string getSettingsFile();
+    static std::string getSettingsProperty(const std::string& section, const std::string& key);
     
 private:
 #if defined(_WIN32)
