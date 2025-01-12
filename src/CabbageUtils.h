@@ -108,6 +108,7 @@ public:
     static std::string getJsonWithLineNumbers(const std::string& json_str);
     static std::string toLower(const std::string& str);
     static std::string getChannelConfig(const std::string& csdFile);
+    static int getDebounceInterval(const std::string& csdFile);
     static bool getEnableDevTools(const std::string& csdFile);
     
     template <typename T>
@@ -204,8 +205,7 @@ public:
         auto& p = reader->getProperties();
         try{
             // pass a targetSampleRate in case resampling is needed
-            const double length = (p.numFrames/p.sampleRate);
-            auto samples = reader->loadFileContent(targetSampleRate, length * targetSampleRate + 10);
+            auto samples = reader->loadFileContent(targetSampleRate, p.numFrames * p.numChannels);
             auto bufferView = samples.frames.getView();
             int numFrames = bufferView.getChannel(0).getNumFrames();
             int numChannels = bufferView.getNumChannels();

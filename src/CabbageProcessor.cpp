@@ -54,7 +54,7 @@ cabbage(*this, "")
         SetEnableDevTools(true);
 #endif
     
-    
+    debounceInterval = cabbage::Utils::getDebounceInterval(cabbage.getCsdFile());
     setupCallbacks();
 
     //timer.Start(this, &CabbageProcessor::timerCallback, 10);
@@ -207,9 +207,28 @@ void CabbageProcessor::OnParamChange(int paramIdx)
                     {
                         w["value"] = GetParam(paramIdx)->Value();
                     }
+
+                    sendParamUpdateToUI(w["channel"], w["value"].get<float>(), debounceInterval);
+                    
                 }
             }
         }
+    }
+}
+
+void CabbageProcessor::sendParamUpdateToUI(const std::string& channel, float value, int debounceIntervalMs) {
+    auto now = std::chrono::steady_clock::now();
+
+    // Check if enough time has passed since the last update for this channel
+    if (lastUpdateTimes.find(channel) == lastUpdateTimes.end() ||
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - lastUpdateTimes[channel]).count() >= debounceIntervalMs) {
+        
+        // Update the last update time for the channel
+        lastUpdateTimes[channel] = now;
+
+        // Generate and execute the script update
+        const std::string script = cabbage.getWidgetUpdateScript(channel, value);
+        EvaluateJavaScript(script.c_str());
     }
 }
 

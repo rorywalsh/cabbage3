@@ -7,14 +7,17 @@
 
 namespace cabbage {
 
-std::string Utils::sanitisePath(const std::string& path) {
+std::string Utils::sanitisePath(const std::string& path) 
+{
     std::string sanitisedPath = path;
     // Remove trailing backslashes
-    while (!sanitisedPath.empty() && sanitisedPath.back() == '\\') {
+    while (!sanitisedPath.empty() && sanitisedPath.back() == '\\') 
+    {
         sanitisedPath.pop_back();
     }
     // Replace backslashes with forward slashes
-    for (char& c : sanitisedPath) {
+    for (char& c : sanitisedPath) 
+    {
         if (c == '\\') {
             c = '/';
         }
@@ -22,30 +25,36 @@ std::string Utils::sanitisePath(const std::string& path) {
     return sanitisedPath;
 }
 
-bool Utils::validateChannelConfig(const std::string& channelConfig, int maxInputs, int maxOutputs) {
+bool Utils::validateChannelConfig(const std::string& channelConfig, int maxInputs, int maxOutputs)
+{
     std::istringstream ss(channelConfig);
     std::string pair;
 
-    while (ss >> pair) {
+    while (ss >> pair) 
+    {
         size_t dashPos = pair.find('-');
         size_t dotPos = pair.find('.');
 
         int inputs = 0;
         int outputs = 0;
 
-        if (dotPos != std::string::npos) {
+        if (dotPos != std::string::npos) 
+        {
             std::string inputPart = pair.substr(0, dashPos);
             std::string outputPart = pair.substr(dashPos + 1);
 
             inputs = std::stoi(inputPart.substr(0, dotPos)) + std::stoi(inputPart.substr(dotPos + 1));
             outputs = std::stoi(outputPart);
-        } else {
+        } 
+        else
+        {
             inputs = std::stoi(pair.substr(0, dashPos));
             outputs = std::stoi(pair.substr(dashPos + 1));
         }
 
-        if (inputs > maxInputs || outputs > maxOutputs) {
-            std::cout << "Error: Channel configuration exceeds the maximum limits. Inputs: " 
+        if (inputs > maxInputs || outputs > maxOutputs) 
+        {
+            std::cout << "Error: Channel configuration exceeds the maximum limits. Inputs: "
                       << inputs << ", MaxInputs: " << maxInputs 
                       << ", Outputs: " << outputs << ", MaxOutputs: " << maxOutputs << std::endl;
             return false;  // Invalid configuration
@@ -55,14 +64,16 @@ bool Utils::validateChannelConfig(const std::string& channelConfig, int maxInput
     return true;  // Valid configuration
 }
 
-std::string Utils::getJsonWithLineNumbers(const nlohmann::json& j) {
+std::string Utils::getJsonWithLineNumbers(const nlohmann::json& j) 
+{
     std::string json_str = j.dump(4);  // 4 is the indent for pretty-printing
     std::istringstream stream(json_str);
     std::string line;
     int line_number = 1;
     std::ostringstream result;
 
-    while (std::getline(stream, line)) {
+    while (std::getline(stream, line)) 
+    {
         result << line_number << ": " << line << "\n";
         line_number++;
     }
@@ -70,7 +81,8 @@ std::string Utils::getJsonWithLineNumbers(const nlohmann::json& j) {
     return result.str();
 }
 
-std::string Utils::getJsonWithLineNumbers(const std::string& json_str) {
+std::string Utils::getJsonWithLineNumbers(const std::string& json_str) 
+{
     try {
         auto j = nlohmann::json::parse(json_str);
         return getJsonWithLineNumbers(j);
@@ -81,7 +93,8 @@ std::string Utils::getJsonWithLineNumbers(const std::string& json_str) {
         std::string line;
         int line_number = 1;
 
-        while (std::getline(json_stream, line)) {
+        while (std::getline(json_stream, line)) 
+        {
             error_output << line_number << ": " << line << "\n";
             line_number++;
         }
@@ -90,16 +103,22 @@ std::string Utils::getJsonWithLineNumbers(const std::string& json_str) {
     }
 }
 
-std::string Utils::toLower(const std::string& str) {
+std::string Utils::toLower(const std::string& str) 
+{
     std::string lowerStr = str;
     std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(),
                    [](unsigned char c) { return std::tolower(c); });
     return lowerStr;
 }
 
-std::string Utils::getChannelConfig(const std::string& csdFile) {
-    if (auto json = cabbage::File::parseCabbageSection(csdFile)) {
-        if (auto channelConfig = cabbage::Utils::findPropertyInForm<std::string>(*json, "channelConfig")) {
+//=====================================================================================
+// this could be consolidated, but I'm leaving it as is as it improves readability
+std::string Utils::getChannelConfig(const std::string& csdFile)
+{
+    if (auto json = cabbage::File::parseCabbageSection(csdFile)) 
+    {
+        if (auto channelConfig = cabbage::Utils::findPropertyInForm<std::string>(*json, "channelConfig")) 
+        {
             return *channelConfig;
         }
     }
@@ -107,9 +126,25 @@ std::string Utils::getChannelConfig(const std::string& csdFile) {
     return "2-2";
 }
 
-bool Utils::getEnableDevTools(const std::string& csdFile) {
-    if (auto json = cabbage::File::parseCabbageSection(csdFile)) {
-        if (auto enableDevTools = cabbage::Utils::findPropertyInForm<bool>(*json, "enableDevTools")) {
+int Utils::getDebounceInterval(const std::string& csdFile)
+{
+    if (auto json = cabbage::File::parseCabbageSection(csdFile)) 
+    {
+        if (auto debounceInterval = cabbage::Utils::findPropertyInForm<int>(*json, "debounceInterval"))
+        {
+            return *debounceInterval;
+        }
+    }
+    // Default value if not found or error occurs
+    return 200;
+}
+
+bool Utils::getEnableDevTools(const std::string& csdFile)
+{
+    if (auto json = cabbage::File::parseCabbageSection(csdFile)) 
+    {
+        if (auto enableDevTools = cabbage::Utils::findPropertyInForm<bool>(*json, "enableDevTools")) 
+        {
             return *enableDevTools;
         }
     }
@@ -117,13 +152,17 @@ bool Utils::getEnableDevTools(const std::string& csdFile) {
     return true;
 }
 
-void StringFormatter::removeBackticks(std::string& str) {
+//========================================================================
+
+void StringFormatter::removeBackticks(std::string& str)
+{
     auto new_end = std::remove(str.begin(), str.end(), '`');
     str.erase(new_end, str.end());
 }
 
-
-std::string File::getBinaryPath() {
+//========================================================================
+std::string File::getBinaryPath()
+{
 #if defined(_WIN32)
         return getWindowsBinaryPath();
 #elif defined(__APPLE__)
@@ -135,12 +174,14 @@ std::string File::getBinaryPath() {
 #endif
 }
 
-bool File::fileExists(const std::string& filePath) {
+bool File::fileExists(const std::string& filePath) 
+{
     std::ifstream file(filePath);
     return file.good();
 }
 
-bool File::directoryExists(const std::string& dirPath) {
+bool File::directoryExists(const std::string& dirPath) 
+{
 #if defined(_WIN32)
     DWORD attrib = GetFileAttributesA(dirPath.c_str());
     return (attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_DIRECTORY));
@@ -151,7 +192,8 @@ bool File::directoryExists(const std::string& dirPath) {
 #endif
 }
 
-std::string File::getCabbageResourceDir() {
+std::string File::getCabbageResourceDir() 
+{
 #if defined(_WIN32)
         return getWindowsProgramDataDir();
 #elif defined(__APPLE__)
@@ -163,19 +205,22 @@ std::string File::getCabbageResourceDir() {
 #endif
 }
 
-std::string File::loadJSFile(const std::string& filePath) {
+std::string File::loadJSFile(const std::string& filePath) 
+{
         std::ifstream file(filePath);
         std::string jsContent((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         return jsContent;
 }
 
-std::string File::getCabbageSection(const std::string& csdFile) {
+std::string File::getCabbageSection(const std::string& csdFile) 
+{
     auto csdText = getFileAsString();
     std::regex cabbageRegex(R"(<Cabbage>([\s\S]*?)</Cabbage>)");
     std::smatch match;
 
     // Search for the content using the regex
-    if (std::regex_search(csdText, match, cabbageRegex) && match.size() > 1) {
+    if (std::regex_search(csdText, match, cabbageRegex) && match.size() > 1) 
+    {
         return match[1].str(); // Return the captured group
     }
     
@@ -273,7 +318,8 @@ std::string File::getSettingsProperty(const std::string& section, const std::str
     return "";
 }
 //===========================================================================================
-std::string File::getFileAsString(std::string csdFile) {
+std::string File::getFileAsString(std::string csdFile) 
+{
     if (csdFile.empty())
         csdFile = getCsdFileAndPath();
         
@@ -550,7 +596,8 @@ std::string File::getCsdPath(const std::string file)
     }
 }
 
-std::string File::joinPath(const std::string& dirPath, const std::string& fileName) {
+std::string File::joinPath(const std::string& dirPath, const std::string& fileName) 
+{
     if (dirPath.empty())
         return fileName;
     else if (fileName.empty())

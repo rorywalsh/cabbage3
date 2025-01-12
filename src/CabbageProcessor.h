@@ -90,7 +90,7 @@ public:
 
     void OnParamChange(int paramIdx) override;
     
-    //Csound API functions for deailing with midi input
+    // Csound API functions for deailing with midi input
     static int OpenMidiInputDevice (CSOUND* csnd, void** userData, const char* devName);
     static int OpenMidiOutputDevice (CSOUND* csnd, void** userData, const char* devName);
     static int ReadMidiData (CSOUND* csound, void* userData, unsigned char* mbuf, int nbytes);
@@ -99,7 +99,7 @@ public:
     void stopProcessing(){                      cabbage.stopProcessing();    }
     cabbage::Engine& getCabbageEngine(){        return cabbage;              }
     
-    //serialize functions
+    // serialize functions
     bool SerializeState(iplug::IByteChunk& chunk) const override;
     int UnserializeState(const iplug::IByteChunk& chunk, int startPos) override;
     
@@ -113,6 +113,11 @@ public:
 #endif
     
 private:
+    // throttle messages going to UI on parameter change
+    void sendParamUpdateToUI(const std::string& channel, float value, int debounceIntervalMs);
+    // for channel independant updates.
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> lastUpdateTimes;
+    int debounceInterval = 100;
     std::string host = {"127.0.0.1"};
     cabbage::Engine cabbage;
     std::function<void(std::string)> triggerScript;
