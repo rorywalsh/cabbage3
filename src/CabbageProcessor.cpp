@@ -185,6 +185,7 @@ void CabbageProcessor::updateJSWidgets()
 }
 
 //===============================================================================
+// this can be called on the audio thread..
 void CabbageProcessor::OnParamChange(int paramIdx)
 {
     if(cabbage.getNumberOfParameters() > 0)
@@ -207,14 +208,34 @@ void CabbageProcessor::OnParamChange(int paramIdx)
                     {
                         w["value"] = GetParam(paramIdx)->Value();
                     }
-
-                    sendParamUpdateToUI(w["channel"], w["value"].get<float>(), debounceInterval);
-                    
                 }
             }
         }
     }
 }
+
+// this is always called on low-priority thread
+void CabbageProcessor::OnParamChangeUI(int paramIdx, iplug::EParamSource source)
+{
+    if(cabbage.getNumberOfParameters() > 0)
+    {
+        //only update if we need to...
+        auto& p = cabbage.getParameterChannel(paramIdx);
+        for( auto& w : cabbage.getWidgets())
+        {
+            if(w.contains("channel") && w["channel"] == p.name.c_str()) //only let valid object through.
+            {
+                if(w.contains("value"))
+                {
+                    auto result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), GetParam(paramIdx)->Value());
+                    sendParamUpdateToUI(w["channel"].get<std::string>(), GetParam(paramIdx)->Value(), debounceInterval);
+                }
+            }
+        }
+    }
+}
+
+//=================================================================================
 
 void CabbageProcessor::sendParamUpdateToUI(const std::string& channel, float value, int debounceIntervalMs) {
     auto now = std::chrono::steady_clock::now();

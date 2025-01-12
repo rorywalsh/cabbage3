@@ -89,6 +89,7 @@ public:
     bool OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData) override;
 
     void OnParamChange(int paramIdx) override;
+    void OnParamChangeUI(int paramIdx, iplug::EParamSource = iplug::kUnknown) override;
     
     // Csound API functions for deailing with midi input
     static int OpenMidiInputDevice (CSOUND* csnd, void** userData, const char* devName);
