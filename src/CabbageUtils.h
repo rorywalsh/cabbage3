@@ -395,7 +395,11 @@ public:
 #endif
         
         if(!cabbage::File::directoryExists(widgetPath))
+        {
+            LOG_VERBOSE("Invalid widget JS files path:", widgetType);
             return {};
+        }
+            
         
         auto jsFileContents = cabbage::File::loadJSFile(widgetPath + "/" + widgetType + ".js");
         if (!jsFileContents.empty())
@@ -403,7 +407,7 @@ public:
             return cabbage::File::extractPropsFromJS(jsFileContents);
         }
         
-        LOG_INFO("Invalid widget type:", widgetType);
+        LOG_VERBOSE("Invalid widget type:", widgetType);
         cabAssert(false, "Invalid widget type:");
         return {};
     }
