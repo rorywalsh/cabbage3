@@ -90,7 +90,7 @@ bool IPlugAPPHost::InitProcessor()
     auto callback = [&](CabbageOpcodeData data) {
             auto& cabbage = cabbageProcessor->getCabbageEngine();
             auto widgetOpt = cabbage.getWidget(data.channel);
-        LOG_VERBOSE("Host callback triggered for channel:", data.channel);
+            LOG_VERBOSE("Host callback triggered for channel:", data.channel);
             if (widgetOpt.has_value())
             {
                 auto& j = widgetOpt.value().get();

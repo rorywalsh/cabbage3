@@ -97,12 +97,12 @@ void Parser::parseContent(const std::string& content, std::vector<nlohmann::json
                 if (item.is_object())
                 {
                     auto j = WidgetDescriptors::get(item["type"]);
-                    LOG_VERBOSE(j.dump(4));
                     if (!j.is_null())
                     {
                         updateJson(j, item, widgets.size());
                         widgets.push_back(j);
                     }
+                    LOG_VERBOSE("Couldn't find type for:", content);
                 }
             }
         }
