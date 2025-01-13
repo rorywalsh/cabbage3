@@ -226,7 +226,7 @@ void CabbageProcessor::OnParamChangeUI(int paramIdx, iplug::EParamSource source)
             if(w.contains("channel") && w["channel"] == p.name.c_str()) //only let valid object through.
             {
                 if(w.contains("value"))
-                {
+                { 
                     auto result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), GetParam(paramIdx)->Value());
                     sendParamUpdateToUI(w["channel"].get<std::string>(), GetParam(paramIdx)->Value(), debounceInterval);
                 }

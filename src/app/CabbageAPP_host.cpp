@@ -90,9 +90,11 @@ bool IPlugAPPHost::InitProcessor()
     auto callback = [&](CabbageOpcodeData data) {
             auto& cabbage = cabbageProcessor->getCabbageEngine();
             auto widgetOpt = cabbage.getWidget(data.channel);
+        LOG_VERBOSE("Host callback triggered for channel:", data.channel);
             if (widgetOpt.has_value())
             {
                 auto& j = widgetOpt.value().get();
+                
                 //this will update a genTable
                 if(j["type"].get<std::string>() == "genTable")
                 {
@@ -102,6 +104,7 @@ bool IPlugAPPHost::InitProcessor()
                     msg["channel"] = data.channel;
                     msg["data"] = j.dump();
                     webSocket.send(msg.dump());
+                    LOG_VERBOSE(msg.dump(4));
                 }
                 else{
                     if(data.type == CabbageOpcodeData::MessageType::Value)
@@ -113,7 +116,7 @@ bool IPlugAPPHost::InitProcessor()
                         msg["channel"] = data.channel;
                         msg["value"] = j["value"].get<float>();
                         webSocket.send(msg.dump());
-//                        writeToLog(msg.dump());
+                        LOG_VERBOSE(msg.dump(4));
                     }
                     else
                     {
@@ -124,11 +127,13 @@ bool IPlugAPPHost::InitProcessor()
                         msg["channel"] = data.channel;
                         msg["data"] = j.dump();
                         webSocket.send(msg.dump());
+                        LOG_VERBOSE(msg.dump(4));
                     }
                 }
             }
         };
     
+    LOG_VERBOSE("Assigning called host callback function.");
     cabbageProcessor->hostCallback = callback;
 #endif
     return true;
@@ -270,7 +275,7 @@ bool IPlugAPPHost::InitWebSocket()
                         }
                         else if(command == "cabbageIsReadyToLoad")
                         {
-                        
+                            //this is
                         }
                         else if(command == "cabbageSetupComplete")
                         {
