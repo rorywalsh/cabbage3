@@ -213,48 +213,47 @@ struct CabbageOpcodes
     template <typename T>
     void updateWidgetJson(nlohmann::json& jsonObj, csnd::Param<NumInputParams>& args, int argIndex, int numIns, std::string identifier)
     {
-        std::vector<T> params;
-        if(numIns>argIndex+2) //dealing with array...
+        //check if the identifier is already a JSON object, i.e, as in the case below
+        //cabbageSet metro(1), "infoText", sprintf({{"text":"%s"}}, SText)
+        std::vector<MYFLT> array;
+        
+        auto j = parseAndFormatJson(identifier);
+        auto it = j.begin();
+        if (it.value().is_null())
         {
-            for( int i = argIndex ; i < numIns ; i++)
+            if(identifier.find(".") == std::string::npos)
             {
                 if constexpr (std::is_same_v<T, std::string>)
-                    params.push_back(args.str_data(i).data);
+                    jsonObj[identifier] = args.str_data(argIndex).data;
                 else
-                    params.push_back(args[i]);
-            }
-            jsonObj[identifier] = params;
-        }
-        else
-        {
-            //check if the identifier is already a JSON object, i.e, as in the case below
-            //cabbageSet metro(1), "infoText", sprintf({{"text":"%s"}}, SText)
-            auto j = parseAndFormatJson(identifier);
-            auto it = j.begin();
-            if (it.value().is_null())
-            {
-                if(identifier.find(".") == std::string::npos)
                 {
-                    if constexpr (std::is_same_v<T, std::string>)
-                        jsonObj[identifier] = args.str_data(argIndex).data;
+                    if(args.myfltvec_data(argIndex).len()>0)
+                    {
+                        csnd::Vector<MYFLT>& arrayArgs = args.myfltvec_data(argIndex);
+                        std::vector<MYFLT> array(arrayArgs.begin(), arrayArgs.end());
+                        jsonObj[identifier] = array;
+                    }
                     else
+                    {
                         jsonObj[identifier] = args[argIndex];
-                }
-                else
-                {
-                    //dot notation
-                    if constexpr (std::is_same_v<T, std::string>)
-                        setJsonValue(jsonObj, args.str_data(argIndex-1).data, args.str_data(argIndex).data);
-                    else
-                        setJsonValue(jsonObj, args.str_data(argIndex-1).data, args[argIndex]);
+                    }
                 }
             }
             else
             {
-                //identifier arg was well formed JSON
-                jsonObj = j;
+                //dot notation
+                if constexpr (std::is_same_v<T, std::string>)
+                    setJsonValue(jsonObj, args.str_data(argIndex-1).data, args.str_data(argIndex).data);
+                else
+                    setJsonValue(jsonObj, args.str_data(argIndex-1).data, args[argIndex]);
             }
         }
+        else
+        {
+            //identifier arg was well formed JSON
+            jsonObj = j;
+        }
+
     }
     
     bool testForValidNumberOfInputs(int totalInputs, int minInputs)

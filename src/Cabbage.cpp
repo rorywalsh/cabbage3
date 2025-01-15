@@ -48,6 +48,11 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageSetPerfMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSSM", csnd::thread::k);
     csnd::plugin<CabbageSetInitMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "SSM", csnd::thread::i);
     
+    csnd::plugin<CabbageSetInitMYFLTArray>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "SSi[]", csnd::thread::i);
+    csnd::plugin<CabbageSetPerfMYFLTArray>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSSk[]", csnd::thread::k);
+    //**cabbageSet** *kTrig*, *SChannel*, *SProperty*, *kValue[]*
+    //**cabbageSet** *SChannel*, *SProperty*, *iValue[]*
+    
     ret = csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "i", "S", csnd::thread::i);
     csnd::plugin<CabbageGetValueString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "S", "S", csnd::thread::ik);
@@ -269,7 +274,7 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidget(const st
 {
     for (auto& w : widgets)
     {
-        if (cabbage::Parser::removeQuotes(w["channel"]) == channel)
+        if (cabbage::Parser::removeQuotes(w["channel"].get<std::string>()) == channel)
         {
             return std::ref(w); // Use std::ref to wrap the reference
         }

@@ -113,7 +113,7 @@ int CabbageSetInitString::setIdentifier(int pass)
 }
 
 //=====================================================================================
-// cabbageSet kTrig, "channel", "identifier", kArg1, kArg2, kArg3, etc..
+// cabbageSet kTrig, "channel", "identifier", kArg1
 //=====================================================================================
 int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
 {
@@ -146,7 +146,7 @@ int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
 }
 
 //=====================================================================================
-// cabbageSet "channel", "identifier", iArg1, iArg2, iArg3, etc..
+// cabbageSet "channel", "identifier", iArg1
 //=====================================================================================
 int CabbageSetInitMYFLT::setIdentifier(int /*pass*/)
 {
@@ -166,6 +166,61 @@ int CabbageSetInitMYFLT::setIdentifier(int /*pass*/)
     else
         updateWidgetJson<MYFLT>(data.cabbageJson, args, argIndex+1, in_count(), data.identifier);
     
+    hostData->opcodeData.enqueue(data);
+    
+    return IS_OK;
+}
+
+//=====================================================================================
+// cabbageSet kTrig, "channel", "identifier", kArg1
+//=====================================================================================
+int CabbageSetPerfMYFLTArray::setIdentifier(int /*pass*/)
+{
+    auto* hostData = static_cast<cabbage::Engine*>(csound->host_data());
+    auto data = getIdentData(csound, args, true, 1, 2);
+    data.type = CabbageOpcodeData::MessageType::Identifier;
+    
+    const int argIndex = 2;
+    
+    if(!testForValidNumberOfInputs(in_count(), argIndex+1))
+    {
+        csound->init_error("Not enough input arguments\n");
+        return NOTOK;
+    }
+    
+    const int trigger = int(args[0]);
+    
+    if(trigger == 0)
+    {
+        return IS_OK;
+    }
+    else
+    {
+        updateWidgetJson<MYFLT>(data.cabbageJson, args, argIndex+1, in_count(),data.identifier);
+        hostData->opcodeData.enqueue(data);
+    }
+    
+    return IS_OK;
+
+}
+
+//=====================================================================================
+// cabbageSet "channel", "identifier", iArg1[]
+//=====================================================================================
+int CabbageSetInitMYFLTArray::setIdentifier(int /*pass*/)
+{
+    auto* hostData = static_cast<cabbage::Engine*>(csound->host_data());
+    auto data = getIdentData(csound, args, true, 0, 1);
+    data.type = CabbageOpcodeData::MessageType::Identifier;
+    const int argIndex = 1;
+    
+    if(!testForValidNumberOfInputs(in_count(), argIndex+1))
+    {
+        csound->init_error("Not enough input arguments\n");
+        return NOTOK;
+    }
+    
+    updateWidgetJson<MYFLT>(data.cabbageJson, args, argIndex+1, in_count(), data.identifier);      
     hostData->opcodeData.enqueue(data);
     
     return IS_OK;

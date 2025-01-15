@@ -96,13 +96,12 @@ void Parser::parseContent(const std::string& content, std::vector<nlohmann::json
             {
                 if (item.is_object())
                 {
-                    auto j = WidgetDescriptors::get(item["type"]);
+                    auto j = WidgetDescriptors::get(item["type"].get<std::string>());
                     if (!j.is_null())
                     {
                         updateJson(j, item, widgets.size());
                         widgets.push_back(j);
                     }
-                    LOG_VERBOSE("Couldn't find type for:", content);
                 }
             }
         }
@@ -312,7 +311,7 @@ std::string Parser::rgbToHex(const std::vector<double>& rgb)
 
 std::string Parser::validateHexString(const std::string& str)
 {
-    std::regex hexRegex("^#([0-9A-Fa-f]{6})$");
+    std::regex hexRegex("^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$");
 
     if (std::regex_match(str, hexRegex))
     {

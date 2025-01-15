@@ -53,3 +53,16 @@ struct CabbageSetPerfMYFLT : csnd::InPlug<64>, CabbageOpcodes<64>
     int kperf(){ return setIdentifier(CabbageOpcodeData::PassType::Perf); };
     int setIdentifier(int init);
 };
+
+struct CabbageSetPerfMYFLTArray : csnd::InPlug<64>, CabbageOpcodes<64>
+{
+    int init(){ return setIdentifier(CabbageOpcodeData::PassType::Init); };
+    int kperf(){ return setIdentifier(CabbageOpcodeData::PassType::Perf); };
+    int setIdentifier(int init);
+};
+
+struct CabbageSetInitMYFLTArray : csnd::InPlug<64>, CabbageOpcodes<64>
+{
+    int init(){ return setIdentifier(CabbageOpcodeData::PassType::Init); };
+    int setIdentifier(int init);
+};

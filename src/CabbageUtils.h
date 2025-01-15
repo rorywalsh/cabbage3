@@ -383,7 +383,7 @@ public:
     }
     
     //returns a widget descriptor object for a given widget type
-    static nlohmann::json get(std::string widgetType)
+    static nlohmann::json get(const std::string& widgetType)
     {
         
         std::vector<std::string> widgetTypes;
