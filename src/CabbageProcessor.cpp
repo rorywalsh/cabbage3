@@ -24,7 +24,7 @@ cabbage(*this, csdFile)
 {
     if(!cabbage.setupCsound())
     {
-        LOG_VERBOSE(cabbage.getCompileErrors());
+        cabbage::logDebug << cabbage.getCompileErrors();
         return;
     }
     
@@ -37,14 +37,14 @@ CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info)
                                         cabbage::Engine::getIOChannalConfig(""))),
 cabbage(*this, "")
 {
-    
     cabbage.getMidiQueue().clear();
+    cabbage.setCsdFile(cabbage::File::getCsdFileAndPath());
+    cabbage::Logger::getInstance().setLogFile(cabbage::File::withExtension(cabbage.getCsdFile(), ".log"));
     
     if(!cabbage.setupCsound())
     {
-        LOG_INFO("Csound file could not be compiled");
+        cabbage::logInfo << "Csound file could not be compiled";
         return;
-//        cabAssert(false, "couldn't set up Csound");
     }
     
     matchingNumInputsOutputs = (NInChansConnected() == NOutChansConnected());
@@ -54,11 +54,7 @@ cabbage(*this, "")
         SetEnableDevTools(true);
 #endif
     
-    debounceInterval = cabbage::Utils::getDebounceInterval(cabbage.getCsdFile());
     setupCallbacks();
-
-    //timer.Start(this, &CabbageProcessor::timerCallback, 10);
-    LOG_VERBOSE("Cabbage Processor constructor finished setting up\n");
 }
 #endif
 
@@ -99,8 +95,7 @@ void CabbageProcessor::setupCallbacks()
                     }
                 }
                 catch (nlohmann::json::exception& e) {
-                    LOG_VERBOSE(e.what());
-//                    cabAssert(false, "");
+                    cabbage::logDebug << e.what();
                 }
             }
         
@@ -153,7 +148,7 @@ void CabbageProcessor::setupCallbacks()
 //===============================================================================
 void CabbageProcessor::interfaceHasLoaded()
 {
-    LOG_VERBOSE("Interface has loaded.");
+    cabbage::logDebug << "Interface has loaded.";
     uiIsOpen = true;
     allowDequeuing = true;
 }
@@ -227,29 +222,11 @@ void CabbageProcessor::OnParamChangeUI(int paramIdx, iplug::EParamSource source)
             {
                 if(w.contains("value"))
                 { 
-                    auto result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), GetParam(paramIdx)->Value());
-                    sendParamUpdateToUI(w["channel"].get<std::string>(), GetParam(paramIdx)->Value(), debounceInterval);
+                    const std::string script = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), GetParam(paramIdx)->Value());
+                    EvaluateJavaScript(script.c_str());
                 }
             }
         }
-    }
-}
-
-//=================================================================================
-
-void CabbageProcessor::sendParamUpdateToUI(const std::string& channel, float value, int debounceIntervalMs) {
-    auto now = std::chrono::steady_clock::now();
-
-    // Check if enough time has passed since the last update for this channel
-    if (lastUpdateTimes.find(channel) == lastUpdateTimes.end() ||
-        std::chrono::duration_cast<std::chrono::milliseconds>(now - lastUpdateTimes[channel]).count() >= debounceIntervalMs) {
-        
-        // Update the last update time for the channel
-        lastUpdateTimes[channel] = now;
-
-        // Generate and execute the script update
-        const std::string script = cabbage.getWidgetUpdateScript(channel, value);
-        EvaluateJavaScript(script.c_str());
     }
 }
 
@@ -355,7 +332,7 @@ void CabbageProcessor::OnIdle()
         {
             std::string message(cabbage.getCsound()->GetFirstMessage());
             message.erase(std::remove(message.begin(), message.end(), '\n'), message.end());
-            LOG_INFO(message);
+            cabbage::logInfo << message;
             //EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
             cabbage.getCsound()->PopFirstMessage();
         }
@@ -388,7 +365,7 @@ void CabbageProcessor::OnIdle()
             while (cabbage.getCsound()->GetMessageCnt() > 0)
             {
                 std::string message(cabbage.getCsound()->GetFirstMessage());
-                LOG_INFO(message);
+                cabbage::logInfo << message;
                // EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
                 cabbage.getCsound()->PopFirstMessage();
             }
@@ -418,7 +395,6 @@ void CabbageProcessor::OnIdle()
                         message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
                     }
                 }
-                //LOG_INFO(message);
                 EvaluateJavaScript(message.c_str());
             }
 #endif
@@ -429,15 +405,11 @@ void CabbageProcessor::OnIdle()
 //===============================================================================
 bool CabbageProcessor::SerializeState(iplug::IByteChunk& chunk) const
 {
-//    LOG_VERBOSE("CabbageProcessor::SerializeState");
-    
     return SerializeParams(chunk); // must remember to call SerializeParams at the end
 }
 
 int CabbageProcessor::UnserializeState(const iplug::IByteChunk& chunk, int startPos)
 {
-//    LOG_VERBOSE("CabbageProcessor::UnserializeState");
-    
     return UnserializeParams(chunk, startPos);
 }
 

@@ -16,8 +16,6 @@ namespace cabbage {
 Engine::Engine(CabbageProcessor& p, std::string file): processor(p), csdFile(file)
 {
     sampleRate = p.GetSampleRate();
-    LOG_INFO(processor.NInChansConnected());
-    LOG_INFO(processor.NOutChansConnected());
 };
 
 Engine::~Engine()
@@ -109,14 +107,14 @@ bool Engine::setupCsound()
             setReservedChannels();
             
             std::string csoundAddress = cabbage::StringFormatter::format("Resetting csound ...\ncsound = 0x<>", csound.get());
-            LOG_VERBOSE(csoundAddress);
+            cabbage::logDebug << csoundAddress;
         }
         else
         {
             //Csound could not compile your file?
             while (csound->GetMessageCnt() > 0)
             {
-                LOG_INFO(csound->GetFirstMessage());
+                cabbage::logInfo << csound->GetFirstMessage();
                 compileErrors += csound->GetFirstMessage();
                 csound->PopFirstMessage();
             }
@@ -152,8 +150,7 @@ bool Engine::setupCsound()
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {
-                        LOG_INFO(w.dump(4));
-                        LOG_INFO(e.what());
+                        cabbage::logInfo << "JSON error: " << e.what() << "\n" << w.dump(4);
                         cabAssert(false, "");
                     }
                 }
@@ -172,8 +169,7 @@ bool Engine::setupCsound()
                         numberOfParameters++;
                     }
                     catch (nlohmann::json::exception& e) {
-                        LOG_INFO(w.dump(4));
-                        LOG_INFO(e.what());
+                        cabbage::logInfo << "JSON error: " << e.what() << "\n" << w.dump(4);
                         cabAssert(false, "");
                         //                        cabAssert(false, "");
                     }
@@ -346,7 +342,7 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json& jsonObj
             }
         }
         catch (nlohmann::json::exception& e) {
-            LOG_VERBOSE(e.what());
+            cabbage::logDebug << e.what();
         }
     }
     else if(data.cabbageJson.contains("file"))
@@ -385,12 +381,12 @@ void Engine::setTableJSON(std::string channel, std::vector<double> samples, nloh
     
     //no point in sending more samples that can be displayed per pixel...
     const float incr = float(endSample-startSample) / ((jsonObj["bounds"]["width"].get<float>()));
-    LOG_VERBOSE("Updating function table");
+    cabbage::logDebug << "Updating function table";
     for(float i = startSample ; i < static_cast<int>(endSample) ; i+=incr)
     {
         widgetSampleData.push_back(samples[int(i)]);
     }
-    LOG_VERBOSE("Table size", widgetSampleData.size());
+    cabbage::logDebug << "Table size" << widgetSampleData.size();
 //
 //    while(widgetSampleData.size() < jsonObj["bounds"]["width"].get<int>()))
 //    {

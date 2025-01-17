@@ -54,53 +54,134 @@
 #include "choc/audio/choc_AudioFileFormat_MP3.h"
 #include "choc/audio/choc_SampleBuffers.h"
 
-// Function to handle debug output in VS
+namespace cabbage {
+
+// Function to handle debug output in Visual Studio
 inline void logToDebug(const std::string& message) {
 #ifdef _WIN32
     OutputDebugStringA(message.c_str());
 #endif
 }
 
-template<typename... Args>
-void writeDetailed(const char* file, int line, const char* function, Args&&... args)
-{
-    std::ostringstream oss;
+class Logger {
+public:
+    static Logger& getInstance();
+    void setLogFile(const std::string& filePath);
+    void closeLogFile();
+    void logMessage(const std::string& message);
 
-    // Add the debug prefix
-    oss << "Cabbage DEBUG: ";
+private:
+    Logger() = default;
+    ~Logger() {
+        closeLogFile();
+    }
 
-    // Use fold expression to append all arguments to the string stream
-    (oss << ... << std::forward<Args>(args)); // C++17 fold expression
+    Logger(const Logger&) = delete;
+    Logger& operator=(const Logger&) = delete;
 
-    // Add file, line, function, and thread info
-    oss << "\n" << file << " (" << line << ") "
-        << function << ": ";
-    oss << " [Thread ID: " << std::this_thread::get_id() << "]" << std::endl;
+    std::ofstream logFile;
+    std::mutex fileMutex;
+};
 
-    // Print and log the message
-    std::cout << oss.str() << std::endl;
-    logToDebug(oss.str());
+// Stream class to allow chaining with << operator
+class LogStream {
+public:
+    LogStream(const char* logLevel, bool includeContext)
+        : logLevel(logLevel), includeContext(includeContext) {}
+
+    // Move constructor and move assignment operator
+    LogStream(LogStream&& other) noexcept
+        : logLevel(other.logLevel),
+          includeContext(other.includeContext),
+          message(std::move(other.message)),
+          file(other.file),
+          line(other.line),
+          function(other.function) {}
+
+    LogStream& operator=(LogStream&& other) noexcept {
+        if (this != &other) {
+            logLevel = other.logLevel;
+            includeContext = other.includeContext;
+            message = std::move(other.message);
+            file = other.file;
+            line = other.line;
+            function = other.function;
+        }
+        return *this;
+    }
+
+    // Destructor to log the message
+    ~LogStream() {
+        std::ostringstream oss;
+        oss << "Cabbage " << logLevel << ": ";
+        oss << message.str();
+
+        if (includeContext) {
+            oss << std::filesystem::path(file).filename().string() << " (" << line << ") " << function
+                << " [Thread ID: " << std::this_thread::get_id() << "]";
+        }
+
+        Logger::getInstance().logMessage(oss.str());
+    }
+
+    template<typename T>
+    LogStream& operator<<(const T& value) {
+        message << value;
+        return *this;
+    }
+
+    void setContext(const char* file, int line, const char* function) {
+        this->file = file;
+        this->line = line;
+        this->function = function;
+    }
+
+private:
+    const char* logLevel;
+    bool includeContext;
+    std::ostringstream message;
+    const char* file = nullptr;
+    int line = 0;
+    const char* function = nullptr;
+
+    // Disable copy operations
+    LogStream(const LogStream&) = delete;
+    LogStream& operator=(const LogStream&) = delete;
+};
+
+// Stream-like logger functions for different log levels
+inline LogStream LogInfo() {
+    return LogStream("INFO", false); // Info doesn't include file/line info
 }
 
-template<typename... Args>
-void writeBasic(Args&&... args)
-{
-    std::ostringstream oss;
-    // Use fold expression to append all arguments to the string stream
-    (oss << ... << std::forward<Args>(args)); // C++17 fold expression
-    std::cout << oss.str() << std::endl;
-    logToDebug(oss.str());
+inline LogStream LogVerbose(const char* file, int line, const char* function) {
+    LogStream log("VERBOSE", true);
+    log.setContext(file, line, function);
+    return log;
 }
-// Variadic macro to simplify calling the writeDetailed function
-#define LOG_VERBOSE(...) writeDetailed(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
-#define LOG_INFO(...) writeBasic(__VA_ARGS__)
+
+inline LogStream LogWarning(const char* file, int line, const char* function) {
+    LogStream log("WARNING", true);
+    log.setContext(file, line, function);
+    return log;
+}
+
+inline LogStream LogError(const char* file, int line, const char* function) {
+    LogStream log("ERROR", true);
+    log.setContext(file, line, function);
+    return log;
+}
 
 
+// To use the logging functions like std::ostream:
+#define logInfo LogInfo()
+#define logDebug LogVerbose(__FILE__, __LINE__, __FUNCTION__)
+#define logWarning LogWarning(__FILE__, __LINE__, __FUNCTION__)
+#define logError LogError(__FILE__, __LINE__, __FUNCTION__)
 
 
-namespace cabbage {
-
-class Utils {
+class Utils 
+{
 public:
     static std::string sanitisePath(const std::string& path);
     static bool validateChannelConfig(const std::string& channelConfig, int maxInputs, int maxOutputs);
@@ -123,7 +204,8 @@ public:
     }
 };
 
-class StringFormatter {
+class StringFormatter 
+{
 public:
     // Implementations of StringFormatter class methods
     template <typename... Args>
@@ -165,7 +247,8 @@ private:
     }
 };
 
-class File {
+class File 
+{
 public:
     template <typename T>
     struct Soundfile{
@@ -185,7 +268,7 @@ public:
     {
         if(!cabbage::File::fileExists(filePath))
         {
-            LOG_VERBOSE("reader is not valid");
+            cabbage::logDebug << "reader is not valid";
             return {};
         }
         
@@ -198,7 +281,7 @@ public:
         
         if(!reader.get())
         {
-            LOG_VERBOSE("reader is not valid");
+            cabbage::logDebug << "reader is not valid";
             return {};
         }
         
@@ -227,36 +310,75 @@ public:
             return soundfile;
         }
         catch (std::exception& e) {
-            LOG_VERBOSE(e.what());
+            cabbage::logDebug << e.what();
             return {};
         }
     }
 
-    
+    // Returns a new file path with the specified file extension
+    static std::string withExtension(const std::string& filePath, const std::string& newExtension);
+
+    // Retrieves the name of the binary file
     static std::string getBinaryFileName();
+
+    // Gets a list of files of a specific type in a directory
     static std::vector<std::string> getFilesOfType(const std::string& dirPath, const std::string& fileTypes);
+
+    // Extracts properties from a given JavaScript content
     static nlohmann::json extractPropsFromJS(const std::string& jsContent);
+
+    // Gets the full path of the .csd file
     static std::string getCsdPath(const std::string file = "");
+
+    // Gets the .csd file name without its extension
     static std::string getCsdWithoutExtension();
+
+    // Joins a directory path and a file name into a single path
     static std::string joinPath(const std::string& dirPath, const std::string& fileName);
+
+    // Retrieves the path to the current binary
     static std::string getBinaryPath();
+
+    // Checks if a file exists at the given path
     static bool fileExists(const std::string& filePath);
+
+    // Checks if a directory exists at the given path
     static bool directoryExists(const std::string& dirPath);
+
+    // Retrieves the directory for Cabbage resources
     static std::string getCabbageResourceDir();
+
+    // Loads the content of a JavaScript file as a string
     static std::string loadJSFile(const std::string& filePath);
+
+    // Extracts the Cabbage section from a given .csd file
     static std::string getCabbageSection(const std::string& csdFile = "");
+
+    // Reads the entire content of a file into a string
     static std::string getFileAsString(std::string csdFile = "");
-    
-    // Function to get the number of input channels (nchnls_i)
+
+    // Retrieves the number of input channels (nchnls_i) from the .csd file
     static int getNumberOfInputChannels(const std::string& csdFile);
+
+    // Retrieves the number of output channels (nchnls) from the .csd file
     static int getNumberOfOutputChannels(const std::string& csdFile);
+
+    // Formats a file path to a consistent style
     static std::string formatPath(const std::string& path);
+
+    // Retrieves the full path and name of the .csd file - mostly used in plugin wrapper as path is known
+    // when loading instruments from VS-Code
     static std::string getCsdFileAndPath();
-    
-    // Reads and parses the cabbage section from the file
+
+    // Reads and parses the Cabbage section from the specified .csd file
     static std::optional<nlohmann::json> parseCabbageSection(const std::string& csdFile);
+
+    // Retrieves the path to the settings file
     static std::string getSettingsFile();
+
+    // Retrieves a specific property from the settings file by section and key
     static std::string getSettingsProperty(const std::string& section, const std::string& key);
+
     
 private:
 #if defined(_WIN32)
@@ -345,7 +467,8 @@ private:
 /*
  Utility class to get widget descriptors from widget JS files
  */
-class WidgetDescriptors {
+class WidgetDescriptors 
+{
 public:
     
     //Utility function to get full list of widget types contained in widgets directory
@@ -396,7 +519,7 @@ public:
         
         if(!cabbage::File::directoryExists(widgetPath))
         {
-            LOG_VERBOSE("Invalid widget JS files path:", widgetType);
+            cabbage::logDebug << "Invalid widget JS files path:" << widgetType;
             return {};
         }
             
@@ -407,7 +530,7 @@ public:
             return cabbage::File::extractPropsFromJS(jsFileContents);
         }
         
-        LOG_VERBOSE("Invalid widget type:", widgetType);
+        cabbage::logDebug << "Invalid widget type:" << widgetType;
         cabAssert(false, "Invalid widget type:");
         return {};
     }

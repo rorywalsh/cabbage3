@@ -159,7 +159,7 @@ public:
     {
         if(compileErrors.length() > 0)
         {
-            LOG_INFO(compileErrors.c_str());
+            cabbage::logInfo << compileErrors.c_str();
             compileErrors.clear();
         }
     }

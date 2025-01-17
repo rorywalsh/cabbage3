@@ -7,7 +7,63 @@
 
 namespace cabbage {
 
-std::string Utils::sanitisePath(const std::string& path) 
+//==================================================================================
+// Logging methods
+//==================================================================================
+
+Logger& Logger::getInstance()
+{
+    static Logger instance;
+    return instance;
+}
+
+void Logger::setLogFile(const std::string& filePath)
+{
+    std::lock_guard<std::mutex> lock(fileMutex);
+    
+    if (logFile.is_open())
+    {
+        logFile.close();
+    }
+    
+    logFile.open(filePath, std::ios::out | std::ios::app);
+    
+    if (!logFile.is_open())
+    {
+        throw std::runtime_error("Failed to open log file: " + filePath);
+    }
+}
+
+void Logger::closeLogFile()
+{
+    std::lock_guard<std::mutex> lock(fileMutex);
+    
+    if (logFile.is_open())
+    {
+        logFile.close();
+    }
+}
+
+void Logger::logMessage(const std::string& message)
+{
+    std::lock_guard<std::mutex> lock(fileMutex);
+
+    // Log to console
+    std::cout << message << std::endl;
+
+    // Log to file if open
+    if (logFile.is_open()) {
+        logFile << message << std::endl;
+    }
+
+    // Log to Visual Studio debug console
+    logToDebug(message + "\n");
+}
+
+//==================================================================================
+// Utils methods
+//==================================================================================
+std::string Utils::sanitisePath(const std::string& path)
 {
     std::string sanitisedPath = path;
     // Remove trailing backslashes
@@ -153,13 +209,16 @@ bool Utils::getEnableDevTools(const std::string& csdFile)
 }
 
 //========================================================================
-
+// String formatter utility class
+//========================================================================
 void StringFormatter::removeBackticks(std::string& str)
 {
     auto new_end = std::remove(str.begin(), str.end(), '`');
     str.erase(new_end, str.end());
 }
 
+//========================================================================
+// File utility class
 //========================================================================
 std::string File::getBinaryPath()
 {
@@ -192,7 +251,23 @@ bool File::directoryExists(const std::string& dirPath)
 #endif
 }
 
-std::string File::getCabbageResourceDir() 
+std::string File::withExtension(const std::string& filePath, const std::string& newExtension) 
+{
+    std::filesystem::path path(filePath);
+
+    // Ensure the extension starts with a '.'
+    std::string adjustedExtension = newExtension;
+    if (!newExtension.empty() && newExtension[0] != '.') {
+        adjustedExtension = "." + newExtension;
+    }
+
+    // Replace the extension
+    path.replace_extension(adjustedExtension);
+
+    return path.string();
+}
+
+std::string File::getCabbageResourceDir()
 {
 #if defined(_WIN32)
         return getWindowsProgramDataDir();
@@ -565,7 +640,7 @@ nlohmann::json File::extractPropsFromJS(const std::string& jsContent)
         }
         catch (const nlohmann::json::parse_error& e)
         {
-            LOG_INFO("JSON parse error: ", e.what(), "\nOffending JSON:\n", cabbage::Utils::getJsonWithLineNumbers(propsString));
+            cabbage::logInfo << "JSON parse error: " << e.what() << "\nOffending JSON:\n" << cabbage::Utils::getJsonWithLineNumbers(propsString);
             return {};
         }
     }
@@ -616,5 +691,6 @@ std::string File::joinPath(const std::string& dirPath, const std::string& fileNa
             return dirPath + separator + fileName;
     }
 }
+
 
 } // namespace cabbage

@@ -23,7 +23,6 @@
 #include <sstream>
 #include <fstream>
 #include <thread>
-#include <chrono>
 #include <functional>
 #include <atomic>
 #include <string>
@@ -114,11 +113,6 @@ public:
 #endif
     
 private:
-    // throttle messages going to UI on parameter change
-    void sendParamUpdateToUI(const std::string& channel, float value, int debounceIntervalMs);
-    // for channel independant updates.
-    std::unordered_map<std::string, std::chrono::steady_clock::time_point> lastUpdateTimes;
-    int debounceInterval = 100;
     std::string host = {"127.0.0.1"};
     cabbage::Engine cabbage;
     std::function<void(std::string)> triggerScript;

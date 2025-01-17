@@ -30,7 +30,7 @@ std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string& csdFil
     std::ifstream file(csdFile);
     if (!file.is_open())
     {
-        LOG_INFO("Error opening CSD file: ", csdFile);
+        cabbage::logInfo <<"Error opening CSD file: " << csdFile;
         return widgets;
     }
 
@@ -79,7 +79,7 @@ std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string& csdFil
     }
     else
     {
-        LOG_INFO("No <Cabbage> section found in the file: ", csdFile);
+        cabbage::logInfo << "No <Cabbage> section found in the file: " << csdFile;
     }
 
     return widgets;
@@ -108,7 +108,7 @@ void Parser::parseContent(const std::string& content, std::vector<nlohmann::json
     }
     catch (const nlohmann::json::parse_error& e)
     {
-        LOG_INFO("JSON parse error: ", e.what());
+        cabbage::logInfo << "JSON parse error: " << e.what();
     }
 }
 
@@ -117,7 +117,7 @@ void Parser::parseJsonFile(const std::string& filename, std::vector<nlohmann::js
     std::ifstream jsonFile(filename);
     if (!jsonFile.is_open())
     {
-        LOG_INFO("Error opening JSON file:" " <<", filename);
+        cabbage::logDebug << "Error opening JSON file:" << filename;
         return;
     }
 
@@ -248,7 +248,7 @@ void Parser::updateJson(nlohmann::json& jsonObj, const nlohmann::json& incomingJ
     }
     catch (const nlohmann::json::exception& e)
     {
-        LOG_INFO("JSON exception: ", e.what());
+        cabbage::logInfo << "JSON exception: " << e.what();
     }
 }
 

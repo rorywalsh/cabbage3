@@ -279,7 +279,7 @@ struct CabbageOpcodes
             }
         }
         catch (const nlohmann::json::parse_error& e) {
-            std::cerr << "JSON parse error: " << e.what() << std::endl;
+            cabbage::logDebug << "JSON parse error: " << e.what();
         }
         return {};
     }
@@ -314,7 +314,7 @@ struct CabbageOpcodes
             data.cabbageJson = parseAndFormatJson(identifier);
         }
         catch (const nlohmann::json::parse_error& e){
-            std::cerr << "JSON parse error: " << e.what() << std::endl;
+            cabbage::logDebug << "JSON parse error: ", e.what();
         }
 
         return data;
