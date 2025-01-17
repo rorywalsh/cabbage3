@@ -242,8 +242,8 @@ bool File::fileExists(const std::string& filePath)
 bool File::directoryExists(const std::string& dirPath) 
 {
 #if defined(_WIN32)
-    DWORD attrib = GetFileAttributesA(dirPath.c_str());
-    return (attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_DIRECTORY));
+    return std::filesystem::exists(std::filesystem::path(dirPath)) &&
+        std::filesystem::is_directory(std::filesystem::path(dirPath));
 #else
     struct stat info;
     if (stat(dirPath.c_str(), &info) != 0) return false;
@@ -344,52 +344,37 @@ std::string File::getSettingsFile()
 
 std::string File::getSettingsProperty(const std::string& section, const std::string& key)
 {
-    // Open the settings file
-    std::ifstream file(getSettingsFile());
+    // Open the settings file in binary mode
+    std::ifstream file(getSettingsFile(), std::ios::binary);
     if (!file.is_open())
     {
-        //std::cerr << "Error: Could not open the file " << getSettingsFile() << std::endl;
+        std::cerr << "Error: Could not open the file " << getSettingsFile() << std::endl;
         return "";
     }
-    
-    // Parse the JSON content from the file
+
+    // Read file contents
+    std::ostringstream oss;
+    oss << file.rdbuf();
+    std::string fileContent = oss.str();
+    file.close();
+
+    // Parse JSON data
     nlohmann::json jsonData;
     try {
-        file >> jsonData;
+        jsonData = nlohmann::json::parse(fileContent);
     }
-    catch (const std::exception& e) {
-        std::cerr << "Error: Failed to parse JSON - " << e.what() << std::endl;
+    catch (const nlohmann::json::parse_error& e) {
+        LOG_INFO("Parse error : ", e.what(), " at byte position ", e.byte);
         return "";
     }
-    
-    // Check if the section exists
-    if (jsonData.contains(section))
+
+    // Validate section and key existence
+    if (jsonData.contains(section) && jsonData[section].contains(key))
     {
-        // Get the section object
-        nlohmann::json sectionObj = jsonData[section];
-        
-        // Check if the key exists within the section
-        if (sectionObj.contains(key))
-        {
-            try {
-                // Return the value as a string
-                return sectionObj[key].get<std::string>();
-            }
-            catch (const std::exception& e) {
-                std::cerr << "Error: Failed to retrieve the key '" << key << "' as a string - " << e.what() << std::endl;
-                return "";
-            }
-        }
-        else
-        {
-            std::cerr << "Error: Key '" << key << "' not found in section '" << section << "'." << std::endl;
-        }
+        return jsonData[section][key].get<std::string>();
     }
-    else
-    {
-        std::cerr << "Error: Section '" << section << "' not found in the JSON file." << std::endl;
-    }
-    
+
+    std::cerr << "Error: Section '" << section << "' or key '" << key << "' not found." << std::endl;
     return "";
 }
 //===========================================================================================
