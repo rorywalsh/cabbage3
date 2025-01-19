@@ -54,6 +54,8 @@
 #include "choc/audio/choc_AudioFileFormat_MP3.h"
 #include "choc/audio/choc_SampleBuffers.h"
 
+#include <mutex>
+
 namespace cabbage {
 
 // Function to handle debug output in Visual Studio
