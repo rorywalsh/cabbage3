@@ -364,7 +364,7 @@ std::string File::getSettingsProperty(const std::string& section, const std::str
         jsonData = nlohmann::json::parse(fileContent);
     }
     catch (const nlohmann::json::parse_error& e) {
-        LOG_INFO("Parse error : ", e.what(), " at byte position ", e.byte);
+        cabbage::logInfo << "Parse error : " << e.what() << " at byte position " << e.byte;
         return "";
     }
 
@@ -374,7 +374,7 @@ std::string File::getSettingsProperty(const std::string& section, const std::str
         return jsonData[section][key].get<std::string>();
     }
 
-    std::cerr << "Error: Section '" << section << "' or key '" << key << "' not found." << std::endl;
+    cabbage::logInfo << "Error: Section '" << section << "' or key '" << key << "' not found.";
     return "";
 }
 //===========================================================================================

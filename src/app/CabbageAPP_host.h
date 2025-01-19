@@ -21,16 +21,27 @@
 #include <vector>
 #include <limits>
 #include <memory>
-
 #include "wdltypes.h"
 #include "wdlstring.h"
-
 #include "IPlugPlatform.h"
 #include "IPlugConstants.h"
-
 #include "config.h"
+
 #if defined(CabbageApp)
+    // Undefined Macros due to conflicts in ixwebsockets library
+    #undef logInfo
+    #undef logDebug
+    #undef logWarning
+    #undef logError
     #include <ixwebsocket/IXWebSocketServer.h>
+
+    namespace cabbage {
+    // To use the logging functions like std::ostream:
+    #define logInfo LogInfo()
+    #define logDebug LogVerbose(__FILE__, __LINE__, __FUNCTION__)
+    #define logWarning LogWarning(__FILE__, __LINE__, __FUNCTION__)
+    #define logError LogError(__FILE__, __LINE__, __FUNCTION__)
+    }
 #endif
 
 #ifdef OS_WIN

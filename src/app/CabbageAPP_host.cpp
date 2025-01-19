@@ -39,7 +39,7 @@ IPlugAPPHost::IPlugAPPHost(std::string file, int port)
 : csdFile(file), mIPlug(MakePlug(InstanceInfo{this}, file)), portNumber(port)
 {
    //constructor for Cabbage service app
-    LOG_VERBOSE("IPlugAPPHost::IPlugAPPHost");
+    cabbage::logDebug << "IPlugAPPHost::IPlugAPPHost";
 }
 #else
 IPlugAPPHost::IPlugAPPHost()
@@ -90,7 +90,7 @@ bool IPlugAPPHost::InitProcessor()
     auto callback = [&](CabbageOpcodeData data) {
             auto& cabbage = cabbageProcessor->getCabbageEngine();
             auto widgetOpt = cabbage.getWidget(data.channel);
-            LOG_VERBOSE("Host callback triggered for channel:", data.channel);
+            cabbage::logDebug << "Host callback triggered for channel:" << data.channel;
             if (widgetOpt.has_value())
             {
                 auto& j = widgetOpt.value().get();
@@ -104,7 +104,7 @@ bool IPlugAPPHost::InitProcessor()
                     msg["channel"] = data.channel;
                     msg["data"] = j.dump();
                     webSocket.send(msg.dump());
-                    LOG_VERBOSE(msg.dump(4));
+                    cabbage::logDebug << msg.dump(4);
                 }
                 else{
                     if(data.type == CabbageOpcodeData::MessageType::Value)
@@ -116,7 +116,7 @@ bool IPlugAPPHost::InitProcessor()
                         msg["channel"] = data.channel;
                         msg["value"] = j["value"].get<float>();
                         webSocket.send(msg.dump());
-                        LOG_VERBOSE(msg.dump(4));
+                        cabbage::logDebug << msg.dump(4);
                     }
                     else
                     {
@@ -127,13 +127,13 @@ bool IPlugAPPHost::InitProcessor()
                         msg["channel"] = data.channel;
                         msg["data"] = j.dump();
                         webSocket.send(msg.dump());
-                        LOG_VERBOSE(msg.dump(4));
+                        cabbage::logDebug << msg.dump(4);
                     }
                 }
             }
         };
     
-    LOG_VERBOSE("Assigning called host callback function.");
+    cabbage::logDebug << "Assigning called host callback function.";
     cabbageProcessor->hostCallback = callback;
 #endif
     return true;
@@ -293,13 +293,13 @@ bool IPlugAPPHost::InitWebSocket()
                         }
                     }
                     catch (nlohmann::json::exception& e) {
-                        LOG_VERBOSE("Error:", e.what());
+                        cabbage::logDebug << "Error:", e.what();
                         return false;
                     }
                 }
                 else if (msg->type == ix::WebSocketMessageType::Open)
                 {
-                    LOG_VERBOSE("Connection established");
+                    cabbage::logDebug << "Connection established";
                     //if connection is ope we need to send all parse jSON objects to VS-Code..
                     for( auto& w : cabbage.getWidgets())
                     {
@@ -313,12 +313,12 @@ bool IPlugAPPHost::InitWebSocket()
                 }
                 else if (msg->type == ix::WebSocketMessageType::Close)
                 {
-                    LOG_VERBOSE("websocket connection closed..");
+                    cabbage::logDebug << "websocket connection closed..";
                 }
                 else if (msg->type == ix::WebSocketMessageType::Error)
                 {
                     // Maybe SSL is not configured properly
-                    LOG_VERBOSE("Connection error: ", msg->errorInfo.reason);
+                    cabbage::logDebug << "Connection error: " << msg->errorInfo.reason;
                     //std::cout << "> " << std::flush;
                 }
 
@@ -446,7 +446,7 @@ bool IPlugAPPHost::InitState()
         }
         catch (const nlohmann::json::parse_error& e)
         {
-            LOG_VERBOSE("JSON parse error: ", e.what());
+            cabbage::logDebug << "JSON parse error: ", e.what();
             auto t = e.what();
             cabAssert(false, "Can't parse settings file");
         }
@@ -656,7 +656,7 @@ int IPlugAPPHost::GetMIDIPortNumber(ERoute direction, const char* nameToTest) co
 
 void IPlugAPPHost::ProbeAudioIO()
 {
-    LOG_VERBOSE("\nRtAudio Version ", RtAudio::getVersion());
+    cabbage::logDebug << "\nRtAudio Version " << RtAudio::getVersion();
     
     RtAudio::DeviceInfo info;
     
@@ -838,7 +838,7 @@ bool IPlugAPPHost::TryToChangeAudio()
 
     if (resetToDefault)
     {
-        LOG_VERBOSE("couldn't find previous audio device, reseting to default\n");
+        cabbage::logDebug << "couldn't find previous audio device, reseting to default\n";
     }
 
     if (failedToFindDevice)
@@ -959,7 +959,7 @@ void IPlugAPPHost::CloseAudio()
             }
             catch (const std::runtime_error &e)
             {
-                LOG_INFO(e.what());
+                cabbage::logDebug << "Error closing audio stream:" << e.what();
             }
         }
         
@@ -1002,7 +1002,7 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
     auto inDevName = foundValidInputDevice ? mDAC->getDeviceInfo(inId).name : "";
     auto outDevName = mDAC->getDeviceInfo(outId).name;
     
-    LOG_VERBOSE("Attempting to start audio with the following settings:\nSR: ", sr, "\nBuffer Size: ", mBufferSize, "\nInput device: ", inDevName, "\nNumber of channels: ", iParams.nChannels, "\nOutput device: ", outDevName, "\nNumber of channels: ", oParams.nChannels);
+    cabbage::logDebug << "Attempting to start audio with the following settings:\nSR: " << sr << "\nBuffer Size: " << mBufferSize << "\nInput device: " << inDevName << "\nNumber of channels: " << iParams.nChannels << "\nOutput device: " << outDevName << "\nNumber of channels: " << oParams.nChannels;
 
     
     RtAudio::StreamOptions options;
@@ -1041,7 +1041,7 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
     }
     catch (const std::runtime_error &e)
     {
-        LOG_INFO("Issue opening audio stream: ", e.what());
+        cabbage::logDebug << "Issue opening audio stream: " << e.what();
         return false;
     }
     
@@ -1276,5 +1276,5 @@ void IPlugAPPHost::MIDICallback(double deltatime, std::vector<uint8_t>* pMsg, vo
 // static
 void IPlugAPPHost::errorCallback(RtAudioErrorType type, const std::string &errorText )
 {
-    LOG_INFO(errorText);
+    cabbage::logDebug << errorText;
 }
