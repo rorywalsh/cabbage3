@@ -27,7 +27,7 @@ if(APPLE)
             ${CSOUND_LIBRARY_DIR_HINT}
     )
 
-else()
+elseif(WIN32)
 
     find_path(CSOUND_INCLUDE_DIR csound.h
         HINTS "C:\\Program Files\\Csound7\\include\\csound"
@@ -38,6 +38,17 @@ else()
         NAMES csound64 
         HINTS 
             "c:\\Program Files\\Csound7\\lib")
+
+else() # LINUX 
+
+    find_path(CSOUND_INCLUDE_DIR csound.h
+        HINTS "/usr/local/include/csound"
+        ${CSOUND_INCLUDE_DIR_HINT}
+    )
+
+    find_library(CSOUND_LIBRARY NAMES csound64)
+        
+    find_library(LIBSNDFILE_LIBRARY NAMES sndfile libsndfile-1 libsndfile)
 
 endif()
 

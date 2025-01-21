@@ -93,7 +93,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     # TODO: Update iPlug2 dependencies zip file md5 hash for Windows.
     set(iplug2_dependencies_url_md5 951BD51FF2F82470624C44AA5400B6D2)
 else()
-    message(FATAL_ERROR "Unsupported system for iPlug2: ${CMAKE_SYSTEM_NAME}")
+    # message(FATAL_ERROR "Unsupported system for iPlug2: ${CMAKE_SYSTEM_NAME}")
 endif()
 
 # Fetch iPlug2 dependencies into the iPlug2 source directory's Dependencies/Build subdirectory, creating it if needed.
@@ -107,10 +107,10 @@ FetchContent_Declare(
     SOURCE_DIR "${iplug2_SOURCE_DIR}/Dependencies/Build"
 )
 
-FetchContent_MakeAvailable(iplug2_dependencies)
-
-message(DEBUG "Fetching iPlug2 dependencies - done")
-
+if(NOT LINUX)
+    FetchContent_MakeAvailable(iplug2_dependencies)
+    message(DEBUG "Fetching iPlug2 dependencies - done")
+endif()
 
 if(vst3 STREQUAL "${CABBAGE_BUILD_PLUGIN_TYPE}")
     message(DEBUG "Fetching vst3sdk")
