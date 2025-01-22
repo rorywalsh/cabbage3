@@ -30,8 +30,8 @@ if(LINUX)
     fetch_github_dependency(
         iplug2
         GIT_REPOSITORY https://github.com/rorywalsh/iPlug2.git
-        GIT_TAG 78dd34003445783c6269702bdec0c38b9128a3d1
-        URL_MD5 8bfd950c6e3a531c3f543c1f711eb550
+        GIT_TAG 54d3de076ecd2d538af35f3a8762a852cdc5a888
+        URL_MD5 61b0425d6e05de53ac8c824d44dc4e00
         # USE_GIT
     )
 else()
