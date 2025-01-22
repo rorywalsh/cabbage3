@@ -128,7 +128,7 @@ endif()
 if(vst3 STREQUAL "${CABBAGE_BUILD_PLUGIN_TYPE}")
     message(DEBUG "Fetching vst3sdk")
 
-    set(vst3sdk_SOURCE_DIR "${iplug2_SOURCE_DIR}/Dependencies/iPlug/VST3_SDK")
+    set(vst3sdk_SOURCE_DIR "${iplug2_SOURCE_DIR}/Dependencies/IPlug/VST3_SDK")
     if(NOT EXISTS "${vst3sdk_SOURCE_DIR}/.git" AND EXISTS "${FETCHCONTENT_BASE_DIR}/vst3sdk-build")
         message(TRACE "VST3 SDK source directory not found. Removing fetched dependencies to re-fetch the VST3 SDK.")
         execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory "${FETCHCONTENT_BASE_DIR}/vst3sdk-build")
