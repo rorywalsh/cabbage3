@@ -27,13 +27,13 @@ fetch_github_dependency(
 
 
 if(LINUX)
-fetch_github_dependency(
-    iplug2
-    GIT_REPOSITORY https://github.com/rorywalsh/iPlug2.git
-    GIT_TAG fb61be00065ed1c88113372efd50098371fbb580
-    URL_MD5 28fcc338b50a43f9c3a2c1ff4eda7447
-    # USE_GIT
-)
+    fetch_github_dependency(
+        iplug2
+        GIT_REPOSITORY https://github.com/rorywalsh/iPlug2.git
+        GIT_TAG 0b512b5cc440fd57a0df9d57acd28b1ccacf8db7
+        URL_MD5 28a5b4bda3e946492b0694d28a17d6cd
+        # USE_GIT
+    )
 else()
 fetch_github_dependency(
     iplug2
