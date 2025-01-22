@@ -8,17 +8,35 @@ add_executable(${CABBAGE_PROJECT_NAME} MACOSX_BUNDLE
     ${CABBAGE_WEBVIEW_SOURCES}
 )
 
-iplug_target_add(${CABBAGE_PROJECT_NAME} PUBLIC
-    DEFINE
-        CabbageStandaloneApp
-    INCLUDE
-        "${CMAKE_SOURCE_DIR}/resources"
-    LINK
-        _base
-        iPlug2_APP
-        ${CSOUND_FRAMEWORK}
-    RESOURCE ${RESOURCES}
-)
+if(LINUX)
+    find_package(Threads REQUIRED)
+    iplug_target_add(${CABBAGE_PROJECT_NAME} PUBLIC
+        DEFINE
+            CabbageStandaloneApp
+        INCLUDE
+            "${CMAKE_SOURCE_DIR}/resources"
+        LINK
+            _base
+            iPlug2_APP
+            ${CSOUND_FRAMEWORK}
+            Threads::Threads
+        RESOURCE ${RESOURCES}
+    )
+else()
+
+    iplug_target_add(${CABBAGE_PROJECT_NAME} PUBLIC
+        DEFINE
+            CabbageStandaloneApp
+        INCLUDE
+            "${CMAKE_SOURCE_DIR}/resources"
+        LINK
+            _base
+            iPlug2_APP
+            ${CSOUND_FRAMEWORK}
+        RESOURCE ${RESOURCES}
+    )
+
+endif()
 
 iplug_configure_target(${CABBAGE_PROJECT_NAME} app)
 

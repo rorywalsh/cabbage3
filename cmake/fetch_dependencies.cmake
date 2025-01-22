@@ -110,6 +110,8 @@ FetchContent_Declare(
 if(NOT LINUX)
     FetchContent_MakeAvailable(iplug2_dependencies)
     message(DEBUG "Fetching iPlug2 dependencies - done")
+else()
+    message(DEBUG "Not fetching iPlug2 dependencies on Linux ...")
 endif()
 
 if(vst3 STREQUAL "${CABBAGE_BUILD_PLUGIN_TYPE}")

@@ -159,7 +159,7 @@ if(APPLE)
             ${CSOUND_FRAMEWORK}
     )
 
-else() # WIN32    
+elseif(WIN32)    
 
     set(CABBAGE_WEBVIEW_SOURCES
         "src/webView/IPlugWebView.h"
@@ -221,4 +221,60 @@ else() # WIN32
         ${CABBAGE_LIBRARIES}
         ${CSOUND_LIBRARY}
     )
+else()
+
+find_package(PkgConfig REQUIRED)
+
+if(LINUX)
+#    webGTKKit is required for the webview on Linux
+    pkg_check_modules(WEBKITGTK REQUIRED webkit2gtk-4.1)
+endif()
+
+set(CABBAGE_WEBVIEW_SOURCES
+    "src/webView/IPlugWebView.h"
+    "src/webView/IPlugWebView.cpp"
+    "src/webView/CabbageEditorDelegate.h"
+    "src/webView/CabbageEditorDelegate.cpp"
+)
+
+set(CABBAGE_DEFINES
+    LINUX
+)
+
+set(CABBAGE_INCLUDE_DIRS
+    "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include"
+    "${FETCHCONTENT_BASE_DIR}/choc-src/include"
+    "${FETCHCONTENT_BASE_DIR}/readerwriterqueue-src"
+    "${WEBKITGTK_INCLUDE_DIRS}"
+    "${CMAKE_SOURCE_DIR}"
+    "${CMAKE_SOURCE_DIR}/src"
+    "${CMAKE_SOURCE_DIR}/src/app"
+)
+
+set(CABBAGE_LIBRARIES
+    readerwriterqueue
+    ${WEBKITGTK_LIBRARIES}
+)
+
+add_library(_base INTERFACE)
+
+iplug_target_add(_base INTERFACE
+    DEFINE
+        CUSTOM_EDITOR="${CMAKE_SOURCE_DIR}/src/webView/CabbageEditorDelegate.h"
+        CUSTOM_EDITOR_CLASS=CabbageEditorDelegate
+        NO_IGRAPHICS
+        ${CABBAGE_DEFINES}
+    FEATURE cxx_std_17
+    INCLUDE
+        "${CMAKE_SOURCE_DIR}/resources"
+        ${CABBAGE_INCLUDE_DIRS}
+        ${CSOUND_INCLUDE_DIRS}
+        ${iplug2_SOURCE_DIR}/Dependencies/Extras/nlohmann
+    LINK_DIR
+        ${WEBKITGTK_LIBRARY_DIRS}
+    LINK
+        iPlug2_GL2
+        ${CABBAGE_LIBRARIES}
+        ${CSOUND_LIBRARY}
+)
 endif()
