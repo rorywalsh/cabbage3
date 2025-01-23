@@ -35,6 +35,9 @@
 #include <winrt/Windows.System.h>
 #include <dispatcherqueue.h>
 #include <winrt/base.h>  // For winrt::com_ptr
+#else //__linux__
+#include <gtk/gtk.h>
+#include <webkit2/webkit2.h>
 #endif
 
 BEGIN_IPLUG_NAMESPACE
@@ -101,6 +104,11 @@ private:
     EventRegistrationToken mNavigationCompletedToken;
     EventRegistrationToken mContextMenuRequestedToken;
     bool mShowOnLoad = true;
+#else
+    bool mShowOnLoad = true;
+	GtkWidget* mParentWnd = nullptr;
+    // WebView instance (using WebKitGTK)
+    GtkWidget* mWebViewCtrlr = nullptr;
 #endif
 };
 

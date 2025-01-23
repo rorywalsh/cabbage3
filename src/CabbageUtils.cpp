@@ -337,7 +337,8 @@ std::string File::getSettingsFile()
     iniPath.Append("settings.json"); // add file name to path
     return iniPath.Get();
 #else
-#error NOT IMPLEMENTED
+//#error NOT IMPLEMENTED for linux
+    return {};
 #endif
     
 }

@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <fstream>
 #include <string>
+#include <memory>
 
 /**
  * There is a conflict between the preprocessor definition "_CR" in the

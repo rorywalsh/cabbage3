@@ -58,6 +58,8 @@
 #define DEFAULT_OUTPUT_DEV "Built-in Output"
 #elif defined(OS_LINUX)
 #include "IPlugSWELL.h"
+#define DEFAULT_INPUT_DEV "Default Device"
+#define DEFAULT_OUTPUT_DEV "Default Device"
 #endif
 
 #include "../choc_DisableAllWarnings.h"

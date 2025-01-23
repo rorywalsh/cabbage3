@@ -12,8 +12,6 @@
  * must remain intact in the portions of the code that have not been modified.
  */
 
-#pragma once
-
 #include "CabbageEditorDelegate.h"
 
 using namespace iplug;
@@ -29,11 +27,17 @@ CabbageEditorDelegate::~CabbageEditorDelegate()
   CloseWindow();
 }
 
+#ifdef _WIN32
 extern float GetScaleForHWND(HWND hWnd);
+#endif
 
 void* CabbageEditorDelegate::OpenWindow(void* pParent)
 {
+#ifdef _WIN32
   auto scale = GetScaleForHWND((HWND) pParent);
+#else
+  auto scale = 1;
+#endif
   return OpenWebView(pParent, 0., 0., static_cast<float>((GetEditorWidth()) / scale), static_cast<float>((GetEditorHeight()) / scale), scale);
 }
 

@@ -11,6 +11,7 @@
 
 #define cabAssert(exp, msg) assert(((void)msg, exp))
 
+#include <optional>
 #include <thread>
 #include <iostream>
 #include <string>

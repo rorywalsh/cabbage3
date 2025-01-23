@@ -381,7 +381,7 @@ bool IPlugAPPHost::InitState()
     mJSONPath.Append("/");
 
 #else
-#error NOT IMPLEMENTED
+//#error NOT IMPLEMENTED FOR LINUX
 #endif
     
 
@@ -475,7 +475,7 @@ bool IPlugAPPHost::InitState()
             return false;
         }
 #else
-#error NOT IMPLEMENTED
+        //#error NOT IMPLEMENTED FOR LINUX
 #endif
     }
     
@@ -777,7 +777,7 @@ bool IPlugAPPHost::TryToChangeAudioDriverType()
     //else
     //mDAC = std::make_unique<RtAudio>(RtAudio::UNIX_JACK);
 #else
-#error NOT IMPLEMENTED
+    //#error NOT IMPLEMENTED FOR LINUX
 #endif
 
     if(mDAC)
@@ -799,7 +799,7 @@ bool IPlugAPPHost::TryToChangeAudio()
 #elif defined OS_MAC
     inputID = GetAudioDeviceId(mState.mAudioInDev.Get());
 #else
-#error NOT IMPLEMENTED
+    //#error NOT IMPLEMENTED FOR LINUX
 #endif
 
     outputID = GetAudioDeviceId(mState.mAudioOutDev.Get());
@@ -894,7 +894,7 @@ bool IPlugAPPHost::SelectMIDIDevice(ERoute direction, const char* pPortName)
                 return true;
             }
 #else
-#error NOT IMPLEMENTED
+            //#error NOT IMPLEMENTED FOR LINUX
 #endif
         }
     }
@@ -934,7 +934,7 @@ bool IPlugAPPHost::SelectMIDIDevice(ERoute direction, const char* pPortName)
                 return true;
             }
 #else
-#error NOT IMPLEMENTED
+            //#error NOT IMPLEMENTED FOR LINUX
 #endif
         }
     }
