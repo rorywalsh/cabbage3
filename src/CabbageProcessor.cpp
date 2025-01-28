@@ -324,7 +324,6 @@ bool CabbageProcessor::OnMessage(int msgTag, int ctrlTag, int dataSize, const vo
 //===============================================================================
 void CabbageProcessor::OnIdle()
 {
-    ProcessEvents();
     #ifndef CabbageApp
     if (uiIsOpen)
     {
