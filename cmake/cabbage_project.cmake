@@ -163,7 +163,7 @@ elseif(WIN32)
 
     set(CABBAGE_WEBVIEW_SOURCES
         "src/webView/IPlugWebView.h"
-        "src/webView/IPlugWebView.cpp"
+        "src/webView/IPlugWebView_Windows.cpp"
         "src/webView/CabbageEditorDelegate.h"
         "src/webView/CabbageEditorDelegate.cpp"
     )
@@ -221,24 +221,29 @@ elseif(WIN32)
         ${CABBAGE_LIBRARIES}
         ${CSOUND_LIBRARY}
     )
-else()
+
+else() # LINUX
 
 find_package(PkgConfig REQUIRED)
+# webGTKKit is required for the webview on Linux
+find_package(PkgConfig REQUIRED)
+pkg_check_modules (GTK3 REQUIRED gtk+-3.0 IMPORTED_TARGET)
+pkg_check_modules (WEBKIT2 REQUIRED webkit2gtk-4.1 IMPORTED_TARGET)
 
-if(LINUX)
-#    webGTKKit is required for the webview on Linux
-    pkg_check_modules(WEBKITGTK REQUIRED webkit2gtk-4.1)
-endif()
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--no-undefined")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")
 
 set(CABBAGE_WEBVIEW_SOURCES
     "src/webView/IPlugWebView.h"
-    "src/webView/IPlugWebView.cpp"
+    "src/webView/IPlugWebView_Linux.cpp"
     "src/webView/CabbageEditorDelegate.h"
     "src/webView/CabbageEditorDelegate.cpp"
 )
 
 set(CABBAGE_DEFINES
     LINUX
+    __linux__
+    linux
 )
 
 set(CABBAGE_INCLUDE_DIRS
@@ -276,5 +281,8 @@ iplug_target_add(_base INTERFACE
         iPlug2_GL2
         ${CABBAGE_LIBRARIES}
         ${CSOUND_LIBRARY}
+        pthread
+        PkgConfig::gtk3
+        PkgConfig::webkit2
 )
 endif()

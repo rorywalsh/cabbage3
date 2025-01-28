@@ -18,7 +18,7 @@
 #include "IPlugPlatform.h"
 #include "wdlstring.h"
 #include <functional>
-#include "../CabbageUtils.h"
+#include <atomic>
 
 #if defined OS_MAC
 #define PLATFORM_VIEW NSView
@@ -32,12 +32,11 @@
 #include <wrl.h>
 #include <wil/com.h>
 #include "WebView2.h"
-#include <winrt/Windows.System.h>
-#include <dispatcherqueue.h>
-#include <winrt/base.h>  // For winrt::com_ptr
+
 #else //__linux__
-#include <gtk/gtk.h>
-#include <webkit2/webkit2.h>
+struct WebViewData;
+typedef WebViewData* WebViewHandle;
+typedef void (*WebViewMessageCallback)(void* arg, char* msg);
 #endif
 
 BEGIN_IPLUG_NAMESPACE
@@ -55,43 +54,23 @@ public:
     void CloseWebView();
     void HideWebView(bool hide);
     
-    /** Load an HTML string into the webview */
     void LoadHTML(const char* html);
-    
-    /** Instruct the webview to load an external URL */
     void LoadURL(const char* url);
-    
-    /** Load a file on disk into the web view
-     * @param fileName On windows this should be an absolute path to the file you want to load. On macOS/iOS it can just be the file name if the file is packaged into a subfolder "web" of the bundle resources
-     * @param bundleID The NSBundleID of the macOS/iOS bundle, not required on Windows */
     void LoadFile(const char* fileName, const char* bundleID = "");
-    
-    /** Runs some JavaScript in the webview
-     * @param scriptStr UTF8 encoded JavaScript code to run
-     * @param func A function conforming to completionHandlerFunc that should be called on successful execution of the script */
     void EvaluateJavaScript(const char* scriptStr, completionHandlerFunc func = nullptr);
-
-    
-    /** Enable scrolling on the webview. NOTE: currently only implemented for iOS */
     void EnableScroll(bool enable);
-    
-    /** Sets whether the webview is interactive */
     void EnableInteraction(bool enable);
-    
-    /** Set the bounds of the webview in the parent window. xywh are specifed in relation to a 1:1 non retina screen */
     void SetWebViewBounds(float x, float y, float w, float h, float scale = 1.);
-    
-    /** Called when the web view is ready to receive navigation instructions*/
+    void ProcessEvents();
+
     virtual void OnWebViewReady() {}
-    
-    /** Called after navigation instructions have been exectued and e.g. a page has loaded */
     virtual void OnWebContentLoaded() {}
-    
-    /** When a script in the web view posts a message, it will arrive as a UTF8 json string here */
     virtual void OnMessageFromWebView(const char* json) {}
-    
+
 private:
     bool mOpaque = true;
+    std::atomic<bool> should_exit_{false};
+
 #if defined OS_MAC || defined OS_IOS
     void* mWKWebView = nullptr;
     void* mWebConfig = nullptr;
@@ -104,11 +83,11 @@ private:
     EventRegistrationToken mNavigationCompletedToken;
     EventRegistrationToken mContextMenuRequestedToken;
     bool mShowOnLoad = true;
-#else
-    bool mShowOnLoad = true;
-	GtkWidget* mParentWnd = nullptr;
-    // WebView instance (using WebKitGTK)
-    GtkWidget* mWebViewCtrlr = nullptr;
+#else //__linux__
+//    WebKitWebContext* webviewContext = {};
+//    GtkWidget* webview = {};
+//    WebKitUserContentManager* manager = {};
+//    unsigned long signalHandlerID = 0;
 #endif
 };
 

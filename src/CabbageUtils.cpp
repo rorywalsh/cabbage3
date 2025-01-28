@@ -274,7 +274,7 @@ std::string File::getCabbageResourceDir()
 #elif defined(__APPLE__)
         return getMacCabbageResourceDir();
 #elif defined(__linux__)
-        return getLinuxHomeDir() + "/CabbageAudio";
+        return getLinuxHomeDir() + "/.config/CabbageAudio";
 #else
         return "";
 #endif
@@ -337,7 +337,8 @@ std::string File::getSettingsFile()
     iniPath.Append("settings.json"); // add file name to path
     return iniPath.Get();
 #else
-//#error NOT IMPLEMENTED for linux
+    iniPath.SetFormatted(2048, "%s/.config/%s/", getenv("HOME"), "Cabbage");
+    iniPath.Append("settings.json"); // add file name to path
     return {};
 #endif
     

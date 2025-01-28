@@ -77,7 +77,7 @@ void CabbageProcessor::setupCallbacks()
         if(!server.isThreadRunning())
             server.start(cabbage::File::getCsdPath(cabbage.getCsdFile()));
         const std::string mntPoint = "http://127.0.0.1:" + std::to_string(server.getCurrentPort()) + "/index.html";
-        LoadURL(mntPoint.c_str());
+//        LoadURL(mntPoint.c_str());
 #endif
         EnableScroll(false);
     };
@@ -324,10 +324,12 @@ bool CabbageProcessor::OnMessage(int msgTag, int ctrlTag, int dataSize, const vo
 //===============================================================================
 void CabbageProcessor::OnIdle()
 {
-#ifndef CabbageApp
+    ProcessEvents();
+    #ifndef CabbageApp
     if (uiIsOpen)
     {
 #endif
+        
         while (cabbage.getCsound()->GetMessageCnt() > 0)
         {
             std::string message(cabbage.getCsound()->GetFirstMessage());
@@ -338,7 +340,7 @@ void CabbageProcessor::OnIdle()
         }
 #ifndef CabbageApp
     }
-#endif
+    #endif
     CabbageOpcodeData data;
     //data contains the channel and the Cabbage code that can be comprised of any number of identifiers, i.e,
 	    // bounds(10, 10, 100, 100), text("hello"), etc.
@@ -358,10 +360,10 @@ void CabbageProcessor::OnIdle()
             }
 
 
-#ifdef CabbageApp
+    #ifdef CabbageApp
             //send data to vscode extension..
             hostCallback(data);
-#else
+    #else
             while (cabbage.getCsound()->GetMessageCnt() > 0)
             {
                 std::string message(cabbage.getCsound()->GetFirstMessage());
@@ -397,7 +399,7 @@ void CabbageProcessor::OnIdle()
                 }
                 EvaluateJavaScript(message.c_str());
             }
-#endif
+    #endif
         }
     }
 }

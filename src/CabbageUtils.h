@@ -43,6 +43,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <pwd.h>
+#include <dlfcn.h>
 #endif
 
 #include <algorithm> // for std::sort
@@ -443,11 +444,19 @@ private:
     }
     
 #elif defined(__linux__)
+    static std::string getSharedLibraryPath()
+    {
+        Dl_info dl_info;
+        if (dladdr(reinterpret_cast<void*>(&getSharedLibraryPath), &dl_info) != 0)
+        {
+            return std::string(dl_info.dli_fname);
+        }
+        return {};
+    }
+
     static std::string getLinuxBinaryPath()
     {
-        char path[PATH_MAX];
-        ssize_t count = readlink("/proc/self/exe", path, PATH_MAX);
-        return std::string(path, (count > 0) ? count : 0);
+        return getSharedLibraryPath();
     }
     
     static std::string getLinuxHomeDir()
