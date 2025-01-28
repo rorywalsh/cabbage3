@@ -163,7 +163,7 @@ elseif(WIN32)
 
     set(CABBAGE_WEBVIEW_SOURCES
         "src/webView/IPlugWebView.h"
-        "src/webView/IPlugWebView.cpp"
+        "src/webView/IPlugWebView_Windows.cpp"
         "src/webView/CabbageEditorDelegate.h"
         "src/webView/CabbageEditorDelegate.cpp"
     )
@@ -225,14 +225,13 @@ else()
 
 find_package(PkgConfig REQUIRED)
 
-if(LINUX)
 #    webGTKKit is required for the webview on Linux
-    pkg_check_modules(WEBKITGTK REQUIRED webkit2gtk-4.1)
-endif()
+pkg_check_modules(WEBKITGTK REQUIRED webkit2gtk-4.1)
+
 
 set(CABBAGE_WEBVIEW_SOURCES
     "src/webView/IPlugWebView.h"
-    "src/webView/IPlugWebView.cpp"
+    "src/webView/IPlugWebView_Linux.cpp"
     "src/webView/CabbageEditorDelegate.h"
     "src/webView/CabbageEditorDelegate.cpp"
 )

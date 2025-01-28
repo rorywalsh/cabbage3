@@ -105,10 +105,7 @@ private:
     EventRegistrationToken mContextMenuRequestedToken;
     bool mShowOnLoad = true;
 #else
-    bool mShowOnLoad = true;
-	GtkWidget* mParentWnd = nullptr;
-    // WebView instance (using WebKitGTK)
-    GtkWidget* mWebViewCtrlr = nullptr;
+
 #endif
 };
 
