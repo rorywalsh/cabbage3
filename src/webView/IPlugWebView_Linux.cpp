@@ -28,67 +28,138 @@ IWebView::~IWebView()
     CloseWebView();
 }
 
-struct SharedData {
+struct SharedData
+{
     Window parentWindow;
     bool ready;
 };
 
+// Callback function for reparenting after the GTK window is realized
+void on_realize(GtkWidget* window, gpointer user_data)
+{
+    SharedData* shared = (SharedData*)user_data;
+
+    GdkWindow* gdkWindow = gtk_widget_get_window(window);
+    if (!gdkWindow)
+    {
+        std::cerr << "Failed to get GdkWindow\n";
+        return;
+    }
+
+    Window childWindow = gdk_x11_window_get_xid(gdkWindow);
+    Display* display = gdk_x11_get_default_xdisplay();
+
+    std::cout << "Reparenting to parent window: " << shared->parentWindow << "\n";
+    XReparentWindow(display, childWindow, shared->parentWindow, 0, 0);
+}
+
 // Entry point for child process
-extern "C" int webview_process_start(int argc, char* argv[]) {
+extern "C" int webview_process_start(int argc, char* argv[])
+{
     if (argc != 3 || strcmp(argv[1], "webview-process") != 0)
+    {
+        std::cerr << "Invalid arguments to webview_process_start\n";
         return 1;
+    }
 
     // Connect to shared memory
     const char* shmName = argv[2];
-    int fd = shm_open(shmName, O_RDWR, 0666);
+    int fd = shm_open(shmName, O_RDWR, 0660);
+    if (fd < 0)
+    {
+        std::cerr << "Failed to open shared memory\n";
+        return 1;
+    }
+
     SharedData* shared = (SharedData*)mmap(nullptr, sizeof(SharedData),
-                                         PROT_READ | PROT_WRITE,
-                                         MAP_SHARED, fd, 0);
-    
+                                           PROT_READ | PROT_WRITE,
+                                           MAP_SHARED, fd, 0);
+    if (shared == MAP_FAILED)
+    {
+        std::cerr << "Failed to mmap shared memory\n";
+        close(fd);
+        return 1;
+    }
+
+    close(fd); // No longer needed after mmap
+
     // Initialize GTK
     gtk_init(&argc, &argv);
-    
+
     GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     WebKitWebView* webView = WEBKIT_WEB_VIEW(webkit_web_view_new());
     gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(webView));
-    
+
+    g_signal_connect(window, "realize", G_CALLBACK(on_realize), shared);
+
     gtk_widget_show_all(window);
-    
     webkit_web_view_load_uri(webView, "https://google.com");
-    
-    // Reparent into plugin window
-    GdkWindow* gdkWindow = gtk_widget_get_window(window);
-    Window childWindow = gdk_x11_window_get_xid(gdkWindow);
-    Display* display = gdk_x11_get_default_xdisplay();
-    XReparentWindow(display, childWindow, shared->parentWindow, 0, 0);
-    
+
     // Main loop
     gtk_main();
     return 0;
 }
 
 // Function to open the WebView in the plugin
-void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float height, float scale, bool isTransparent) {
-    // Create shared memory
+void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float height, float scale, bool isTransparent)
+{
     const char* shmName = "/webview-12345";
-    int fd = shm_open(shmName, O_CREAT | O_RDWR, 0666);
-    ftruncate(fd, sizeof(SharedData));
-    
+
+    // Create shared memory
+    int fd = shm_open(shmName, O_CREAT | O_RDWR, 0660);
+    if (fd < 0)
+    {
+        std::cerr << "Failed to create shared memory\n";
+        return nullptr;
+    }
+
+    if (ftruncate(fd, sizeof(SharedData)) < 0)
+    {
+        std::cerr << "Failed to set shared memory size\n";
+        close(fd);
+        return nullptr;
+    }
+
     SharedData* shared = (SharedData*)mmap(nullptr, sizeof(SharedData),
-                                         PROT_READ | PROT_WRITE,
-                                         MAP_SHARED, fd, 0);
+                                           PROT_READ | PROT_WRITE,
+                                           MAP_SHARED, fd, 0);
+    if (shared == MAP_FAILED)
+    {
+        std::cerr << "Failed to mmap shared memory\n";
+        close(fd);
+        return nullptr;
+    }
+
     shared->parentWindow = reinterpret_cast<Window>(pParent);
-    
-    // Launch child process using ld-linux
-    auto self = cabbage::File::getBinaryPath();
+    close(fd); // No longer needed after mmap
 
+    // Get the binary path of the current executable
+    char selfPath[1024];
+    ssize_t len = readlink("/proc/self/exe", selfPath, sizeof(selfPath) - 1);
+    if (len == -1)
+    {
+        std::cerr << "Failed to determine executable path\n";
+        return nullptr;
+    }
+    selfPath[len] = '\0';
 
-    const char* ldPath = "/lib/ld-linux.so.2"; // Adjust this path based on your system
-    const char* args[] = {ldPath, self.c_str(), "webview-process", shmName, nullptr}; // Use selfPath as the shared object path
+    // Fork and exec the subprocess
+    pid_t pid = fork();
+    if (pid == -1)
+    {
+        std::cerr << "Failed to fork process\n";
+        return nullptr;
+    }
+    else if (pid == 0)
+    {
+        // Child process: execute the same binary with a different entry point
+        const char* args[] = {selfPath, "webview-process", shmName, nullptr};
+        execv(selfPath, (char* const*)args);
 
-
-    const char* newArgs[] = {ldPath, self.c_str(), nullptr};
-    execv(newArgs[0], (char* const*)newArgs);
+        // If execv fails
+        std::cerr << "execv failed\n";
+        exit(1);
+    }
 
     return pParent;
 }
