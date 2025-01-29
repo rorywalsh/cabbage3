@@ -8,6 +8,8 @@ add_library(${CABBAGE_PROJECT_NAME} MODULE
     ${CABBAGE_WEBVIEW_SOURCES}
 )
 
+
+
 iplug_target_add(${CABBAGE_PROJECT_NAME} PUBLIC
     DEFINE
         CabbagePluginEffect
@@ -19,8 +21,9 @@ iplug_target_add(${CABBAGE_PROJECT_NAME} PUBLIC
     RESOURCE ${RESOURCES}
 )
 
+set(SMTG_OS_LINUX "ON")
 
-
+target_compile_options(${CABBAGE_PROJECT_NAME} PRIVATE -Wno-error)
 iplug_configure_target(${CABBAGE_PROJECT_NAME} vst3)
 
 set_target_properties(${CABBAGE_PROJECT_NAME} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME "${CABBAGE_PROJECT_NAME}")
