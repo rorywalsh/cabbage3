@@ -34,7 +34,9 @@ struct SharedData
     bool ready;
 };
 
-// Callback function for reparenting after the GTK window is realized
+pid_t subprocess_pid = -1; // Global variable to store subprocess PID
+
+// Callback for reparenting after window realization
 void on_realize(GtkWidget* window, gpointer user_data)
 {
     SharedData* shared = (SharedData*)user_data;
@@ -51,6 +53,16 @@ void on_realize(GtkWidget* window, gpointer user_data)
 
     std::cout << "Reparenting to parent window: " << shared->parentWindow << "\n";
     XReparentWindow(display, childWindow, shared->parentWindow, 0, 0);
+}
+
+// Function to clean up the subprocess
+void cleanup_subprocess()
+{
+    if (subprocess_pid != -1)
+    {
+        std::cout << "Killing subprocess with PID: " << subprocess_pid << "\n";
+        kill(subprocess_pid, SIGKILL); // Terminate subprocess
+    }
 }
 
 // Entry point for child process
@@ -133,40 +145,31 @@ void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float 
     shared->parentWindow = reinterpret_cast<Window>(pParent);
     close(fd); // No longer needed after mmap
 
-    // Get the binary path of the current executable
-    char selfPath[1024];
-    ssize_t len = readlink("/proc/self/exe", selfPath, sizeof(selfPath) - 1);
-    if (len == -1)
+    // Use cabbage::File::getBinaryPath() to get the binary path
+    std::string selfPath = cabbage::File::getBinaryPath();
+
+    // Build the command to run the subprocess
+    std::string command = selfPath + " webview-process " + shmName;
+
+    // Launch the subprocess using system()
+    subprocess_pid = system(command.c_str());
+    if (subprocess_pid == -1)
     {
-        std::cerr << "Failed to determine executable path\n";
+        std::cerr << "Failed to launch subprocess using system()\n";
         return nullptr;
     }
-    selfPath[len] = '\0';
 
-    // Fork and exec the subprocess
-    pid_t pid = fork();
-    if (pid == -1)
-    {
-        std::cerr << "Failed to fork process\n";
-        return nullptr;
-    }
-    else if (pid == 0)
-    {
-        // Child process: execute the same binary with a different entry point
-        const char* args[] = {selfPath, "webview-process", shmName, nullptr};
-        execv(selfPath, (char* const*)args);
+    std::cout << "Subprocess launched with PID: " << subprocess_pid << "\n";
 
-        // If execv fails
-        std::cerr << "execv failed\n";
-        exit(1);
-    }
+    // Register cleanup function to be called when the parent exits
+
 
     return pParent;
 }
 
 void IWebView::CloseWebView()
 {
-
+    atexit(cleanup_subprocess);
 }
 
 void IWebView::HideWebView(bool hide)
