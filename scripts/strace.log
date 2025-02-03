@@ -1,3 +1,0 @@
-32195 execve("/home/rory/.vst3/CabbageVST3Effect.vst3/Contents/x86_64-linux/CabbageVST3Effect.so", ["/home/rory/.vst3/CabbageVST3Effe"...], 0x7ffdfdab6ba8 /* 59 vars */) = 0
-32195 --- SIGSEGV {si_signo=SIGSEGV, si_code=SEGV_ACCERR, si_addr=0x7b14c3200000} ---
-32195 +++ killed by SIGSEGV (core dumped) +++
