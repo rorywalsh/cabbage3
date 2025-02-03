@@ -121,7 +121,7 @@ public:
         oss << message.str();
 
         if (includeContext) {
-            oss << std::filesystem::path(file).filename().string() << " (" << line << ") " << function
+            oss << " " << std::filesystem::path(file).filename().string() << " (" << line << ") " << function
                 << " [Thread ID: " << std::this_thread::get_id() << "]";
         }
 

@@ -101,8 +101,8 @@ void CabbageServer::stop()
 
 void CabbageServer::changeMountPoint(std::string mp)
 {
-	if (mServer.set_mount_point("/", mp))
-		std::cout << ("success");
+	if (!mServer.set_mount_point("/", mp))
+		std::cout << ("couldn't set up mount point");
 }
 
 void CabbageServer::start(std::string mp)
@@ -111,8 +111,8 @@ void CabbageServer::start(std::string mp)
 	isListening = true;
 
 
-	if (mServer.set_mount_point("/", mountPoint))
-		std::cout << ("success");
+	if (!mServer.set_mount_point("/", mountPoint))
+		std::cout << ("couldn't set mount point");
 
 	mServer.set_logger([](const auto& req, const auto& res) {
 //		std::cout << log(req, res) << std::endl;

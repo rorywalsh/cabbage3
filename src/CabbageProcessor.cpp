@@ -77,7 +77,7 @@ void CabbageProcessor::setupCallbacks()
         if(!server.isThreadRunning())
             server.start(cabbage::File::getCsdPath(cabbage.getCsdFile()));
         const std::string mntPoint = "http://127.0.0.1:" + std::to_string(server.getCurrentPort()) + "/index.html";
-//        LoadURL(mntPoint.c_str());
+        LoadURL(mntPoint.c_str());
 #endif
         EnableScroll(false);
     };

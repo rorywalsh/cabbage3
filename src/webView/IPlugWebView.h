@@ -19,6 +19,7 @@
 #include "wdlstring.h"
 #include <functional>
 #include <atomic>
+#include "CabbageUtils.h"
 
 #if defined OS_MAC
 #define PLATFORM_VIEW NSView
@@ -34,9 +35,133 @@
 #include "WebView2.h"
 
 #else //__linux__
-struct WebViewData;
-typedef WebViewData* WebViewHandle;
-typedef void (*WebViewMessageCallback)(void* arg, char* msg);
+#include <iostream>
+#include <sys/mman.h>    // For mmap, munmap
+#include <sys/stat.h>    // For shm_open
+#include <fcntl.h>       // For O_RDWR, O_CREAT
+#include <unistd.h>      // For close
+class MessagePipeHost {
+public:
+    enum MessageType{
+        LoadUrl = 0,
+        EvaluateJS
+    };
+
+    MessagePipeHost() : pipe_fd(-1) {
+    }
+
+    ~MessagePipeHost() {
+        if (pipe_fd != -1) {
+            close(pipe_fd);
+        }
+    }
+
+    void createPipe(const char* name) {
+        pipeName = name;
+        // Create the named pipe (FIFO) if it doesn't exist
+        if (mkfifo(name, 0666) == -1) {
+            if (errno != EEXIST) {
+                perror("mkfifo failed");
+                exit(1);
+            } else {
+                cabbage::logInfo << "Pipe already exists: " << pipeName;
+            }
+        } else {
+            cabbage::logInfo << "Pipe created: " << pipeName;
+        }
+    }
+
+    bool isOpenForWriting(bool shouldWait = false) 
+    {
+        int count = 0;
+        if (!openForWriting) 
+        {
+            // In some cases we simply have to wait for the child pipe to be
+            // ready - when we first load the UI for example
+            if(shouldWait)
+            {
+                while (count<1000) 
+                {
+                    pipe_fd = open(pipeName, O_WRONLY | O_NONBLOCK);
+
+                    if (pipe_fd == -1) 
+                    {
+                        cabbage::logInfo << "Failed to open pipe for writing, retrying...";
+                        count++;
+                        sleep(.2);
+                    } 
+                    else 
+                    {
+                        cabbage::logInfo << "Pipe opened for writing: " << pipeName;
+                        openForWriting = true;
+                        return true;
+                    }
+                }
+                cabbage::logDebug << "Pipe couldn't be opened for writing: " << pipeName;
+            }
+            else
+            {
+                pipe_fd = open(pipeName, O_WRONLY | O_NONBLOCK);
+
+                if (pipe_fd == -1)
+                {
+                    cabbage::logInfo << "Failed to open pipe for writing, retrying...";
+                } 
+                else 
+                {
+                    cabbage::logInfo << "Pipe opened for writing: " << pipeName;
+                    openForWriting = true;
+                    return true;
+                }
+            }
+        }
+
+        return true;  // If already open, return true
+    }
+
+    void send(MessageType type, const std::string& message) 
+    {
+        if (pipe_fd == -1) 
+        {
+            cabbage::logInfo << "Pipe is not open, cannot send message!";
+            return;
+        }
+
+        nlohmann::json jsonMessage;
+        std::string formattedMessage;
+
+        if (type == MessageType::LoadUrl)
+        {
+          jsonMessage["command"] = "LoadUrl";
+          jsonMessage["data"] = message;
+        } 
+        else if (type == MessageType::EvaluateJS) 
+        {
+          jsonMessage["command"] = "EvaluateJS";
+          jsonMessage["data"] = message;
+        }
+
+        cabbage::logInfo << "Sending message: " << jsonMessage.dump(4);
+
+        ssize_t bytesWritten = write(pipe_fd, jsonMessage.dump().c_str(), jsonMessage.dump().length());
+        if (bytesWritten == -1) 
+        {
+            perror("write to pipe failed");
+        } 
+        else 
+        {
+            cabbage::logInfo << "Message sent to pipe: " << formattedMessage;
+        }
+    }
+
+private:
+    const char* pipeName;
+    int pipe_fd;
+    bool openForWriting = false;
+};
+
+#include <fstream>
+#include <memory>
 #endif
 
 BEGIN_IPLUG_NAMESPACE
@@ -106,10 +231,8 @@ private:
     EventRegistrationToken mContextMenuRequestedToken;
     bool mShowOnLoad = true;
 #else //__linux__
-//    WebKitWebContext* webviewContext = {};
-//    GtkWidget* webview = {};
-//    WebKitUserContentManager* manager = {};
-//    unsigned long signalHandlerID = 0;
+    pid_t pid = 1;
+    MessagePipeHost messagePipe;
 #endif
 };
 
