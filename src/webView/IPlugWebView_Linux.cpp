@@ -95,15 +95,15 @@ void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float 
     };
 
     // Fork process
-    pid = fork();
-    if (pid == 0) {
+    webviewPid = fork();
+    if (webviewPid == 0) {
         usleep(10 * 1000);
         execv(args[0], const_cast<char* const*>(args.data()));
         perror("execv failed");  // Print error if exec fails
         //now kill the process that started the webview...
         exit(1);
     }
-    else if (pid < 0) {
+    else if (webviewPid < 0) {
         cabbage::logDebug << "Fork failed";
         return nullptr;
     }
@@ -117,7 +117,9 @@ void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float 
 
 
 void IWebView::CloseWebView() {
-//    fclose(namedPipe);
+    messagePipe.closePipe();
+    kill(webviewPid, SIGTERM);
+
 }
 
 void IWebView::HideWebView(bool hide) {
@@ -130,7 +132,7 @@ void IWebView::LoadHTML(const char* html) {
 
 void IWebView::LoadURL(const char* url) {
     if(messagePipe.isOpenForWriting(true))
-        messagePipe.send(MessagePipeHost::MessageType::LoadUrl, url);
+        messagePipe.send(cabbage::MessagePipeHost::MessageType::LoadUrl, url);
 }
 
 void IWebView::LoadFile(const char* fileName, const char* bundleID) {
@@ -139,7 +141,7 @@ void IWebView::LoadFile(const char* fileName, const char* bundleID) {
 
 void IWebView::EvaluateJavaScript(const char* scriptStr, completionHandlerFunc func) {
     if(messagePipe.isOpenForWriting())
-        messagePipe.send(MessagePipeHost::MessageType::EvaluateJS, scriptStr);
+        messagePipe.send(cabbage::MessagePipeHost::MessageType::EvaluateJS, scriptStr);
 }
 
 void IWebView::EnableScroll(bool enable) {

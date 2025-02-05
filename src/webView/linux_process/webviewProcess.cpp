@@ -13,6 +13,8 @@
 #include <sstream>
 #include "json.hpp"
 
+//g++ -o webviewLaunch webviewProcess.cpp $(pkg-config --cflags --libs gtk+-3.0 webkit2gtk-4.1 x11)
+
 class WebViewApp {
 public:
     WebViewApp(int argc, char *argv[]) {
@@ -77,9 +79,7 @@ public:
 
     ~WebViewApp() {
         // Close the named pipe
-        if (pipe_fd != -1) {
-            close(pipe_fd);
-        }
+        closePipe();
     }
 
     void run() {
@@ -142,6 +142,8 @@ private:
         // Add the script to the WebView
         webkit_user_content_manager_add_script(userContentManager, script);
 
+        gtk_window_set_skip_taskbar_hint(GTK_WINDOW(window), TRUE);
+
         // Add the WebView to the GTK window
         gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(web_view));
 
@@ -201,19 +203,23 @@ private:
                 std::cout << "Received message: " << message.dump() << std::endl;
                 // Check for required fields ("data" and "command")
                 if (message.contains("data") && message.contains("command")) {
-                    std::string data = message["data"];
+                    std::string msgData = message["data"];
                     std::string command = message["command"];
 
                     // Process the message based on the "command" field
-                    if (command == "LoadUrl") {
+                    if (command == "LoadUrl") 
+                    {
                         // Handle the LOAD_URL command
-                        std::cout << "Loading URL: " << data << std::endl;
-                        webkit_web_view_load_uri(app->web_view, data.c_str());
-                    } else if (command == "EvaluateJs") {
+                        std::cout << "Loading URL: " << msgData << std::endl;
+                        webkit_web_view_load_uri(app->web_view, msgData.c_str());
+                    } 
+                    else if (command == "EvaluateJs") 
+                    {
                         // Handle the EVALUATE_JS command
-                        std::cout << "Evaluating JavaScript: " << data << std::endl;
-                        webkit_web_view_evaluate_javascript(app->web_view, data.c_str(), -1, NULL, NULL, NULL, NULL, NULL);
-                    } else {
+                        std::cout << "Evaluating JavaScript: " << msgData << std::endl;
+                        webkit_web_view_evaluate_javascript(app->web_view, msgData.c_str(), -1, NULL, NULL, NULL, NULL, NULL);
+                    } 
+                    else {
                         std::cerr << "Unknown command command: " << command << std::endl;
                     }
                 } else {
@@ -227,10 +233,19 @@ private:
         return TRUE; // Continue listening for more data
     }
 
-    static void onDestroy(GtkWidget *widget, gpointer data) {
+    static void onDestroy(gpointer data)
+    {
+        std::cout << "Killing webview process" << std::endl;
         WebViewApp *app = static_cast<WebViewApp *>(data);
-        delete app; // Clean up the application
-        gtk_main_quit(); // Exit the GTK main loop
+        gtk_widget_destroy(app->window); // Destroy GTK Window
+        gtk_main_quit(); // Quit the GTK loop
+    }
+
+    void closePipe()
+    {
+        if (pipe_fd != -1) {
+            close(pipe_fd);
+        }
     }
 };
 

@@ -44,6 +44,11 @@
 #include <sys/stat.h>
 #include <pwd.h>
 #include <dlfcn.h>
+#include <sys/mman.h>    // For mmap, munmap
+#include <sys/stat.h>    // For shm_open
+#include <fcntl.h>       // For O_RDWR, O_CREAT
+#include <unistd.h>      // For close
+
 #endif
 
 #include <algorithm> // for std::sort
@@ -183,6 +188,38 @@ inline LogStream LogError(const char* file, int line, const char* function) {
 #define logWarning LogWarning(__FILE__, __LINE__, __FUNCTION__)
 #define logError LogError(__FILE__, __LINE__, __FUNCTION__)
 
+#if defined(LINUX)
+// Message Pipe Host for sending messages to and from webview on Linux
+class MessagePipeHost {
+public:
+    enum MessageType{
+        LoadUrl = 0,
+        EvaluateJS = 1,
+        KillProcess
+    };
+
+    MessagePipeHost() : pipe_fd(-1) {
+    }
+
+    ~MessagePipeHost() {
+        closePipe();
+    }
+
+    void closePipe(){
+        if (pipe_fd != -1) {
+            close(pipe_fd);
+        }
+    }
+    void createPipe(const char* name);
+    bool isOpenForWriting(bool shouldWait = false);
+    void send(MessageType type, const std::string& message = "");
+
+private:
+    const char* pipeName;
+    int pipe_fd;
+    bool openForWriting = false;
+};
+#endif
 
 class Utils 
 {

@@ -207,7 +207,119 @@ bool Utils::getEnableDevTools(const std::string& csdFile)
     // Default value if not found or error occurs
     return true;
 }
+//=======================================================================
+// MessagePipeHost class - used to communicate with webview process in Linux
+//======================================================================
+#if defined(LINUX)
+void MessagePipeHost::createPipe(const char* name)
+{
+    pipeName = name;
+    // Create the named pipe (FIFO) if it doesn't exist
+    if (mkfifo(name, 0666) == -1)
+    {
+        if (errno != EEXIST)
+        {
+            perror("mkfifo failed");
+            exit(1);
+        }
+        else
+        {
+            cabbage::logInfo << "Pipe already exists: " << pipeName;
+        }
+    }
+    else
+    {
+        cabbage::logInfo << "Pipe created: " << pipeName;
+    }
+}
 
+bool MessagePipeHost::isOpenForWriting(bool shouldWait)
+{
+    int count = 0;
+    if (!openForWriting)
+    {
+        // In some cases we simply have to wait for the child pipe to be
+        // ready - when we first load the UI for example
+        if(shouldWait)
+        {
+            while (count<100000)
+            {
+                pipe_fd = open(pipeName, O_WRONLY | O_NONBLOCK);
+
+                if (pipe_fd == -1)
+                {
+                    cabbage::logInfo << "Failed to open pipe for writing, retrying...";
+                    count++;
+                    sleep(.2);
+                }
+                else
+                {
+                    cabbage::logInfo << "Pipe opened for writing: " << pipeName;
+                    openForWriting = true;
+                    return true;
+                }
+            }
+            cabbage::logDebug << "Pipe couldn't be opened for writing: " << pipeName;
+        }
+        else
+        {
+            pipe_fd = open(pipeName, O_WRONLY | O_NONBLOCK);
+
+            if (pipe_fd == -1)
+            {
+                cabbage::logInfo << "Failed to open pipe for writing, retrying...";
+            }
+            else
+            {
+                cabbage::logInfo << "Pipe opened for writing: " << pipeName;
+                openForWriting = true;
+                return true;
+            }
+        }
+    }
+
+    return true;  // If already open, return true
+}
+
+void MessagePipeHost::send(MessageType type, const std::string& message)
+{
+    if (pipe_fd == -1)
+    {
+        cabbage::logInfo << "Pipe is not open, cannot send message!";
+        return;
+    }
+
+    nlohmann::json jsonMessage;
+    std::string formattedMessage;
+
+    if (type == MessageType::LoadUrl)
+    {
+        jsonMessage["command"] = "LoadUrl";
+        jsonMessage["data"] = message;
+    }
+    else if (type == MessageType::EvaluateJS)
+    {
+        jsonMessage["command"] = "EvaluateJS";
+        jsonMessage["data"] = message;
+    }
+    else if (type == MessageType::KillProcess)
+    {
+        jsonMessage["command"] = "KillProcess";
+    }
+
+    cabbage::logInfo << "Sending message: " << jsonMessage.dump(4);
+
+    ssize_t bytesWritten = write(pipe_fd, jsonMessage.dump().c_str(), jsonMessage.dump().length());
+    if (bytesWritten == -1)
+    {
+        perror("write to pipe failed");
+    }
+    else
+    {
+        cabbage::logInfo << "Message sent to pipe: " << formattedMessage;
+    }
+}
+#endif
 //========================================================================
 // String formatter utility class
 //========================================================================
