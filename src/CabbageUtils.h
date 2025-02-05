@@ -209,6 +209,9 @@ public:
         if (pipe_fd != -1) {
             close(pipe_fd);
         }
+        if (unlink(pipeName) == -1) {
+            perror("Error removing pipe");
+        }
     }
     void createPipe(const char* name);
     bool isOpenForWriting(bool shouldWait = false);

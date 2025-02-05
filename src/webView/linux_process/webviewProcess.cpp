@@ -1,6 +1,7 @@
 #include <gtk/gtk.h>
 #include <webkit2/webkit2.h>
 #include <gdk/gdkx.h>
+#include <gtk/gtkx.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/shape.h>
 #include <unistd.h>
@@ -23,7 +24,7 @@ public:
 
         // Parse command-line arguments
         if (argc != 10) {
-            g_printerr("Not enought ags:%d Usage: %s <x11_window_id> <x> <y> <width> <height> <scale> <isTransparent>\n", argc, argv[0]);
+            g_printerr("Not enough args:%d Usage: %s <x11_window_id> <x> <y> <width> <height> <scale> <isTransparent>\n", argc, argv[0]);
             exit(1);
         }
 
@@ -40,11 +41,6 @@ public:
 
         // Debug: Print X11 window IDs
         std::cout << "Plugin X11 Window ID: " << x11_window_id << std::endl;
-
-        // Set the X11 window ID as an environment variable for the reparent function
-        char x11_window_id_str[32];
-        snprintf(x11_window_id_str, sizeof(x11_window_id_str), "%lu", x11_window_id);
-        g_setenv("X11_WINDOW_ID", x11_window_id_str, TRUE);
 
         // Open the named pipe
         openNamedPipe();
@@ -64,20 +60,18 @@ public:
         // Show the window
         gtk_widget_show_all(window);
 
-        // Schedule the reparenting to occur after the GTK main loop starts
-        g_idle_add(reparent_window, window);
-
         // Connect the destroy signal to exit the application
         g_signal_connect(window, "destroy", G_CALLBACK(onDestroy), this);
 
         // Periodically check the named pipe for new JavaScript code
         g_timeout_add(10, readFromPipe, this);
 
-
-
+        // Make sure our window gets properly destroyed
+        g_signal_connect(window, "delete-event", G_CALLBACK(onDestroy), this);
     }
 
     ~WebViewApp() {
+        logMessage("Destructor");
         // Close the named pipe
         closePipe();
     }
@@ -97,6 +91,11 @@ private:
     int pipe_fd = -1;
     const char* pipeName = {};
 
+    static void logMessage(std::string_view message)
+    {
+        std::cout << "WebViewProc:" << message << std::endl;
+    }
+
     void openNamedPipe() {
         // Open the FIFO for reading (non-blocking)
         pipe_fd = open(pipeName, O_RDONLY | O_NONBLOCK);
@@ -111,13 +110,23 @@ private:
     }
 
     void createWindow() {
-        window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+        logMessage("Creating window");
+
+        // Create a GTK plug (embedded window) using the specified X11 window ID
+        window = gtk_plug_new(x11_window_id);
+
+        // Set the default size of the window
         gtk_window_set_default_size(GTK_WINDOW(window), (int)width, (int)height);
+
+        // Move the window to the specified position
         gtk_window_move(GTK_WINDOW(window), (int)x, (int)y);
-        gtk_window_set_decorated(GTK_WINDOW(window), FALSE); // Remove window decorations
+
+        // Remove window decorations
+        gtk_window_set_decorated(GTK_WINDOW(window), FALSE);
     }
 
     void createWebView(bool enableDebug) {
+        logMessage("Creating webview widget");
         // Create a user content manager to inject scripts
         WebKitUserContentManager *userContentManager = webkit_user_content_manager_new();
         
@@ -165,6 +174,7 @@ private:
     }
 
     static gboolean reparent_window(gpointer data) {
+        logMessage("Reparenting window");
         GtkWidget *window = GTK_WIDGET(data);
         GdkWindow *gdk_window = gtk_widget_get_window(window);
         Display *xdisplay = GDK_WINDOW_XDISPLAY(gdk_window);
@@ -218,6 +228,22 @@ private:
                         // Handle the EVALUATE_JS command
                         std::cout << "Evaluating JavaScript: " << msgData << std::endl;
                         webkit_web_view_evaluate_javascript(app->web_view, msgData.c_str(), -1, NULL, NULL, NULL, NULL, NULL);
+                    }
+                    else if(command == "KillProcess")
+                    {
+                        logMessage("KillProcess");
+                        g_idle_add([](gpointer data) -> gboolean {
+                            WebViewApp *app = static_cast<WebViewApp *>(data);
+                            if (app->window) {
+                                logMessage("OnIdle - closing pipe");
+                                app->closePipe();
+                                gtk_widget_destroy(app->window);  // This will trigger "destroy" and call onDestroy()
+                                logMessage("OnIdle - gtk_main_quit");
+                                gtk_main_quit(); // Quit GTK main loop
+                
+                            }
+                            return FALSE; // Run only once
+                        }, nullptr);
                     } 
                     else {
                         std::cerr << "Unknown command command: " << command << std::endl;
@@ -233,12 +259,28 @@ private:
         return TRUE; // Continue listening for more data
     }
 
-    static void onDestroy(gpointer data)
-    {
-        std::cout << "Killing webview process" << std::endl;
+    static void handleSigterm(int signum) {
+        logMessage("Received SIGTERM, shutting down");
+
+        g_idle_add([](gpointer data) -> gboolean {
+            WebViewApp *app = static_cast<WebViewApp *>(data);
+            if (app->window) {
+                logMessage("OnIdle - closing pipe");
+                app->closePipe();
+                gtk_widget_destroy(app->window);  // This will trigger "destroy" and call onDestroy()
+                logMessage("OnIdle - gtk_main_quit");
+                gtk_main_quit(); // Quit GTK main loop
+  
+            }
+            return FALSE; // Run only once
+        }, nullptr);
+    }
+
+    static void onDestroy(GtkWidget* widget, gpointer data) {
+        logMessage("Destroying WebViewApp");
         WebViewApp *app = static_cast<WebViewApp *>(data);
-        gtk_widget_destroy(app->window); // Destroy GTK Window
-        gtk_main_quit(); // Quit the GTK loop
+        app->closePipe();
+        gtk_main_quit(); // Quit GTK main loop
     }
 
     void closePipe()
@@ -246,6 +288,10 @@ private:
         if (pipe_fd != -1) {
             close(pipe_fd);
         }
+        if (unlink(pipeName) == -1) {
+            perror("Error removing pipe");
+        }
+        
     }
 };
 

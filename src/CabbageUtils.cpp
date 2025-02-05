@@ -248,7 +248,7 @@ bool MessagePipeHost::isOpenForWriting(bool shouldWait)
 
                 if (pipe_fd == -1)
                 {
-                    cabbage::logInfo << "Failed to open pipe for writing, retrying...";
+//                    cabbage::logInfo << "Failed to open pipe for writing, retrying...";
                     count++;
                     sleep(.2);
                 }
@@ -267,7 +267,7 @@ bool MessagePipeHost::isOpenForWriting(bool shouldWait)
 
             if (pipe_fd == -1)
             {
-                cabbage::logInfo << "Failed to open pipe for writing, retrying...";
+                cabbage::logInfo << "Failed to open pipe for writing...";
             }
             else
             {

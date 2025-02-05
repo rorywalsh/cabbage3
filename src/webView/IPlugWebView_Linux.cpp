@@ -118,6 +118,7 @@ void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float 
 
 void IWebView::CloseWebView() {
     messagePipe.closePipe();
+    messagePipe.send(cabbage::MessagePipeHost::MessageType::KillProcess);
     kill(webviewPid, SIGTERM);
 
 }
