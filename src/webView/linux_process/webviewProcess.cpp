@@ -194,11 +194,11 @@ private:
 
     static gboolean readFromPipe(gpointer data) {
         WebViewApp *app = static_cast<WebViewApp *>(data);
-        char buffer[1024];
+        char buffer[4096];
+
         // Read data from the pipe
         ssize_t bytes_read = read(app->pipe_fd, buffer, sizeof(buffer) - 1);
         if (bytes_read > 0) {
-            
             buffer[bytes_read] = '\0'; // Null-terminate the buffer
 
             // Check if the incoming message is larger than the buffer size
@@ -208,48 +208,52 @@ private:
             }
 
             try {
-                // Parse the buffer as a JSON object
-                nlohmann::json message = nlohmann::json::parse(buffer);
-                std::cout << "Received message: " << message.dump() << std::endl;
-                // Check for required fields ("data" and "command")
-                if (message.contains("data") && message.contains("command")) {
+                // Parse the buffer as a JSON array
+                logMessage("\n"+reformatJsonInput(buffer)+"\n");
+                nlohmann::json messages = nlohmann::json::parse(reformatJsonInput(buffer));
+
+                // Ensure we received an array
+                if (!messages.is_array()) {
+                    std::cerr << "Error: Expected a JSON array but received something else." << std::endl;
+                    return TRUE;
+                }
+
+                // Process each object in the array
+                for (const auto& message : messages) {
+                    if (!message.is_object() || !message.contains("data") || !message.contains("command")) {
+                        std::cerr << "Invalid JSON format, missing 'data' or 'command'." << std::endl;
+                        continue;
+                    }
+
                     std::string msgData = message["data"];
                     std::string command = message["command"];
 
                     // Process the message based on the "command" field
-                    if (command == "LoadUrl") 
-                    {
-                        // Handle the LOAD_URL command
+                    if (command == "LoadUrl") {
                         std::cout << "Loading URL: " << msgData << std::endl;
                         webkit_web_view_load_uri(app->web_view, msgData.c_str());
                     } 
-                    else if (command == "EvaluateJs") 
-                    {
-                        // Handle the EVALUATE_JS command
+                    else if (command == "EvaluateJS") {
                         std::cout << "Evaluating JavaScript: " << msgData << std::endl;
                         webkit_web_view_evaluate_javascript(app->web_view, msgData.c_str(), -1, NULL, NULL, NULL, NULL, NULL);
-                    }
-                    else if(command == "KillProcess")
-                    {
+                    } 
+                    else if (command == "KillProcess") {
                         logMessage("KillProcess");
                         g_idle_add([](gpointer data) -> gboolean {
                             WebViewApp *app = static_cast<WebViewApp *>(data);
                             if (app->window) {
                                 logMessage("OnIdle - closing pipe");
                                 app->closePipe();
-                                gtk_widget_destroy(app->window);  // This will trigger "destroy" and call onDestroy()
+                                gtk_widget_destroy(app->window);
                                 logMessage("OnIdle - gtk_main_quit");
-                                gtk_main_quit(); // Quit GTK main loop
-                
+                                gtk_main_quit();
                             }
                             return FALSE; // Run only once
                         }, nullptr);
                     } 
                     else {
-                        std::cerr << "Unknown command command: " << command << std::endl;
+                        std::cerr << "Unknown command: " << command << std::endl;
                     }
-                } else {
-                    std::cerr << "Invalid JSON format, missing 'data' or 'command'" << std::endl;
                 }
             } catch (const nlohmann::json::parse_error& e) {
                 std::cerr << "JSON parsing error: " << e.what() << std::endl;
@@ -258,6 +262,42 @@ private:
 
         return TRUE; // Continue listening for more data
     }
+
+    static std::string reformatJsonInput(const std::string& input) {
+        if (input.empty()) {
+            return "[]"; // Return empty JSON array if input is empty
+        }
+
+        try {
+            // First, check if input is already a valid JSON array
+            nlohmann::json parsed = nlohmann::json::parse(input);
+            if (parsed.is_array()) {
+                return input; // Already a valid JSON array, return as-is
+            } else if (parsed.is_object()) {
+                return "[" + input + "]"; // Wrap a single JSON object in an array
+            }
+        } catch (const nlohmann::json::parse_error&) {
+            // Parsing failed, so assume it's concatenated objects
+        }
+
+        // Fix concatenated objects by inserting commas between them
+        std::string fixed_json = "[";
+        bool first = true;
+
+        for (size_t i = 0; i < input.size(); ++i) {
+            if (input[i] == '{') {
+                if (!first) {
+                    fixed_json += ","; // ✅ Add a comma between JSON objects
+                }
+                first = false;
+            }
+            fixed_json += input[i]; // Append character
+        }
+
+        fixed_json += "]";  // Close the array
+        return fixed_json;
+    }
+
 
     static void handleSigterm(int signum) {
         logMessage("Received SIGTERM, shutting down");

@@ -29,7 +29,8 @@ IWebView::~IWebView()
 }
 
 // Function to handle X11 errors
-int x11_error_handler(Display *display, XErrorEvent *event) {
+int x11_error_handler(Display *display, XErrorEvent *event)
+{
     char error_text[256];
     XGetErrorText(display, event->error_code, error_text, sizeof(error_text));
     fprintf(stderr, "X11 Error: %s\n", error_text);
@@ -37,7 +38,8 @@ int x11_error_handler(Display *display, XErrorEvent *event) {
 }
 
 // Function to reparent the GTK window
-gboolean reparent_window(gpointer data) {
+gboolean reparent_window(gpointer data)
+{
     GtkWidget *window = GTK_WIDGET(data);
     GdkWindow *gdk_window = gtk_widget_get_window(window);
     Display *xdisplay = GDK_WINDOW_XDISPLAY(gdk_window);
@@ -58,7 +60,8 @@ gboolean reparent_window(gpointer data) {
 
 void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float height, float scale, bool isTransparent)
 {
-    if(pParent == NULL) {
+    if(pParent == NULL)
+    {
         cabbage::logDebug << "Invalid parent";
         return nullptr;
     }
@@ -96,14 +99,16 @@ void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float 
 
     // Fork process
     webviewPid = fork();
-    if (webviewPid == 0) {
-        usleep(10 * 1000);
+
+    if (webviewPid == 0)
+    {
         execv(args[0], const_cast<char* const*>(args.data()));
         perror("execv failed");  // Print error if exec fails
         //now kill the process that started the webview...
         exit(1);
     }
-    else if (webviewPid < 0) {
+    else if (webviewPid < 0)
+    {
         cabbage::logDebug << "Fork failed";
         return nullptr;
     }
@@ -116,43 +121,55 @@ void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float 
 
 
 
-void IWebView::CloseWebView() {
+void IWebView::CloseWebView()
+{
     messagePipe.closePipe();
     messagePipe.send(cabbage::MessagePipeHost::MessageType::KillProcess);
     kill(webviewPid, SIGTERM);
 }
 
-void IWebView::HideWebView(bool hide) {
+void IWebView::HideWebView(bool hide)
+{
     // Implement if needed
 }
 
-void IWebView::LoadHTML(const char* html) {
+void IWebView::LoadHTML(const char* html)
+{
     // Implement if needed
 }
 
-void IWebView::LoadURL(const char* url) {
+void IWebView::LoadURL(const char* url)
+{
     if(messagePipe.isOpenForWriting(true))
+    {
         messagePipe.send(cabbage::MessagePipeHost::MessageType::LoadUrl, url);
+        OnWebContentLoaded();
+    }
 }
 
-void IWebView::LoadFile(const char* fileName, const char* bundleID) {
+void IWebView::LoadFile(const char* fileName, const char* bundleID)
+{
     // Implement if needed
 }
 
-void IWebView::EvaluateJavaScript(const char* scriptStr, completionHandlerFunc func) {
+void IWebView::EvaluateJavaScript(const char* scriptStr, completionHandlerFunc func)
+{
     if(messagePipe.isOpenForWriting())
         messagePipe.send(cabbage::MessagePipeHost::MessageType::EvaluateJS, scriptStr);
 }
 
-void IWebView::EnableScroll(bool enable) {
+void IWebView::EnableScroll(bool enable)
+{
     // Implement if needed
 }
 
-void IWebView::EnableInteraction(bool enable) {
+void IWebView::EnableInteraction(bool enable)
+{
     // Implement if needed
 }
 
-void IWebView::SetWebViewBounds(float x, float y, float w, float h, float scale) {
+void IWebView::SetWebViewBounds(float x, float y, float w, float h, float scale)
+{
     // Implement if needed
 }
 

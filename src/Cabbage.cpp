@@ -29,16 +29,6 @@ Engine::~Engine()
 
 void Engine::addOpcodes()
 {
-    //template <typename T>
-    //int32_t plugin(Csound * csound, const char* name, const char* oargs,
-    //    const char* iargs, uint32_t thr, uint32_t flags = 0) {
-    //    CSOUND* cs = (CSOUND*)csound;
-    //    if (thr == thread::ia || thr == thread::a) {
-    //        return cs->AppendOpcode(cs, (char*)name, sizeof(T), flags,
-    //            (char*)oargs, (char*)iargs, (SUBR)init<T>,
-    //            (SUBR)aperf<T>, (SUBR)deinit<T>);
-    //auto t = csoundAppendOpcode(getCsound()->GetCsound(), "cabbageSetValue", sizeof(), 0, "null", "", nullptr, nullptr, nullptr);
-    auto ret = csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "SkP", csnd::thread::k);
     csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Si", csnd::thread::i);
     
     csnd::plugin<CabbageSetPerfString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSSW", csnd::thread::k);
@@ -51,7 +41,6 @@ void Engine::addOpcodes()
     //**cabbageSet** *kTrig*, *SChannel*, *SProperty*, *kValue[]*
     //**cabbageSet** *SChannel*, *SProperty*, *iValue[]*
     
-    ret = csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "i", "S", csnd::thread::i);
     csnd::plugin<CabbageGetValueString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "S", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValueWithTrigger>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "kk", "S", csnd::thread::ik);

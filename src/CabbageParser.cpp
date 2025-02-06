@@ -102,6 +102,10 @@ void Parser::parseContent(const std::string& content, std::vector<nlohmann::json
                         updateJson(j, item, widgets.size());
                         widgets.push_back(j);
                     }
+                    else
+                    {
+                        cabbage::logError << "Widget type is not valid: " << item["type"].get<std::string>();
+                    }
                 }
             }
         }

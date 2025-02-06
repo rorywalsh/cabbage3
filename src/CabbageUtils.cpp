@@ -66,6 +66,7 @@ void Logger::logMessage(const std::string& message)
 std::string Utils::sanitisePath(const std::string& path)
 {
     std::string sanitisedPath = path;
+
     // Remove trailing backslashes
     while (!sanitisedPath.empty() && sanitisedPath.back() == '\\') 
     {
@@ -236,6 +237,7 @@ void MessagePipeHost::createPipe(const char* name)
 bool MessagePipeHost::isOpenForWriting(bool shouldWait)
 {
     int count = 0;
+
     if (!openForWriting)
     {
         // In some cases we simply have to wait for the child pipe to be
@@ -474,6 +476,7 @@ std::string File::getSettingsProperty(const std::string& section, const std::str
 
     // Parse JSON data
     nlohmann::json jsonData;
+
     try {
         jsonData = nlohmann::json::parse(fileContent);
     }
@@ -497,17 +500,18 @@ std::string File::getFileAsString(std::string csdFile)
     if (csdFile.empty())
         csdFile = getCsdFileAndPath();
         
-        std::ifstream file(csdFile);
-        std::ostringstream oss;
-        oss << file.rdbuf();
-        std::string csdContents = oss.str();
-        return csdContents;
+    std::ifstream file(csdFile);
+    std::ostringstream oss;
+    oss << file.rdbuf();
+    std::string csdContents = oss.str();
+    return csdContents;
 }
 
 std::string File::getBinaryFileName()
 {
     std::string binaryPath = getBinaryPath();
     size_t pos = binaryPath.find_last_of("/\\");
+
     if (pos != std::string::npos)
         return binaryPath.substr(pos + 1);
     else
@@ -541,8 +545,10 @@ std::string File::getCsdFileAndPath()
     std::string resourceDir = getCabbageResourceDir();
     std::string binaryFileName = getBinaryFileName();
     size_t pos = binaryFileName.find_last_of(".");
+
     if (pos != std::string::npos)
         binaryFileName = binaryFileName.substr(0, pos);
+
     const std::string newPath = joinPath(resourceDir, binaryFileName);
     return joinPath(newPath, binaryFileName + ".csd");
 }
@@ -560,6 +566,7 @@ std::optional<nlohmann::json> File::parseCabbageSection(const std::string& csdFi
         // Handle JSON parsing error
         std::cerr << "Error parsing JSON: " << e.what() << std::endl;
     }
+
     return std::nullopt; // Return empty optional on failure
 }
 
@@ -575,6 +582,7 @@ int File::getNumberOfInputChannels(const std::string& csdFile)
     // Search for each line individually using regex
     std::istringstream stream(input);
     std::string line;
+
     while (std::getline(stream, line))
     {
         if (std::regex_match(line, match, inputRegex))
@@ -599,6 +607,7 @@ int File::getNumberOfOutputChannels(const std::string& csdFile)
     // Search for each line individually using regex
     std::istringstream stream(input);
     std::string line;
+
     while (std::getline(stream, line))
     {
         if (std::regex_match(line, match, outputRegex))
@@ -617,6 +626,7 @@ std::vector<std::string> File::getFilesOfType(const std::string& dirPath, const 
     
     // Resolve the absolute path based on the current CSD file location
     std::filesystem::path searchPath = cabbage::File::formatPath(dirPath);
+
     if (searchPath.is_relative())
     {
         std::string csdFilePath = getCsdFileAndPath();
@@ -631,6 +641,7 @@ std::vector<std::string> File::getFilesOfType(const std::string& dirPath, const 
     std::vector<std::string> patterns;
     std::stringstream ss(fileTypes);
     std::string pattern;
+
     while (std::getline(ss, pattern, ';'))
     {
         patterns.push_back(pattern);
@@ -651,8 +662,7 @@ std::vector<std::string> File::getFilesOfType(const std::string& dirPath, const 
         }
     }
     
-    std::sort(result.begin(), result.end(), [](const std::string& a, const std::string& b)
-              {
+    std::sort(result.begin(), result.end(), [](const std::string& a, const std::string& b) {
         // Extract filenames without extensions
         std::string fileNameA = std::filesystem::path(a).filename().stem().string();
         std::string fileNameB = std::filesystem::path(b).filename().stem().string();

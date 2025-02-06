@@ -12,8 +12,8 @@
 #include "IPlug_include_in_plug_src.h"
 #include "../opcodes/CabbageOpcodes.h"
 //===============================================================================
-// There are two different constructors here depending on whether the instrument is loaded
-// in VS Code, or a plugin
+// There are two different constructors here depending on whether the instrument
+// is loaded in VS Code, or a plugin
 //===============================================================================
 #ifdef CabbageApp
 CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info, std::string csdFile)

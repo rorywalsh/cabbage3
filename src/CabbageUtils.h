@@ -198,21 +198,24 @@ public:
         KillProcess
     };
 
-    MessagePipeHost() : pipe_fd(-1) {
-    }
-
+    MessagePipeHost() : pipe_fd(-1) {}
     ~MessagePipeHost() {
         closePipe();
     }
 
-    void closePipe(){
-        if (pipe_fd != -1) {
+    void closePipe()
+    {
+        if (pipe_fd != -1)
+        {
             close(pipe_fd);
         }
-        if (unlink(pipeName) == -1) {
+        if (unlink(pipeName) == -1)
+        {
             perror("Error removing pipe");
         }
+        openForWriting = false;
     }
+
     void createPipe(const char* name);
     bool isOpenForWriting(bool shouldWait = false);
     void send(MessageType type, const std::string& message = "");
@@ -239,8 +242,10 @@ public:
     template <typename T>
     static std::optional<T> findPropertyInForm(const nlohmann::json& json, const std::string& propertyName) 
     {
-        for (const auto& item : json) {
-            if (item.contains("type") && item["type"] == "form" && item.contains(propertyName)) {
+        for (const auto& item : json)
+        {
+            if (item.contains("type") && item["type"] == "form" && item.contains(propertyName))
+            {
                 return item[propertyName].get<T>();
             }
         }
