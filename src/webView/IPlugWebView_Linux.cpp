@@ -66,11 +66,11 @@ void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float 
         return nullptr;
     }
 
-    // Create a unique queue
-    std::string messageQueueNameStr = "/tmp/cabbagePipe_" + std::to_string(getpid());
+    // Create a unique output pipe based on the plugins
+    std::string outgoingPipeName = cabbage::InterprocessConnection::getUniquePipeName();
 
-    // Create the message queue before forking
-    messagePipe.createPipe(messageQueueNameStr.c_str());
+    // Create the pipe before forking
+    outgoingPipe.createPipe(outgoingPipeName, "outgoing");
 
     // Convert parameters to strings
     std::ostringstream x11WindowIdStr, xStr, yStr, widthStr, heightStr, scaleStr;
@@ -86,7 +86,7 @@ void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float 
     std::vector<const char*> args = {
         "/home/rory/sourcecode/cabbage3/src/webView/linux_process/webviewLaunch",
         x11WindowIdStr.str().c_str(),
-        messageQueueNameStr.c_str(),
+        outgoingPipeName.c_str(),
         xStr.str().c_str(),
         yStr.str().c_str(),
         widthStr.str().c_str(),
@@ -102,6 +102,7 @@ void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float 
 
     if (webviewPid == 0)
     {
+        cabbage::logDebug << "Creating webview";
         execv(args[0], const_cast<char* const*>(args.data()));
         perror("execv failed");  // Print error if exec fails
         //now kill the process that started the webview...
@@ -123,8 +124,8 @@ void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float 
 
 void IWebView::CloseWebView()
 {
-    messagePipe.closePipe();
-    messagePipe.send(cabbage::MessagePipeHost::MessageType::KillProcess);
+    outgoingPipe.closePipe();
+    outgoingPipe.send(cabbage::InterprocessConnection::MessageType::KillProcess);
     kill(webviewPid, SIGTERM);
 }
 
@@ -140,9 +141,9 @@ void IWebView::LoadHTML(const char* html)
 
 void IWebView::LoadURL(const char* url)
 {
-    if(messagePipe.isOpenForWriting(true))
+    if(outgoingPipe.isOpenForWriting(true))
     {
-        messagePipe.send(cabbage::MessagePipeHost::MessageType::LoadUrl, url);
+        outgoingPipe.send(cabbage::InterprocessConnection::MessageType::LoadUrl, url);
         OnWebContentLoaded();
     }
 }
@@ -154,8 +155,8 @@ void IWebView::LoadFile(const char* fileName, const char* bundleID)
 
 void IWebView::EvaluateJavaScript(const char* scriptStr, completionHandlerFunc func)
 {
-    if(messagePipe.isOpenForWriting())
-        messagePipe.send(cabbage::MessagePipeHost::MessageType::EvaluateJS, scriptStr);
+    if(outgoingPipe.isOpenForWriting())
+        outgoingPipe.send(cabbage::InterprocessConnection::MessageType::EvaluateJS, scriptStr);
 }
 
 void IWebView::EnableScroll(bool enable)

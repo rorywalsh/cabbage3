@@ -53,7 +53,16 @@ cabbage(*this, "")
     if(cabbage::Utils::getEnableDevTools(cabbage.getCsdFile()))
         SetEnableDevTools(true);
 #endif
-    
+
+#if defined (LINUX)
+        // Create a unique pipe to handle incoming messages from UI - this pipe has
+        // to have the same base name as the one setup from the webview class
+        std::string incomingPipeName = cabbage::InterprocessConnection::getUniquePipeName();
+        incomingPipe.createPipe(incomingPipeName, "incoming");
+        if(incomingPipe.isOpenForReading())
+            cabbage::logDebug << "Pipe is open for reading on the host end";
+#endif
+
     setupCallbacks();
 }
 #endif
@@ -69,7 +78,7 @@ CabbageProcessor::~CabbageProcessor()
 //===============================================================================
 void CabbageProcessor::setupCallbacks()
 {
-    //editor onInit callback function - loads inde.html and starts server when running plugin, but not when
+    //editor onInit callback function - loads index.html and starts server when running plugin, but not when
     //working in vscode
     editorInitFuncCallback = [&]() 
     {
@@ -85,30 +94,37 @@ void CabbageProcessor::setupCallbacks()
     //editor onInit callback function
     editorOnLoadCallback = [&]() 
     {
-            for(auto &widget : cabbage.getWidgets())
-            {
-                //update widget objects in case UI is closed and reopened...
-                try {
-                    if(widget.contains("type") && widget["type"].get<std::string>() == "form")
-                    {
-                        Resize(widget["size"]["width"].get<int>(), widget["size"]["height"].get<int>());
-                    }
-                }
-                catch (nlohmann::json::exception& e) {
-                    cabbage::logDebug << e.what();
+        uiIsOpen = true;
+        for(auto &widget : cabbage.getWidgets())
+        {
+            //update widget objects in case UI is closed and reopened...
+            try {
+                if(widget.contains("type") && widget["type"].get<std::string>() == "form")
+                {
+                    Resize(widget["size"]["width"].get<int>(), widget["size"]["height"].get<int>());
                 }
             }
+            catch (nlohmann::json::exception& e) {
+                cabbage::logDebug << e.what();
+            }
+        }
         
     };
     
     editorDeleteFuncCallback = [&]() 
     {
         uiIsOpen = false;
+#if defined (LINUX)
+        incomingPipe.closePipe();
+#endif
     };
     
     editorCloseCallback = [&]() 
     {
         uiIsOpen = false;
+#if defined (LINUX)
+        incomingPipe.closePipe();
+#endif
     };
     
     updateStringChannelCallback = [&](std::string channel, std::string data)
@@ -324,11 +340,10 @@ bool CabbageProcessor::OnMessage(int msgTag, int ctrlTag, int dataSize, const vo
 //===============================================================================
 void CabbageProcessor::OnIdle()
 {
-    #ifndef CabbageApp
+#ifndef CabbageApp
     if (uiIsOpen)
     {
 #endif
-        
         while (cabbage.getCsound()->GetMessageCnt() > 0)
         {
             std::string message(cabbage.getCsound()->GetFirstMessage());
@@ -337,6 +352,13 @@ void CabbageProcessor::OnIdle()
             //EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
             cabbage.getCsound()->PopFirstMessage();
         }
+
+#if defined(LINUX)
+        const std::string json = incomingPipe.receive();
+        if(!json.empty())
+            OnMessageFromWebView(json.c_str());
+#endif
+
 #ifndef CabbageApp
     }
     #endif
@@ -401,6 +423,10 @@ void CabbageProcessor::OnIdle()
     #endif
         }
     }
+
+
+
+
 }
 
 //===============================================================================

@@ -29,18 +29,20 @@ Engine::~Engine()
 
 void Engine::addOpcodes()
 {
+    csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "SkP", csnd::thread::k);
     csnd::plugin<CabbageSetValue>((csnd::Csound*)csound->GetCsound(), "cabbageSetValue", "", "Si", csnd::thread::i);
-    
+
     csnd::plugin<CabbageSetPerfString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSSW", csnd::thread::k);
     csnd::plugin<CabbageSetInitString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "SW", csnd::thread::i);
     csnd::plugin<CabbageSetPerfMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSSM", csnd::thread::k);
     csnd::plugin<CabbageSetInitMYFLT>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "SSM", csnd::thread::i);
-    
+
     csnd::plugin<CabbageSetInitMYFLTArray>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "SSi[]", csnd::thread::i);
     csnd::plugin<CabbageSetPerfMYFLTArray>((csnd::Csound*) getCsound()->GetCsound(), "cabbageSet", "", "kSSk[]", csnd::thread::k);
     //**cabbageSet** *kTrig*, *SChannel*, *SProperty*, *kValue[]*
     //**cabbageSet** *SChannel*, *SProperty*, *iValue[]*
-    
+
+    csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValue>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "i", "S", csnd::thread::i);
     csnd::plugin<CabbageGetValueString>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "S", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValueWithTrigger>((csnd::Csound*) getCsound()->GetCsound(), "cabbageGetValue", "kk", "S", csnd::thread::ik);

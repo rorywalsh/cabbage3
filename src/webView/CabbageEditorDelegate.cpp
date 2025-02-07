@@ -24,7 +24,7 @@ CabbageEditorDelegate::CabbageEditorDelegate(int nParams)
 
 CabbageEditorDelegate::~CabbageEditorDelegate()
 {
-  CloseWindow();
+      CloseWindow();
 }
 
 #ifdef _WIN32
@@ -34,17 +34,17 @@ extern float GetScaleForHWND(HWND hWnd);
 void* CabbageEditorDelegate::OpenWindow(void* pParent)
 {
 #ifdef _WIN32
-  auto scale = GetScaleForHWND((HWND) pParent);
+      auto scale = GetScaleForHWND((HWND) pParent);
 #else
-  auto scale = 1;
+      auto scale = 1;
 #endif
-  return OpenWebView(pParent, 0., 0., static_cast<float>((GetEditorWidth()) / scale), static_cast<float>((GetEditorHeight()) / scale), scale);
+      return OpenWebView(pParent, 0., 0., static_cast<float>((GetEditorWidth()) / scale), static_cast<float>((GetEditorHeight()) / scale), scale);
 }
 
 void CabbageEditorDelegate::Resize(int width, int height)
 {
-  SetWebViewBounds(0, 0, static_cast<float>(width), static_cast<float>(height));
-  EditorResizeFromUI(width, height, true);
+    SetWebViewBounds(0, 0, static_cast<float>(width), static_cast<float>(height));
+    EditorResizeFromUI(width, height, true);
 }
 
 void CabbageEditorDelegate::OpenFileBrowser()

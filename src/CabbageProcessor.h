@@ -124,6 +124,8 @@ private:
     bool allowDequeuing = false;
     bool hasValidInputs = true;
     bool matchingNumInputsOutputs = true;
-    
-    
+
+#if defined(LINUX)
+    cabbage::InterprocessConnection incomingPipe;
+#endif
 };

@@ -40,6 +40,8 @@ public:
         CloseWebView();
         if (editorCloseCallback)
             editorCloseCallback();
+
+
     }
     
     void OpenFileBrowser();
@@ -91,6 +93,7 @@ public:
      functions which are hosted from the CabbageProcessor class*/
     void OnMessageFromWebView(const char* jsonStr) override
     {
+
         auto incomingJson = nlohmann::json::parse(jsonStr, nullptr, false);
         const std::string command = incomingJson["command"];
         

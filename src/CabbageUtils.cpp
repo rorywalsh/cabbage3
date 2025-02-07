@@ -7,6 +7,14 @@
 
 namespace cabbage {
 
+std::string generateUniqueID()
+{
+    static std::random_device rd;
+    static std::mt19937_64 rng(rd());
+    std::stringstream ss;
+    ss << std::hex << std::setw(16) << std::setfill('0') << rng();
+    return ss.str();
+}
 //==================================================================================
 // Logging methods
 //==================================================================================
@@ -212,11 +220,15 @@ bool Utils::getEnableDevTools(const std::string& csdFile)
 // MessagePipeHost class - used to communicate with webview process in Linux
 //======================================================================
 #if defined(LINUX)
-void MessagePipeHost::createPipe(const char* name)
+void InterprocessConnection::createPipe(const std::string& name, const std::string& pipeType)
 {
-    pipeName = name;
+    // the pipe on the other end will be the opposite of this in terms
+    // of output/input - if we set up a pipe for output on this end, the
+    // child pipe will be set up for input and vice versa
+    pipeName = name+"_" + (pipeType == "outgoing" ? "incoming" : "outgoing" );
+
     // Create the named pipe (FIFO) if it doesn't exist
-    if (mkfifo(name, 0666) == -1)
+    if (mkfifo(pipeName.c_str(), 0666) == -1)
     {
         if (errno != EEXIST)
         {
@@ -234,7 +246,56 @@ void MessagePipeHost::createPipe(const char* name)
     }
 }
 
-bool MessagePipeHost::isOpenForWriting(bool shouldWait)
+bool InterprocessConnection::isOpenForReading(bool shouldWait)
+{
+    int count = 0;
+
+    if (!openForReading)
+    {
+        // In some cases we simply have to wait for the child pipe to be
+        // ready - when we first load the UI for example
+        if(shouldWait)
+        {
+            while (count<1000000)
+            {
+                incomingPipeFd = open(pipeName.c_str(), O_RDONLY | O_NONBLOCK);
+
+                if (incomingPipeFd == -1)
+                {
+//                  cabbage::logInfo << "Failed to open pipe for writing, retrying...";
+                    count++;
+                    sleep(.2);
+                }
+                else
+                {
+                    cabbage::logInfo << "Pipe opened for reading: " << pipeName;
+                    openForReading = true;
+                    return true;
+                }
+            }
+            cabbage::logDebug << "Pipe couldn't be opened for reading: " << pipeName;
+        }
+        else
+        {
+            incomingPipeFd = open(pipeName.c_str(), O_RDONLY | O_NONBLOCK);
+
+            if (incomingPipeFd == -1)
+            {
+                cabbage::logInfo << "Failed to open pipe for reading...";
+            }
+            else
+            {
+                cabbage::logInfo << "Pipe opened for reading: " << pipeName;
+                openForReading = true;
+                return true;
+            }
+        }
+    }
+
+    return true;  // If already open, return true
+}
+
+bool InterprocessConnection::isOpenForWriting(bool shouldWait)
 {
     int count = 0;
 
@@ -246,9 +307,9 @@ bool MessagePipeHost::isOpenForWriting(bool shouldWait)
         {
             while (count<100000)
             {
-                pipe_fd = open(pipeName, O_WRONLY | O_NONBLOCK);
+                outgoingPipeFd = open(pipeName.c_str(), O_WRONLY | O_NONBLOCK);
 
-                if (pipe_fd == -1)
+                if (outgoingPipeFd == -1)
                 {
 //                    cabbage::logInfo << "Failed to open pipe for writing, retrying...";
                     count++;
@@ -265,9 +326,9 @@ bool MessagePipeHost::isOpenForWriting(bool shouldWait)
         }
         else
         {
-            pipe_fd = open(pipeName, O_WRONLY | O_NONBLOCK);
+            outgoingPipeFd = open(pipeName.c_str(), O_WRONLY | O_NONBLOCK);
 
-            if (pipe_fd == -1)
+            if (outgoingPipeFd == -1)
             {
                 cabbage::logInfo << "Failed to open pipe for writing...";
             }
@@ -283,9 +344,78 @@ bool MessagePipeHost::isOpenForWriting(bool shouldWait)
     return true;  // If already open, return true
 }
 
-void MessagePipeHost::send(MessageType type, const std::string& message)
+const std::string InterprocessConnection::receive()
 {
-    if (pipe_fd == -1)
+    if(!isOpenForWriting())
+        return {};
+
+    nlohmann::json json = {};
+
+    ssize_t bytes_read = read(incomingPipeFd, buffer, sizeof(buffer) - 1);
+    if (bytes_read > 0)
+    {
+            buffer[bytes_read] = '\0'; // Null-terminate the buffer
+
+            // Check if the incoming message is larger than the buffer size
+            if (bytes_read == sizeof(buffer) - 1)
+            {
+                std::cerr << "Warning: Incoming message is larger than the buffer size ("
+                        << sizeof(buffer) << " bytes). Some data may have been lost." << std::endl;
+            }
+
+            try {
+                // Parse the buffer as a JSON array
+                json = nlohmann::json::parse(buffer);
+                return json.dump();
+            } catch (const nlohmann::json::parse_error& e) {
+                std::cerr << "JSON parsing error: " << e.what() << std::endl;
+            }
+    }
+
+    return {};
+
+}
+
+const std::string InterprocessConnection::reformatJsonInput(const std::string& input)
+{
+    if (input.empty())
+    {
+        return "[]"; // Return empty JSON array if input is empty
+    }
+
+    try {
+        // First, check if input is already a valid JSON array
+        nlohmann::json parsed = nlohmann::json::parse(input);
+        if (parsed.is_array()) {
+            return input; // Already a valid JSON array, return as-is
+        } else if (parsed.is_object()) {
+            return "[" + input + "]"; // Wrap a single JSON object in an array
+        }
+    } catch (const nlohmann::json::parse_error&) {
+        // Parsing failed, so assume it's concatenated objects
+    }
+
+    // Fix concatenated objects by inserting commas between them
+    std::string fixed_json = "[";
+    bool first = true;
+
+    for (size_t i = 0; i < input.size(); ++i) {
+        if (input[i] == '{') {
+            if (!first) {
+                fixed_json += ","; // ✅ Add a comma between JSON objects
+            }
+            first = false;
+        }
+        fixed_json += input[i]; // Append character
+    }
+
+    fixed_json += "]";  // Close the array
+    return fixed_json;
+}
+
+void InterprocessConnection::send(MessageType type, const std::string& message)
+{
+    if (outgoingPipeFd == -1)
     {
         cabbage::logInfo << "Pipe is not open, cannot send message!";
         return;
@@ -311,7 +441,7 @@ void MessagePipeHost::send(MessageType type, const std::string& message)
 
     cabbage::logInfo << "Sending message: " << jsonMessage.dump(4);
 
-    ssize_t bytesWritten = write(pipe_fd, jsonMessage.dump().c_str(), jsonMessage.dump().length());
+    ssize_t bytesWritten = write(outgoingPipeFd, jsonMessage.dump().c_str(), jsonMessage.dump().length());
     if (bytesWritten == -1)
     {
         perror("write to pipe failed");

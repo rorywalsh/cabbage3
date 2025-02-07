@@ -108,7 +108,7 @@ private:
     bool mShowOnLoad = true;
 #else //__linux__
     pid_t webviewPid = 1;
-    cabbage::MessagePipeHost messagePipe;
+    cabbage::InterprocessConnection outgoingPipe;
 #endif
 };
 

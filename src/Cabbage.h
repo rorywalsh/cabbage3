@@ -182,6 +182,5 @@ private:
     std::string compileErrors;
     std::unique_ptr<Csound> csound;
     CabbageProcessor& processor;
-    std::unordered_map<std::string, std::chrono::steady_clock::time_point> lastUpdateTimes;
 };
 }

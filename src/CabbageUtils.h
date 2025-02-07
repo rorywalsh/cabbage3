@@ -23,6 +23,7 @@
 #include "wdltypes.h"
 #include "wdlstring.h"
 #include <filesystem>
+#include <random>
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -40,6 +41,8 @@
 #include <pwd.h>
 #include <dlfcn.h>
 #elif defined(__linux__)
+#include <atomic>
+#include <cstring>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <pwd.h>
@@ -64,6 +67,13 @@
 #include <mutex>
 
 namespace cabbage {
+
+// Generate a unique ID when the shared object is loaded
+std::string generateUniqueID();
+
+// Static variable to store the unique ID for this shared object
+static std::string uniqueId = generateUniqueID();
+static std::string getUniqueId(){    return uniqueId;}
 
 // Function to handle debug output in Visual Studio
 inline void logToDebug(const std::string& message) {
@@ -188,9 +198,138 @@ inline LogStream LogError(const char* file, int line, const char* function) {
 #define logWarning LogWarning(__FILE__, __LINE__, __FUNCTION__)
 #define logError LogError(__FILE__, __LINE__, __FUNCTION__)
 
+//======================================================================================
+class SharedMemoryQueue
+{
+public:
+    SharedMemoryQueue(const std::string& shmName, size_t queueSize)
+        : shmName(shmName), queueSize(queueSize)
+    {
+        // Create shared memory object
+        shmFd = shm_open(shmName.c_str(), O_CREAT | O_RDWR, 0666);
+        if (shmFd == -1)
+        {
+            throw std::runtime_error("Failed to create shared memory object");
+        }
+
+        // Set the size of the shared memory object
+        size_t totalSize = 2 * (sizeof(SharedMemoryHeader) + queueSize * sizeof(nlohmann::json));
+        if (ftruncate(shmFd, totalSize) == -1)
+        {
+            throw std::runtime_error("Failed to set size of shared memory object");
+        }
+
+        // Map the shared memory object into the address space
+        shmPtr = mmap(nullptr, totalSize, PROT_READ | PROT_WRITE, MAP_SHARED, shmFd, 0);
+        if (shmPtr == MAP_FAILED)
+        {
+            throw std::runtime_error("Failed to map shared memory object");
+        }
+
+        // Initialize the incoming and outgoing queues
+        incomingQueueHeader = reinterpret_cast<SharedMemoryHeader*>(shmPtr);
+        outgoingQueueHeader = reinterpret_cast<SharedMemoryHeader*>(reinterpret_cast<char*>(shmPtr) + sizeof(SharedMemoryHeader) + queueSize * sizeof(nlohmann::json));
+
+        incomingQueueHeader->head.store(0);
+        incomingQueueHeader->tail.store(0);
+        incomingQueueHeader->size.store(queueSize);
+
+        outgoingQueueHeader->head.store(0);
+        outgoingQueueHeader->tail.store(0);
+        outgoingQueueHeader->size.store(queueSize);
+    }
+
+    ~SharedMemoryQueue()
+    {
+        // Unmap the shared memory object
+        size_t totalSize = 2 * (sizeof(SharedMemoryHeader) + queueSize * sizeof(nlohmann::json));
+        munmap(shmPtr, totalSize);
+
+        // Close the shared memory object
+        close(shmFd);
+
+        // Remove the shared memory object
+        shm_unlink(shmName.c_str());
+    }
+
+    bool pushToIncoming(const nlohmann::json& obj)
+    {
+        return push(incomingQueueHeader, obj);
+    }
+
+    bool popFromIncoming(nlohmann::json& obj)
+    {
+        return pop(incomingQueueHeader, obj);
+    }
+
+    bool pushToOutgoing(const nlohmann::json& obj)
+    {
+        return push(outgoingQueueHeader, obj);
+    }
+
+    bool popFromOutgoing(nlohmann::json& obj)
+    {
+        return pop(outgoingQueueHeader, obj);
+    }
+
+private:
+    struct SharedMemoryHeader
+    {
+        std::atomic<size_t> head;
+        std::atomic<size_t> tail;
+        std::atomic<size_t> size;
+    };
+
+    bool push(SharedMemoryHeader* header, const nlohmann::json& obj)
+    {
+        size_t head = header->head.load();
+        size_t nextHead = (head + 1) % header->size.load();
+
+        if (nextHead == header->tail.load())
+        {
+            return false; // Queue is full
+        }
+
+        // Copy the JSON object to the shared memory
+        char* queueBase = reinterpret_cast<char*>(shmPtr) + sizeof(SharedMemoryHeader);
+        std::memcpy(queueBase + head * sizeof(nlohmann::json), &obj, sizeof(nlohmann::json));
+
+        // Update the head
+        header->head.store(nextHead);
+
+        return true;
+    }
+
+    bool pop(SharedMemoryHeader* header, nlohmann::json& obj)
+    {
+        size_t tail = header->tail.load();
+
+        if (tail == header->head.load())
+        {
+            return false; // Queue is empty
+        }
+
+        // Copy the JSON object from the shared memory
+        char* queueBase = reinterpret_cast<char*>(shmPtr) + sizeof(SharedMemoryHeader);
+        std::memcpy(&obj, queueBase + tail * sizeof(nlohmann::json), sizeof(nlohmann::json));
+
+        // Update the tail
+        header->tail.store((tail + 1) % header->size.load());
+
+        return true;
+    }
+
+    std::string shmName;
+    size_t queueSize;
+    int shmFd;
+    void* shmPtr;
+    SharedMemoryHeader* incomingQueueHeader;
+    SharedMemoryHeader* outgoingQueueHeader;
+};
+//======================================================================================
 #if defined(LINUX)
-// Message Pipe Host for sending messages to and from webview on Linux
-class MessagePipeHost {
+// Interprocess Connections that uses pipes to send messages to and from webview on Linux
+class InterprocessConnection {
 public:
     enum MessageType{
         LoadUrl = 0,
@@ -198,32 +337,45 @@ public:
         KillProcess
     };
 
-    MessagePipeHost() : pipe_fd(-1) {}
-    ~MessagePipeHost() {
+    InterprocessConnection(){}
+    ~InterprocessConnection() {
         closePipe();
     }
 
     void closePipe()
     {
-        if (pipe_fd != -1)
+        if (outgoingPipeFd != -1)
         {
-            close(pipe_fd);
+            close(outgoingPipeFd);
         }
-        if (unlink(pipeName) == -1)
+        if (unlink(pipeName.c_str()) == -1)
         {
             perror("Error removing pipe");
         }
         openForWriting = false;
+        openForReading = false;
     }
 
-    void createPipe(const char* name);
+    void createPipe(const std::string& name, const std::string& pipeType);
     bool isOpenForWriting(bool shouldWait = false);
+    bool isOpenForReading(bool shouldWait = false);
     void send(MessageType type, const std::string& message = "");
+    const std::string receive();
+    const std::string reformatJsonInput(const std::string& message);
+
+    static const std::string getUniquePipeName()
+    {
+        return std::string("/tmp/cabbagePipe_")+getUniqueId();
+    }
 
 private:
-    const char* pipeName;
-    int pipe_fd;
+    std::string pipeName;
+    char buffer[4096 * 256];
+    int outgoingPipeFd = -1;
+    int incomingPipeFd = -1;
     bool openForWriting = false;
+    bool openForReading = false;
+    std::string pipeType = {};
 };
 #endif
 
