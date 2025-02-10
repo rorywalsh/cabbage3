@@ -108,7 +108,8 @@ private:
     bool mShowOnLoad = true;
 #else //__linux__
     pid_t webviewPid = 1;
-    cabbage::InterprocessConnection outgoingPipe;
+    std::mutex mutex;
+    cabbage::SharedMemoryQueue memoryQueue;
 #endif
 };
 

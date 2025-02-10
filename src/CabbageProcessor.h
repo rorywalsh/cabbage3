@@ -126,6 +126,6 @@ private:
     bool matchingNumInputsOutputs = true;
 
 #if defined(LINUX)
-    cabbage::InterprocessConnection incomingPipe;
+    cabbage::SharedMemoryQueue memoryQueue;
 #endif
 };

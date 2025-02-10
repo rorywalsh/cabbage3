@@ -24,7 +24,6 @@ iplug_target_add(${CABBAGE_PROJECT_NAME} PUBLIC
 set(SMTG_OS_LINUX "ON")
 
 target_compile_options(${CABBAGE_PROJECT_NAME} PRIVATE -Wno-error)
-target_link_options(${CABBAGE_PROJECT_NAME} PRIVATE -Wl,-e,main)
 iplug_configure_target(${CABBAGE_PROJECT_NAME} vst3)
 set_target_properties(${CABBAGE_PROJECT_NAME} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME "${CABBAGE_PROJECT_NAME}")
 

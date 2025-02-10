@@ -36,6 +36,9 @@ CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo& info)
                                         0,
                                         cabbage::Engine::getIOChannalConfig(""))),
 cabbage(*this, "")
+#if defined(LINUX)
+, memoryQueue("/cabbage_"+cabbage::getUniqueId(), 100, 1024)
+#endif
 {
     cabbage.getMidiQueue().clear();
     cabbage.setCsdFile(cabbage::File::getCsdFileAndPath());
@@ -57,10 +60,7 @@ cabbage(*this, "")
 #if defined (LINUX)
         // Create a unique pipe to handle incoming messages from UI - this pipe has
         // to have the same base name as the one setup from the webview class
-        std::string incomingPipeName = cabbage::InterprocessConnection::getUniquePipeName();
-        incomingPipe.createPipe(incomingPipeName, "incoming");
-        if(incomingPipe.isOpenForReading())
-            cabbage::logDebug << "Pipe is open for reading on the host end";
+
 #endif
 
     setupCallbacks();
@@ -115,7 +115,7 @@ void CabbageProcessor::setupCallbacks()
     {
         uiIsOpen = false;
 #if defined (LINUX)
-        incomingPipe.closePipe();
+
 #endif
     };
     
@@ -123,7 +123,7 @@ void CabbageProcessor::setupCallbacks()
     {
         uiIsOpen = false;
 #if defined (LINUX)
-        incomingPipe.closePipe();
+
 #endif
     };
     
@@ -354,17 +354,19 @@ void CabbageProcessor::OnIdle()
         }
 
 #if defined(LINUX)
-        const std::string json = incomingPipe.receive();
-        if(!json.empty())
-            OnMessageFromWebView(json.c_str());
+        nlohmann::json message;
+        while(memoryQueue.receiveFromChild(message))
+        {
+//             cabbage::logInfo << message.dump(4);
+             OnMessageFromWebView(message.dump(4).c_str());
+        }
+
 #endif
 
 #ifndef CabbageApp
     }
     #endif
     CabbageOpcodeData data;
-    //data contains the channel and the Cabbage code that can be comprised of any number of identifiers, i.e,
-	    // bounds(10, 10, 100, 100), text("hello"), etc.
 
     //only start accessing messages from the queue when the interface is open..
     if (allowDequeuing)

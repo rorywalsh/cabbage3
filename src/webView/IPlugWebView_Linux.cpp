@@ -19,13 +19,131 @@
 using namespace iplug;
 
 
-IWebView::IWebView(bool opaque)
+IWebView::IWebView(bool opaque) : memoryQueue("/cabbage_"+cabbage::getUniqueId(), 100, 1024)
 {
+
 }
 
 IWebView::~IWebView()
 {
     CloseWebView();
+}
+
+void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float height, float scale, bool isTransparent)
+{
+    if(pParent == NULL)
+    {
+        cabbage::logDebug << "Invalid parent";
+        return nullptr;
+    }
+
+    // Convert parameters to strings
+    std::ostringstream x11WindowIdStr, xStr, yStr, widthStr, heightStr, scaleStr;
+    x11WindowIdStr << reinterpret_cast<unsigned long>(pParent);
+    xStr << x;
+    yStr << y;
+    widthStr << width;
+    heightStr << height;
+    scaleStr << scale;
+    std::string isTransparentStr = isTransparent ? "true" : "false";
+    std::string enableDevToolsStr = "true";
+
+
+
+
+    // Fork process
+    webviewPid = fork();
+
+    if (webviewPid == 0)
+    {
+        std::vector<std::string> stringArgs = {
+            "/home/rory/sourcecode/cabbage3/src/webView/linux_process/build/webview",
+            x11WindowIdStr.str(),
+            "/cabbage_" + cabbage::getUniqueId(),
+            xStr.str(),
+            yStr.str(),
+            widthStr.str(),
+            heightStr.str(),
+            scaleStr.str(),
+            isTransparentStr,
+            enableDevToolsStr
+        };
+
+        std::vector<const char*> args;
+        for (const auto& arg : stringArgs) {
+            args.push_back(arg.c_str());
+        }
+        args.push_back(nullptr); // Null terminator for exec
+        execv(args[0], const_cast<char* const*>(args.data()));
+        perror("execv failed");  // Print error if exec fails
+        //now kill the process that started the webview...
+        exit(1);
+    }
+    else if (webviewPid < 0)
+    {
+        cabbage::logDebug << "Fork failed";
+        return nullptr;
+    }
+
+    usleep(100 * 1000);
+    OnWebViewReady();
+    return nullptr;
+}
+
+
+
+void IWebView::CloseWebView()
+{
+    kill(webviewPid, SIGTERM);
+}
+
+void IWebView::HideWebView(bool hide)
+{
+    // Implement if needed
+}
+
+void IWebView::LoadHTML(const char* html)
+{
+    // Implement if needed
+}
+
+void IWebView::LoadURL(const char* url)
+{
+    nlohmann::json message;
+    message["command"] = "LoadUrl";
+    message["data"] = url;
+
+    memoryQueue.sendToChild(message);
+    OnWebContentLoaded();
+
+}
+
+void IWebView::LoadFile(const char* fileName, const char* bundleID)
+{
+    // Implement if needed
+}
+
+void IWebView::EvaluateJavaScript(const char* scriptStr, completionHandlerFunc func)
+{
+    nlohmann::json message;
+    message["command"] = "EvaluateJS";
+    message["data"] = scriptStr;
+    memoryQueue.sendToChild(message);
+}
+
+void IWebView::EnableScroll(bool enable)
+{
+    // Implement if needed
+}
+
+void IWebView::EnableInteraction(bool enable)
+{
+    // Implement if needed
+}
+
+void IWebView::SetWebViewBounds(float x, float y, float w, float h, float scale)
+{
+    // Implement if needed
 }
 
 // Function to handle X11 errors
@@ -56,121 +174,3 @@ gboolean reparent_window(gpointer data)
 
     return FALSE; // Run only once
 }
-
-
-void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float height, float scale, bool isTransparent)
-{
-    if(pParent == NULL)
-    {
-        cabbage::logDebug << "Invalid parent";
-        return nullptr;
-    }
-
-    // Create a unique output pipe based on the plugins
-    std::string outgoingPipeName = cabbage::InterprocessConnection::getUniquePipeName();
-
-    // Create the pipe before forking
-    outgoingPipe.createPipe(outgoingPipeName, "outgoing");
-
-    // Convert parameters to strings
-    std::ostringstream x11WindowIdStr, xStr, yStr, widthStr, heightStr, scaleStr;
-    x11WindowIdStr << reinterpret_cast<unsigned long>(pParent);
-    xStr << x;
-    yStr << y;
-    widthStr << width;
-    heightStr << height;
-    scaleStr << scale;
-    std::string isTransparentStr = isTransparent ? "true" : "false";
-    std::string enableDevToolsStr = "true";
-
-    std::vector<const char*> args = {
-        "/home/rory/sourcecode/cabbage3/src/webView/linux_process/webviewLaunch",
-        x11WindowIdStr.str().c_str(),
-        outgoingPipeName.c_str(),
-        xStr.str().c_str(),
-        yStr.str().c_str(),
-        widthStr.str().c_str(),
-        heightStr.str().c_str(),
-        scaleStr.str().c_str(),
-        isTransparentStr.c_str(),
-        enableDevToolsStr.c_str(),
-        nullptr // Null terminator for exec
-    };
-
-    // Fork process
-    webviewPid = fork();
-
-    if (webviewPid == 0)
-    {
-        cabbage::logDebug << "Creating webview";
-        execv(args[0], const_cast<char* const*>(args.data()));
-        perror("execv failed");  // Print error if exec fails
-        //now kill the process that started the webview...
-        exit(1);
-    }
-    else if (webviewPid < 0)
-    {
-        cabbage::logDebug << "Fork failed";
-        return nullptr;
-    }
-
-    OnWebViewReady();
-
-
-    return nullptr;
-}
-
-
-
-void IWebView::CloseWebView()
-{
-    outgoingPipe.closePipe();
-    outgoingPipe.send(cabbage::InterprocessConnection::MessageType::KillProcess);
-    kill(webviewPid, SIGTERM);
-}
-
-void IWebView::HideWebView(bool hide)
-{
-    // Implement if needed
-}
-
-void IWebView::LoadHTML(const char* html)
-{
-    // Implement if needed
-}
-
-void IWebView::LoadURL(const char* url)
-{
-    if(outgoingPipe.isOpenForWriting(true))
-    {
-        outgoingPipe.send(cabbage::InterprocessConnection::MessageType::LoadUrl, url);
-        OnWebContentLoaded();
-    }
-}
-
-void IWebView::LoadFile(const char* fileName, const char* bundleID)
-{
-    // Implement if needed
-}
-
-void IWebView::EvaluateJavaScript(const char* scriptStr, completionHandlerFunc func)
-{
-    if(outgoingPipe.isOpenForWriting())
-        outgoingPipe.send(cabbage::InterprocessConnection::MessageType::EvaluateJS, scriptStr);
-}
-
-void IWebView::EnableScroll(bool enable)
-{
-    // Implement if needed
-}
-
-void IWebView::EnableInteraction(bool enable)
-{
-    // Implement if needed
-}
-
-void IWebView::SetWebViewBounds(float x, float y, float w, float h, float scale)
-{
-    // Implement if needed
-}
-
