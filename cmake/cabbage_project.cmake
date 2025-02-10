@@ -232,7 +232,8 @@ pkg_check_modules (WEBKIT2 REQUIRED webkit2gtk-4.1 IMPORTED_TARGET)
 
 
 #having to use -Wno-format to disable error with vst3sdk
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl, -Wno-format, --no-undefined")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wno-format")
+
 add_compile_options(-Wno-format)
 
 set(CABBAGE_WEBVIEW_SOURCES

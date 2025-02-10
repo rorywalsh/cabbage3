@@ -1,40 +1,51 @@
 cmake_minimum_required(VERSION 3.14)
 project(WebViewProcess)
 
-# Define FetchContent base directory
-set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/../../../../cmake-build-debug/_deps")
-
-if(EXISTS "${FETCHCONTENT_BASE_DIR}")
-    message(STATUS "FETCHCONTENT_BASE_DIR exists: ${FETCHCONTENT_BASE_DIR}")
-else()
-    message(WARNING "FETCHCONTENT_BASE_DIR does NOT exist: ${FETCHCONTENT_BASE_DIR}")
-endif()
-
-
-
-# Define iPlug2 source directory (you should set this to the correct path)
-set(iPlug2_SOURCE_DIR "path/to/iPlug2")
-
 # Find required packages
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK REQUIRED gtk+-3.0 webkit2gtk-4.1)
 
 # Include directories
 include_directories(
-    ${FETCHCONTENT_BASE_DIR}/readerwriterqueue-src
-    ${iPlug2_SOURCE_DIR}/Dependencies/Extras/nlohmann
     ${GTK_INCLUDE_DIRS}
 )
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/webview_output)
+
 # Define the executable
-add_executable(webview webviewProcess.cpp)
+add_executable(WebViewProcess webviewProcess.cpp)
 
 # Link libraries
-target_link_libraries(webview
+target_link_libraries(WebViewProcess
     ${GTK_LIBRARIES}
     X11
     Xext
 )
 
+# Setting this to allow me to link to the this target from other targets
+set_property(TARGET WebViewProcess PROPERTY ENABLE_EXPORTS ON)
+
 # Compiler flags
-target_compile_options(webview PRIVATE ${GTK_CFLAGS_OTHER})
+target_compile_options(WebViewProcess PRIVATE ${GTK_CFLAGS_OTHER})
+
+# Define a custom array name
+set(BINARY_ARRAY_NAME "webview_binary")
+
+# Custom command to generate a header file using xxd with a custom array name
+add_custom_command(
+        TARGET WebViewProcess
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/generated
+
+        # Execute the bash script
+        COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/generate_header.sh
+        "$<TARGET_FILE:WebViewProcess>"
+        "${CMAKE_BINARY_DIR}/generated/webview_binary.h"
+        "${BINARY_ARRAY_NAME}"
+
+        COMMENT "Generating Base64-encoded header file"
+)
+
+
+# Optionally, add the generated directory to the include path
+target_include_directories(WebViewProcess PUBLIC ${CMAKE_BINARY_DIR}/generated)

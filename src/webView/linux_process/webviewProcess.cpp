@@ -22,7 +22,7 @@
 class WebViewApp
 {
   public:
-    WebViewApp(int argc, char *argv[]) 
+    WebViewApp(int argc, char *argv[])
     {
         // Initialize GTK
         gtk_init(&argc, &argv);

@@ -15,19 +15,66 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
+#include "webview_binary.h"
 
 using namespace iplug;
 
-
 IWebView::IWebView(bool opaque) : memoryQueue("/cabbage_"+cabbage::getUniqueId(), 100, 1024)
 {
-
+    webviewProcessPath = createTempFile(std::string("/tmp/cabWV_"+cabbage::getUniqueId()+"XXXXXX").c_str());
 }
 
 IWebView::~IWebView()
 {
+    unlink(std::string(webviewProcessPath).c_str());;
     CloseWebView();
 }
+
+// Create a temporary file
+// Creates a temporary file and returns the full path
+std::string IWebView::createTempFile(const char* path_template) {
+    // Allocate memory for the temporary file name
+    char* temp_filename = new char[strlen(path_template) + 1]; // +1 for the null terminator
+    std::strcpy(temp_filename, path_template);
+
+    // Create a temporary file
+    int fd = mkstemp(temp_filename); // Creates and opens the file
+    if (fd == -1) {
+        delete[] temp_filename; // Clean up the allocated memory
+        throw std::runtime_error("Failed to create temporary file");
+    }
+
+    // Write binary data to the file (example: dummy data)
+    std::string decoded_binary = cabbage::Base64::decode(webview_binary);
+    const char* binary = decoded_binary.c_str();
+    auto data_size = strlen(binary);
+    if (write(fd, binary, data_size) != static_cast<ssize_t>(data_size)) {
+        close(fd);
+        unlink(temp_filename); // Clean up
+        delete[] temp_filename; // Clean up the allocated memory
+        throw std::runtime_error("Failed to write to temporary file");
+    }
+
+    // Mark the file as executable
+    if (chmod(temp_filename, S_IRWXU) == -1) { // Read, write, execute by owner
+        close(fd);
+        unlink(temp_filename); // Clean up
+        delete[] temp_filename; // Clean up the allocated memory
+        throw std::runtime_error("Failed to make file executable");
+    }
+
+    // Close the file
+    close(fd);
+
+    // Save the full path
+    std::string full_path(temp_filename);
+
+    // Clean up the allocated memory
+    delete[] temp_filename;
+
+    return full_path;
+}
+
 
 void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float height, float scale, bool isTransparent)
 {
@@ -57,7 +104,7 @@ void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float 
     if (webviewPid == 0)
     {
         std::vector<std::string> stringArgs = {
-            "/home/rory/sourcecode/cabbage3/src/webView/linux_process/build/webview",
+            webviewProcessPath.c_str(),
             x11WindowIdStr.str(),
             "/cabbage_" + cabbage::getUniqueId(),
             xStr.str(),
@@ -73,9 +120,13 @@ void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float 
         for (const auto& arg : stringArgs) {
             args.push_back(arg.c_str());
         }
+
+        usleep(10000);
         args.push_back(nullptr); // Null terminator for exec
+        cabbage::logInfo << "Webview process Name:" << args[0];
         execv(args[0], const_cast<char* const*>(args.data()));
-        perror("execv failed");  // Print error if exec fails
+
+        perror(args[0]);  // Print error if exec fails
         //now kill the process that started the webview...
         exit(1);
     }

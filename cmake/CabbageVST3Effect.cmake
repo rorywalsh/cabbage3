@@ -33,6 +33,13 @@ add_custom_command(TARGET ${CABBAGE_PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_directory" "${CMAKE_BINARY_DIR}/out/${CABBAGE_PROJECT_NAME}.vst3" "$ENV{HOME}/Library/Audio/Plug-Ins/VST3"
 )
 elseif (LINUX)
+    # Include the webview build
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type for WebViewProcess" FORCE)
+    add_subdirectory("${CMAKE_SOURCE_DIR}/src/webView/linux_process")
+    add_dependencies(${CABBAGE_PROJECT_NAME} WebViewProcess)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type for main project" FORCE)
+
+    target_link_libraries(${CABBAGE_PROJECT_NAME} PRIVATE WebViewProcess)
     # The target directory where the plugin host expects the .vst3 directory
     # Define the paths
     set(SYMLINK_PATH "$ENV{HOME}/.vst3/CabbageVST3Effect.vst3")
