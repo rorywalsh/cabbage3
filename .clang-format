@@ -15,4 +15,4 @@ IndentCaseLabels: false
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
 SortIncludes: false
-ReflowComments: false
+ReflowComments: true

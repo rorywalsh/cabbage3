@@ -7,12 +7,13 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-namespace cabbage {
+namespace cabbage
+{
 
 class SharedMemoryQueue
 {
-public:
-    SharedMemoryQueue(const std::string& shmName, size_t queueSize, size_t blockSize)
+  public:
+    SharedMemoryQueue(const std::string &shmName, size_t queueSize, size_t blockSize)
         : shmName(shmName), queueSize(queueSize), blockSize(blockSize)
     {
         // Try to open the shared memory object (check if it already exists)
@@ -48,8 +49,9 @@ public:
         }
 
         // Initialize or attach to the queues
-        childToHostHeader = reinterpret_cast<SharedMemoryHeader*>(shmPtr);
-        hostToChildHeader = reinterpret_cast<SharedMemoryHeader*>(reinterpret_cast<char*>(shmPtr) + sizeof(SharedMemoryHeader) + queueSize * blockSize);
+        childToHostHeader = reinterpret_cast<SharedMemoryHeader *>(shmPtr);
+        hostToChildHeader = reinterpret_cast<SharedMemoryHeader *>(reinterpret_cast<char *>(shmPtr) +
+                                                                   sizeof(SharedMemoryHeader) + queueSize * blockSize);
 
         if (isNew)
         {
@@ -57,12 +59,12 @@ public:
             childToHostHeader->head.store(0);
             childToHostHeader->tail.store(0);
             childToHostHeader->size.store(queueSize);
-            childToHostHeader->refCount.store(1);  // Initialize refCount
+            childToHostHeader->refCount.store(1); // Initialize refCount
 
             hostToChildHeader->head.store(0);
             hostToChildHeader->tail.store(0);
             hostToChildHeader->size.store(queueSize);
-            hostToChildHeader->refCount.store(1);  // Initialize refCount
+            hostToChildHeader->refCount.store(1); // Initialize refCount
         }
         else
         {
@@ -97,36 +99,24 @@ public:
         }
     }
 
-    bool sendToChild(const nlohmann::json& obj)
-    {
-        return push(hostToChildHeader, obj);
-    }
+    bool sendToChild(const nlohmann::json &obj) { return push(hostToChildHeader, obj); }
 
-    bool receiveFromChild(nlohmann::json& obj)
-    {
-        return pop(childToHostHeader, obj);
-    }
+    bool receiveFromChild(nlohmann::json &obj) { return pop(childToHostHeader, obj); }
 
-    bool sendToHost(const nlohmann::json& obj)
-    {
-        return push(childToHostHeader, obj);
-    }
+    bool sendToHost(const nlohmann::json &obj) { return push(childToHostHeader, obj); }
 
-    bool receiveFromHost(nlohmann::json& obj)
-    {
-        return pop(hostToChildHeader, obj);
-    }
+    bool receiveFromHost(nlohmann::json &obj) { return pop(hostToChildHeader, obj); }
 
-private:
+  private:
     struct SharedMemoryHeader
     {
-        std::atomic<size_t> head;   // Index of the next element to be written
-        std::atomic<size_t> tail;   // Index of the next element to be read
-        std::atomic<size_t> size;   // Maximum number of elements in the queue
-        std::atomic<int> refCount;  // Reference counter
+        std::atomic<size_t> head;  // Index of the next element to be written
+        std::atomic<size_t> tail;  // Index of the next element to be read
+        std::atomic<size_t> size;  // Maximum number of elements in the queue
+        std::atomic<int> refCount; // Reference counter
     };
 
-    bool push(SharedMemoryHeader* header, const nlohmann::json& obj)
+    bool push(SharedMemoryHeader *header, const nlohmann::json &obj)
     {
         size_t head = header->head.load();
         size_t nextHead = (head + 1) % header->size.load();
@@ -144,7 +134,7 @@ private:
         }
 
         // Copy the serialized data to the shared memory
-        char* queueBase = reinterpret_cast<char*>(shmPtr) + sizeof(SharedMemoryHeader);
+        char *queueBase = reinterpret_cast<char *>(shmPtr) + sizeof(SharedMemoryHeader);
         std::memcpy(queueBase + head * blockSize, serialized.c_str(), serialized.size());
 
         // Null-terminate the message
@@ -156,7 +146,7 @@ private:
         return true;
     }
 
-    bool pop(SharedMemoryHeader* header, nlohmann::json& obj)
+    bool pop(SharedMemoryHeader *header, nlohmann::json &obj)
     {
         size_t tail = header->tail.load();
 
@@ -166,8 +156,8 @@ private:
         }
 
         // Copy the serialized data from the shared memory
-        char* queueBase = reinterpret_cast<char*>(shmPtr) + sizeof(SharedMemoryHeader);
-        char* block = queueBase + tail * blockSize;
+        char *queueBase = reinterpret_cast<char *>(shmPtr) + sizeof(SharedMemoryHeader);
+        char *block = queueBase + tail * blockSize;
 
         // Find the length of the JSON message (up to the first null terminator)
         size_t messageLength = std::strlen(block);
@@ -188,9 +178,9 @@ private:
     size_t queueSize;
     size_t blockSize;
     int shmFd;
-    void* shmPtr;
-    SharedMemoryHeader* childToHostHeader;
-    SharedMemoryHeader* hostToChildHeader;
+    void *shmPtr;
+    SharedMemoryHeader *childToHostHeader;
+    SharedMemoryHeader *hostToChildHeader;
 };
 
 } // namespace cabbage

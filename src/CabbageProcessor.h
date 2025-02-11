@@ -1,20 +1,17 @@
 /*
  * Copyright (c) 2024 Rory Walsh
- * 
+ *
  * Cabbage3 is licensed under the MIT License. See the LICENSE file for details.
  * This software is provided "as-is", without any express or implied warranty.
  * See the LICENSE file for more details.
  */
 
-
 #pragma once
-
 
 #ifdef WIN32
 #include <WinSock2.h>
 #include <Windows.h>
 #endif
-
 
 #include "IPlug_include_in_plug_hdr.h"
 #include <iostream>
@@ -33,7 +30,6 @@
 #include "CabbageParser.h"
 #include "Cabbage.h"
 
-
 #ifndef CabbageApp
 #include "CabbageServer.h"
 #endif
@@ -45,7 +41,7 @@
 #include <windows.h>
 #include <winrt/Windows.System.h>
 #include <dispatcherqueue.h>
-#include <winrt/base.h>  // For winrt::com_ptr
+#include <winrt/base.h> // For winrt::com_ptr
 #elif defined(__APPLE__)
 #include <mach-o/dyld.h>
 #elif defined(__linux__)
@@ -69,50 +65,47 @@ enum EControlTags
 
 #endif // WIN32
 
-
 class CabbageProcessor final : public iplug::Plugin
 {
-public:
-    
+  public:
 #ifdef CabbageApp
-    CabbageProcessor(const iplug::InstanceInfo& info, std::string csdFile);
+    CabbageProcessor(const iplug::InstanceInfo &info, std::string csdFile);
 #else
-    CabbageProcessor(const iplug::InstanceInfo& info);
+    CabbageProcessor(const iplug::InstanceInfo &info);
     CabbageServer server;
 #endif
     ~CabbageProcessor();
-    void ProcessBlock(iplug::sample** inputs, iplug::sample** outputs, int nFrames) override;
-    void ProcessMidiMsg(const iplug::IMidiMsg& msg) override;
+    void ProcessBlock(iplug::sample **inputs, iplug::sample **outputs, int nFrames) override;
+    void ProcessMidiMsg(const iplug::IMidiMsg &msg) override;
     void OnReset() override;
     void OnIdle() override;
-    bool OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData) override;
+    bool OnMessage(int msgTag, int ctrlTag, int dataSize, const void *pData) override;
 
     void OnParamChange(int paramIdx) override;
     void OnParamChangeUI(int paramIdx, iplug::EParamSource = iplug::kUnknown) override;
-    
+
     // Csound API functions for deailing with midi input
-    static int OpenMidiInputDevice (CSOUND* csnd, void** userData, const char* devName);
-    static int OpenMidiOutputDevice (CSOUND* csnd, void** userData, const char* devName);
-    static int ReadMidiData (CSOUND* csound, void* userData, unsigned char* mbuf, int nbytes);
-    static int WriteMidiData (CSOUND* csound, void* userData, const unsigned char* mbuf, int nbytes);
-   
-    void stopProcessing(){                      cabbage.stopProcessing();    }
-    cabbage::Engine& getCabbageEngine(){        return cabbage;              }
-    
+    static int OpenMidiInputDevice(CSOUND *csnd, void **userData, const char *devName);
+    static int OpenMidiOutputDevice(CSOUND *csnd, void **userData, const char *devName);
+    static int ReadMidiData(CSOUND *csound, void *userData, unsigned char *mbuf, int nbytes);
+    static int WriteMidiData(CSOUND *csound, void *userData, const unsigned char *mbuf, int nbytes);
+
+    void stopProcessing() { cabbage.stopProcessing(); }
+    cabbage::Engine &getCabbageEngine() { return cabbage; }
+
     // serialize functions
-    bool SerializeState(iplug::IByteChunk& chunk) const override;
-    int UnserializeState(const iplug::IByteChunk& chunk, int startPos) override;
-    
+    bool SerializeState(iplug::IByteChunk &chunk) const override;
+    int UnserializeState(const iplug::IByteChunk &chunk, int startPos) override;
+
     void setupCallbacks();
     void interfaceHasLoaded();
     void updateJSWidgets();
 
-    
 #ifdef CabbageApp
     std::function<void(CabbageOpcodeData)> hostCallback = nullptr;
 #endif
-    
-private:
+
+  private:
     std::string host = {"127.0.0.1"};
     cabbage::Engine cabbage;
     std::function<void(std::string)> triggerScript;

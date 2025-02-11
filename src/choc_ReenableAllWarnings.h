@@ -16,15 +16,14 @@
 //   WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 //   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-
 // This file re-enables the warnings that were turned off by choc_DisableAllWarnings.h
 // So when you have to include some crappy 3rd-party code which is full of warnings, you
 // can sandwich it between includes of choc_DisableAllWarnings.h and choc_ReenableAllWarnings.h
 
 #if __clang__
- #pragma clang diagnostic pop
+#pragma clang diagnostic pop
 #elif __GNUC__
- #pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
 #else
- #pragma warning (pop)
+#pragma warning(pop)
 #endif

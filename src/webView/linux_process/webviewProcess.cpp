@@ -38,15 +38,17 @@ class WebViewApp
 
         // Extract arguments
         x11WindowId = (Window)atol(argv[1]);
-        
+
         std::cout << "name of shared memory map in child:" << std::string(argv[2]) << std::endl;
-        try {
+        try
+        {
             memoryQueue = std::make_unique<cabbage::SharedMemoryQueue>(std::string(argv[2]), 100, 1024);
             std::cout << "Shared memory created successfully." << std::endl;
-        } catch (const std::exception& e) {
+        }
+        catch (const std::exception &e)
+        {
             std::cerr << "Failed to create shared memory: " << e.what() << std::endl;
         }
-
 
         x = atof(argv[3]);
         y = atof(argv[4]);
@@ -58,7 +60,6 @@ class WebViewApp
 
         // Debug: Print X11 window IDs
         logMessage("Plugin X11 Window ID: " + std::to_string(x11WindowId));
-
 
         // Create the GTK window and WebView
         createWindow();
@@ -84,14 +85,9 @@ class WebViewApp
 
         // Make sure our window gets properly destroyed
         g_signal_connect(window, "delete-event", G_CALLBACK(onDestroy), this);
-
-
     }
 
-    ~WebViewApp()
-    {
-        logMessage("Destructor");
-    }
+    ~WebViewApp() { logMessage("Destructor"); }
 
     void run()
     {
@@ -100,7 +96,6 @@ class WebViewApp
     }
 
   private:
-
     char buffer[4096 * 256];
     GtkWidget *window;
     WebKitWebView *webview;
@@ -111,11 +106,7 @@ class WebViewApp
     std::mutex mutex;
     std::unique_ptr<cabbage::SharedMemoryQueue> memoryQueue;
 
-
-    static void logMessage(std::string_view message)
-    {
-        std::cout << "WebViewProc:" << message << std::endl;
-    }
+    static void logMessage(std::string_view message) { std::cout << "WebViewProc:" << message << std::endl; }
 
     void createWindow()
     {
@@ -201,7 +192,6 @@ class WebViewApp
 
         // logMessage("Received message from WebView (Raw Value in JSON): " + std::string(json));
         g_free(json);
-
     }
 
     void setTransparency()
@@ -236,13 +226,15 @@ class WebViewApp
         return FALSE; // Run only once
     }
 
-    static gboolean readFromQueue(gpointer data) {
-        WebViewApp *app = static_cast<WebViewApp *>(data);  
-       
+    static gboolean readFromQueue(gpointer data)
+    {
+        WebViewApp *app = static_cast<WebViewApp *>(data);
+
         nlohmann::json message;
         std::unique_lock<std::mutex> lock(app->mutex);
 
-        while (app->memoryQueue->receiveFromHost(message)) {
+        while (app->memoryQueue->receiveFromHost(message))
+        {
             // logMessage("Received message from memory queue: " + message.dump(4));
             std::string msgData = message["data"];
             std::string command = message["command"];
@@ -256,23 +248,20 @@ class WebViewApp
             else if (command == "EvaluateJS")
             {
                 logMessage("Evaluating JavaScript: " + msgData);
-                webkit_web_view_evaluate_javascript(app->webview, msgData.c_str(), -1, NULL, NULL, NULL, NULL,
-                                                    NULL);
+                webkit_web_view_evaluate_javascript(app->webview, msgData.c_str(), -1, NULL, NULL, NULL, NULL, NULL);
             }
-
         }
 
         return TRUE; // Continue listening for more data
     }
-
-
 
     static void handleSigterm(int signum)
     {
         logMessage("Received SIGTERM, shutting down");
 
         g_idle_add(
-            [](gpointer data) -> gboolean {
+            [](gpointer data) -> gboolean
+            {
                 WebViewApp *app = static_cast<WebViewApp *>(data);
                 if (app->window)
                 {
@@ -293,7 +282,6 @@ class WebViewApp
         WebViewApp *app = static_cast<WebViewApp *>(data);
         gtk_main_quit(); // Quit GTK main loop
     }
-
 };
 
 int main(int argc, char *argv[])

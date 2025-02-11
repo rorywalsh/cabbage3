@@ -33,17 +33,17 @@ set(BINARY_ARRAY_NAME "webview_binary")
 
 # Custom command to generate a header file using xxd with a custom array name
 add_custom_command(
-        TARGET WebViewProcess
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/generated
+    TARGET WebViewProcess
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/generated
 
-        # Execute the bash script
-        COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/generate_header.sh
+    # Execute the bash script with arguments
+    COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/generate_header.sh
         "$<TARGET_FILE:WebViewProcess>"
         "${CMAKE_BINARY_DIR}/generated/webview_binary.h"
         "${BINARY_ARRAY_NAME}"
 
-        COMMENT "Generating Base64-encoded header file"
+    COMMENT "Generating Base64-encoded header file"
 )
 
 

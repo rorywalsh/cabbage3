@@ -5,7 +5,8 @@
 #include <fstream>
 #include <filesystem>
 
-namespace cabbage {
+namespace cabbage
+{
 
 std::string generateUniqueID()
 {
@@ -20,30 +21,31 @@ std::string generateUniqueID()
 std::string uniqueId = generateUniqueID();
 
 // Function to retrieve the unique ID
-std::string getUniqueId() {
+std::string getUniqueId()
+{
     return uniqueId;
 }
 //==================================================================================
 // Logging methods
 //==================================================================================
 
-Logger& Logger::getInstance()
+Logger &Logger::getInstance()
 {
     static Logger instance;
     return instance;
 }
 
-void Logger::setLogFile(const std::string& filePath)
+void Logger::setLogFile(const std::string &filePath)
 {
     std::lock_guard<std::mutex> lock(fileMutex);
-    
+
     if (logFile.is_open())
     {
         logFile.close();
     }
-    
+
     logFile.open(filePath, std::ios::out | std::ios::app);
-    
+
     if (!logFile.is_open())
     {
         throw std::runtime_error("Failed to open log file: " + filePath);
@@ -53,14 +55,14 @@ void Logger::setLogFile(const std::string& filePath)
 void Logger::closeLogFile()
 {
     std::lock_guard<std::mutex> lock(fileMutex);
-    
+
     if (logFile.is_open())
     {
         logFile.close();
     }
 }
 
-void Logger::logMessage(const std::string& message)
+void Logger::logMessage(const std::string &message)
 {
     std::lock_guard<std::mutex> lock(fileMutex);
 
@@ -68,7 +70,8 @@ void Logger::logMessage(const std::string& message)
     std::cout << message << std::endl;
 
     // Log to file if open
-    if (logFile.is_open()) {
+    if (logFile.is_open())
+    {
         logFile << message << std::endl;
     }
 
@@ -79,31 +82,32 @@ void Logger::logMessage(const std::string& message)
 //==================================================================================
 // Utils methods
 //==================================================================================
-std::string Utils::sanitisePath(const std::string& path)
+std::string Utils::sanitisePath(const std::string &path)
 {
     std::string sanitisedPath = path;
 
     // Remove trailing backslashes
-    while (!sanitisedPath.empty() && sanitisedPath.back() == '\\') 
+    while (!sanitisedPath.empty() && sanitisedPath.back() == '\\')
     {
         sanitisedPath.pop_back();
     }
     // Replace backslashes with forward slashes
-    for (char& c : sanitisedPath) 
+    for (char &c : sanitisedPath)
     {
-        if (c == '\\') {
+        if (c == '\\')
+        {
             c = '/';
         }
     }
     return sanitisedPath;
 }
 
-bool Utils::validateChannelConfig(const std::string& channelConfig, int maxInputs, int maxOutputs)
+bool Utils::validateChannelConfig(const std::string &channelConfig, int maxInputs, int maxOutputs)
 {
     std::istringstream ss(channelConfig);
     std::string pair;
 
-    while (ss >> pair) 
+    while (ss >> pair)
     {
         size_t dashPos = pair.find('-');
         size_t dotPos = pair.find('.');
@@ -111,41 +115,41 @@ bool Utils::validateChannelConfig(const std::string& channelConfig, int maxInput
         int inputs = 0;
         int outputs = 0;
 
-        if (dotPos != std::string::npos) 
+        if (dotPos != std::string::npos)
         {
             std::string inputPart = pair.substr(0, dashPos);
             std::string outputPart = pair.substr(dashPos + 1);
 
             inputs = std::stoi(inputPart.substr(0, dotPos)) + std::stoi(inputPart.substr(dotPos + 1));
             outputs = std::stoi(outputPart);
-        } 
+        }
         else
         {
             inputs = std::stoi(pair.substr(0, dashPos));
             outputs = std::stoi(pair.substr(dashPos + 1));
         }
 
-        if (inputs > maxInputs || outputs > maxOutputs) 
+        if (inputs > maxInputs || outputs > maxOutputs)
         {
-            std::cout << "Error: Channel configuration exceeds the maximum limits. Inputs: "
-                      << inputs << ", MaxInputs: " << maxInputs 
-                      << ", Outputs: " << outputs << ", MaxOutputs: " << maxOutputs << std::endl;
-            return false;  // Invalid configuration
+            std::cout << "Error: Channel configuration exceeds the maximum limits. Inputs: " << inputs
+                      << ", MaxInputs: " << maxInputs << ", Outputs: " << outputs << ", MaxOutputs: " << maxOutputs
+                      << std::endl;
+            return false; // Invalid configuration
         }
     }
 
-    return true;  // Valid configuration
+    return true; // Valid configuration
 }
 
-std::string Utils::getJsonWithLineNumbers(const nlohmann::json& j) 
+std::string Utils::getJsonWithLineNumbers(const nlohmann::json &j)
 {
-    std::string json_str = j.dump(4);  // 4 is the indent for pretty-printing
+    std::string json_str = j.dump(4); // 4 is the indent for pretty-printing
     std::istringstream stream(json_str);
     std::string line;
     int line_number = 1;
     std::ostringstream result;
 
-    while (std::getline(stream, line)) 
+    while (std::getline(stream, line))
     {
         result << line_number << ": " << line << "\n";
         line_number++;
@@ -154,19 +158,22 @@ std::string Utils::getJsonWithLineNumbers(const nlohmann::json& j)
     return result.str();
 }
 
-std::string Utils::getJsonWithLineNumbers(const std::string& json_str) 
+std::string Utils::getJsonWithLineNumbers(const std::string &json_str)
 {
-    try {
+    try
+    {
         auto j = nlohmann::json::parse(json_str);
         return getJsonWithLineNumbers(j);
-    } catch (nlohmann::json::parse_error& e) {
+    }
+    catch (nlohmann::json::parse_error &e)
+    {
         std::stringstream error_output;
         error_output << "Error: Invalid JSON - " << e.what() << "\nOffending JSON:\n";
         std::istringstream json_stream(json_str);
         std::string line;
         int line_number = 1;
 
-        while (std::getline(json_stream, line)) 
+        while (std::getline(json_stream, line))
         {
             error_output << line_number << ": " << line << "\n";
             line_number++;
@@ -176,21 +183,20 @@ std::string Utils::getJsonWithLineNumbers(const std::string& json_str)
     }
 }
 
-std::string Utils::toLower(const std::string& str) 
+std::string Utils::toLower(const std::string &str)
 {
     std::string lowerStr = str;
-    std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+    std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), [](unsigned char c) { return std::tolower(c); });
     return lowerStr;
 }
 
 //=====================================================================================
 // this could be consolidated, but I'm leaving it as is as it improves readability
-std::string Utils::getChannelConfig(const std::string& csdFile)
+std::string Utils::getChannelConfig(const std::string &csdFile)
 {
-    if (auto json = cabbage::File::parseCabbageSection(csdFile)) 
+    if (auto json = cabbage::File::parseCabbageSection(csdFile))
     {
-        if (auto channelConfig = cabbage::Utils::findPropertyInForm<std::string>(*json, "channelConfig")) 
+        if (auto channelConfig = cabbage::Utils::findPropertyInForm<std::string>(*json, "channelConfig"))
         {
             return *channelConfig;
         }
@@ -199,9 +205,9 @@ std::string Utils::getChannelConfig(const std::string& csdFile)
     return "2-2";
 }
 
-int Utils::getDebounceInterval(const std::string& csdFile)
+int Utils::getDebounceInterval(const std::string &csdFile)
 {
-    if (auto json = cabbage::File::parseCabbageSection(csdFile)) 
+    if (auto json = cabbage::File::parseCabbageSection(csdFile))
     {
         if (auto debounceInterval = cabbage::Utils::findPropertyInForm<int>(*json, "debounceInterval"))
         {
@@ -212,11 +218,11 @@ int Utils::getDebounceInterval(const std::string& csdFile)
     return 200;
 }
 
-bool Utils::getEnableDevTools(const std::string& csdFile)
+bool Utils::getEnableDevTools(const std::string &csdFile)
 {
-    if (auto json = cabbage::File::parseCabbageSection(csdFile)) 
+    if (auto json = cabbage::File::parseCabbageSection(csdFile))
     {
-        if (auto enableDevTools = cabbage::Utils::findPropertyInForm<bool>(*json, "enableDevTools")) 
+        if (auto enableDevTools = cabbage::Utils::findPropertyInForm<bool>(*json, "enableDevTools"))
         {
             return *enableDevTools;
         }
@@ -233,7 +239,7 @@ bool Utils::getEnableDevTools(const std::string& csdFile)
 //========================================================================
 // String formatter utility class
 //========================================================================
-void StringFormatter::removeBackticks(std::string& str)
+void StringFormatter::removeBackticks(std::string &str)
 {
     auto new_end = std::remove(str.begin(), str.end(), '`');
     str.erase(new_end, str.end());
@@ -245,41 +251,43 @@ void StringFormatter::removeBackticks(std::string& str)
 std::string File::getBinaryPath()
 {
 #if defined(_WIN32)
-        return getWindowsBinaryPath();
+    return getWindowsBinaryPath();
 #elif defined(__APPLE__)
-        return getMacBinaryPath();
+    return getMacBinaryPath();
 #elif defined(__linux__)
-        return getLinuxBinaryPath();
+    return getLinuxBinaryPath();
 #else
-        return "";
+    return "";
 #endif
 }
 
-bool File::fileExists(const std::string& filePath) 
+bool File::fileExists(const std::string &filePath)
 {
     std::ifstream file(filePath);
     return file.good();
 }
 
-bool File::directoryExists(const std::string& dirPath) 
+bool File::directoryExists(const std::string &dirPath)
 {
 #if defined(_WIN32)
     return std::filesystem::exists(std::filesystem::path(dirPath)) &&
-        std::filesystem::is_directory(std::filesystem::path(dirPath));
+           std::filesystem::is_directory(std::filesystem::path(dirPath));
 #else
     struct stat info;
-    if (stat(dirPath.c_str(), &info) != 0) return false;
+    if (stat(dirPath.c_str(), &info) != 0)
+        return false;
     return (info.st_mode & S_IFDIR);
 #endif
 }
 
-std::string File::withExtension(const std::string& filePath, const std::string& newExtension) 
+std::string File::withExtension(const std::string &filePath, const std::string &newExtension)
 {
     std::filesystem::path path(filePath);
 
     // Ensure the extension starts with a '.'
     std::string adjustedExtension = newExtension;
-    if (!newExtension.empty() && newExtension[0] != '.') {
+    if (!newExtension.empty() && newExtension[0] != '.')
+    {
         adjustedExtension = "." + newExtension;
     }
 
@@ -292,62 +300,62 @@ std::string File::withExtension(const std::string& filePath, const std::string& 
 std::string File::getCabbageResourceDir()
 {
 #if defined(_WIN32)
-        return getWindowsProgramDataDir();
+    return getWindowsProgramDataDir();
 #elif defined(__APPLE__)
-        return getMacCabbageResourceDir();
+    return getMacCabbageResourceDir();
 #elif defined(__linux__)
-        return getLinuxHomeDir() + "/.config/CabbageAudio";
+    return getLinuxHomeDir() + "/.config/CabbageAudio";
 #else
-        return "";
+    return "";
 #endif
 }
 
-std::string File::loadJSFile(const std::string& filePath) 
+std::string File::loadJSFile(const std::string &filePath)
 {
-        std::ifstream file(filePath);
-        std::string jsContent((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-        return jsContent;
+    std::ifstream file(filePath);
+    std::string jsContent((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    return jsContent;
 }
 
-std::string File::getCabbageSection(const std::string& csdFile) 
+std::string File::getCabbageSection(const std::string &csdFile)
 {
     auto csdText = getFileAsString();
     std::regex cabbageRegex(R"(<Cabbage>([\s\S]*?)</Cabbage>)");
     std::smatch match;
 
     // Search for the content using the regex
-    if (std::regex_search(csdText, match, cabbageRegex) && match.size() > 1) 
+    if (std::regex_search(csdText, match, cabbageRegex) && match.size() > 1)
     {
         return match[1].str(); // Return the captured group
     }
-    
+
     return "";
 }
 
 std::string File::getCsdWithoutExtension()
 {
     std::string binaryFileName = getBinaryFileName(); // Get the full filename
-    size_t pos = binaryFileName.find_last_of("."); // Find the last period (.)
-    
+    size_t pos = binaryFileName.find_last_of(".");    // Find the last period (.)
+
     if (pos != std::string::npos)
     {
         // Return the substring before the last period
         return binaryFileName.substr(0, pos);
     }
-    
+
     // If there's no period (i.e., no extension), return the full filename
     return binaryFileName;
 }
 
 std::string File::getSettingsFile()
 {
-    //if in CabbageApp mode, the widget src dir is set by the Cabbage .ini settings
+    // if in CabbageApp mode, the widget src dir is set by the Cabbage .ini settings
     WDL_String iniPath;
 #if defined WIN32
-   /* TCHAR strPath[2048];
-    SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
-    std::string settingsPath = std::string(strPath) + "\\Cabbage\\settings.json";
-    return settingsPath;*/
+    /* TCHAR strPath[2048];
+     SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
+     std::string settingsPath = std::string(strPath) + "\\Cabbage\\settings.json";
+     return settingsPath;*/
     CHAR strPath[256];
     SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
     iniPath.SetFormatted(256, "%s\\%s\\", strPath, "Cabbage");
@@ -363,10 +371,9 @@ std::string File::getSettingsFile()
     iniPath.Append("settings.json"); // add file name to path
     return {};
 #endif
-    
 }
 
-std::string File::getSettingsProperty(const std::string& section, const std::string& key)
+std::string File::getSettingsProperty(const std::string &section, const std::string &key)
 {
     // Open the settings file in binary mode
     std::ifstream file(getSettingsFile(), std::ios::binary);
@@ -385,10 +392,12 @@ std::string File::getSettingsProperty(const std::string& section, const std::str
     // Parse JSON data
     nlohmann::json jsonData;
 
-    try {
+    try
+    {
         jsonData = nlohmann::json::parse(fileContent);
     }
-    catch (const nlohmann::json::parse_error& e) {
+    catch (const nlohmann::json::parse_error &e)
+    {
         cabbage::logInfo << "Parse error : " << e.what() << " at byte position " << e.byte;
         return "";
     }
@@ -403,11 +412,11 @@ std::string File::getSettingsProperty(const std::string& section, const std::str
     return "";
 }
 //===========================================================================================
-std::string File::getFileAsString(std::string csdFile) 
+std::string File::getFileAsString(std::string csdFile)
 {
     if (csdFile.empty())
         csdFile = getCsdFileAndPath();
-        
+
     std::ifstream file(csdFile);
     std::ostringstream oss;
     oss << file.rdbuf();
@@ -426,27 +435,27 @@ std::string File::getBinaryFileName()
         return binaryPath;
 }
 
-std::string File::formatPath(const std::string& path)
+std::string File::formatPath(const std::string &path)
 {
     std::string sanitizedPath = path;
-    
+
     // Remove trailing backslashes
     while (!sanitizedPath.empty() && sanitizedPath.back() == '\\')
     {
         sanitizedPath.pop_back();
     }
-    
+
     // Replace backslashes with forward slashes
-    for (char& c : sanitizedPath)
+    for (char &c : sanitizedPath)
     {
-        if (c == '\\') {
+        if (c == '\\')
+        {
             c = '/';
         }
     }
-    
+
     return sanitizedPath;
 }
-
 
 std::string File::getCsdFileAndPath()
 {
@@ -462,15 +471,18 @@ std::string File::getCsdFileAndPath()
 }
 
 // Reads and parses the cabbage section from the file
-std::optional<nlohmann::json> File::parseCabbageSection(const std::string& csdFile)
+std::optional<nlohmann::json> File::parseCabbageSection(const std::string &csdFile)
 {
-    try {
+    try
+    {
         // Get the cabbage section from the file
         const std::string cabbageContents = cabbage::File::getCabbageSection(csdFile);
 
         // Parse the cabbageContents as a JSON object
         return nlohmann::json::parse(cabbageContents);
-    } catch (const nlohmann::json::parse_error& e) {
+    }
+    catch (const nlohmann::json::parse_error &e)
+    {
         // Handle JSON parsing error
         std::cerr << "Error parsing JSON: " << e.what() << std::endl;
     }
@@ -479,7 +491,7 @@ std::optional<nlohmann::json> File::parseCabbageSection(const std::string& csdFi
 }
 
 // Function to get the number of input channels (nchnls_i)
-int File::getNumberOfInputChannels(const std::string& csdFile)
+int File::getNumberOfInputChannels(const std::string &csdFile)
 {
     auto input = getFileAsString(csdFile);
 
@@ -505,7 +517,7 @@ int File::getNumberOfInputChannels(const std::string& csdFile)
 }
 
 // Function to get the number of output channels (nchnls)
-int File::getNumberOfOutputChannels(const std::string& csdFile)
+int File::getNumberOfOutputChannels(const std::string &csdFile)
 {
     auto input = getFileAsString(csdFile);
     // Define the regex for outputs (nchnls)
@@ -528,10 +540,10 @@ int File::getNumberOfOutputChannels(const std::string& csdFile)
     return 2;
 }
 
-std::vector<std::string> File::getFilesOfType(const std::string& dirPath, const std::string& fileTypes)
+std::vector<std::string> File::getFilesOfType(const std::string &dirPath, const std::string &fileTypes)
 {
     std::vector<std::string> result;
-    
+
     // Resolve the absolute path based on the current CSD file location
     std::filesystem::path searchPath = cabbage::File::formatPath(dirPath);
 
@@ -541,10 +553,10 @@ std::vector<std::string> File::getFilesOfType(const std::string& dirPath, const 
         std::filesystem::path csdDirPath = std::filesystem::path(csdFilePath).parent_path();
         searchPath = csdDirPath / searchPath;
     }
-    
+
     // Normalize the path to remove any redundant elements
     searchPath = std::filesystem::canonical(searchPath);
-    
+
     // Split the fileTypes string into individual patterns
     std::vector<std::string> patterns;
     std::stringstream ss(fileTypes);
@@ -554,13 +566,15 @@ std::vector<std::string> File::getFilesOfType(const std::string& dirPath, const 
     {
         patterns.push_back(pattern);
     }
-    
+
     // Iterate over the directory and match the patterns
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(searchPath))
+    for (const auto &entry : std::filesystem::recursive_directory_iterator(searchPath))
     {
-        if (entry.is_regular_file()) {
+        if (entry.is_regular_file())
+        {
             std::string filePath = entry.path().string();
-            for (const auto& p : patterns) {
+            for (const auto &p : patterns)
+            {
                 if (std::filesystem::path(filePath).filename().string().find(p.substr(1)) != std::string::npos)
                 {
                     result.push_back(filePath);
@@ -569,38 +583,41 @@ std::vector<std::string> File::getFilesOfType(const std::string& dirPath, const 
             }
         }
     }
-    
-    std::sort(result.begin(), result.end(), [](const std::string& a, const std::string& b) {
-        // Extract filenames without extensions
-        std::string fileNameA = std::filesystem::path(a).filename().stem().string();
-        std::string fileNameB = std::filesystem::path(b).filename().stem().string();
-        
-        // Convert filenames to integers if possible
-        auto convertToInt = [](const std::string& s) -> int {
-            try
-            {
-                return std::stoi(s);
-            }
-            catch (...)
-            {
-                return 0; // Return 0 if conversion fails
-            }
-        };
-        
-        int numA = convertToInt(fileNameA);
-        int numB = convertToInt(fileNameB);
-        
-        // Compare numeric parts if both filenames are numeric, otherwise use lexicographical comparison
-        if (numA != 0 && numB != 0)
-        {
-            return numA < numB;
-        }
-        else
-        {
-            return fileNameA < fileNameB;
-        }
-    });
-    
+
+    std::sort(result.begin(), result.end(),
+              [](const std::string &a, const std::string &b)
+              {
+                  // Extract filenames without extensions
+                  std::string fileNameA = std::filesystem::path(a).filename().stem().string();
+                  std::string fileNameB = std::filesystem::path(b).filename().stem().string();
+
+                  // Convert filenames to integers if possible
+                  auto convertToInt = [](const std::string &s) -> int
+                  {
+                      try
+                      {
+                          return std::stoi(s);
+                      }
+                      catch (...)
+                      {
+                          return 0; // Return 0 if conversion fails
+                      }
+                  };
+
+                  int numA = convertToInt(fileNameA);
+                  int numB = convertToInt(fileNameB);
+
+                  // Compare numeric parts if both filenames are numeric, otherwise use lexicographical comparison
+                  if (numA != 0 && numB != 0)
+                  {
+                      return numA < numB;
+                  }
+                  else
+                  {
+                      return fileNameA < fileNameB;
+                  }
+              });
+
     return result;
 }
 
@@ -608,11 +625,11 @@ std::vector<std::string> File::getFilesOfType(const std::string& dirPath, const 
 // this could be rewritten using ducktapeJS or some other JS parser...
 // Note that this won't work with classes that extend other class as the prop
 // object might not be found...
-nlohmann::json File::extractPropsFromJS(const std::string& jsContent)
+nlohmann::json File::extractPropsFromJS(const std::string &jsContent)
 {
     std::string propsKey = "this.props =";
     size_t propsPos = jsContent.find(propsKey);
-    
+
     if (propsPos != std::string::npos)
     {
         // Start of the actual props object (after "this.props =")
@@ -622,11 +639,11 @@ nlohmann::json File::extractPropsFromJS(const std::string& jsContent)
             std::cerr << "No opening brace for props found." << std::endl;
             return {};
         }
-        
+
         // Manual brace matching
         int braceCount = 1;
         size_t end = start + 1;
-        
+
         while (end < jsContent.size() && braceCount > 0)
         {
             if (jsContent[end] == '{')
@@ -639,25 +656,26 @@ nlohmann::json File::extractPropsFromJS(const std::string& jsContent)
             }
             ++end;
         }
-        
+
         // If we exited and braceCount is not zero, something went wrong
         if (braceCount != 0)
         {
             std::cerr << "Mismatched braces in the props object." << std::endl;
             return {};
         }
-        
+
         // Extract the props object string
         std::string propsString = jsContent.substr(start, end - start);
-        
+
         // Parse the props string into a JSON object using nlohmann::json
         try
         {
             return nlohmann::json::parse(propsString);
         }
-        catch (const nlohmann::json::parse_error& e)
+        catch (const nlohmann::json::parse_error &e)
         {
-            cabbage::logInfo << "JSON parse error: " << e.what() << "\nOffending JSON:\n" << cabbage::Utils::getJsonWithLineNumbers(propsString);
+            cabbage::logInfo << "JSON parse error: " << e.what() << "\nOffending JSON:\n"
+                             << cabbage::Utils::getJsonWithLineNumbers(propsString);
             return {};
         }
     }
@@ -665,13 +683,13 @@ nlohmann::json File::extractPropsFromJS(const std::string& jsContent)
     {
         std::cerr << "No props object found in the JavaScript file." << std::endl;
     }
-    
+
     return {};
 }
 
 std::string File::getCsdPath(const std::string file)
 {
-    if(file.empty())
+    if (file.empty())
     {
         std::string resourceDir = getCabbageResourceDir();
         std::string binaryFileName = getBinaryFileName();
@@ -688,7 +706,7 @@ std::string File::getCsdPath(const std::string file)
     }
 }
 
-std::string File::joinPath(const std::string& dirPath, const std::string& fileName) 
+std::string File::joinPath(const std::string &dirPath, const std::string &fileName)
 {
     if (dirPath.empty())
         return fileName;
@@ -698,9 +716,9 @@ std::string File::joinPath(const std::string& dirPath, const std::string& fileNa
     {
         char separator =
 #if defined(_WIN32)
-        '\\';
+            '\\';
 #else
-        '/';
+            '/';
 #endif
         if (dirPath.back() == separator || fileName.front() == separator)
             return dirPath + fileName;
@@ -708,6 +726,5 @@ std::string File::joinPath(const std::string& dirPath, const std::string& fileNa
             return dirPath + separator + fileName;
     }
 }
-
 
 } // namespace cabbage

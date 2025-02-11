@@ -3,22 +3,21 @@ set(CABBAGE_PROJECT_NAME ${CABBAGE_BUILD_TARGET})
 include("cmake/cabbage_project.cmake")
 
 add_library(${CABBAGE_PROJECT_NAME} MODULE
-    ${CABBAGE_OPCODE_SOURCES}
-    ${CABBAGE_SOURCES}
-    ${CABBAGE_WEBVIEW_SOURCES}
+        ${CABBAGE_OPCODE_SOURCES}
+        ${CABBAGE_SOURCES}
+        ${CABBAGE_WEBVIEW_SOURCES}
 )
 
 
-
 iplug_target_add(${CABBAGE_PROJECT_NAME} PUBLIC
-    DEFINE
+        DEFINE
         CabbagePluginEffect
-    INCLUDE
+        INCLUDE
         "${CMAKE_SOURCE_DIR}/resources"
-    LINK
+        LINK
         _base
         iPlug2_VST3
-    RESOURCE ${RESOURCES}
+        RESOURCE ${RESOURCES}
 )
 
 set(SMTG_OS_LINUX "ON")
@@ -27,11 +26,11 @@ target_compile_options(${CABBAGE_PROJECT_NAME} PRIVATE -Wno-error)
 iplug_configure_target(${CABBAGE_PROJECT_NAME} vst3)
 set_target_properties(${CABBAGE_PROJECT_NAME} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME "${CABBAGE_PROJECT_NAME}")
 
-if(APPLE)
-# TODO: Make a target that depends on the build .vst3 file.
-add_custom_command(TARGET ${CABBAGE_PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_directory" "${CMAKE_BINARY_DIR}/out/${CABBAGE_PROJECT_NAME}.vst3" "$ENV{HOME}/Library/Audio/Plug-Ins/VST3"
-)
+if (APPLE)
+    # TODO: Make a target that depends on the build .vst3 file.
+    add_custom_command(TARGET ${CABBAGE_PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_directory" "${CMAKE_BINARY_DIR}/out/${CABBAGE_PROJECT_NAME}.vst3" "$ENV{HOME}/Library/Audio/Plug-Ins/VST3"
+    )
 elseif (LINUX)
     # Include the webview build
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type for WebViewProcess" FORCE)
@@ -55,4 +54,4 @@ elseif (LINUX)
             COMMENT "Creating symbolic link in ~/.vst3 for plugin host"
     )
 
-endif()
+endif ()

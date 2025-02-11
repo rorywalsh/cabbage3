@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <gtk/gtk.h>
 #include <gtk/gtkx.h>
-#include <gdk/gdkx.h>  // Include GDK X11 header
+#include <gdk/gdkx.h> // Include GDK X11 header
 #include <webkit2/webkit2.h>
 #include <syscall.h>
 #include <linux/futex.h>
@@ -14,51 +14,53 @@
 #include <X11/extensions/shape.h>
 #include <unistd.h>
 #include <sys/wait.h>
-
 #include "webview_binary.h"
 
 using namespace iplug;
 
-IWebView::IWebView(bool opaque) : memoryQueue("/cabbage_"+cabbage::getUniqueId(), 100, 1024)
+IWebView::IWebView(bool opaque) : memoryQueue("/cabbage_" + cabbage::getUniqueId(), 100, 1024)
 {
-    webviewProcessPath = createTempFile(std::string("/tmp/cabWV_"+cabbage::getUniqueId()+"XXXXXX").c_str());
+    webviewProcessPath = createTempFile(std::string("/tmp/cabWV_" + cabbage::getUniqueId() + "XXXXXX").c_str());
 }
 
 IWebView::~IWebView()
 {
-    unlink(std::string(webviewProcessPath).c_str());;
+    unlink(std::string(webviewProcessPath).c_str());
+    ;
     CloseWebView();
 }
 
-// Create a temporary file
 // Creates a temporary file and returns the full path
-std::string IWebView::createTempFile(const char* path_template) {
+std::string IWebView::createTempFile(const char *path_template)
+{
     // Allocate memory for the temporary file name
-    char* temp_filename = new char[strlen(path_template) + 1]; // +1 for the null terminator
+    char *temp_filename = new char[strlen(path_template) + 1]; // +1 for the null terminator
     std::strcpy(temp_filename, path_template);
 
     // Create a temporary file
     int fd = mkstemp(temp_filename); // Creates and opens the file
-    if (fd == -1) {
+    if (fd == -1)
+    {
         delete[] temp_filename; // Clean up the allocated memory
         throw std::runtime_error("Failed to create temporary file");
     }
 
-    // Write binary data to the file (example: dummy data)
+    // Write binary data to the file
     std::string decoded_binary = cabbage::Base64::decode(webview_binary);
-    const char* binary = decoded_binary.c_str();
-    auto data_size = strlen(binary);
-    if (write(fd, binary, data_size) != static_cast<ssize_t>(data_size)) {
+    auto data_size = decoded_binary.size(); // Use the size of the string, not strlen
+    if (write(fd, decoded_binary.data(), data_size) != static_cast<ssize_t>(data_size))
+    {
         close(fd);
-        unlink(temp_filename); // Clean up
+        unlink(temp_filename);  // Clean up
         delete[] temp_filename; // Clean up the allocated memory
         throw std::runtime_error("Failed to write to temporary file");
     }
 
     // Mark the file as executable
-    if (chmod(temp_filename, S_IRWXU) == -1) { // Read, write, execute by owner
+    if (chmod(temp_filename, S_IRWXU) == -1)
+    { // Read, write, execute by owner
         close(fd);
-        unlink(temp_filename); // Clean up
+        unlink(temp_filename);  // Clean up
         delete[] temp_filename; // Clean up the allocated memory
         throw std::runtime_error("Failed to make file executable");
     }
@@ -75,10 +77,9 @@ std::string IWebView::createTempFile(const char* path_template) {
     return full_path;
 }
 
-
-void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float height, float scale, bool isTransparent)
+void *IWebView::OpenWebView(void *pParent, float x, float y, float width, float height, float scale, bool isTransparent)
 {
-    if(pParent == NULL)
+    if (pParent == NULL)
     {
         cabbage::logDebug << "Invalid parent";
         return nullptr;
@@ -95,39 +96,35 @@ void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float 
     std::string isTransparentStr = isTransparent ? "true" : "false";
     std::string enableDevToolsStr = "true";
 
-
-
-
     // Fork process
     webviewPid = fork();
 
     if (webviewPid == 0)
     {
-        std::vector<std::string> stringArgs = {
-            webviewProcessPath.c_str(),
-            x11WindowIdStr.str(),
-            "/cabbage_" + cabbage::getUniqueId(),
-            xStr.str(),
-            yStr.str(),
-            widthStr.str(),
-            heightStr.str(),
-            scaleStr.str(),
-            isTransparentStr,
-            enableDevToolsStr
-        };
+        std::vector<std::string> stringArgs = {webviewProcessPath.c_str(),
+                                               x11WindowIdStr.str(),
+                                               "/cabbage_" + cabbage::getUniqueId(),
+                                               xStr.str(),
+                                               yStr.str(),
+                                               widthStr.str(),
+                                               heightStr.str(),
+                                               scaleStr.str(),
+                                               isTransparentStr,
+                                               enableDevToolsStr};
 
-        std::vector<const char*> args;
-        for (const auto& arg : stringArgs) {
+        std::vector<const char *> args;
+        for (const auto &arg : stringArgs)
+        {
             args.push_back(arg.c_str());
         }
 
         usleep(10000);
         args.push_back(nullptr); // Null terminator for exec
         cabbage::logInfo << "Webview process Name:" << args[0];
-        execv(args[0], const_cast<char* const*>(args.data()));
+        execv(args[0], const_cast<char *const *>(args.data()));
 
-        perror(args[0]);  // Print error if exec fails
-        //now kill the process that started the webview...
+        perror(args[0]); // Print error if exec fails
+        // now kill the process that started the webview...
         exit(1);
     }
     else if (webviewPid < 0)
@@ -141,8 +138,6 @@ void* IWebView::OpenWebView(void* pParent, float x, float y, float width, float 
     return nullptr;
 }
 
-
-
 void IWebView::CloseWebView()
 {
     kill(webviewPid, SIGTERM);
@@ -153,28 +148,26 @@ void IWebView::HideWebView(bool hide)
     // Implement if needed
 }
 
-void IWebView::LoadHTML(const char* html)
+void IWebView::LoadHTML(const char *html)
 {
     // Implement if needed
 }
 
-void IWebView::LoadURL(const char* url)
+void IWebView::LoadURL(const char *url)
 {
     nlohmann::json message;
     message["command"] = "LoadUrl";
     message["data"] = url;
-
     memoryQueue.sendToChild(message);
     OnWebContentLoaded();
-
 }
 
-void IWebView::LoadFile(const char* fileName, const char* bundleID)
+void IWebView::LoadFile(const char *fileName, const char *bundleID)
 {
     // Implement if needed
 }
 
-void IWebView::EvaluateJavaScript(const char* scriptStr, completionHandlerFunc func)
+void IWebView::EvaluateJavaScript(const char *scriptStr, completionHandlerFunc func)
 {
     nlohmann::json message;
     message["command"] = "EvaluateJS";
