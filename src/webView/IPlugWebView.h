@@ -113,9 +113,30 @@ class IWebView
     cabbage::SharedMemoryQueue memoryQueue;
     std::string createTempFile(const char *path_template);
     std::string webviewProcessPath = {};
+    std::string uniqueUID = {};
+
+    static std::string generateUniqueID()
+    {
+        static std::mutex mtx;
+        static std::random_device rd;
+        static std::mt19937_64 rng(rd());
+        static std::uniform_int_distribution<uint64_t> dist(0, UINT64_MAX);
+
+        std::lock_guard<std::mutex> lock(mtx);
+
+        auto now = std::chrono::system_clock::now();
+        auto duration = now.time_since_epoch();
+        auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+
+        std::stringstream ss;
+        ss << std::hex << std::setw(16) << std::setfill('0') << dist(rng);
+        ss << std::hex << std::setw(16) << std::setfill('0') << millis;
+
+        return ss.str();
+    }
 
   public:
-    std::string GetWebviewProcessPath() { return webviewProcessPath; };
+    std::string GetUniqueUID() { return uniqueUID; };
 #endif
 };
 

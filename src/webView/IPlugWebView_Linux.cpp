@@ -20,6 +20,7 @@ using namespace iplug;
 
 IWebView::IWebView(bool opaque) : memoryQueue("/cabbage_" + cabbage::getUniqueId(), 100, 1024)
 {
+    uniqueUID = generateUniqueID();
     webviewProcessPath = createTempFile(std::string("/tmp/cabWV_" + cabbage::getUniqueId() + "XXXXXX").c_str());
 }
 
