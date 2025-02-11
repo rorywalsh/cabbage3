@@ -16,9 +16,6 @@
 #include <webkit2/webkit2.h>
 #include "../../CabbageMemoryQueue.h"
 
-// g++ -o webviewLaunch webviewProcess.cpp $(pkg-config --cflags --libs gtk+-3.0
-// webkit2gtk-4.1 x11)
-
 class WebViewApp
 {
   public:
@@ -40,6 +37,7 @@ class WebViewApp
         x11WindowId = (Window)atol(argv[1]);
 
         std::cout << "name of shared memory map in child:" << std::string(argv[2]) << std::endl;
+
         try
         {
             memoryQueue = std::make_unique<cabbage::SharedMemoryQueue>(std::string(argv[2]), 100, 1024);
@@ -176,21 +174,9 @@ class WebViewApp
         // Print the raw value as JSON (for other types)
         gchar *json = jsc_value_to_json(value, 0);
         auto j = nlohmann::json::parse(json);
-        std::cout << "About to send to host: " << j.dump(4);
 
         app->memoryQueue->sendToHost(j);
-        // ssize_t bytesWritten = write(app->outgoingPipeFd, std::string(json).c_str(), std::string(json).length());
 
-        // if (bytesWritten == -1)
-        // {
-        //     perror("Write to pipe failed in child process");
-        // }
-        // else
-        // {
-        //     logMessage("Message received: " +  std::string(json) + " and sent to pipe: " + app->outgoingPipeName);
-        // }
-
-        // logMessage("Received message from WebView (Raw Value in JSON): " + std::string(json));
         g_free(json);
     }
 
@@ -242,12 +228,12 @@ class WebViewApp
             // Process the message based on the "command" field
             if (command == "LoadUrl")
             {
-                logMessage("Loading URL: " + msgData);
+                // logMessage("Loading URL: " + msgData);
                 webkit_web_view_load_uri(app->webview, msgData.c_str());
             }
             else if (command == "EvaluateJS")
             {
-                logMessage("Evaluating JavaScript: " + msgData);
+                // logMessage("Evaluating JavaScript: " + msgData);
                 webkit_web_view_evaluate_javascript(app->webview, msgData.c_str(), -1, NULL, NULL, NULL, NULL, NULL);
             }
         }

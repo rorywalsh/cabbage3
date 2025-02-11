@@ -113,6 +113,9 @@ class IWebView
     cabbage::SharedMemoryQueue memoryQueue;
     std::string createTempFile(const char *path_template);
     std::string webviewProcessPath = {};
+
+  public:
+    std::string GetWebviewProcessPath() { return webviewProcessPath; };
 #endif
 };
 

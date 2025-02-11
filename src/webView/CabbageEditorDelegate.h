@@ -39,6 +39,7 @@ class CabbageEditorDelegate : public iplug::IEditorDelegate, public iplug::IWebV
             editorCloseCallback();
     }
 
+    void HelloQWorld() {};
     void OpenFileBrowser();
     void SendControlValueFromDelegate(int ctrlTag, double normalizedValue) override
     {
