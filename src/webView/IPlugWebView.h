@@ -110,6 +110,7 @@ class IWebView
     bool mShowOnLoad = true;
 #else //__linux__
     pid_t webviewPid = 1;
+    cabbage::SharedMemoryQueue instanceMap;
     cabbage::SharedMemoryQueue memoryQueue;
     std::string createTempFile(const char *path_template);
     std::string webviewProcessPath = {};

@@ -18,16 +18,18 @@
 
 using namespace iplug;
 
-IWebView::IWebView(bool opaque) : memoryQueue("/cabbage_" + cabbage::getUniqueId(), 100, 1024)
+IWebView::IWebView(bool opaque)
+    : instanceMap(cabbage::SharedMemoryQueue::CreateDefaultInstanceTracker(true)),
+      memoryQueue("/cabbage_" + instanceMap.getInstanceId(), 100, 1024)
 {
-    uniqueUID = generateUniqueID();
-    webviewProcessPath = createTempFile(std::string("/tmp/cabWV_" + cabbage::getUniqueId() + "XXXXXX").c_str());
+    cabbage::logInfo << "Instance ID:" << instanceMap.getInstanceId();
+    webviewProcessPath = createTempFile(std::string("/tmp/cabWV_" + instanceMap.getInstanceId() + "XXXXXX").c_str());
 }
 
 IWebView::~IWebView()
 {
     unlink(std::string(webviewProcessPath).c_str());
-    ;
+
     CloseWebView();
 }
 
@@ -102,9 +104,10 @@ void *IWebView::OpenWebView(void *pParent, float x, float y, float width, float 
 
     if (webviewPid == 0)
     {
+
         std::vector<std::string> stringArgs = {webviewProcessPath.c_str(),
                                                x11WindowIdStr.str(),
-                                               "/cabbage_" + cabbage::getUniqueId(),
+                                               "/cabbage_" + instanceMap.getInstanceId(),
                                                xStr.str(),
                                                yStr.str(),
                                                widthStr.str(),
@@ -123,7 +126,6 @@ void *IWebView::OpenWebView(void *pParent, float x, float y, float width, float 
         args.push_back(nullptr); // Null terminator for exec
         cabbage::logInfo << "Webview process Name:" << args[0];
         execv(args[0], const_cast<char *const *>(args.data()));
-
         perror(args[0]); // Print error if exec fails
         // now kill the process that started the webview...
         exit(1);

@@ -65,15 +65,6 @@
 namespace cabbage
 {
 
-// Function to generate a unique ID
-std::string generateUniqueID();
-
-// Declare the unique ID as an external global variable
-extern std::string uniqueId;
-
-// Function to retrieve the unique ID
-std::string getUniqueId();
-
 // Function to handle debug output in Visual Studio
 inline void logToDebug(const std::string &message)
 {

@@ -34,9 +34,12 @@ CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo &info)
       cabbage(*this, "")
 #if defined(LINUX)
       ,
-      memoryQueue("/cabbage_" + cabbage::getUniqueId(), 100, 1024)
+      instanceMap(cabbage::SharedMemoryQueue::CreateDefaultInstanceTracker()),
+      memoryQueue("/cabbage_" + instanceMap.getInstanceId(), 100, 1024)
 #endif
 {
+
+    cabbage::logInfo << "Instance ID:" << instanceMap.getInstanceId();
     cabbage.getMidiQueue().clear();
     cabbage.setCsdFile(cabbage::File::getCsdFileAndPath());
     cabbage::Logger::getInstance().setLogFile(cabbage::File::withExtension(cabbage.getCsdFile(), ".log"));
