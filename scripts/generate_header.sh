@@ -19,9 +19,9 @@ fi
 
 # Create the output header file with the Base64-encoded data
 {
-    echo "const char ${ARRAY_NAME}[] = R\"("
-    base64 -w 0 "$INPUT_BINARY"
-    echo ")\";"
+    printf 'const char %s[] = R"(' "$ARRAY_NAME"
+    base64 -w 0 "$INPUT_BINARY" | tr -d '\n'
+    printf ')";\n'
 } > "$OUTPUT_HEADER"
 
 echo "Generated Base64-encoded header file: $OUTPUT_HEADER"
