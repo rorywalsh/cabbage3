@@ -6,13 +6,13 @@ message(STATUS "Fetching dependencies ...")
 
 include(FetchContent)
 
-FetchContent_Declare(
+fetch_github_dependency(
         cppcodec
         GIT_REPOSITORY https://github.com/tplgy/cppcodec.git
-        GIT_TAG master
-        PATCH_COMMAND sed -i "s/add_subdirectory(test)//" CMakeLists.txt
+        GIT_TAG 8019b8b580f8573c33c50372baec7039dfe5a8ce
+        URL_MD5 7bcdfe5bf29d9a764c0923830d351b29
+        # USE_GIT
 )
-#FetchContent_MakeAvailable(cppcodec)
 
 fetch_github_dependency(
         choc
