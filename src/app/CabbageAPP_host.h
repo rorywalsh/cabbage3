@@ -261,8 +261,6 @@ class IPlugAPPHost
 
     void addDevicesToSettings(nlohmann::json &settings);
 
-    static WDL_DLGRET PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
-    static WDL_DLGRET MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
     IPlugAPP *GetPlug() { return mIPlug.get(); }
 

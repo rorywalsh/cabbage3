@@ -231,141 +231,141 @@ int main(int argc, char *argv[])
     return NSApplicationMain(argc, (const char **)argv);
 }
 
-INT_PTR SWELLAppMain(int msg, INT_PTR parm1, INT_PTR parm2)
-{
-    IPlugAPPHost *pAppHost = nullptr;
-
-    switch (msg)
-    {
-    case SWELLAPP_ONLOAD:
-#ifdef CabbageApp
-        if (argCnt > 1)
-            pAppHost = IPlugAPPHost::Create(arguments[1], atoi(arguments[2]));
-        else
-            pAppHost = IPlugAPPHost::Create("", 9991);
-#else
-        pAppHost = IPlugAPPHost::Create();
-#endif
-        pAppHost->Init();
-        pAppHost->InitProcessor();
-        pAppHost->InitWebSocket();
-        pAppHost->TryToChangeAudio();
-        break;
-    case SWELLAPP_LOADED:
-    {
-        pAppHost = IPlugAPPHost::sInstance.get();
-
-        HMENU menu = SWELL_GetCurrentMenu();
-
-        if (menu)
-        {
-            // work on a new menu
-            menu = SWELL_DuplicateMenu(menu);
-            HMENU src = LoadMenu(NULL, MAKEINTRESOURCE(IDR_MENU1));
-
-            for (int x = 0; x < GetMenuItemCount(src) - 1; x++)
-            {
-                HMENU sm = GetSubMenu(src, x);
-
-                if (sm)
-                {
-                    char str[1024];
-                    MENUITEMINFO mii = {sizeof(mii), MIIM_TYPE};
-                    mii.dwTypeData = str;
-                    mii.cch = sizeof(str);
-                    str[0] = 0;
-                    GetMenuItemInfo(src, x, TRUE, &mii);
-                    MENUITEMINFO mi = {sizeof(mi), MIIM_STATE | MIIM_SUBMENU | MIIM_TYPE,
-                                       MFT_STRING, 0,
-                                       0,          SWELL_DuplicateMenu(sm),
-                                       NULL,       NULL,
-                                       0,          str};
-                    InsertMenuItem(menu, x + 1, TRUE, &mi);
-                }
-            }
-        }
-
-        if (menu)
-        {
-            HMENU sm = GetSubMenu(menu, 1);
-            DeleteMenu(sm, ID_QUIT,
-                       MF_BYCOMMAND); // remove QUIT from our file menu, since it is in the system menu on OSX
-            DeleteMenu(sm, ID_PREFERENCES,
-                       MF_BYCOMMAND); // remove PREFERENCES from the file menu, since it is in the system menu on OSX
-
-            // remove any trailing separators
-            int a = GetMenuItemCount(sm);
-
-            while (a > 0 && GetMenuItemID(sm, a - 1) == 0)
-                DeleteMenu(sm, --a, MF_BYPOSITION);
-
-            DeleteMenu(menu, 1, MF_BYPOSITION); // delete file menu
-        }
-#if !defined _DEBUG || defined NO_IGRAPHICS
-        if (menu)
-        {
-            HMENU sm = GetSubMenu(menu, 1);
-            DeleteMenu(sm, ID_LIVE_EDIT, MF_BYCOMMAND);
-            DeleteMenu(sm, ID_SHOW_DRAWN, MF_BYCOMMAND);
-            DeleteMenu(sm, ID_SHOW_FPS, MF_BYCOMMAND);
-
-            // remove any trailing separators
-            int a = GetMenuItemCount(sm);
-
-            while (a > 0 && GetMenuItemID(sm, a - 1) == 0)
-                DeleteMenu(sm, --a, MF_BYPOSITION);
-
-            DeleteMenu(menu, 1, MF_BYPOSITION); // delete debug menu
-        }
-#else
-        SetMenuItemModifier(menu, ID_LIVE_EDIT, MF_BYCOMMAND, 'E', FCONTROL);
-        SetMenuItemModifier(menu, ID_SHOW_DRAWN, MF_BYCOMMAND, 'D', FCONTROL);
-        SetMenuItemModifier(menu, ID_SHOW_BOUNDS, MF_BYCOMMAND, 'B', FCONTROL);
-        SetMenuItemModifier(menu, ID_SHOW_FPS, MF_BYCOMMAND, 'F', FCONTROL);
-#endif
-
-        HWND hwnd = CreateDialog(gHINST, MAKEINTRESOURCE(IDD_DIALOG_MAIN), NULL, IPlugAPPHost::MainDlgProc);
-
-        if (menu)
-        {
-            SetMenu(hwnd, menu); // set the menu for the dialog to our menu (on Windows that menu is set from the .rc,
-                                 // but on SWELL
-            SWELL_SetDefaultModalWindowMenu(menu); // other windows will get the stock (bundle) menus
-        }
-
-        break;
-    }
-    case SWELLAPP_ONCOMMAND:
-        // this is to catch commands coming from the system menu etc
-        if (gHWND && (parm1 & 0xffff))
-            SendMessage(gHWND, WM_COMMAND, parm1 & 0xffff, 0);
-        break;
-    case SWELLAPP_DESTROY:
-        if (gHWND)
-            DestroyWindow(gHWND);
-        break;
-    case SWELLAPP_PROCESSMESSAGE:
-        MSG *pMSG = (MSG *)parm1;
-        NSView *pContentView = (NSView *)pMSG->hwnd;
-        NSEvent *pEvent = (NSEvent *)parm2;
-        int etype = (int)[pEvent type];
-
-        bool textField = [pContentView isKindOfClass:[NSText class]];
-
-        if (!textField && etype == NSKeyDown)
-        {
-            int flag, code = SWELL_MacKeyToWindowsKey(pEvent, &flag);
-
-            if (!(flag & ~FVIRTKEY) && (code == VK_RETURN || code == VK_ESCAPE))
-            {
-                [pContentView keyDown:pEvent];
-                return 1;
-            }
-        }
-        break;
-    }
-    return 0;
-}
+//INT_PTR SWELLAppMain(int msg, INT_PTR parm1, INT_PTR parm2)
+//{
+//    IPlugAPPHost *pAppHost = nullptr;
+//
+//    switch (msg)
+//    {
+//    case SWELLAPP_ONLOAD:
+//#ifdef CabbageApp
+//        if (argCnt > 1)
+//            pAppHost = IPlugAPPHost::Create(arguments[1], atoi(arguments[2]));
+//        else
+//            pAppHost = IPlugAPPHost::Create("", 9991);
+//#else
+//        pAppHost = IPlugAPPHost::Create();
+//#endif
+//        pAppHost->Init();
+//        pAppHost->InitProcessor();
+//        pAppHost->InitWebSocket();
+//        pAppHost->TryToChangeAudio();
+//        break;
+//    case SWELLAPP_LOADED:
+//    {
+//        pAppHost = IPlugAPPHost::sInstance.get();
+//
+//        HMENU menu = SWELL_GetCurrentMenu();
+//
+//        if (menu)
+//        {
+//            // work on a new menu
+//            menu = SWELL_DuplicateMenu(menu);
+//            HMENU src = LoadMenu(NULL, MAKEINTRESOURCE(IDR_MENU1));
+//
+//            for (int x = 0; x < GetMenuItemCount(src) - 1; x++)
+//            {
+//                HMENU sm = GetSubMenu(src, x);
+//
+//                if (sm)
+//                {
+//                    char str[1024];
+//                    MENUITEMINFO mii = {sizeof(mii), MIIM_TYPE};
+//                    mii.dwTypeData = str;
+//                    mii.cch = sizeof(str);
+//                    str[0] = 0;
+//                    GetMenuItemInfo(src, x, TRUE, &mii);
+//                    MENUITEMINFO mi = {sizeof(mi), MIIM_STATE | MIIM_SUBMENU | MIIM_TYPE,
+//                                       MFT_STRING, 0,
+//                                       0,          SWELL_DuplicateMenu(sm),
+//                                       NULL,       NULL,
+//                                       0,          str};
+//                    InsertMenuItem(menu, x + 1, TRUE, &mi);
+//                }
+//            }
+//        }
+//
+//        if (menu)
+//        {
+//            HMENU sm = GetSubMenu(menu, 1);
+//            DeleteMenu(sm, ID_QUIT,
+//                       MF_BYCOMMAND); // remove QUIT from our file menu, since it is in the system menu on OSX
+//            DeleteMenu(sm, ID_PREFERENCES,
+//                       MF_BYCOMMAND); // remove PREFERENCES from the file menu, since it is in the system menu on OSX
+//
+//            // remove any trailing separators
+//            int a = GetMenuItemCount(sm);
+//
+//            while (a > 0 && GetMenuItemID(sm, a - 1) == 0)
+//                DeleteMenu(sm, --a, MF_BYPOSITION);
+//
+//            DeleteMenu(menu, 1, MF_BYPOSITION); // delete file menu
+//        }
+//#if !defined _DEBUG || defined NO_IGRAPHICS
+//        if (menu)
+//        {
+//            HMENU sm = GetSubMenu(menu, 1);
+//            DeleteMenu(sm, ID_LIVE_EDIT, MF_BYCOMMAND);
+//            DeleteMenu(sm, ID_SHOW_DRAWN, MF_BYCOMMAND);
+//            DeleteMenu(sm, ID_SHOW_FPS, MF_BYCOMMAND);
+//
+//            // remove any trailing separators
+//            int a = GetMenuItemCount(sm);
+//
+//            while (a > 0 && GetMenuItemID(sm, a - 1) == 0)
+//                DeleteMenu(sm, --a, MF_BYPOSITION);
+//
+//            DeleteMenu(menu, 1, MF_BYPOSITION); // delete debug menu
+//        }
+//#else
+//        SetMenuItemModifier(menu, ID_LIVE_EDIT, MF_BYCOMMAND, 'E', FCONTROL);
+//        SetMenuItemModifier(menu, ID_SHOW_DRAWN, MF_BYCOMMAND, 'D', FCONTROL);
+//        SetMenuItemModifier(menu, ID_SHOW_BOUNDS, MF_BYCOMMAND, 'B', FCONTROL);
+//        SetMenuItemModifier(menu, ID_SHOW_FPS, MF_BYCOMMAND, 'F', FCONTROL);
+//#endif
+//
+//        HWND hwnd = CreateDialog(gHINST, MAKEINTRESOURCE(IDD_DIALOG_MAIN), NULL, IPlugAPPHost::MainDlgProc);
+//
+//        if (menu)
+//        {
+//            SetMenu(hwnd, menu); // set the menu for the dialog to our menu (on Windows that menu is set from the .rc,
+//                                 // but on SWELL
+//            SWELL_SetDefaultModalWindowMenu(menu); // other windows will get the stock (bundle) menus
+//        }
+//
+//        break;
+//    }
+//    case SWELLAPP_ONCOMMAND:
+//        // this is to catch commands coming from the system menu etc
+//        if (gHWND && (parm1 & 0xffff))
+//            SendMessage(gHWND, WM_COMMAND, parm1 & 0xffff, 0);
+//        break;
+//    case SWELLAPP_DESTROY:
+//        if (gHWND)
+//            DestroyWindow(gHWND);
+//        break;
+//    case SWELLAPP_PROCESSMESSAGE:
+//        MSG *pMSG = (MSG *)parm1;
+//        NSView *pContentView = (NSView *)pMSG->hwnd;
+//        NSEvent *pEvent = (NSEvent *)parm2;
+//        int etype = (int)[pEvent type];
+//
+//        bool textField = [pContentView isKindOfClass:[NSText class]];
+//
+//        if (!textField && etype == NSKeyDown)
+//        {
+//            int flag, code = SWELL_MacKeyToWindowsKey(pEvent, &flag);
+//
+//            if (!(flag & ~FVIRTKEY) && (code == VK_RETURN || code == VK_ESCAPE))
+//            {
+//                [pContentView keyDown:pEvent];
+//                return 1;
+//            }
+//        }
+//        break;
+//    }
+//    return 0;
+//}
 
 #define CBS_HASSTRINGS 0
 #define SWELL_DLG_SCALE_AUTOGEN 1
@@ -373,10 +373,10 @@ INT_PTR SWELLAppMain(int msg, INT_PTR parm1, INT_PTR parm2)
 #if PLUG_HOST_RESIZE
 #define SWELL_DLG_FLAGS_AUTOGEN SWELL_DLG_WS_FLIPPED | SWELL_DLG_WS_RESIZABLE
 #endif
-#include "swell-dlggen.h"
-#include "resources/main.rc_mac_dlg"
-#include "swell-menugen.h"
-#include "resources/main.rc_mac_menu"
+//#include "swell-dlggen.h"
+//#include "resources/main.rc_mac_dlg"
+//#include "swell-menugen.h"
+//#include "resources/main.rc_mac_menu"
 
 #pragma mark - LINUX
 #elif defined(OS_LINUX)

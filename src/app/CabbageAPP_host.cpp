@@ -870,7 +870,7 @@ bool IPlugAPPHost::TryToChangeAudio()
     }
 
     if (failedToFindDevice)
-        MessageBox(gHWND, "Please check your soundcard settings in Preferences", "Error", MB_OK);
+        cabbage::logDebug << "Failed to find audio device";
 
     if (inputID != -1 && outputID != -1)
     {
@@ -979,7 +979,7 @@ void IPlugAPPHost::CloseAudio()
             mAudioEnding = true;
 
             while (!mAudioDone)
-                Sleep(10);
+                usleep(10*10000);
 
             try
             {

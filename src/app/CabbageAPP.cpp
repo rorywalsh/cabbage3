@@ -44,34 +44,34 @@ bool IPlugAPP::EditorResize(int viewWidth, int viewHeight)
 {
     bool parentResized = false;
 
-    if (viewWidth != GetEditorWidth() || viewHeight != GetEditorHeight())
-    {
-#if defined OS_MAC || defined NO_IGRAPHICS
-        RECT rcClient, rcWindow;
-        POINT ptDiff;
-
-        GetClientRect(gHWND, &rcClient);
-        GetWindowRect(gHWND, &rcWindow);
-
-        ptDiff.x = (rcWindow.right - rcWindow.left) - rcClient.right;
-        ptDiff.y = (rcWindow.bottom - rcWindow.top) - rcClient.bottom;
-
-        int flags = 0;
-
-#ifdef OS_WIN
-        flags = SWP_NOMOVE;
-        float ss = GetScaleForHWND(gHWND);
-#else
-        float ss = 1.f;
-#endif
-
-        SetWindowPos(gHWND, 0, rcWindow.left * ss, (rcWindow.bottom - viewHeight - ptDiff.y) * ss,
-                     (viewWidth + ptDiff.x) * ss, (viewHeight + ptDiff.y) * ss, flags);
-        parentResized = true;
-#endif
-
-        SetEditorSize(viewWidth, viewHeight);
-    }
+//    if (viewWidth != GetEditorWidth() || viewHeight != GetEditorHeight())
+//    {
+//#if defined OS_MAC || defined NO_IGRAPHICS
+//        RECT rcClient, rcWindow;
+//        POINT ptDiff;
+//
+//        GetClientRect(gHWND, &rcClient);
+//        GetWindowRect(gHWND, &rcWindow);
+//
+//        ptDiff.x = (rcWindow.right - rcWindow.left) - rcClient.right;
+//        ptDiff.y = (rcWindow.bottom - rcWindow.top) - rcClient.bottom;
+//
+//        int flags = 0;
+//
+//#ifdef OS_WIN
+//        flags = SWP_NOMOVE;
+//        float ss = GetScaleForHWND(gHWND);
+//#else
+//        float ss = 1.f;
+//#endif
+//
+//        SetWindowPos(gHWND, 0, rcWindow.left * ss, (rcWindow.bottom - viewHeight - ptDiff.y) * ss,
+//                     (viewWidth + ptDiff.x) * ss, (viewHeight + ptDiff.y) * ss, flags);
+//        parentResized = true;
+//#endif
+//
+//        SetEditorSize(viewWidth, viewHeight);
+//    }
 
     return parentResized;
 }
