@@ -402,22 +402,6 @@ int argCnt = 0;
 
 int main(int argc, char *argv[])
 {
-#if APP_COPY_AUV3
-    // if invoked with an argument registerauv3 use plug-in kit to explicitly register auv3 app extension
-    if (argc > 2 && strcmp(argv[2], "registerauv3") == 0)
-    {
-        WDL_String appexPath;
-        appexPath.SetFormatted(1024, "pluginkit -a %s%s%s.appex", argv[0], "/../../Plugins/", appexPath.get_filepart());
-        if (system(appexPath.Get()) > -1)
-            NSLog(@"Registered audiounit app extension\n");
-        else
-            NSLog(@"Failed to register audiounit app extension\n");
-    }
-#endif
-
-    if (AppIsSandboxed())
-        DBGMSG("App is sandboxed, file system access etc restricted!\n");
-
     arguments = argv;
     argCnt = argc;
 

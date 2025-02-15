@@ -86,8 +86,8 @@ void CabbageProcessor::setupCallbacks()
             server.start(cabbage::File::getCsdPath(cabbage.getCsdFile()));
         const std::string mntPoint = "http://127.0.0.1:" + std::to_string(server.getCurrentPort()) + "/index.html";
         LoadURL(mntPoint.c_str());
-#endif
         EnableScroll(false);
+#endif
     };
 
     // editor onInit callback function
@@ -344,7 +344,7 @@ void CabbageProcessor::OnIdle()
             cabbage.getCsound()->PopFirstMessage();
         }
 
-#if defined(LINUX)
+#if defined(LINUX) && !defined(CabbageApp)
         nlohmann::json message;
         while (memoryQueue.receiveFromChild(message))
         {

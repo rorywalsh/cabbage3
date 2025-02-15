@@ -14,6 +14,9 @@
 #include <X11/extensions/shape.h>
 #include <unistd.h>
 #include <sys/wait.h>
+
+#if !defined(CabbageApp)
+
 #include "webview_binary.h"
 
 using namespace iplug;
@@ -221,3 +224,5 @@ gboolean reparent_window(gpointer data)
 
     return FALSE; // Run only once
 }
+
+#endif

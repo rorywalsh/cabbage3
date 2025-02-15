@@ -573,7 +573,7 @@ class WidgetDescriptors
 
         if (!cabbage::File::directoryExists(widgetPath))
         {
-            cabbage::logDebug << "Invalid widget JS files path:" << widgetType;
+            cabbage::logDebug << "Invalid widget JS files path:" << widgetPath;
             return {};
         }
 

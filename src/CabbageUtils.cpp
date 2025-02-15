@@ -352,8 +352,10 @@ std::string File::getSettingsFile()
 #else
     iniPath.SetFormatted(2048, "%s/.config/%s/", getenv("HOME"), "Cabbage");
     iniPath.Append("settings.json"); // add file name to path
-    return {};
+    return iniPath.Get();
 #endif
+
+    return {};
 }
 
 std::string File::getSettingsProperty(const std::string &section, const std::string &key)

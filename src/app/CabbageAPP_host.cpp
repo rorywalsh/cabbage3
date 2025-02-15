@@ -381,7 +381,9 @@ bool IPlugAPPHost::InitState()
     mJSONPath.Append("/");
 
 #else
-//#error NOT IMPLEMENTED FOR LINUX
+    const char* homePath = getenv("HOME");
+    mJSONPath.Set(homePath);
+    mJSONPath.Append("/.config/Cabbage/");
 #endif
     
 
@@ -545,7 +547,7 @@ void IPlugAPPHost::UpdateSettings()
 #elif defined OS_MAC
     settingsJSON["systemAudioMidiIOListing"]["audioDrivers"] = "CoreAudio";
 #else
-    cabAssert(false, "Not implemented");
+    settingsJSON["systemAudioMidiIOListing"]["audioDrivers"] = "Alsa";
 #endif
     
     settingsJSON["currentConfig"]["jsSourceDir"] = cabbage::File::formatPath(mState.mJsSourceDirectory.Get());
@@ -777,6 +779,7 @@ bool IPlugAPPHost::TryToChangeAudioDriverType()
     //else
     //mDAC = std::make_unique<RtAudio>(RtAudio::UNIX_JACK);
 #else
+    mDAC = std::make_unique<RtAudio>(RtAudio::LINUX_ALSA);
     //#error NOT IMPLEMENTED FOR LINUX
 #endif
 
@@ -842,7 +845,7 @@ bool IPlugAPPHost::TryToChangeAudio()
     }
 
     if (failedToFindDevice)
-        MessageBox(gHWND, "Please check your soundcard settings in Preferences", "Error", MB_OK);
+        cabbage::logDebug << "Failed to find device, please check your soundcard settings";
 
     if (inputID != -1 && outputID != -1)
     {
@@ -951,7 +954,7 @@ void IPlugAPPHost::CloseAudio()
             mAudioEnding = true;
             
             while (!mAudioDone)
-                Sleep(10);
+                usleep(10*10000);
             
             try
             {

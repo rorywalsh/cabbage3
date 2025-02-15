@@ -1,17 +1,3 @@
-/*
- * Copyright (C) the iPlug 2 developers, Rory Walsh (c) 2024
- *
- * Cabbage3 is licensed under the MIT License. See the LICENSE file for details.
- * This software is provided "as-is", without any express or implied warranty.
- * See the LICENSE file for more details.
- *
- * Modifications made by Rory Walsh in 2024.
- *
- * This file is based on the iPlug 2 library, which is licensed under the
- * [iPlug 2 License Information]. The original copyright notice and license
- * must remain intact in the portions of the code that have not been modified.
- */
-
 #pragma once
 #undef OK
 
@@ -48,6 +34,23 @@ using completionHandlerFunc = std::function<void(const char *result)>;
 class IWebView
 {
   public:
+#ifdef CabbageApp
+    IWebView(bool opaque = true){};
+    virtual ~IWebView(){};
+    virtual void OnWebViewReady() {};
+    virtual void OnWebContentLoaded() {};
+    virtual void OnMessageFromWebView(const char *json) {};
+    void *OpenWebView(void *pParent, float x, float y, float w, float h, float scale = 1.0f, bool enableDevTools = true) { return nullptr; };
+    void CloseWebView() {};
+    void HideWebView(bool hide) {};
+    void LoadHTML(const char *html) {};
+    void LoadURL(const char *url) {};
+    void LoadFile(const char *fileName, const char *bundleID = "") {};
+    void EvaluateJavaScript(const char *scriptStr, completionHandlerFunc func = nullptr) {};
+    void EnableScroll(bool enable) {};
+    void EnableInteraction(bool enable) {};
+    void SetWebViewBounds(float x, float y, float w, float h, float scale = 1.) {};
+#else
     IWebView(bool opaque = true);
     virtual ~IWebView();
 
@@ -139,6 +142,10 @@ class IWebView
   public:
     std::string GetUniqueUID() { return uniqueUID; };
 #endif
+
+
+#endif // end of no-op guard for CabbageApp
+
 };
 
 END_IPLUG_NAMESPACE
