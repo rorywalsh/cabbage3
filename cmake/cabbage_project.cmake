@@ -231,7 +231,7 @@ else () # LINUX
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GTK3 REQUIRED gtk+-3.0 IMPORTED_TARGET)
     pkg_check_modules(WEBKIT2 REQUIRED webkit2gtk-4.1 IMPORTED_TARGET)
-
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
 
     #having to use -Wno-format to disable error with vst3sdk
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wno-format")
@@ -266,6 +266,10 @@ else () # LINUX
             readerwriterqueue
             ${WEBKITGTK_LIBRARIES}
     )
+
+    if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}" OR CabbageStandaloneApp STREQUAL "${CABBAGE_BUILD_TARGET}")
+        list(APPEND CABBAGE_LIBRARIES ixwebsocket::ixwebsocket)
+    endif ()
 
     add_library(_base INTERFACE)
 
