@@ -233,7 +233,7 @@ else () # LINUX
     pkg_check_modules(WEBKIT2 REQUIRED webkit2gtk-4.1 IMPORTED_TARGET)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
 
-    #having to use -Wno-format to disable error with vst3sdk
+    # having to use -Wno-format to disable error with vst3sdk
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wno-format")
 
     add_compile_options(-Wno-format)
@@ -244,7 +244,7 @@ else () # LINUX
             "src/webView/CabbageEditorDelegate.h"
             "src/webView/CabbageEditorDelegate.cpp"
     )
-
+    
     set(CABBAGE_DEFINES
             LINUX
             __linux__

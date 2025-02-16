@@ -13,7 +13,8 @@ if(LINUX)
     find_package(Threads REQUIRED)
     iplug_target_add(${CABBAGE_PROJECT_NAME} PUBLIC
     DEFINE
-        CabbageApp 
+        CabbageApp
+        NO_SWELL
     INCLUDE
         "${CMAKE_SOURCE_DIR}/resources"
     LINK

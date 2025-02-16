@@ -32,7 +32,6 @@ IWebView::IWebView(bool opaque)
 IWebView::~IWebView()
 {
     unlink(std::string(webviewProcessPath).c_str());
-
     CloseWebView();
 }
 
