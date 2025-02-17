@@ -22,8 +22,6 @@
 #include "config.h"
 #include "resource.h"
 
-
-
 using namespace iplug;
 
 #pragma mark - WINDOWS
@@ -31,7 +29,7 @@ using namespace iplug;
 #include <windows.h>
 #include <WinSock2.h>
 #include <commctrl.h>
-#include <shellapi.h>  // For CommandLineToArgvW
+#include <shellapi.h> // For CommandLineToArgvW
 #include <locale>
 #include <codecvt>
 
@@ -42,7 +40,8 @@ extern HINSTANCE gHINSTANCE;
 UINT gScrollMessage;
 
 // Helper function to convert LPWSTR to std::string (narrow string)
-std::string WideCharToString(LPWSTR wideStr) {
+std::string WideCharToString(LPWSTR wideStr)
+{
     // Determine the size of the buffer needed for conversion
     int bufferSize = WideCharToMultiByte(CP_UTF8, 0, wideStr, -1, nullptr, 0, nullptr, nullptr);
 
@@ -63,8 +62,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     try
     {
 #ifndef APP_ALLOW_MULTIPLE_INSTANCES
-        HANDLE hMutex = OpenMutex(MUTEX_ALL_ACCESS, 0, BUNDLE_NAME); // BUNDLE_NAME used because it won't have spaces in it
-        
+        HANDLE hMutex =
+            OpenMutex(MUTEX_ALL_ACCESS, 0, BUNDLE_NAME); // BUNDLE_NAME used because it won't have spaces in it
+
         if (!hMutex)
             hMutex = CreateMutex(0, 0, BUNDLE_NAME);
         else
@@ -75,14 +75,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
         }
 #endif
         gHINSTANCE = hInstance;
-        
+
         InitCommonControls();
         gScrollMessage = RegisterWindowMessage("MSWHEEL_ROLLMSG");
-        
+
         int argc;
         LPWSTR cmdLine = GetCommandLineW();
-        LPWSTR* argv = CommandLineToArgvW(cmdLine, &argc);
-        IPlugAPPHost* pAppHost = nullptr;
+        LPWSTR *argv = CommandLineToArgvW(cmdLine, &argc);
+        IPlugAPPHost *pAppHost = nullptr;
         if (argv == NULL || argc == 1)
         {
 #ifdef CabbageApp
@@ -95,7 +95,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
         {
             std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
 #ifdef CabbageApp
-            if(argc>1)
+            if (argc > 1)
                 pAppHost = IPlugAPPHost::Create(WideCharToString(argv[1]), atoi(WideCharToString(argv[2]).c_str()));
             else
                 pAppHost = IPlugAPPHost::Create("", 9991);
@@ -108,58 +108,61 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
         pAppHost->InitProcessor();
         pAppHost->InitWebSocket();
         pAppHost->TryToChangeAudio();
-        
+
         HACCEL hAccel = LoadAccelerators(gHINSTANCE, MAKEINTRESOURCE(IDR_ACCELERATOR1));
-        
-        static UINT(WINAPI *__SetProcessDpiAwarenessContext)(DPI_AWARENESS_CONTEXT);
-        
+
+        static UINT(WINAPI * __SetProcessDpiAwarenessContext)(DPI_AWARENESS_CONTEXT);
+
         if (!__SetProcessDpiAwarenessContext)
         {
             HINSTANCE h = LoadLibrary("user32.dll");
-            if (h) *(void **)&__SetProcessDpiAwarenessContext = GetProcAddress(h, "SetProcessDpiAwarenessContext");
+            if (h)
+                *(void **)&__SetProcessDpiAwarenessContext = GetProcAddress(h, "SetProcessDpiAwarenessContext");
             if (!__SetProcessDpiAwarenessContext)
-                *(void **)&__SetProcessDpiAwarenessContext = (void*)(INT_PTR)1;
+                *(void **)&__SetProcessDpiAwarenessContext = (void *)(INT_PTR)1;
         }
         if ((UINT_PTR)__SetProcessDpiAwarenessContext > (UINT_PTR)1)
         {
             __SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
         }
-        
+
         CreateDialog(gHINSTANCE, MAKEINTRESOURCE(IDD_DIALOG_MAIN), GetDesktopWindow(), IPlugAPPHost::MainDlgProc);
-        
+
 #if !defined _DEBUG || defined NO_IGRAPHICS
         HMENU menu = GetMenu(gHWND);
         RemoveMenu(menu, 1, MF_BYPOSITION);
         DrawMenuBar(gHWND);
 #endif
-        
-        for(;;)
+
+        for (;;)
         {
-            MSG msg= {0,};
+            MSG msg = {
+                0,
+            };
             int vvv = GetMessage(&msg, NULL, 0, 0);
-            
+
             if (!vvv)
                 break;
-            
+
             if (vvv < 0)
             {
                 Sleep(10);
                 continue;
             }
-            
+
             if (!msg.hwnd)
             {
                 DispatchMessage(&msg);
                 continue;
             }
-            
+
             if (gHWND && (TranslateAccelerator(gHWND, hAccel, &msg) || IsDialogMessage(gHWND, &msg)))
                 continue;
-            
+
             // default processing for other dialogs
             HWND hWndParent = NULL;
             HWND temphwnd = msg.hwnd;
-            
+
             do
             {
                 if (GetClassLong(temphwnd, GCW_ATOM) == (INT)32770)
@@ -168,25 +171,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
                     if (!(GetWindowLong(temphwnd, GWL_STYLE) & WS_CHILD))
                         break; // not a child, exit
                 }
-            }
-            while (temphwnd = GetParent(temphwnd));
-            
-            if (hWndParent && IsDialogMessage(hWndParent,&msg))
+            } while (temphwnd = GetParent(temphwnd));
+
+            if (hWndParent && IsDialogMessage(hWndParent, &msg))
                 continue;
-            
+
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-        
+
         // in case gHWND didnt get destroyed -- this corresponds to SWELLAPP_DESTROY roughly
         if (gHWND)
             DestroyWindow(gHWND);
-        
+
 #ifndef APP_ALLOW_MULTIPLE_INSTANCES
         ReleaseMutex(hMutex);
 #endif
     }
-    catch(std::exception e)
+    catch (std::exception e)
     {
         DBGMSG("Exception: %s", e.what());
         return 1;
@@ -202,7 +204,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 HWND gHWND;
 extern HMENU SWELL_app_stocksysmenu;
 
-char** arguments;
+char **arguments;
 int argCnt = 0;
 
 int main(int argc, char *argv[])
@@ -228,7 +230,7 @@ int main(int argc, char *argv[])
 
 #ifdef CabbageApp
     // For CabbageApp, don't need to call NSApplicationMain and no UI
-    IPlugAPPHost* pAppHost = nullptr;
+    IPlugAPPHost *pAppHost = nullptr;
     if (argCnt > 1)
         pAppHost = IPlugAPPHost::Create(arguments[1], atoi(arguments[2]));
     else
@@ -256,129 +258,136 @@ int main(int argc, char *argv[])
 
 INT_PTR SWELLAppMain(int msg, INT_PTR parm1, INT_PTR parm2)
 {
-    IPlugAPPHost* pAppHost = nullptr;
-    
+    IPlugAPPHost *pAppHost = nullptr;
+
     switch (msg)
     {
-        case SWELLAPP_ONLOAD:
+    case SWELLAPP_ONLOAD:
 #ifdef CabbageApp
-            if(argCnt>1)
-                pAppHost = IPlugAPPHost::Create(arguments[1], atoi(arguments[2]));
-            else
-                pAppHost = IPlugAPPHost::Create("", 9991);
+        if (argCnt > 1)
+            pAppHost = IPlugAPPHost::Create(arguments[1], atoi(arguments[2]));
+        else
+            pAppHost = IPlugAPPHost::Create("", 9991);
 #else
-            pAppHost = IPlugAPPHost::Create();
+        pAppHost = IPlugAPPHost::Create();
 #endif
-            pAppHost->Init();
-            pAppHost->InitProcessor();
-            pAppHost->InitWebSocket();
-            pAppHost->TryToChangeAudio();
-            break;
-        case SWELLAPP_LOADED:
+        pAppHost->Init();
+        pAppHost->InitProcessor();
+        pAppHost->InitWebSocket();
+        pAppHost->TryToChangeAudio();
+        break;
+    case SWELLAPP_LOADED:
+    {
+        pAppHost = IPlugAPPHost::sInstance.get();
+
+        HMENU menu = SWELL_GetCurrentMenu();
+
+        if (menu)
         {
-            pAppHost = IPlugAPPHost::sInstance.get();
-            
-            HMENU menu = SWELL_GetCurrentMenu();
-            
-            if (menu)
+            // work on a new menu
+            menu = SWELL_DuplicateMenu(menu);
+            HMENU src = LoadMenu(NULL, MAKEINTRESOURCE(IDR_MENU1));
+
+            for (int x = 0; x < GetMenuItemCount(src) - 1; x++)
             {
-                // work on a new menu
-                menu = SWELL_DuplicateMenu(menu);
-                HMENU src = LoadMenu(NULL, MAKEINTRESOURCE(IDR_MENU1));
-                
-                for (int x = 0; x < GetMenuItemCount(src)-1; x++)
+                HMENU sm = GetSubMenu(src, x);
+
+                if (sm)
                 {
-                    HMENU sm = GetSubMenu(src,x);
-                    
-                    if (sm)
-                    {
-                        char str[1024];
-                        MENUITEMINFO mii = {sizeof(mii), MIIM_TYPE};
-                        mii.dwTypeData = str;
-                        mii.cch = sizeof(str);
-                        str[0] = 0;
-                        GetMenuItemInfo(src, x, TRUE, &mii);
-                        MENUITEMINFO mi= {sizeof(mi), MIIM_STATE|MIIM_SUBMENU|MIIM_TYPE,MFT_STRING, 0, 0, SWELL_DuplicateMenu(sm), NULL, NULL, 0, str};
-                        InsertMenuItem(menu, x+1, TRUE, &mi);
-                    }
+                    char str[1024];
+                    MENUITEMINFO mii = {sizeof(mii), MIIM_TYPE};
+                    mii.dwTypeData = str;
+                    mii.cch = sizeof(str);
+                    str[0] = 0;
+                    GetMenuItemInfo(src, x, TRUE, &mii);
+                    MENUITEMINFO mi = {sizeof(mi), MIIM_STATE | MIIM_SUBMENU | MIIM_TYPE,
+                                       MFT_STRING, 0,
+                                       0,          SWELL_DuplicateMenu(sm),
+                                       NULL,       NULL,
+                                       0,          str};
+                    InsertMenuItem(menu, x + 1, TRUE, &mi);
                 }
             }
-            
-            if (menu)
-            {
-                HMENU sm = GetSubMenu(menu, 1);
-                DeleteMenu(sm, ID_QUIT, MF_BYCOMMAND); // remove QUIT from our file menu, since it is in the system menu on OSX
-                DeleteMenu(sm, ID_PREFERENCES, MF_BYCOMMAND); // remove PREFERENCES from the file menu, since it is in the system menu on OSX
-                
-                // remove any trailing separators
-                int a = GetMenuItemCount(sm);
-                
-                while (a > 0 && GetMenuItemID(sm, a-1) == 0)
-                    DeleteMenu(sm, --a, MF_BYPOSITION);
-                
-                DeleteMenu(menu, 1, MF_BYPOSITION); // delete file menu
-            }
-#if !defined _DEBUG || defined NO_IGRAPHICS
-            if (menu)
-            {
-                HMENU sm = GetSubMenu(menu, 1);
-                DeleteMenu(sm, ID_LIVE_EDIT, MF_BYCOMMAND);
-                DeleteMenu(sm, ID_SHOW_DRAWN, MF_BYCOMMAND);
-                DeleteMenu(sm, ID_SHOW_FPS, MF_BYCOMMAND);
-                
-                // remove any trailing separators
-                int a = GetMenuItemCount(sm);
-                
-                while (a > 0 && GetMenuItemID(sm, a-1) == 0)
-                    DeleteMenu(sm, --a, MF_BYPOSITION);
-                
-                DeleteMenu(menu, 1, MF_BYPOSITION); // delete debug menu
-            }
-#else
-            SetMenuItemModifier(menu, ID_LIVE_EDIT, MF_BYCOMMAND, 'E', FCONTROL);
-            SetMenuItemModifier(menu, ID_SHOW_DRAWN, MF_BYCOMMAND, 'D', FCONTROL);
-            SetMenuItemModifier(menu, ID_SHOW_BOUNDS, MF_BYCOMMAND, 'B', FCONTROL);
-            SetMenuItemModifier(menu, ID_SHOW_FPS, MF_BYCOMMAND, 'F', FCONTROL);
-#endif
-            
-            HWND hwnd = CreateDialog(gHINST, MAKEINTRESOURCE(IDD_DIALOG_MAIN), NULL, IPlugAPPHost::MainDlgProc);
-            
-            if (menu)
-            {
-                SetMenu(hwnd, menu); // set the menu for the dialog to our menu (on Windows that menu is set from the .rc, but on SWELL
-                SWELL_SetDefaultModalWindowMenu(menu); // other windows will get the stock (bundle) menus
-            }
-            
-            break;
         }
-        case SWELLAPP_ONCOMMAND:
-            // this is to catch commands coming from the system menu etc
-            if (gHWND && (parm1&0xffff))
-                SendMessage(gHWND, WM_COMMAND, parm1 & 0xffff, 0);
-            break;
-        case SWELLAPP_DESTROY:
-            if (gHWND)
-                DestroyWindow(gHWND);
-            break;
-        case SWELLAPP_PROCESSMESSAGE:
-            MSG* pMSG = (MSG*) parm1;
-            NSView* pContentView = (NSView*) pMSG->hwnd;
-            NSEvent* pEvent = (NSEvent*) parm2;
-            int etype = (int) [pEvent type];
-            
-            bool textField = [pContentView isKindOfClass:[NSText class]];
-            
-            if (!textField && etype == NSKeyDown)
+
+        if (menu)
+        {
+            HMENU sm = GetSubMenu(menu, 1);
+            DeleteMenu(sm, ID_QUIT,
+                       MF_BYCOMMAND); // remove QUIT from our file menu, since it is in the system menu on OSX
+            DeleteMenu(sm, ID_PREFERENCES,
+                       MF_BYCOMMAND); // remove PREFERENCES from the file menu, since it is in the system menu on OSX
+
+            // remove any trailing separators
+            int a = GetMenuItemCount(sm);
+
+            while (a > 0 && GetMenuItemID(sm, a - 1) == 0)
+                DeleteMenu(sm, --a, MF_BYPOSITION);
+
+            DeleteMenu(menu, 1, MF_BYPOSITION); // delete file menu
+        }
+#if !defined _DEBUG || defined NO_IGRAPHICS
+        if (menu)
+        {
+            HMENU sm = GetSubMenu(menu, 1);
+            DeleteMenu(sm, ID_LIVE_EDIT, MF_BYCOMMAND);
+            DeleteMenu(sm, ID_SHOW_DRAWN, MF_BYCOMMAND);
+            DeleteMenu(sm, ID_SHOW_FPS, MF_BYCOMMAND);
+
+            // remove any trailing separators
+            int a = GetMenuItemCount(sm);
+
+            while (a > 0 && GetMenuItemID(sm, a - 1) == 0)
+                DeleteMenu(sm, --a, MF_BYPOSITION);
+
+            DeleteMenu(menu, 1, MF_BYPOSITION); // delete debug menu
+        }
+#else
+        SetMenuItemModifier(menu, ID_LIVE_EDIT, MF_BYCOMMAND, 'E', FCONTROL);
+        SetMenuItemModifier(menu, ID_SHOW_DRAWN, MF_BYCOMMAND, 'D', FCONTROL);
+        SetMenuItemModifier(menu, ID_SHOW_BOUNDS, MF_BYCOMMAND, 'B', FCONTROL);
+        SetMenuItemModifier(menu, ID_SHOW_FPS, MF_BYCOMMAND, 'F', FCONTROL);
+#endif
+
+        HWND hwnd = CreateDialog(gHINST, MAKEINTRESOURCE(IDD_DIALOG_MAIN), NULL, IPlugAPPHost::MainDlgProc);
+
+        if (menu)
+        {
+            SetMenu(hwnd, menu); // set the menu for the dialog to our menu (on Windows that menu is set from the .rc,
+                                 // but on SWELL
+            SWELL_SetDefaultModalWindowMenu(menu); // other windows will get the stock (bundle) menus
+        }
+
+        break;
+    }
+    case SWELLAPP_ONCOMMAND:
+        // this is to catch commands coming from the system menu etc
+        if (gHWND && (parm1 & 0xffff))
+            SendMessage(gHWND, WM_COMMAND, parm1 & 0xffff, 0);
+        break;
+    case SWELLAPP_DESTROY:
+        if (gHWND)
+            DestroyWindow(gHWND);
+        break;
+    case SWELLAPP_PROCESSMESSAGE:
+        MSG *pMSG = (MSG *)parm1;
+        NSView *pContentView = (NSView *)pMSG->hwnd;
+        NSEvent *pEvent = (NSEvent *)parm2;
+        int etype = (int)[pEvent type];
+
+        bool textField = [pContentView isKindOfClass:[NSText class]];
+
+        if (!textField && etype == NSKeyDown)
+        {
+            int flag, code = SWELL_MacKeyToWindowsKey(pEvent, &flag);
+
+            if (!(flag & ~FVIRTKEY) && (code == VK_RETURN || code == VK_ESCAPE))
             {
-                int flag, code = SWELL_MacKeyToWindowsKey(pEvent, &flag);
-                
-                if (!(flag&~FVIRTKEY) && (code == VK_RETURN || code == VK_ESCAPE))
-                {
-                    [pContentView keyDown: pEvent];
-                    return 1;
-                }
+                [pContentView keyDown:pEvent];
+                return 1;
             }
-            break;
+        }
+        break;
     }
     return 0;
 }
@@ -387,7 +396,7 @@ INT_PTR SWELLAppMain(int msg, INT_PTR parm1, INT_PTR parm2)
 #define SWELL_DLG_SCALE_AUTOGEN 1
 #define SET_IDD_DIALOG_PREF_SCALE 1.5
 #if PLUG_HOST_RESIZE
-#define SWELL_DLG_FLAGS_AUTOGEN SWELL_DLG_WS_FLIPPED|SWELL_DLG_WS_RESIZABLE
+#define SWELL_DLG_FLAGS_AUTOGEN SWELL_DLG_WS_FLIPPED | SWELL_DLG_WS_RESIZABLE
 #endif
 #include "swell-dlggen.h"
 #include "resources/main.rc_mac_dlg"
@@ -397,8 +406,21 @@ INT_PTR SWELLAppMain(int msg, INT_PTR parm1, INT_PTR parm2)
 #pragma mark - LINUX
 #elif defined(OS_LINUX)
 
-char** arguments;
+char **arguments;
 int argCnt = 0;
+
+// Global flag to control the main loop
+std::atomic<bool> running(true);
+
+// Signal handler to catch Ctrl+C (SIGINT) and terminate the application gracefully
+void SignalHandler(int signal)
+{
+    if (signal == SIGINT)
+    {
+        std::cout << "\nShutting down cleanly...\n";
+        running = false;
+    }
+}
 
 int main(int argc, char *argv[])
 {
@@ -407,7 +429,7 @@ int main(int argc, char *argv[])
 
 #ifdef CabbageApp
     // For CabbageApp, don't need to call NSApplicationMain and no UI
-    IPlugAPPHost* pAppHost = nullptr;
+    IPlugAPPHost *pAppHost = nullptr;
     if (argCnt > 1)
         pAppHost = IPlugAPPHost::Create(arguments[1], atoi(arguments[2]));
     else
@@ -425,125 +447,131 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to initialize IPlugAPPHost." << std::endl;
         return -1;
     }
+
+    // Main loop
+    while (running)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Prevents CPU from maxing out
+    }
 #else
     // For non-CabbageApp builds (with UI), call NSApplicationMain to handle event loop
 
 #endif
-
     return 0; // End of application
 }
 
-//#include <IPlugSWELL.h>
-//#include "swell-internal.h" // fixes problem with HWND forward decl
+// #include <IPlugSWELL.h>
+// #include "swell-internal.h" // fixes problem with HWND forward decl
 //
-//HWND gHWND;
-//UINT gScrollMessage;
-//extern HMENU SWELL_app_stocksysmenu;
+// HWND gHWND;
+// UINT gScrollMessage;
+// extern HMENU SWELL_app_stocksysmenu;
 //
-//int main(int argc, char **argv)
+// int main(int argc, char **argv)
 //{
-//  SWELL_initargs(&argc, &argv);
-//  SWELL_Internal_PostMessage_Init();
-//  SWELL_ExtendedAPI("APPNAME", (void*) "IGraphics Test");
+//   SWELL_initargs(&argc, &argv);
+//   SWELL_Internal_PostMessage_Init();
+//   SWELL_ExtendedAPI("APPNAME", (void*) "IGraphics Test");
 //
-//  HMENU menu = LoadMenu(NULL, MAKEINTRESOURCE(IDR_MENU1));
-//  CreateDialog(gHINSTANCE, MAKEINTRESOURCE(IDD_DIALOG_MAIN), NULL, MainDlgProc);
-//  SetMenu(gHWND, menu);
+//   HMENU menu = LoadMenu(NULL, MAKEINTRESOURCE(IDR_MENU1));
+//   CreateDialog(gHINSTANCE, MAKEINTRESOURCE(IDD_DIALOG_MAIN), NULL, MainDlgProc);
+//   SetMenu(gHWND, menu);
 //
-//  while (!gHWND->m_hashaddestroy)
-//  {
-//    SWELL_RunMessageLoop();
-//    Sleep(10);
-//  };
+//   while (!gHWND->m_hashaddestroy)
+//   {
+//     SWELL_RunMessageLoop();
+//     Sleep(10);
+//   };
 //
-//  if (gHWND)
-//    DestroyWindow(gHWND);
+//   if (gHWND)
+//     DestroyWindow(gHWND);
 //
-//  return 0;
-//}
+//   return 0;
+// }
 //
-//INT_PTR SWELLAppMain(int msg, INT_PTR parm1, INT_PTR parm2)
+// INT_PTR SWELLAppMain(int msg, INT_PTR parm1, INT_PTR parm2)
 //{
-//  switch (msg)
-//  {
-//    case SWELLAPP_ONLOAD:
-//      break;
-//    case SWELLAPP_LOADED:
-//    {
-//      HMENU menu = SWELL_GetCurrentMenu();
+//   switch (msg)
+//   {
+//     case SWELLAPP_ONLOAD:
+//       break;
+//     case SWELLAPP_LOADED:
+//     {
+//       HMENU menu = SWELL_GetCurrentMenu();
 //
-//      if (menu)
-//      {
-//        // work on a new menu
-//        menu = SWELL_DuplicateMenu(menu);
-//        HMENU src = LoadMenu(NULL, MAKEINTRESOURCE(IDR_MENU1));
+//       if (menu)
+//       {
+//         // work on a new menu
+//         menu = SWELL_DuplicateMenu(menu);
+//         HMENU src = LoadMenu(NULL, MAKEINTRESOURCE(IDR_MENU1));
 //
-//        for (auto x = 0; x < GetMenuItemCount(src)-1; x++)
-//        {
-//          HMENU sm = GetSubMenu(src,x);
-//          if (sm)
-//          {
-//            char str[1024];
-//            MENUITEMINFO mii = {sizeof(mii), MIIM_TYPE};
-//            mii.dwTypeData = str;
-//            mii.cch = sizeof(str);
-//            str[0] = 0;
-//            GetMenuItemInfo(src, x, TRUE, &mii);
-//            MENUITEMINFO mi= {sizeof(mi), MIIM_STATE|MIIM_SUBMENU|MIIM_TYPE,MFT_STRING, 0, 0, SWELL_DuplicateMenu(sm), NULL, NULL, 0, str};
-//            InsertMenuItem(menu, x+1, TRUE, &mi);
-//          }
-//        }
-//      }
+//         for (auto x = 0; x < GetMenuItemCount(src)-1; x++)
+//         {
+//           HMENU sm = GetSubMenu(src,x);
+//           if (sm)
+//           {
+//             char str[1024];
+//             MENUITEMINFO mii = {sizeof(mii), MIIM_TYPE};
+//             mii.dwTypeData = str;
+//             mii.cch = sizeof(str);
+//             str[0] = 0;
+//             GetMenuItemInfo(src, x, TRUE, &mii);
+//             MENUITEMINFO mi= {sizeof(mi), MIIM_STATE|MIIM_SUBMENU|MIIM_TYPE,MFT_STRING, 0, 0,
+//             SWELL_DuplicateMenu(sm), NULL, NULL, 0, str}; InsertMenuItem(menu, x+1, TRUE, &mi);
+//           }
+//         }
+//       }
 //
-//      if (menu)
-//      {
-//        HMENU sm = GetSubMenu(menu, 1);
-//        DeleteMenu(sm, ID_QUIT, MF_BYCOMMAND); // remove QUIT from our file menu, since it is in the system menu on OSX
-//        DeleteMenu(sm, ID_PREFERENCES, MF_BYCOMMAND); // remove PREFERENCES from the file menu, since it is in the system menu on OSX
+//       if (menu)
+//       {
+//         HMENU sm = GetSubMenu(menu, 1);
+//         DeleteMenu(sm, ID_QUIT, MF_BYCOMMAND); // remove QUIT from our file menu, since it is in the system menu on
+//         OSX DeleteMenu(sm, ID_PREFERENCES, MF_BYCOMMAND); // remove PREFERENCES from the file menu, since it is in
+//         the system menu on OSX
 //
-//        // remove any trailing separators
-//        int a = GetMenuItemCount(sm);
+//         // remove any trailing separators
+//         int a = GetMenuItemCount(sm);
 //
-//        while (a > 0 && GetMenuItemID(sm, a-1) == 0)
-//          DeleteMenu(sm, --a, MF_BYPOSITION);
+//         while (a > 0 && GetMenuItemID(sm, a-1) == 0)
+//           DeleteMenu(sm, --a, MF_BYPOSITION);
 //
-//        DeleteMenu(menu, 1, MF_BYPOSITION); // delete file menu
-//      }
+//         DeleteMenu(menu, 1, MF_BYPOSITION); // delete file menu
+//       }
 //
-//      // if we want to set any default modifiers for items in the menus, we can use:
-//      // SetMenuItemModifier(menu,commandID,MF_BYCOMMAND,'A',FCONTROL) etc.
+//       // if we want to set any default modifiers for items in the menus, we can use:
+//       // SetMenuItemModifier(menu,commandID,MF_BYCOMMAND,'A',FCONTROL) etc.
 //
-//      HWND hwnd = CreateDialog(gHINST,MAKEINTRESOURCE(IDD_DIALOG_MAIN), NULL, MainDlgProc);
+//       HWND hwnd = CreateDialog(gHINST,MAKEINTRESOURCE(IDD_DIALOG_MAIN), NULL, MainDlgProc);
 //
-//      if (menu)
-//      {
-//        SetMenu(hwnd, menu); // set the menu for the dialog to our menu (on Windows that menu is set from the .rc, but on SWELL
-//        SWELL_SetDefaultModalWindowMenu(menu); // other windows will get the stock (bundle) menus
-//      }
+//       if (menu)
+//       {
+//         SetMenu(hwnd, menu); // set the menu for the dialog to our menu (on Windows that menu is set from the .rc,
+//         but on SWELL SWELL_SetDefaultModalWindowMenu(menu); // other windows will get the stock (bundle) menus
+//       }
 //
-//      break;
-//    }
-//    case SWELLAPP_ONCOMMAND:
-//      // this is to catch commands coming from the system menu etc
-//      if (gHWND && (parm1&0xffff))
-//        SendMessage(gHWND, WM_COMMAND, parm1 & 0xffff, 0);
-//      break;
-//    case SWELLAPP_DESTROY:
-//      if (gHWND)
-//        DestroyWindow(gHWND);
-//      break;
-//    case SWELLAPP_PROCESSMESSAGE: // can hook keyboard input here
-//      // parm1 = (MSG*), should we want it -- look in swell.h to see what the return values refer to
-//      break;
-//  }
-//  return 0;
-//}
+//       break;
+//     }
+//     case SWELLAPP_ONCOMMAND:
+//       // this is to catch commands coming from the system menu etc
+//       if (gHWND && (parm1&0xffff))
+//         SendMessage(gHWND, WM_COMMAND, parm1 & 0xffff, 0);
+//       break;
+//     case SWELLAPP_DESTROY:
+//       if (gHWND)
+//         DestroyWindow(gHWND);
+//       break;
+//     case SWELLAPP_PROCESSMESSAGE: // can hook keyboard input here
+//       // parm1 = (MSG*), should we want it -- look in swell.h to see what the return values refer to
+//       break;
+//   }
+//   return 0;
+// }
 //
-//#define CBS_HASSTRINGS 0
-//#define SWELL_DLG_SCALE_AUTOGEN 1
-//#define SET_IDD_DIALOG_PREF_SCALE 1.5
-//#include "swell-dlggen.h"
-//#include "resources/main.rc_mac_dlg"
-//#include "swell-menugen.h"
-//#include "resources/main.rc_mac_menu"
+// #define CBS_HASSTRINGS 0
+// #define SWELL_DLG_SCALE_AUTOGEN 1
+// #define SET_IDD_DIALOG_PREF_SCALE 1.5
+// #include "swell-dlggen.h"
+// #include "resources/main.rc_mac_dlg"
+// #include "swell-menugen.h"
+// #include "resources/main.rc_mac_menu"
 #endif

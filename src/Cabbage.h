@@ -74,7 +74,10 @@ class Engine
     MYFLT getSpOut(int index)
     {
         auto spout = csound->GetSpout();
-        return spout[index] / csScale;
+        if (spout)
+            return spout[index] / csScale;
+
+        return 0;
     }
 
     // Check if CSD compiled without error

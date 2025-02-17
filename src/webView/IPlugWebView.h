@@ -40,7 +40,10 @@ class IWebView
     virtual void OnWebViewReady() {};
     virtual void OnWebContentLoaded() {};
     virtual void OnMessageFromWebView(const char *json) {};
-    void *OpenWebView(void *pParent, float x, float y, float w, float h, float scale = 1.0f, bool enableDevTools = true) { return nullptr; };
+    void *OpenWebView(void *pParent, float x, float y, float w, float h, float scale = 1.0f, bool enableDevTools = true)
+    {
+        return nullptr;
+    };
     void CloseWebView() {};
     void HideWebView(bool hide) {};
     void LoadHTML(const char *html) {};
@@ -143,9 +146,7 @@ class IWebView
     std::string GetUniqueUID() { return uniqueUID; };
 #endif
 
-
 #endif // end of no-op guard for CabbageApp
-
 };
 
 END_IPLUG_NAMESPACE

@@ -90,7 +90,6 @@ class CabbageEditorDelegate : public iplug::IEditorDelegate, public iplug::IWebV
      functions which are hosted from the CabbageProcessor class*/
     void OnMessageFromWebView(const char *jsonStr) override
     {
-
         auto incomingJson = nlohmann::json::parse(jsonStr, nullptr, false);
         const std::string command = incomingJson["command"];
 

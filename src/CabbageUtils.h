@@ -194,7 +194,7 @@ inline LogStream LogInfo()
 
 inline LogStream LogVerbose(const char *file, int line, const char *function)
 {
-    LogStream log("VERBOSE", true);
+    LogStream log("DEBUG", true);
     log.setContext(file, line, function);
     return log;
 }

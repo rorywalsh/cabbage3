@@ -118,8 +118,22 @@ class CabbageProcessor final : public iplug::Plugin
     bool hasValidInputs = true;
     bool matchingNumInputsOutputs = true;
 
-#if defined(LINUX) && !defined(CabbageApp)
+#if defined(LINUX)
+#if !defined(CabbageApp)
     cabbage::SharedMemoryQueue instanceMap;
     cabbage::SharedMemoryQueue memoryQueue;
+#else
+    void startIdleTimer(int intervalMilliseconds)
+    {
+        auto nextCallTime = std::chrono::steady_clock::now();
+
+        while (true)
+        {
+            nextCallTime += std::chrono::milliseconds(intervalMilliseconds); // Update next call time
+            OnIdle();                                                        // Call OnIdle
+            std::this_thread::sleep_until(nextCallTime);                     // Sleep until the next idle interval
+        }
+    }
+#endif
 #endif
 };

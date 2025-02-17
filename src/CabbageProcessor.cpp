@@ -26,7 +26,13 @@ CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo &info, std::string 
     }
 
     matchingNumInputsOutputs = (NInChansConnected() == NOutChansConnected());
+
+#if defined(LINUX) && defined(CabbageApp)
+    std::thread idleThread(&CabbageProcessor::startIdleTimer, this, 100);
+    idleThread.detach();
+#endif
 }
+
 #else
 CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo &info)
     : iplug::Plugin(info, iplug::MakeConfig(cabbage::Engine::getNumberOfParameters(""), 0,
