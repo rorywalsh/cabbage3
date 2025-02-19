@@ -46,7 +46,6 @@ CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo &info)
 #endif
 {
 
-    cabbage::logInfo << "Instance ID:" << instanceMap.getInstanceId();
     cabbage.getMidiQueue().clear();
     cabbage.setCsdFile(cabbage::File::getCsdFileAndPath());
     cabbage::Logger::getInstance().setLogFile(cabbage::File::withExtension(cabbage.getCsdFile(), ".log"));
@@ -371,7 +370,7 @@ void CabbageProcessor::OnIdle()
             hostCallback(data);
 #else
             cabbage.processCsoundMessages();
-            cabbage.updateWidgetData(data);
+            updateWidgetData(data);
 #endif
         }
     }
@@ -419,7 +418,7 @@ int CabbageProcessor::UnserializeState(const iplug::IByteChunk &chunk, int start
 //===============================================================================
 void CabbageProcessor::ProcessMidiMsg(const iplug::IMidiMsg &msg)
 {
-    msg.PrintMsg();
+    //cabbage::logDebug << "Channel: " << msg.Channel() << " NoteNumber: " << msg.NoteNumber();
     SendMidiMsg(msg);
     cabbage.getMidiQueue().push_back(msg);
 }

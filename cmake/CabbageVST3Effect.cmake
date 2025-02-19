@@ -20,9 +20,8 @@ iplug_target_add(${CABBAGE_PROJECT_NAME} PUBLIC
         RESOURCE ${RESOURCES}
 )
 
-set(SMTG_OS_LINUX "ON")
 
-target_compile_options(${CABBAGE_PROJECT_NAME} PRIVATE -Wno-error)
+
 iplug_configure_target(${CABBAGE_PROJECT_NAME} vst3)
 set_target_properties(${CABBAGE_PROJECT_NAME} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME "${CABBAGE_PROJECT_NAME}")
 
@@ -32,7 +31,9 @@ if (APPLE)
             COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_directory" "${CMAKE_BINARY_DIR}/out/${CABBAGE_PROJECT_NAME}.vst3" "$ENV{HOME}/Library/Audio/Plug-Ins/VST3"
     )
 elseif (LINUX)
-    # Include the webview build
+    set(SMTG_OS_LINUX "ON")
+# some third party code causes warning which breaks compilation..
+    target_compile_options(${CABBAGE_PROJECT_NAME} PRIVATE -Wno-error)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type for WebViewProcess" FORCE)
     add_subdirectory("${CMAKE_SOURCE_DIR}/src/webView/linux_process")
     add_dependencies(${CABBAGE_PROJECT_NAME} WebViewProcess)
