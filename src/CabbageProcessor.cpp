@@ -19,12 +19,7 @@ CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo &info, std::string 
                                             cabbage::Engine::getIOChannalConfig(csdFile))),
       cabbage(*this, csdFile)
 {
-    // give a little time for vscode to set up its websocket..
-#if defined(OS_LINUX)
-    usleep(10 * 10000);
-#else
-    Sleep(100);
-#endif
+
     if (!cabbage.setupCsound())
     {
         cabbage::logDebug << cabbage.getCompileErrors();

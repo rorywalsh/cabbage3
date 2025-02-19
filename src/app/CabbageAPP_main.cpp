@@ -33,9 +33,47 @@ using namespace iplug;
 #include <locale>
 #include <codecvt>
 
+HWND gHWND;
+
+#ifdef CabbageApp
+
+int main(int argc, char *argv[])
+{
+
+    // For CabbageApp, don't need to call NSApplicationMain and no UI
+    IPlugAPPHost *pAppHost = nullptr;
+    if (argc > 1)
+        pAppHost = IPlugAPPHost::Create(argv[1], atoi(argv[2]));
+    else
+        pAppHost = IPlugAPPHost::Create("", 9991);
+
+    if (pAppHost)
+    {
+        pAppHost->Init();
+        pAppHost->InitProcessor();
+        pAppHost->InitWebSocket();
+        pAppHost->TryToChangeAudio();
+    }
+    else
+    {
+        std::cerr << "Failed to initialize IPlugAPPHost." << std::endl;
+        return -1;
+    }
+
+    // Main loop
+    while (true)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Prevents CPU from maxing out
+    }
+    return 0; // End of application
+}
+
+
+#elif defined(CabbageStandaloneApp)
+
 extern WDL_DLGRET MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-HWND gHWND;
+
 extern HINSTANCE gHINSTANCE;
 UINT gScrollMessage;
 
@@ -104,9 +142,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 #endif
         }
 
+
+        if (!pAppHost)
+        {
+            DBGMSG("IPlugAPPHost::Create() failed!");
+            return 1;
+        }
+
+        pAppHost->InitWebSocket();
+
+        // give a little time for vscode to set up its websocket..
+//#if defined(OS_LINUX)  
+//        usleep(10 * 10000);
+//#else
+//        Sleep(100);
+//#endif
+
         pAppHost->Init();
         pAppHost->InitProcessor();
-        pAppHost->InitWebSocket();
         pAppHost->TryToChangeAudio();
 
         HACCEL hAccel = LoadAccelerators(gHINSTANCE, MAKEINTRESOURCE(IDR_ACCELERATOR1));
@@ -188,13 +241,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
         ReleaseMutex(hMutex);
 #endif
     }
-    catch (std::exception e)
+    catch (std::exception& e)
     {
         DBGMSG("Exception: %s", e.what());
         return 1;
     }
     return 0;
 }
+#endif
 #pragma mark - MAC
 #elif defined(OS_MAC)
 #import <Cocoa/Cocoa.h>
@@ -460,118 +514,4 @@ int main(int argc, char *argv[])
     return 0; // End of application
 }
 
-// #include <IPlugSWELL.h>
-// #include "swell-internal.h" // fixes problem with HWND forward decl
-//
-// HWND gHWND;
-// UINT gScrollMessage;
-// extern HMENU SWELL_app_stocksysmenu;
-//
-// int main(int argc, char **argv)
-//{
-//   SWELL_initargs(&argc, &argv);
-//   SWELL_Internal_PostMessage_Init();
-//   SWELL_ExtendedAPI("APPNAME", (void*) "IGraphics Test");
-//
-//   HMENU menu = LoadMenu(NULL, MAKEINTRESOURCE(IDR_MENU1));
-//   CreateDialog(gHINSTANCE, MAKEINTRESOURCE(IDD_DIALOG_MAIN), NULL, MainDlgProc);
-//   SetMenu(gHWND, menu);
-//
-//   while (!gHWND->m_hashaddestroy)
-//   {
-//     SWELL_RunMessageLoop();
-//     Sleep(10);
-//   };
-//
-//   if (gHWND)
-//     DestroyWindow(gHWND);
-//
-//   return 0;
-// }
-//
-// INT_PTR SWELLAppMain(int msg, INT_PTR parm1, INT_PTR parm2)
-//{
-//   switch (msg)
-//   {
-//     case SWELLAPP_ONLOAD:
-//       break;
-//     case SWELLAPP_LOADED:
-//     {
-//       HMENU menu = SWELL_GetCurrentMenu();
-//
-//       if (menu)
-//       {
-//         // work on a new menu
-//         menu = SWELL_DuplicateMenu(menu);
-//         HMENU src = LoadMenu(NULL, MAKEINTRESOURCE(IDR_MENU1));
-//
-//         for (auto x = 0; x < GetMenuItemCount(src)-1; x++)
-//         {
-//           HMENU sm = GetSubMenu(src,x);
-//           if (sm)
-//           {
-//             char str[1024];
-//             MENUITEMINFO mii = {sizeof(mii), MIIM_TYPE};
-//             mii.dwTypeData = str;
-//             mii.cch = sizeof(str);
-//             str[0] = 0;
-//             GetMenuItemInfo(src, x, TRUE, &mii);
-//             MENUITEMINFO mi= {sizeof(mi), MIIM_STATE|MIIM_SUBMENU|MIIM_TYPE,MFT_STRING, 0, 0,
-//             SWELL_DuplicateMenu(sm), NULL, NULL, 0, str}; InsertMenuItem(menu, x+1, TRUE, &mi);
-//           }
-//         }
-//       }
-//
-//       if (menu)
-//       {
-//         HMENU sm = GetSubMenu(menu, 1);
-//         DeleteMenu(sm, ID_QUIT, MF_BYCOMMAND); // remove QUIT from our file menu, since it is in the system menu on
-//         OSX DeleteMenu(sm, ID_PREFERENCES, MF_BYCOMMAND); // remove PREFERENCES from the file menu, since it is in
-//         the system menu on OSX
-//
-//         // remove any trailing separators
-//         int a = GetMenuItemCount(sm);
-//
-//         while (a > 0 && GetMenuItemID(sm, a-1) == 0)
-//           DeleteMenu(sm, --a, MF_BYPOSITION);
-//
-//         DeleteMenu(menu, 1, MF_BYPOSITION); // delete file menu
-//       }
-//
-//       // if we want to set any default modifiers for items in the menus, we can use:
-//       // SetMenuItemModifier(menu,commandID,MF_BYCOMMAND,'A',FCONTROL) etc.
-//
-//       HWND hwnd = CreateDialog(gHINST,MAKEINTRESOURCE(IDD_DIALOG_MAIN), NULL, MainDlgProc);
-//
-//       if (menu)
-//       {
-//         SetMenu(hwnd, menu); // set the menu for the dialog to our menu (on Windows that menu is set from the .rc,
-//         but on SWELL SWELL_SetDefaultModalWindowMenu(menu); // other windows will get the stock (bundle) menus
-//       }
-//
-//       break;
-//     }
-//     case SWELLAPP_ONCOMMAND:
-//       // this is to catch commands coming from the system menu etc
-//       if (gHWND && (parm1&0xffff))
-//         SendMessage(gHWND, WM_COMMAND, parm1 & 0xffff, 0);
-//       break;
-//     case SWELLAPP_DESTROY:
-//       if (gHWND)
-//         DestroyWindow(gHWND);
-//       break;
-//     case SWELLAPP_PROCESSMESSAGE: // can hook keyboard input here
-//       // parm1 = (MSG*), should we want it -- look in swell.h to see what the return values refer to
-//       break;
-//   }
-//   return 0;
-// }
-//
-// #define CBS_HASSTRINGS 0
-// #define SWELL_DLG_SCALE_AUTOGEN 1
-// #define SET_IDD_DIALOG_PREF_SCALE 1.5
-// #include "swell-dlggen.h"
-// #include "resources/main.rc_mac_dlg"
-// #include "swell-menugen.h"
-// #include "resources/main.rc_mac_menu"
 #endif

@@ -997,7 +997,11 @@ void IPlugAPPHost::CloseAudio()
             mAudioEnding = true;
 
             while (!mAudioDone)
+#if defined(OS_LINUX)
                 usleep(10 * 10000);
+#else
+                Sleep(100);
+#endif
 
             try
             {

@@ -43,7 +43,7 @@ iplug_configure_target(${CABBAGE_PROJECT_NAME} app)
 set_target_properties(${CABBAGE_PROJECT_NAME} PROPERTIES XCODE_ATTRIBUTE_PRODUCT_NAME "${CABBAGE_PROJECT_NAME}")
 
 if(MSVC)
-    target_link_options(${CABBAGE_PROJECT_NAME} PRIVATE "/SUBSYSTEM:WINDOWS")
+    target_link_options(${CABBAGE_PROJECT_NAME} PRIVATE "/SUBSYSTEM:CONSOLE")
 elseif(APPLE)
     target_link_options(${CABBAGE_PROJECT_NAME} PRIVATE LINKER:-adhoc_codesign)
 else()  

@@ -195,6 +195,8 @@ void IWebView::SetWebViewBounds(float x, float y, float w, float h, float scale)
     // Implement if needed
 }
 
+//==============================================================================
+
 // Function to handle X11 errors
 int x11_error_handler(Display *display, XErrorEvent *event)
 {
