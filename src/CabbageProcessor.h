@@ -118,6 +118,8 @@ class CabbageProcessor final : public iplug::Plugin
     bool hasValidInputs = true;
     bool matchingNumInputsOutputs = true;
 
+    void updateWidgetData(const CabbageOpcodeData &data);
+
 #if defined(LINUX)
 #if !defined(CabbageApp)
     cabbage::SharedMemoryQueue instanceMap;

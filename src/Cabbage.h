@@ -125,6 +125,9 @@ class Engine
     // utility script to remove control characters from string - needed to santise Cabbage code going to JS
     static std::string removeControlCharacters(const std::string &input);
 
+    // process Csound console messages
+    void processCsoundMessages();
+
     // return a JS script that will trigger a widget's properties to be updated
     static std::string getWidgetUpdateScript(std::string channel, std::string data);
     static std::string getWidgetUpdateScript(std::string channel, float value);

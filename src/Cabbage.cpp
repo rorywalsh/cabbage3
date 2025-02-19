@@ -258,8 +258,20 @@ void Engine::setStringChannel(const std::string channel, std::string data)
     csound->SetStringChannel(channel.c_str(), (char *)data.c_str());
 }
 
-//===========================================================================================
+//=============================================================================================
+void Engine::processCsoundMessages()
+{
+    while (getCsound()->GetMessageCnt() > 0)
+    {
+        std::string message(getCsound()->GetFirstMessage());
+        message.erase(std::remove(message.begin(), message.end(), '\n'), message.end());
+        cabbage::logInfo << message;
+        // EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
+        getCsound()->PopFirstMessage();
+    }
+}
 
+//===========================================================================================
 size_t Engine::getIndexForParamChannel(std::string name)
 {
     auto it = std::find_if(parameterChannels.begin(), parameterChannels.end(),

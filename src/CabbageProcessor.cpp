@@ -19,6 +19,12 @@ CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo &info, std::string 
                                             cabbage::Engine::getIOChannalConfig(csdFile))),
       cabbage(*this, csdFile)
 {
+    // give a little time for vscode to set up its websocket..
+#if defined(OS_LINUX)
+    usleep(10 * 10000);
+#else
+    Sleep(100);
+#endif
     if (!cabbage.setupCsound())
     {
         cabbage::logDebug << cabbage.getCompileErrors();
@@ -332,40 +338,28 @@ bool CabbageProcessor::OnMessage(int msgTag, int ctrlTag, int dataSize, const vo
     return false;
 }
 
-//===============================================================================
-// called on main thread, invoked during periods when the system isn't busy processing other tasks
-//===============================================================================
 void CabbageProcessor::OnIdle()
 {
 #ifndef CabbageApp
     if (uiIsOpen)
     {
 #endif
-        while (cabbage.getCsound()->GetMessageCnt() > 0)
-        {
-            std::string message(cabbage.getCsound()->GetFirstMessage());
-            message.erase(std::remove(message.begin(), message.end(), '\n'), message.end());
-            cabbage::logInfo << message;
-            // EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
-            cabbage.getCsound()->PopFirstMessage();
-        }
+        cabbage.processCsoundMessages();
 
 #if defined(LINUX) && !defined(CabbageApp)
         nlohmann::json message;
         while (memoryQueue.receiveFromChild(message))
         {
-            //             cabbage::logInfo << message.dump(4);
             OnMessageFromWebView(message.dump(4).c_str());
         }
-
 #endif
 
 #ifndef CabbageApp
     }
 #endif
+
     CabbageOpcodeData data;
 
-    // only start accessing messages from the queue when the interface is open..
     if (allowDequeuing)
     {
         while (cabbage.opcodeData.try_dequeue(data))
@@ -374,54 +368,46 @@ void CabbageProcessor::OnIdle()
             {
                 if (data.channel == cabbage::Parser::removeQuotes(widget["channel"]))
                 {
-                    // this will update the widget JSON with new arguments tied to the identifier, e.g, bounds(x, y, w,
-                    // h)
                     cabbage::Parser::updateJson(widget, data.cabbageJson, widget.size());
                 }
             }
 
 #ifdef CabbageApp
-            // send data to vscode extension..
             hostCallback(data);
 #else
-            while (cabbage.getCsound()->GetMessageCnt() > 0)
-            {
-                std::string message(cabbage.getCsound()->GetFirstMessage());
-                cabbage::logInfo << message;
-                // EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
-                cabbage.getCsound()->PopFirstMessage();
-            }
-
-            std::string message = {};
-            if (data.type == CabbageOpcodeData::MessageType::Value)
-            {
-                message = cabbage.getWidgetUpdateScript(data.channel, data.cabbageJson["value"].get<float>());
-                EvaluateJavaScript(message.c_str());
-            }
-            else
-            {
-
-                auto widgetOpt = cabbage.getWidget(data.channel);
-                if (widgetOpt.has_value())
-                {
-                    auto &j = widgetOpt.value().get();
-                    // one of the special cases where we need to check the widget type
-                    if (j["type"].get<std::string>() == "genTable")
-                    {
-                        cabbage.updateFunctionTable(data, j);
-                        message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
-                    }
-                    else
-                    {
-                        cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
-                        message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
-                    }
-                }
-                EvaluateJavaScript(message.c_str());
-            }
+            cabbage.processCsoundMessages();
+            cabbage.updateWidgetData(data);
 #endif
         }
     }
+}
+
+//=============================================================================
+void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
+{
+    std::string message;
+
+    if (data.type == CabbageOpcodeData::MessageType::Value)
+    {
+        message = cabbage.getWidgetUpdateScript(data.channel, data.cabbageJson["value"].get<float>());
+    }
+    else
+    {
+        auto widgetOpt = cabbage.getWidget(data.channel);
+        if (widgetOpt.has_value())
+        {
+            auto &j = widgetOpt.value().get();
+            if (j["type"].get<std::string>() == "genTable")
+            {
+                cabbage.updateFunctionTable(data, j);
+            }
+            cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+            message = cabbage.getWidgetUpdateScript(data.channel, j.dump());
+        }
+    }
+
+    if (!message.empty())
+        EvaluateJavaScript(message.c_str());
 }
 
 //===============================================================================

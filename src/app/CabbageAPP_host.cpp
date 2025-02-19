@@ -89,7 +89,6 @@ bool IPlugAPPHost::InitProcessor()
     {
         auto &cabbage = cabbageProcessor->getCabbageEngine();
         auto widgetOpt = cabbage.getWidget(data.channel);
-        cabbage::logDebug << "Host callback triggered for channel:" << data.channel;
         if (widgetOpt.has_value())
         {
             auto &j = widgetOpt.value().get();
@@ -103,7 +102,6 @@ bool IPlugAPPHost::InitProcessor()
                 msg["channel"] = data.channel;
                 msg["data"] = j.dump();
                 webSocket.send(msg.dump());
-                cabbage::logDebug << msg.dump(4);
             }
             else
             {
@@ -116,7 +114,6 @@ bool IPlugAPPHost::InitProcessor()
                     msg["channel"] = data.channel;
                     msg["value"] = j["value"].get<float>();
                     webSocket.send(msg.dump());
-                    cabbage::logDebug << msg.dump(4);
                 }
                 else
                 {
@@ -127,7 +124,6 @@ bool IPlugAPPHost::InitProcessor()
                     msg["channel"] = data.channel;
                     msg["data"] = j.dump();
                     webSocket.send(msg.dump());
-                    cabbage::logDebug << msg.dump(4);
                 }
             }
         }
@@ -143,8 +139,8 @@ bool IPlugAPPHost::InitWebSocket()
 #if defined CabbageApp
     WDL_String address("ws://localhost:");
     address.Append(std::to_string(portNumber).c_str());
-
     webSocket.setUrl(address.Get());
+
     webSocket.setOnMessageCallback(
         [this](const ix::WebSocketMessagePtr &msg)
         {
@@ -284,6 +280,7 @@ bool IPlugAPPHost::InitWebSocket()
                         msg["command"] = "cabbageIsReadyToLoad";
                         msg["data"] = "";
                         webSocket.send(msg.dump());
+                        cabbage::logInfo << "CabbageIsReadyToLoad";
                     }
                     else if (command == "cabbageSetupComplete")
                     {
