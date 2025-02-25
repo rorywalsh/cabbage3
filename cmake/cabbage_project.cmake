@@ -107,8 +107,6 @@ if (APPLE)
 
     set(CABBAGE_DEFINES
             OBJC_PREFIX=vCabbage
-            SWELL_APP_PREFIX=Swell_vCabbage
-            SWELL_COMPILED
     )
 
     set(CABBAGE_INCLUDE_DIRS

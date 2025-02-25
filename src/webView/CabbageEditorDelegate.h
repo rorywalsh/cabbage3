@@ -140,6 +140,7 @@ class CabbageEditorDelegate : public iplug::IEditorDelegate, public iplug::IWebV
 
         else if (command == "cabbageIsReadyToLoad")
         {
+            cabbage::logDebug << "cabbageIsReadyToLoad";
             cabbageIsReadyToLoadCsdCallback();
         }
         //    else if(json["msg"] == "fileRead")

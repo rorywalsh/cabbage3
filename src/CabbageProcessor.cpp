@@ -28,7 +28,7 @@ CabbageProcessor::CabbageProcessor(const iplug::InstanceInfo &info, std::string 
 
     matchingNumInputsOutputs = (NInChansConnected() == NOutChansConnected());
 
-#if defined(LINUX) && defined(CabbageApp)
+#if (defined(LINUX) || defined(OS_MAC)) && defined(CabbageApp)
     std::thread idleThread(&CabbageProcessor::startIdleTimer, this, 100);
     idleThread.detach();
 #endif

@@ -258,9 +258,60 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 HWND gHWND;
 extern HMENU SWELL_app_stocksysmenu;
 
+
 char **arguments;
 int argCnt = 0;
 
+#if defined(CabbageApp)
+// Global flag to control the main loop
+std::atomic<bool> running(true);
+
+// Signal handler to catch Ctrl+C (SIGINT) and terminate the application gracefully
+void SignalHandler(int signal)
+{
+    if (signal == SIGINT)
+    {
+        std::cout << "\nShutting down cleanly...\n";
+        running = false;
+    }
+}
+
+int main(int argc, char *argv[])
+{
+    arguments = argv;
+    argCnt = argc;
+
+    // For CabbageApp, don't need to call NSApplicationMain and no UI
+    IPlugAPPHost *pAppHost = nullptr;
+    if (argCnt > 1)
+        pAppHost = IPlugAPPHost::Create(arguments[1], atoi(arguments[2]));
+    else
+        pAppHost = IPlugAPPHost::Create("", 9991);
+
+    if (pAppHost)
+    {
+        pAppHost->Init();
+        pAppHost->InitProcessor();
+        pAppHost->InitWebSocket();
+        pAppHost->TryToChangeAudio();
+    }
+    else
+    {
+        std::cerr << "Failed to initialize IPlugAPPHost." << std::endl;
+        return -1;
+    }
+
+    // Main loop
+    while (running)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Prevents CPU from maxing out
+    }
+
+    cabbage::logDebug << "Ending process";
+    return 0; // End of application
+}
+
+#elif defined(CabbageStandaloneApp)
 int main(int argc, char *argv[])
 {
 #if APP_COPY_AUV3
@@ -325,9 +376,9 @@ INT_PTR SWELLAppMain(int msg, INT_PTR parm1, INT_PTR parm2)
 #else
         pAppHost = IPlugAPPHost::Create();
 #endif
+        pAppHost->InitWebSocket();
         pAppHost->Init();
         pAppHost->InitProcessor();
-        pAppHost->InitWebSocket();
         pAppHost->TryToChangeAudio();
         break;
     case SWELLAPP_LOADED:
@@ -456,7 +507,7 @@ INT_PTR SWELLAppMain(int msg, INT_PTR parm1, INT_PTR parm2)
 #include "resources/main.rc_mac_dlg"
 #include "swell-menugen.h"
 #include "resources/main.rc_mac_menu"
-
+#endif
 #pragma mark - LINUX
 #elif defined(OS_LINUX)
 

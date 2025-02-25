@@ -308,6 +308,12 @@ bool IPlugAPPHost::InitWebSocket()
             {
                 cabbage::logDebug << "Connection established";
                 // if connection is open we need to send all parse jSON objects to VS-Code..
+                nlohmann::json msg;
+                msg["command"] = "cabbageIsReadyToLoad";
+                msg["data"] = "";
+                webSocket.send(msg.dump());
+                cabbage::logInfo << "CabbageIsReadyToLoad";
+                
                 for (auto &w : cabbage.getWidgets())
                 {
                     nlohmann::json msg;
@@ -997,7 +1003,7 @@ void IPlugAPPHost::CloseAudio()
             mAudioEnding = true;
 
             while (!mAudioDone)
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_MAC)
                 usleep(10 * 10000);
 #else
                 Sleep(100);

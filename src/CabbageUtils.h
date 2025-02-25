@@ -146,18 +146,30 @@ class LogStream
     // Destructor to log the message
     ~LogStream()
     {
-        std::ostringstream oss;
-        oss << "Cabbage " << logLevel << ": ";
-        oss << message.str();
-
-        if (includeContext)
+        try
         {
-            oss << " " << std::filesystem::path(file).filename().string() << " (" << line << ") " << function
-                << " [Thread ID: " << std::this_thread::get_id() << "]";
-        }
+            std::ostringstream oss;
+            oss << "Cabbage " << logLevel << ": " << message.str();
 
-        Logger::getInstance().logMessage(oss.str());
+            if (includeContext)
+            {
+                oss << " " << std::filesystem::path(file).filename().string()
+                    << " (" << line << ") " << function
+                    << " [Thread ID: " << std::this_thread::get_id() << "]";
+            }
+
+            Logger::getInstance().logMessage(oss.str());
+        }
+        catch (const std::exception &e)
+        {
+            std::cerr << "LogStream destructor error: " << e.what() << std::endl;
+        }
+        catch (...)
+        {
+            std::cerr << "LogStream destructor encountered an unknown exception!" << std::endl;
+        }
     }
+
 
     template <typename T>
     LogStream &operator<<(const T &value)

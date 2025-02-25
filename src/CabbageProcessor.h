@@ -120,11 +120,10 @@ class CabbageProcessor final : public iplug::Plugin
 
     void updateWidgetData(const CabbageOpcodeData &data);
 
-#if defined(LINUX)
-#if !defined(CabbageApp)
+#if defined(OS_LINUX) && !defined(CabbageApp)
     cabbage::SharedMemoryQueue instanceMap;
     cabbage::SharedMemoryQueue memoryQueue;
-#else
+#elif defined(OS_LINUX) || defined(OS_MAC)
     void startIdleTimer(int intervalMilliseconds)
     {
         auto nextCallTime = std::chrono::steady_clock::now();
@@ -136,6 +135,5 @@ class CabbageProcessor final : public iplug::Plugin
             std::this_thread::sleep_until(nextCallTime);                     // Sleep until the next idle interval
         }
     }
-#endif
 #endif
 };
