@@ -106,8 +106,8 @@ jobs:
         shell: cmd
         run: |
           echo "Checking if the build artifacts exist for CabbageApp"
-          ls Release/CabbageApp-app/Debug
-          tree Release/CabbageApp-app/Debug
+          ls build/Release/CabbageApp-app/Debug
+          tree build/Release/CabbageApp-app/Debug
           echo "Checking if the build artifacts exist for CabbageVST3Synth/Effect"
           ls build/CabbageVST3Effect/out
           ls build/CabbageVST3Synth/out
