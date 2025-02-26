@@ -59,6 +59,10 @@ IPlugAPPHost::~IPlugAPPHost()
 
     if (mMidiOut)
         mMidiOut->closePort();
+
+    //free emptyInputBuffer 
+    delete[] emptyInputBuffer; 
+    emptyInputBuffer = nullptr;
 }
 
 // static
@@ -1032,6 +1036,7 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
 
     const auto deviceIds = mDAC->getDeviceIds();
 
+
     auto it = std::find(deviceIds.begin(), deviceIds.end(), inId);
     if (it != deviceIds.end())
     {
@@ -1042,8 +1047,13 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
     else
     {
         // no input found on the soundcard
+        // set channels to match outputs - we will use a dummy buffer for these
         iParams.deviceId = -1;
-        iParams.nChannels = 0; // set this to 2, and fill some buffers with 0 to avoid issues
+        iParams.nChannels = GetPlug()->MaxNChannels(ERoute::kOutput);
+
+        //create our dummy buffer for inputs when no device is found
+        emptyInputBuffer = new double[mBufferSize * iParams.nChannels];       // Allocate memory
+        std::memset(emptyInputBuffer, 0, mBufferSize * iParams.nChannels * sizeof(double)); // Initialize to 0
     }
 
     iParams.firstChannel = 0; // TODO: flexible channel count
@@ -1174,8 +1184,15 @@ int IPlugAPPHost::AudioCallback(void *outputBuffer, void *inputBuffer, uint32_t 
                      APP_N_VECTOR_WAIT; // Wait APP_N_VECTOR_WAIT * iovs before processing audio, to avoid clicks
     bool doFade = userData->mVecWait == APP_N_VECTOR_WAIT || userData->mAudioEnding;
 
-    // Clear the input buffer to prepare for summing signals
-    std::memset(inputBufferD, 0, numFrames * numInputs * sizeof(double));
+    bool shouldFreeInputBufferD = false;
+    // Use the empty input buffer if inputBuffer is null, else 
+    // clear the valid input buffer to prepare for summing signals
+    if (!inputBufferD)
+    {
+        inputBufferD = userData->emptyInputBuffer;
+    }
+    else
+        std::memset(inputBufferD, 0, numFrames * numInputs * sizeof(double));
 
     if (startWait && !userData->mAudioDone)
     {
@@ -1294,6 +1311,13 @@ int IPlugAPPHost::AudioCallback(void *outputBuffer, void *inputBuffer, uint32_t 
     }
 
     userData->mVecWait = std::min(userData->mVecWait + 1, uint32_t(APP_N_VECTOR_WAIT + 1));
+
+    if (shouldFreeInputBufferD)
+    {
+        delete[] inputBufferD; // This will invalidate the memory
+        inputBufferD = nullptr;
+    }
+
 
     return 0;
 }

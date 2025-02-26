@@ -25,22 +25,24 @@
 using namespace iplug;
 
 #pragma mark - WINDOWS
-#if defined OS_WIN
+#if defined(OS_WIN)
 #include <windows.h>
-#include <WinSock2.h>
+//#include <WinSock2.h>
 #include <commctrl.h>
 #include <shellapi.h> // For CommandLineToArgvW
 #include <locale>
 #include <codecvt>
+#include <iostream>
+#include <thread>
 
-HWND gHWND;
-
-#ifdef CabbageApp
+#pragma comment(lib, "ws2_32.lib")
 
 int main(int argc, char *argv[])
 {
+    
+    cabbage::logDebug << "Starting Cabbage service app";
 
-    // For CabbageApp, don't need to call NSApplicationMain and no UI
+    // Create IPlugAPPHost instance
     IPlugAPPHost *pAppHost = nullptr;
     if (argc > 1)
         pAppHost = IPlugAPPHost::Create(argv[1], atoi(argv[2]));
@@ -53,18 +55,27 @@ int main(int argc, char *argv[])
         pAppHost->InitProcessor();
         pAppHost->InitWebSocket();
         pAppHost->TryToChangeAudio();
+
+        // Main loop
+        bool running = true;
+        while (running)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Prevents CPU from maxing out
+            // Add a condition to break the loop if needed
+        }
+
+        delete pAppHost; // Clean up
     }
     else
     {
-        std::cerr << "Failed to initialize IPlugAPPHost." << std::endl;
+        std::cerr << "Failed to initialize IPlugAPPHost. Check arguments or system resources." << std::endl;
+        WSACleanup();
         return -1;
     }
 
-    // Main loop
-    while (true)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Prevents CPU from maxing out
-    }
+    cabbage::logDebug << "CabbageApp process ended...";
+
+
     return 0; // End of application
 }
 
@@ -249,8 +260,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     return 0;
 }
 #endif
+
+#if defined(OS_MAC)
 #pragma mark - MAC
-#elif defined(OS_MAC)
 #import <Cocoa/Cocoa.h>
 #include "IPlugSWELL.h"
 #include "IPlugPaths.h"

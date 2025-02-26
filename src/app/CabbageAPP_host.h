@@ -296,6 +296,7 @@ class IPlugAPPHost
     int mMidiInChannel = -1;
     int portNumber = 9991;
     std::string csdFile;
+    double* emptyInputBuffer;
 #if defined CabbageApp
     void updateHost(CabbageOpcodeData data);
     ix::WebSocket webSocket;
