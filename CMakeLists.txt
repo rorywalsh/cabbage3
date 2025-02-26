@@ -1,82 +1,90 @@
-cmake_minimum_required(VERSION 3.26 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.25)
 
-include("cmake/cabbage_version.cmake")
+project(CabbageClap LANGUAGES CXX VERSION 0.1)
 
-# Define IS_CABBAGE_CI_BUILD=true to enable CI-specific checks.
-if(DEFINED IS_CABBAGE_CI_BUILD)
-    message(DEBUG "IS_CABBAGE_CI_BUILD = ${IS_CABBAGE_CI_BUILD}")
-else()
-    set(IS_CABBAGE_CI_BUILD false)
+if (APPLE)
+    enable_language(OBJC)
+    enable_language(OBJCXX)
+    set(CMAKE_OBJC_VISIBILITY_PRESET hidden)
+    set(CMAKE_OBJCXX_VISIBILITY_PRESET hidden)
+    set(CMAKE_OBJCXX_FLAGS "${CMAKE_OBJCXX_FLAGS} -fobjc-arc")
+
+    # Link against the Cocoa framework
+    find_library(COCOA_LIBRARY Cocoa)
 endif()
 
-# Set default CMAKE_BUILD_TYPE to Release.
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
+option(COPY_AFTER_BUILD "Install local copy aftger build" TRUE)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(CLAP_WRAPPER_DOWNLOAD_DEPENDENCIES TRUE CACHE BOOL "Download Dependencies")
+set(CLAP_WRAPPER_OUTPUT_NAME "${PROJECT_NAME}")
+set(CLAP_WRAPPER_DONT_ADD_TARGETS TRUE)
+include(cmake/Dependencies.cmake)
+
+set(PRODUCT_NAME "CabbageClap")
+
+set(SOURCE_FILES
+    src/Utils.h
+    src/Plugin.h
+    src/Plugin.cpp
+    src/FactoryImpl.cpp
+)
+
+if (APPLE)
+    
+    list(APPEND SOURCE_FILES
+        src/platform/MacParent.mm
+    )
+    
 endif()
-message(DEBUG "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
-# Set default CMAKE_MESSAGE_LOG_LEVEL to STATUS.
-if(NOT DEFINED CMAKE_MESSAGE_LOG_LEVEL)
-    set(CMAKE_MESSAGE_LOG_LEVEL STATUS)
-endif()
+add_library(${PROJECT_NAME}-impl STATIC
+    ${SOURCE_FILES}
+)
 
-# Make sure Apple builds use the Xcode generetor.
-if(APPLE AND NOT "Xcode" STREQUAL "${CMAKE_GENERATOR}")
-    message(FATAL_ERROR "Apple builds must use the Xcode CMake generator (e.g. `cmake -B build -G Xcode`)")
-endif()
 
-if(NOT DEFINED CABBAGE_BUILD_TARGET)
-    project(BuildAllCabbageProjects VERSION ${CABBAGE_VERSION})
+    # Ensure .mm files are compiled as Objective-C++
 
-    if(APPLE)
-        set(CABBAGE_BUILD_TARGETS
-            CabbageApp
-            # CabbageStandaloneApp
-            CabbageAUv2Effect
-            CabbageVST3Effect
-            # CabbageAUv2Synth
-            CabbageVST3Synth
-        )
-    else()
-        set(CABBAGE_BUILD_TARGETS
-            CabbageApp
-            # CabbageStandaloneApp
-            CabbageVST3Effect
-            CabbageVST3Synth
-        )
-    endif()
 
-    message(DEBUG "CMAKE_MESSAGE_LOG_LEVEL = ${CMAKE_MESSAGE_LOG_LEVEL}")
+    # Enable ARC for Objective-C files
+    
+target_compile_options(${PROJECT_NAME}-impl PRIVATE -Wall -Wextra -pedantic)
 
-    foreach(CABBAGE_BUILD_TARGET ${CABBAGE_BUILD_TARGETS})
-        execute_process(
-            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-            COMMAND ${CMAKE_COMMAND}
-                -B "${CMAKE_BINARY_DIR}/${CABBAGE_BUILD_TARGET}"
-                -S "${CMAKE_SOURCE_DIR}"
-                -G ${CMAKE_GENERATOR}
-                -D IS_CABBAGE_CI_BUILD=${IS_CABBAGE_CI_BUILD}
-                -D CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-                -D CABBAGE_BUILD_TARGET=${CABBAGE_BUILD_TARGET}
-                -D CMAKE_MESSAGE_LOG_LEVEL=${CMAKE_MESSAGE_LOG_LEVEL}
-            RESULT_VARIABLE exit_code
-        )
 
-        if(exit_code)
-            message(FATAL_ERROR "CMake step for ${CABBAGE_BUILD_TARGET} failed with exit code ${exit_code}")
-        endif()
 
-        add_custom_target(
-            ${CABBAGE_BUILD_TARGET}
-            ALL
-            COMMAND ${CMAKE_COMMAND} --build "${CMAKE_BINARY_DIR}/${CABBAGE_BUILD_TARGET}" --config ${CMAKE_BUILD_TYPE}
-            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/${CABBAGE_BUILD_TARGET}"
-        )
-    endforeach()
-elseif(EXISTS "cmake/${CABBAGE_BUILD_TARGET}.cmake")
-    include("cmake/${CABBAGE_BUILD_TARGET}.cmake")
-else()
-    message(FATAL_ERROR "Unsupported CABBAGE_BUILD_TARGET: ${CABBAGE_BUILD_TARGET}")
+
+target_include_directories(${PROJECT_NAME}-impl
+    PRIVATE 
+        ${choc_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/src
+)
+
+if(APPLE)
+target_link_libraries(${PROJECT_NAME}-impl PUBLIC clap clap-helpers ${COCOA_LIBRARY})
 endif()
 
 
+
+
+
+
+make_clapfirst_plugins(
+        TARGET_NAME ${PROJECT_NAME}
+        IMPL_TARGET ${PROJECT_NAME}-impl
+
+        OUTPUT_NAME "${PRODUCT_NAME}"
+
+        ENTRY_SOURCE src/Factory.cpp
+
+        BUNDLE_IDENTIFER "org.yourproject.yourthing"
+        BUNDLE_VERSION ${PROJECT_VERSION}
+
+        COPY_AFTER_BUILD ${COPY_AFTER_BUILD}
+
+        PLUGIN_FORMATS CLAP VST3 # AUV2
+
+        ASSET_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_assets
+
+
+)
