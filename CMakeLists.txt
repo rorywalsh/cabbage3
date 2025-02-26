@@ -31,7 +31,7 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
     if(APPLE)
         set(CABBAGE_BUILD_TARGETS
             CabbageApp
-            CabbageStandaloneApp
+            # CabbageStandaloneApp
             CabbageAUv2Effect
             CabbageVST3Effect
             # CabbageAUv2Synth
@@ -40,7 +40,7 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
     else()
         set(CABBAGE_BUILD_TARGETS
             CabbageApp
-            CabbageStandaloneApp
+            # CabbageStandaloneApp
             CabbageVST3Effect
             CabbageVST3Synth
         )

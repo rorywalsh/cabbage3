@@ -7,38 +7,38 @@ message(STATUS "Fetching dependencies ...")
 include(FetchContent)
 
 fetch_github_dependency(
-    cppcodec
-    GIT_REPOSITORY https://github.com/tplgy/cppcodec.git
-    GIT_TAG 8019b8b580f8573c33c50372baec7039dfe5a8ce
-    URL_MD5 7bcdfe5bf29d9a764c0923830d351b29
-    # USE_GIT
+        cppcodec
+        GIT_REPOSITORY https://github.com/tplgy/cppcodec.git
+        GIT_TAG 8019b8b580f8573c33c50372baec7039dfe5a8ce
+        URL_MD5 7bcdfe5bf29d9a764c0923830d351b29
+        # USE_GIT
 )
 
 fetch_github_dependency(
-    choc
-    GIT_REPOSITORY https://github.com/Tracktion/choc.git
-    GIT_TAG 85149958b6d0e51885eefba8816b51798570b54b
-    URL_MD5 ffdb942dcaa64a716239d37c620e5eb2
-    SOURCE_DIR "${FETCHCONTENT_BASE_DIR}/choc-src/include/choc"
-    # USE_GIT
+        choc
+        GIT_REPOSITORY https://github.com/Tracktion/choc.git
+        GIT_TAG 85149958b6d0e51885eefba8816b51798570b54b
+        URL_MD5 ffdb942dcaa64a716239d37c620e5eb2
+        SOURCE_DIR "${FETCHCONTENT_BASE_DIR}/choc-src/include/choc"
+        # USE_GIT
 )
 
 fetch_github_dependency(
-    readerwriterqueue
-    GIT_REPOSITORY https://github.com/rorywalsh/readerwriterqueue.git
-    GIT_TAG ab2082837bda45e8a1a2d6934b211212ae3e2d1b
-    URL_MD5 751cb052b563083e55672834d8d30e10
-    SOURCE_DIR "${FETCHCONTENT_BASE_DIR}/readerwriterqueue-src"
-    # USE_GIT
+        readerwriterqueue
+        GIT_REPOSITORY https://github.com/rorywalsh/readerwriterqueue.git
+        GIT_TAG ab2082837bda45e8a1a2d6934b211212ae3e2d1b
+        URL_MD5 751cb052b563083e55672834d8d30e10
+        SOURCE_DIR "${FETCHCONTENT_BASE_DIR}/readerwriterqueue-src"
+        # USE_GIT
 )
 
 
 fetch_github_dependency(
-    iplug2
-    GIT_REPOSITORY https://github.com/rorywalsh/iPlug2.git
-    GIT_TAG 28b41ab11cceeeff18c12e6be5c859daa4aea950
-    URL_MD5 563d513f377f13ec5353b6afca6c07a5
-    # USE_GIT
+        iplug2
+        GIT_REPOSITORY https://github.com/rorywalsh/iPlug2.git
+        GIT_TAG e04523d9e420e28a5653b89bf2bc7319394f1284
+        URL_MD5 5b60fc02c862de43dbc5d10c351ad92d
+        # USE_GIT
 )
 
 
