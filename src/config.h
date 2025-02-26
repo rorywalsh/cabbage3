@@ -1,13 +1,13 @@
 /*
  * Copyright (c) 2024 Rory Walsh
- * 
+ *
  * Cabbage3 is licensed under the MIT License. See the LICENSE file for details.
  * This software is provided "as-is", without any express or implied warranty.
  * See the LICENSE file for more details.
  */
 
-//uniqueId    int    -475805922
-//UniqueID:-1599879394
+// uniqueId    int    -475805922
+// UniqueID:-1599879394
 
 #define PLUG_MFR "CabbageAudio"
 #define PLUG_VERSION_HEX 0x00010000
@@ -19,22 +19,22 @@
 #define PLUG_COPYRIGHT_STR "Copyright 2020 Acme Inc"
 #define PLUG_CLASS_NAME CabbageProcessor
 
-//#ifndef BUNDLE_NAME
-//#define BUNDLE_NAME "Cabbage"
-//#endif
-// #ifndef PLUG_NAME
-// #define PLUG_NAME "Cabbage"
+// #ifndef BUNDLE_NAME
+// #define BUNDLE_NAME "Cabbage"
 // #endif
+//  #ifndef PLUG_NAME
+//  #define PLUG_NAME "Cabbage"
+//  #endif
 
 #if CabbageApp
-    #define BUNDLE_NAME "Cabbage"
-    #define PLUG_NAME "Cabbage"
+#define BUNDLE_NAME "Cabbage"
+#define PLUG_NAME "Cabbage"
 #elif CabbagePluginSynth
-    #define BUNDLE_NAME "CabbagePluginSynth"
-    #define PLUG_NAME "CabbagePluginSynth"
+#define BUNDLE_NAME "CabbagePluginSynth"
+#define PLUG_NAME "CabbagePluginSynth"
 #else
-    #define BUNDLE_NAME "CabbagePluginEffect"
-    #define PLUG_NAME "CabbagePluginEffect"
+#define BUNDLE_NAME "CabbagePluginEffect"
+#define PLUG_NAME "CabbagePluginEffect"
 #endif
 
 #define BUNDLE_MFR "CabbageAudio"
@@ -72,9 +72,9 @@
 // #define AAX_DOES_AUDIOSUITE 1
 
 #ifdef CabbagePluginSynth
-    #define VST3_SUBCATEGORY "Instrument|Synth"
+#define VST3_SUBCATEGORY "Instrument|Synth"
 #else
-    #define VST3_SUBCATEGORY "Fx"
+#define VST3_SUBCATEGORY "Fx"
 #endif
 
 #define APP_NUM_CHANNELS 2

@@ -10,7 +10,7 @@
  * This file is based on the iPlug 2 library, which is licensed under the
  * [iPlug 2 License Information]. The original copyright notice and license
  * must remain intact in the portions of the code that have not been modified.
- */
+     */
 
 #if !__has_feature(objc_arc)
 #error This file must be compiled with Arc. Use -fobjc-arc flag
