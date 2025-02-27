@@ -268,7 +268,27 @@ bool Plugin::guiSetParent(const clap_window* window) noexcept {
         
         #if CABBAGE_WINDOWS
         if (strcmp(window->api, CLAP_WINDOW_API_WIN32) == 0) {
-            SetParent((HWND)viewHandle, (HWND)window->win32);
+            HWND child = (HWND)viewHandle;
+            HWND parent = (HWND)window->win32;
+        
+            // Set the parent of the WebView
+            if (!SetParent(child, parent)) {
+                std::cerr << "Failed to set parent for WebView" << std::endl;
+                return false;
+            }
+        
+            // Resize the WebView to fill the parent window
+            RECT rect;
+            if (GetClientRect(parent, &rect)) {
+                SetWindowPos(child, nullptr, 0, 0, rect.right, rect.bottom, SWP_NOZORDER | SWP_NOACTIVATE);
+            } else {
+                std::cerr << "Failed to get parent client area" << std::endl;
+                return false;
+            }
+        
+            // Ensure the WebView has the correct styles
+            SetWindowLongPtr(child, GWL_STYLE, GetWindowLongPtr(child, GWL_STYLE) | WS_CHILD | WS_VISIBLE);
+        
             return true;
         }
         #elif CABBAGE_MACOS
