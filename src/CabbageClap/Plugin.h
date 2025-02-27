@@ -1,9 +1,14 @@
 #pragma once
+
 #include <clap/helpers/plugin.hh>
 #include "gui/choc_WebView.h"
 
+class CabbageProcessor;
+class ClapPlugin;
 
-class Plugin : public clap::helpers::Plugin<clap::helpers::MisbehaviourHandler::Terminate,
+using pluginType = ClapPlugin;
+
+class ClapPlugin : public clap::helpers::Plugin<clap::helpers::MisbehaviourHandler::Terminate,
                                             clap::helpers::CheckingLevel::Maximal>
 {
 public:
@@ -29,10 +34,8 @@ public:
         .features = features
     };
 
-
-    Plugin(const clap_host* host);
-    ~Plugin() override = default;
-
+    ClapPlugin(const clap_host* host, int numInputs, int numOutputs);
+    ~ClapPlugin() override;
 
     bool implementsAudioPorts() const noexcept override
     {
@@ -45,7 +48,6 @@ public:
     }
 
     bool audioPortsInfo(uint32_t index, bool isInput, clap_audio_port_info* info) const noexcept override;
-
 
     bool implementsParams() const noexcept override
     {
@@ -103,4 +105,11 @@ private:
     void sendParameterValueToHost(clap_id paramId, double value) noexcept;
     void beginParamAdjust(clap_id paramId) noexcept;
     void endParamAdjust(clap_id paramId) noexcept;
+
+    CabbageProcessor* cabbageProcessor; // Pointer to CabbageProcessor
+};
+
+class CabbagePluginFactory {
+public:
+    static ClapPlugin* createPlugin(const clap_host* host);
 };

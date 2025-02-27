@@ -3,7 +3,7 @@
 //
 
 #include "FactoryImpl.h"
-
+#include "../CabbageProcessor.h"
 #include "Plugin.h"
 #include <iostream>
 
@@ -27,21 +27,22 @@ namespace impl
     const clap_plugin_descriptor* getPluginDescriptor(const clap_plugin_factory* /*factory*/, uint32_t index)
     {
         if (index == 0)
-            return &Plugin::descriptor;
+            return &ClapPlugin::descriptor;
 
         return nullptr;
     }
 
     const clap_plugin* createPluginInstance(const clap_plugin_factory* /*factory*/, const clap_host* host, const char* plugin_id)
     {
-        if (strcmp(plugin_id, Plugin::descriptor.id))
+        if (strcmp(plugin_id, ClapPlugin::descriptor.id))
         {
             std::cerr << "Error: plugin_id '" << plugin_id << "' not found!" << std::endl;
             return nullptr;
         }
 
         // Host will own 'plugin'
-        auto plugin = new Plugin(host);
+        auto plugin = CabbagePluginFactory::createPlugin(host); // No need for user to specify inputs/outputs
+                
         return plugin->clapPlugin();
     }
 

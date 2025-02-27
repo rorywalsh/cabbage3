@@ -25,16 +25,18 @@ include(cmake/Dependencies.cmake)
 set(PRODUCT_NAME "CabbageClap")
 
 set(SOURCE_FILES
-    src/Utils.h
-    src/Plugin.h
-    src/Plugin.cpp
-    src/FactoryImpl.cpp
+    src/CabbageProcessor.cpp
+    src/CabbageProcessor.h
+    src/CabbageClap/Utils.h
+    src/CabbageClap/Plugin.h
+    src/CabbageClap/Plugin.cpp
+    src/CabbageClap/FactoryImpl.cpp
 )
 
 if (APPLE)
     
     list(APPEND SOURCE_FILES
-        src/platform/MacParent.mm
+        src/CabbageClap/platform/MacParent.mm
     )
     
 endif()
@@ -75,7 +77,7 @@ make_clapfirst_plugins(
 
         OUTPUT_NAME "${PRODUCT_NAME}"
 
-        ENTRY_SOURCE src/Factory.cpp
+        ENTRY_SOURCE src/CabbageClap/Factory.cpp
 
         BUNDLE_IDENTIFER "org.yourproject.yourthing"
         BUNDLE_VERSION ${PROJECT_VERSION}
