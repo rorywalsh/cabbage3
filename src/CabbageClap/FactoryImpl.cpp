@@ -3,7 +3,7 @@
 //
 
 #include "FactoryImpl.h"
-#include "../CabbageProcessor.h"
+#include "../Cumhdach.h"
 #include "Plugin.h"
 #include <iostream>
 

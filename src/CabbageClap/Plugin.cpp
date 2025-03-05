@@ -4,27 +4,28 @@
 #include <clap/ext/params.h>
 #include "Utils.h"
 #include "gui/choc_WebView.h"
-#include "../CabbageProcessor.h"
+#include "../Cumhdach.h"
 
-#define CABBAGE_MACOS 1
+#define CABBAGE_WINDOWS 1
 
 #if CABBAGE_WINDOWS
 #include <windows.h>
 #elif CABBAGE_MACOS
-
+extern "C"
+{
+    bool attachViewToParent(void *childView, void *parentView); // Forward declaration
+}
 #elif CABBAGE_LINUX
 #include <X11/Xlib.h>
 #endif
 
-extern "C" {
-    bool attachViewToParent(void* childView, void* parentView); // Forward declaration
-}
+
 
 ClapPlugin::ClapPlugin(const clap_host* host, int numInputs, int numOutputs)
 : clap::helpers::Plugin<clap::helpers::MisbehaviourHandler::Terminate, clap::helpers::CheckingLevel::Maximal>(
     &descriptor, host)
 {
-    cabbageProcessor = new CabbageProcessor(numInputs, numOutputs);
+    cumhdachProcessor = new Cumhdach(numInputs, numOutputs);
 }
 
 ClapPlugin::~ClapPlugin()
@@ -43,7 +44,7 @@ bool ClapPlugin::audioPortsInfo(uint32_t index, bool /*isInput*/, clap_audio_por
     info->in_place_pair = CLAP_INVALID_ID;
     strncpy(info->name, "main", sizeof(info->name));
     info->flags = CLAP_AUDIO_PORT_IS_MAIN;
-    info->channel_count = cabbageProcessor->getNumOutputs();
+    info->channel_count = cumhdachProcessor->getNumOutputs();
     info->port_type = CLAP_PORT_STEREO;
 
     return true;
@@ -51,13 +52,13 @@ bool ClapPlugin::audioPortsInfo(uint32_t index, bool /*isInput*/, clap_audio_por
 
 bool ClapPlugin::paramsInfo(uint32_t paramIndex, clap_param_info* info) const noexcept
 {
-    auto numParameters = cabbageProcessor->getParameters().size();
+    auto numParameters = cumhdachProcessor->getParameters().size();
     
     if (paramIndex >= numParameters)
         return false;
 
 
-    const auto p = cabbageProcessor->getParameters()[paramIndex];
+    const auto p = cumhdachProcessor->getParameters()[paramIndex];
 
     info->id = paramIndex;
     info->flags = CLAP_PARAM_IS_AUTOMATABLE | CLAP_PARAM_IS_MODULATABLE;
@@ -124,7 +125,7 @@ clap_process_status ClapPlugin::process(const clap_process* process) noexcept
     float** outputs = process->audio_outputs[0].data32;
     std::size_t blockSize = process->frames_count;
 
-    cabbageProcessor->process(inputs, outputs, blockSize);
+    cumhdachProcessor->process(inputs, outputs, blockSize);
     return CLAP_PROCESS_CONTINUE;
 
 
@@ -141,8 +142,8 @@ clap_process_status ClapPlugin::process(const clap_process* process) noexcept
     //         if (gainValue->param_id == gainPrmId_) 
     //         {
     //             gain_ = utils::toExponentialCurve(gainValue->value);
-    //             if (webview_)
-    //                 webview_->evaluateJavascript("updateGainFromHost(" + 
+    //             if (webview)
+    //                 webview->evaluateJavascript("updateGainFromHost(" + 
     //                     std::to_string(utils::gainToDecibels(gain_)) + ");");
     //         }
     //     }
@@ -174,19 +175,19 @@ bool ClapPlugin::guiCreate(const char* api, bool isFloating) noexcept {
         choc::ui::WebView::Options options;
         options.enableDebugMode = true;
         
-        webview_ = std::make_unique<choc::ui::WebView>(options);
-        if (!webview_)
+        webview = std::make_unique<choc::ui::WebView>(options);
+        if (!webview)
             return false;
 
         // Add JavaScript interface for parameter control
-        webview_->bind("setGainParameter", [this](const choc::value::ValueView& args) -> choc::value::Value {
+        webview->bind("setGainParameter", [this](const choc::value::ValueView& args) -> choc::value::Value {
             auto value = args[0]["value"].getWithDefault<double>(0.0);
             sendParameterValueToHost(gainPrmId_, utils::decibelsToGain(value));
             return {};
         });
 
         // Load HTML content
-        webview_->setHTML(R"(
+        webview->setHTML(R"(
             <!DOCTYPE html>
             <html>
             <head>
@@ -255,7 +256,7 @@ bool ClapPlugin::guiCreate(const char* api, bool isFloating) noexcept {
 }
 
 void ClapPlugin::guiDestroy() noexcept {
-    webview_.reset();
+    webview.reset();
 }
 
 bool ClapPlugin::guiSetScale(double) noexcept {
@@ -265,7 +266,7 @@ bool ClapPlugin::guiSetScale(double) noexcept {
 bool ClapPlugin::guiSetSize(uint32_t width, uint32_t height) noexcept {
     currentWidth_ = width;
     currentHeight_ = height;
-    return webview_ != nullptr;
+    return webview != nullptr;
 }
 
 bool ClapPlugin::guiGetSize(uint32_t* width, uint32_t* height) noexcept {
@@ -275,71 +276,65 @@ bool ClapPlugin::guiGetSize(uint32_t* width, uint32_t* height) noexcept {
 }
 
 bool ClapPlugin::guiShow() noexcept {
-    return webview_ != nullptr;
+    return webview != nullptr;
 }
 
 bool ClapPlugin::guiHide() noexcept {
-    return webview_ != nullptr;
+    return webview != nullptr;
 }
 
-bool ClapPlugin::guiSetParent(const clap_window* window) noexcept {
-    if (!webview_) {
-        std::cerr << "WebView not created when setting parent" << std::endl;
+bool ClapPlugin::guiSetParent(const clap_window *window) noexcept
+{
+    if (!webview)
+    {
+        utils::DebugLog("WebView not created when setting parent");
         return false;
     }
 
-    try {
-        auto viewHandle = webview_->getViewHandle();
-        std::cout << "Got view handle: " << viewHandle << std::endl;
-        
-        #if CABBAGE_WINDOWS
-        if (strcmp(window->api, CLAP_WINDOW_API_WIN32) == 0) {
-            HWND child = (HWND)viewHandle;
-            HWND parent = (HWND)window->win32;
-        
-            // Set the parent of the WebView
-            if (!SetParent(child, parent)) {
-                std::cerr << "Failed to set parent for WebView" << std::endl;
-                return false;
-            }
-        
-            // Resize the WebView to fill the parent window
-            RECT rect;
-            if (GetClientRect(parent, &rect)) {
-                SetWindowPos(child, nullptr, 0, 0, rect.right, rect.bottom, SWP_NOZORDER | SWP_NOACTIVATE);
-            } else {
-                std::cerr << "Failed to get parent client area" << std::endl;
-                return false;
-            }
-        
-            // Ensure the WebView has the correct styles
-            SetWindowLongPtr(child, GWL_STYLE, GetWindowLongPtr(child, GWL_STYLE) | WS_CHILD | WS_VISIBLE);
-        
+    try
+    {
+#if CABBAGE_WINDOWS
+        if (strcmp(window->api, CLAP_WINDOW_API_WIN32) == 0)
+        {
+            auto *child = static_cast<HWND>(webview->getViewHandle());
+            auto *parent = static_cast<::HWND>(window->win32);
+            ::InvalidateRect(child, NULL, false);
+            ::SetWindowLongPtrW(child, GWL_STYLE, WS_CHILD);
+            ::SetParent(child, parent);
+            ::ShowWindow(child, SW_SHOW);
+
             return true;
         }
-        #elif CABBAGE_MACOS
-        std::cout << "Setting parent for API: " << window->api << std::endl;
-        if (strcmp(window->api, CLAP_WINDOW_API_COCOA) == 0) {
-            void* parent = window->cocoa;
-            void* child = viewHandle;
-            std::cout << "Parent handle: " << parent << ", Child handle: " << child << std::endl;
+#elif CABBAGE_MACOS
+        utils::DebugLog("Setting parent for API: " + std::string(window->api));
+        if (strcmp(window->api, CLAP_WINDOW_API_COCOA) == 0)
+        {
+            void *parent = window->cocoa;
+            void *child = viewHandle;
+            utils::DebugLog("Parent handle: " + std::to_string(reinterpret_cast<uintptr_t>(parent)) +
+                            ", Child handle: " + std::to_string(reinterpret_cast<uintptr_t>(child)));
             bool result = attachViewToParent(child, parent);
-            std::cout << "Parent attachment result: " << result << std::endl;
+            utils::DebugLog("Parent attachment result: " + std::to_string(result));
             return result;
         }
-        #elif CABBAGE_LINUX
-        if (strcmp(window->api, CLAP_WINDOW_API_X11) == 0) {
+#elif CABBAGE_LINUX
+        if (strcmp(window->api, CLAP_WINDOW_API_X11) == 0)
+        {
             XReparentWindow(XOpenDisplay(nullptr), (Window)viewHandle, (Window)window->x11, 0, 0);
             return true;
         }
-        #endif
+#endif
 
         return false;
-    } catch (const std::exception& e) {
-        std::cerr << "Exception in guiSetParent: " << e.what() << std::endl;
+    }
+    catch (const std::exception &e)
+    {
+        utils::DebugLog("Exception in guiSetParent: " + std::string(e.what()));
         return false;
-    } catch (...) {
-        std::cerr << "Unknown exception in guiSetParent" << std::endl;
+    }
+    catch (...)
+    {
+        utils::DebugLog("Unknown exception in guiSetParent");
         return false;
     }
 }

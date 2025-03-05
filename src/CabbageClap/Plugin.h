@@ -3,7 +3,7 @@
 #include <clap/helpers/plugin.hh>
 #include "gui/choc_WebView.h"
 
-class CabbageProcessor;
+class Cumhdach;
 class ClapPlugin;
 
 using pluginType = ClapPlugin;
@@ -96,7 +96,7 @@ private:
     int currentFadeIndex_ = fadeLengthInSamples_;
 
     // Add GUI members
-    std::unique_ptr<choc::ui::WebView> webview_;
+    std::unique_ptr<choc::ui::WebView> webview;
     uint32_t currentWidth_ = 800;  // Default width
     uint32_t currentHeight_ = 600; // Default height
 
@@ -105,7 +105,7 @@ private:
     void beginParamAdjust(clap_id paramId) noexcept;
     void endParamAdjust(clap_id paramId) noexcept;
 
-    CabbageProcessor* cabbageProcessor; // Pointer to CabbageProcessor
+    Cumhdach* cumhdachProcessor; // Pointer to Cumhdach processor
 };
 
 class CabbagePluginFactory {

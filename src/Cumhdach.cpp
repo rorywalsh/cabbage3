@@ -1,5 +1,5 @@
-// CabbageProcessor.cpp
-#include "CabbageProcessor.h"
+// Cumhdach.cpp
+#include "Cumhdach.h"
 #include <iostream>
 
 pluginType* CabbagePluginFactory::createPlugin(const clap_host* host)
@@ -10,14 +10,14 @@ pluginType* CabbagePluginFactory::createPlugin(const clap_host* host)
 
 //===================================================================================
 
-CabbageProcessor::CabbageProcessor(int numInputs, int numOutputs)
+Cumhdach::Cumhdach(int numInputs, int numOutputs)
     : numInputs(numInputs),
     numOutputs(numOutputs)
 {
     parameters.push_back({"Gain", 0, 1});
 }
 
-void CabbageProcessor::process(float** /*inputs*/, float** outputs, std::size_t blockSize)
+void Cumhdach::process(float** /*inputs*/, float** outputs, std::size_t blockSize)
 {
     const auto channels = 2;
     
@@ -28,10 +28,10 @@ void CabbageProcessor::process(float** /*inputs*/, float** outputs, std::size_t 
     }
 }
 
-void CabbageProcessor::setParameter(int paramId, double value) {
+void Cumhdach::setParameter(int paramId, double value) {
     parameters[paramId].value = value;
 }
 
-double CabbageProcessor::getParameter(int paramId) const {
+double Cumhdach::getParameter(int paramId) const {
     return parameters[paramId].value;
 }
