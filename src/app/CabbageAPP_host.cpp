@@ -459,7 +459,7 @@ bool IPlugAPPHost::InitState()
                 mState.mAudioInChanR = settingsJson["currentConfig"]["audio"].value("in2", 2);
                 mState.mAudioOutChanL = settingsJson["currentConfig"]["audio"].value("out1", 1);
                 mState.mAudioOutChanR = settingsJson["currentConfig"]["audio"].value("out2", 2);
-                mState.mBufferSize = settingsJson["currentConfig"]["audio"].value("buffer", 512);
+                mState.mBufferSize = settingsJson["currentConfig"]["audio"].value("bufferSize", 512);
                 mState.mAudioSR = settingsJson["currentConfig"]["audio"].value("sr", 44100);
                 mState.mMidiInDev.Set(settingsJson["currentConfig"]["midi"].value("inputDevice", "no input").c_str());
                 mState.mMidiOutDev.Set(settingsJson["currentConfig"]["midi"].value("outputDvice", "no output").c_str());
