@@ -70,7 +70,6 @@ public:
 
     bool paramsValueToText(clap_id paramId, double value, char* display, uint32_t size) noexcept override;
     bool paramsTextToValue(clap_id paramId, const char* display, double* value) noexcept override;
-
     bool activate(double sampleRate, uint32_t, uint32_t) noexcept override;
 
     clap_process_status process(const clap_process* process) noexcept override;

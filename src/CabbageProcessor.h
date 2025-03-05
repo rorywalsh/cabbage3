@@ -48,6 +48,22 @@ public:
 };
 
 class CabbageProcessor {
+    struct Parameter {
+        const char* name;
+        float min;
+        float max;
+        float value;
+        float skew;
+        float increment;
+
+        // Constructor with default values
+        Parameter(const char* paramName = "", float paramMin = 0.f, float paramMax = 1.f,
+                  float paramValue = 0.f, float paramIncrement = 0.01f, float paramSkew = 1.f)
+            : name(paramName), min(paramMin), max(paramMax),
+              value(paramValue), skew(paramSkew), increment(paramIncrement) {}
+    };
+
+    
 public:
     // Constructor that initializes the CLAP plugin
     CabbageProcessor(int numInputs, int numOutputs);
@@ -64,12 +80,15 @@ public:
     // Get a parameter value
     double getParameter(int paramId) const;
 
+    int getNumOutputs(){    return numOutputs;  }
+    int getNumInputs(){    return numInputs;  }
+    std::vector<Parameter> getParameters(){ return parameters;  }
+    
 private:
     // Number of audio inputs and outputs
     int numInputs = 0;
     int numOutputs = 0;
-    int numParameters = 0;
     SineOscillator<float> sine[2];
     // Store parameters (could be a more complex structure if needed)
-    std::vector<double> parameters;
+    std::vector<Parameter> parameters;
 };

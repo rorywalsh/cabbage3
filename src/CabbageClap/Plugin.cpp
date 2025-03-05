@@ -38,11 +38,12 @@ bool ClapPlugin::audioPortsInfo(uint32_t index, bool /*isInput*/, clap_audio_por
     if (index != 0)
         return false;
 
+
     info->id = 0;
     info->in_place_pair = CLAP_INVALID_ID;
     strncpy(info->name, "main", sizeof(info->name));
     info->flags = CLAP_AUDIO_PORT_IS_MAIN;
-    info->channel_count = 2;
+    info->channel_count = cabbageProcessor->getNumOutputs();
     info->port_type = CLAP_PORT_STEREO;
 
     return true;
@@ -50,16 +51,22 @@ bool ClapPlugin::audioPortsInfo(uint32_t index, bool /*isInput*/, clap_audio_por
 
 bool ClapPlugin::paramsInfo(uint32_t paramIndex, clap_param_info* info) const noexcept
 {
-    if (paramIndex >= 1)
+    auto numParameters = cabbageProcessor->getParameters().size();
+    
+    if (paramIndex >= numParameters)
         return false;
 
-    info->id = gainPrmId_;
+
+    const auto p = cabbageProcessor->getParameters()[paramIndex];
+
+    info->id = paramIndex;
     info->flags = CLAP_PARAM_IS_AUTOMATABLE | CLAP_PARAM_IS_MODULATABLE;
-    strncpy(info->name, "Gain", CLAP_NAME_SIZE);
+    strncpy(info->name, p.name, CLAP_NAME_SIZE);
     strncpy(info->module, "", CLAP_NAME_SIZE);
-    info->min_value = 0.0;
-    info->max_value = 1.0;
-    info->default_value = utils::decibelsToGain(0.0);
+    info->min_value = p.min;
+    info->max_value = p.min;
+    info->default_value = p.value;//utils::decibelsToGain(0.0);
+
 
     return true;
 }
@@ -69,7 +76,7 @@ bool ClapPlugin::paramsValue(clap_id paramId, double* value) noexcept
     if (paramId != gainPrmId_)
         return false;
 
-    *value = utils::toLinearCurve(gain_);
+//    *value = utils::toLinearCurve(gain_);
     return true;
 }
 

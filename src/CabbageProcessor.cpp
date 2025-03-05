@@ -12,10 +12,9 @@ pluginType* CabbagePluginFactory::createPlugin(const clap_host* host)
 
 CabbageProcessor::CabbageProcessor(int numInputs, int numOutputs)
     : numInputs(numInputs),
-    numOutputs(numOutputs),
-    parameters(1)
+    numOutputs(numOutputs)
 {
-    // Initialization code here
+    parameters.push_back({"Gain", 0, 1});
 }
 
 void CabbageProcessor::process(float** /*inputs*/, float** outputs, std::size_t blockSize)
@@ -30,9 +29,9 @@ void CabbageProcessor::process(float** /*inputs*/, float** outputs, std::size_t 
 }
 
 void CabbageProcessor::setParameter(int paramId, double value) {
-    parameters[paramId] = value;
+    parameters[paramId].value = value;
 }
 
 double CabbageProcessor::getParameter(int paramId) const {
-    return parameters[paramId];
+    return parameters[paramId].value;
 }
