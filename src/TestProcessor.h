@@ -3,8 +3,9 @@
 
 #include <cstddef> // for std::size_t
 #include <vector>
-#include <CabbageClap/Plugin.h> // Include the necessary CLAP headers
-#include <CabbageClap/Utils.h>
+#include "cumhdach/CabbageClap/Plugin.h" // Include the necessary CLAP headers
+#include "cumhdach/CabbageClap/Utils.h"
+#include "cumhdach/Cumhdach.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -50,29 +51,15 @@ class SineOscillator
     }
 };
 
-class Cumhdach {
-    struct Parameter {
-        const char* name;
-        float min;
-        float max;
-        float value;
-        float skew;
-        float increment;
 
-        // Constructor with default values
-        Parameter(const char* paramName = "", float paramMin = 0.f, float paramMax = 1.f,
-                  float paramValue = 0.f, float paramIncrement = 0.01f, float paramSkew = 1.f)
-            : name(paramName), min(paramMin), max(paramMax),
-              value(paramValue), skew(paramSkew), increment(paramIncrement) {}
-    };
-
+class TestProcessor : public Cumhdach {
     
 public:
     // Constructor that initializes the CLAP plugin
-    Cumhdach(int numInputs, int numOutputs);
+    TestProcessor(int numInputs, int numOutputs);
     
     // Destructor to clean up resources
-    ~Cumhdach();
+    ~TestProcessor(){};
 
     // Process method to handle audio processing
     void process(float** inputs, float** outputs, std::size_t blockSize);
@@ -82,10 +69,6 @@ public:
 
     // Get a parameter value
     double getParameter(int paramId) const;
-
-    int getNumOutputs(){    return numOutputs;  }
-    int getNumInputs(){    return numInputs;  }
-    std::vector<Parameter> getParameters(){ return parameters;  }
     
 private:
     // Number of audio inputs and outputs
@@ -93,5 +76,4 @@ private:
     int numOutputs = 0;
     SineOscillator<float> sine[2];
     // Store parameters (could be a more complex structure if needed)
-    std::vector<Parameter> parameters;
 };

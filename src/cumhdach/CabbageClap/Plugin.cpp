@@ -19,13 +19,20 @@ extern "C"
 #include <X11/Xlib.h>
 #endif
 
-
+struct Processor : public Cumhdach
+{
+    Processor(int numInputs, int numOutputs) : Cumhdach(numInputs, numOutputs) {}
+    ~Processor(){};
+    void process(float **inputs, float **outputs, std::size_t blockSize) override{};
+    virtual void setParameter(int paramId, double value) override{};
+    virtual double getParameter(int paramId) const override { return 0.0; };
+};
 
 ClapPlugin::ClapPlugin(const clap_host* host, int numInputs, int numOutputs)
 : clap::helpers::Plugin<clap::helpers::MisbehaviourHandler::Terminate, clap::helpers::CheckingLevel::Maximal>(
     &descriptor, host)
 {
-    cumhdachProcessor = new Cumhdach(numInputs, numOutputs);
+    cumhdachProcessor = new Processor(numInputs, numOutputs);
 }
 
 ClapPlugin::~ClapPlugin()

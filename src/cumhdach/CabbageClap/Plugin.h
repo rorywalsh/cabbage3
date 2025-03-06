@@ -3,7 +3,7 @@
 #include <clap/helpers/plugin.hh>
 #include "gui/choc_WebView.h"
 
-class Cumhdach;
+class Processor;
 class ClapPlugin;
 
 using pluginType = ClapPlugin;
@@ -105,10 +105,10 @@ private:
     void beginParamAdjust(clap_id paramId) noexcept;
     void endParamAdjust(clap_id paramId) noexcept;
 
-    Cumhdach* cumhdachProcessor; // Pointer to Cumhdach processor
+    Processor *cumhdachProcessor; // Pointer to Cumhdach processor
 };
 
-class CabbagePluginFactory {
+class CumhdachPluginFactory {
 public:
     static ClapPlugin* createPlugin(const clap_host* host);
 };

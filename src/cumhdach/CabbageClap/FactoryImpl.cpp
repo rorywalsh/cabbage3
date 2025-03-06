@@ -41,7 +41,7 @@ namespace impl
         }
 
         // Host will own 'plugin'
-        auto plugin = CabbagePluginFactory::createPlugin(host); // No need for user to specify inputs/outputs
+        auto plugin = CumhdachPluginFactory::createPlugin(host); // No need for user to specify inputs/outputs
                 
         return plugin->clapPlugin();
     }
