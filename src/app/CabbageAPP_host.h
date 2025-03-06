@@ -285,6 +285,7 @@ class IPlugAPPHost
 
   private:
     std::atomic<bool> canUpdateSoundfileFlag;
+    std::vector<unsigned int> listOfCurrentDevices;
     std::vector<SoundfileInput> soundfileInputs;
     std::vector<nlohmann::json> parameters;
     std::unique_ptr<IPlugAPP> mIPlug = nullptr;

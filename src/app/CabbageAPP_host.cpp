@@ -295,6 +295,12 @@ bool IPlugAPPHost::InitWebSocket()
                         std::cout << "stopping Csound" << msg->str << std::endl;
                         cabbageProcessor->stopProcessing();
                     }
+                    else if (command == "stopAudio")
+                    {
+                        //when VS Code tries to end the process, it first send a stopAudio message..
+                        cabbage::logDebug << "Closing audio and MIDI devices....";
+                        CloseAudio();
+                    }
                     else
                     {
                         // std::cout << "received message: " << msg->str << std::endl;
@@ -514,11 +520,10 @@ void IPlugAPPHost::addDevicesToSettings(nlohmann::json &settingsJSON)
     RtAudio::DeviceInfo info;
     int inputCnt = 0;
     int outputCnt = 0;
-    std::vector<unsigned int> devices = mDAC->getDeviceIds();
 
-    for (unsigned int i = 0; i < devices.size(); i++)
+    for (unsigned int i = 0; i < listOfCurrentDevices.size(); i++)
     {
-        info = mDAC->getDeviceInfo(devices[i]);
+        info = mDAC->getDeviceInfo(listOfCurrentDevices[i]);
 
         if (info.outputChannels > 0)
         {
@@ -687,6 +692,8 @@ int IPlugAPPHost::GetMIDIPortNumber(ERoute direction, const char *nameToTest) co
 void IPlugAPPHost::ProbeAudioIO()
 {
     cabbage::logDebug << "\nRtAudio Version " << RtAudio::getVersion();
+    cabbage::logDebug << "Probing audio devices";
+
 
     RtAudio::DeviceInfo info;
 
@@ -694,13 +701,13 @@ void IPlugAPPHost::ProbeAudioIO()
     mAudioOutputDevs.clear();
     mAudioIDDevNames.clear();
 
-    std::vector<unsigned int> devices = mDAC->getDeviceIds();
+    listOfCurrentDevices = mDAC->getDeviceIds();
 
-    for (unsigned int i = 0; i < devices.size(); i++)
+    for (unsigned int i = 0; i < listOfCurrentDevices.size(); i++)
     {
-        info = mDAC->getDeviceInfo(devices[i]);
+        info = mDAC->getDeviceInfo(listOfCurrentDevices[i]);
         WDL_String deviceName(info.name.c_str());
-
+        cabbage::logDebug << "Device " << i << ": " << deviceName.Get();
         mAudioIDDevNames.push_back(deviceName);
 
         if (info.inputChannels > 0)
