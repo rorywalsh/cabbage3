@@ -22,11 +22,14 @@ set(CLAP_WRAPPER_OUTPUT_NAME "${PROJECT_NAME}")
 set(CLAP_WRAPPER_DONT_ADD_TARGETS TRUE)
 include(cmake/Dependencies.cmake)
 
+include_directories(${clap_SOURCE_DIR}/include)
+include_directories(${clap-helpers_SOURCE_DIR}/include)
+
 set(PRODUCT_NAME "CabbageClap")
 
 set(SOURCE_FILES
-    src/CabbageProcessor.cpp
-    src/CabbageProcessor.h
+    src/Cumhdach.cpp
+    src/Cumhdach.h
     src/CabbageClap/Utils.h
     src/CabbageClap/Plugin.h
     src/CabbageClap/Plugin.cpp
@@ -46,15 +49,14 @@ add_library(${PROJECT_NAME}-impl STATIC
 )
 
 
-    # Ensure .mm files are compiled as Objective-C++
+target_include_directories(${PROJECT_NAME}-impl PRIVATE ${clap_SOURCE_DIR}/include)
 
-
-    # Enable ARC for Objective-C files
-    
-target_compile_options(${PROJECT_NAME}-impl PRIVATE -Wall -Wextra -pedantic)
-
-
-
+if(WIN32)
+    target_compile_definitions(${PROJECT_NAME}-impl PRIVATE _CRT_SECURE_NO_WARNINGS)    
+else()
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded" CACHE true)
+    target_compile_options(${PROJECT_NAME}-impl PRIVATE -Wall -Wextra -pedantic)
+endif()
 
 target_include_directories(${PROJECT_NAME}-impl
     PRIVATE 
@@ -63,11 +65,8 @@ target_include_directories(${PROJECT_NAME}-impl
 )
 
 if(APPLE)
-target_link_libraries(${PROJECT_NAME}-impl PUBLIC clap clap-helpers ${COCOA_LIBRARY})
+    target_link_libraries(${PROJECT_NAME}-impl PUBLIC clap clap-helpers ${COCOA_LIBRARY})
 endif()
-
-
-
 
 
 
@@ -87,6 +86,5 @@ make_clapfirst_plugins(
         PLUGIN_FORMATS CLAP VST3 # AUV2
 
         ASSET_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_assets
-
 
 )
