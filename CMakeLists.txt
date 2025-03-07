@@ -28,18 +28,19 @@ include_directories(${clap-helpers_SOURCE_DIR}/include)
 set(PRODUCT_NAME "CabbageClap")
 
 set(SOURCE_FILES
-    src/Cumhdach.cpp
-    src/Cumhdach.h
-    src/CabbageClap/Utils.h
-    src/CabbageClap/Plugin.h
-    src/CabbageClap/Plugin.cpp
-    src/CabbageClap/FactoryImpl.cpp
+    src/TestProcessor.cpp
+    src/TestProcessor.h
+    src/cumhdach/Cumhdach.h
+    src/cumhdach/CabbageClap/Utils.h
+    src/cumhdach/CabbageClap/Plugin.h
+    src/cumhdach/CabbageClap/Plugin.cpp
+    src/cumhdach/CabbageClap/FactoryImpl.cpp
 )
 
 if (APPLE)
     
     list(APPEND SOURCE_FILES
-        src/CabbageClap/platform/MacParent.mm
+        src/cumhdach/CabbageClap/platform/MacParent.mm
     )
     
 endif()
@@ -50,6 +51,7 @@ add_library(${PROJECT_NAME}-impl STATIC
 
 
 target_include_directories(${PROJECT_NAME}-impl PRIVATE ${clap_SOURCE_DIR}/include)
+target_include_directories(${PROJECT_NAME}-impl PRIVATE ${choc_SOURCE_DIR}/gui/choc_MessageLoop.h)
 
 if(WIN32)
     target_compile_definitions(${PROJECT_NAME}-impl PRIVATE _CRT_SECURE_NO_WARNINGS)    
@@ -76,7 +78,7 @@ make_clapfirst_plugins(
 
         OUTPUT_NAME "${PRODUCT_NAME}"
 
-        ENTRY_SOURCE src/CabbageClap/Factory.cpp
+        ENTRY_SOURCE src/cumhdach/CabbageClap/Factory.cpp
 
         BUNDLE_IDENTIFER "org.yourproject.yourthing"
         BUNDLE_VERSION ${PROJECT_VERSION}
