@@ -2,7 +2,7 @@
 #include "TestProcessor.h"
 #include <iostream>
 
-pluginType* CumhdachPluginFactory::createPlugin(const clap_host* host)
+pluginType* CawProcessorPluginFactory::createPlugin(const clap_host* host)
 {
     // Default values for inputs and outputs
     return new pluginType(host, 2, 2);
@@ -11,7 +11,7 @@ pluginType* CumhdachPluginFactory::createPlugin(const clap_host* host)
 //===================================================================================
 
 TestProcessor::TestProcessor(int numInputs, int numOutputs)
-    : Cumhdach(numInputs, numOutputs)
+    : CawProcessor(numInputs, numOutputs)
 {
     addParameter({"Gain", 0, 1});
 }

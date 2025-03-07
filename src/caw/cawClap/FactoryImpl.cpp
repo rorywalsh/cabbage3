@@ -3,7 +3,7 @@
 //
 
 #include "FactoryImpl.h"
-#include "../Cumhdach.h"
+#include "../CawProcessor.h"
 #include "Plugin.h"
 #include <iostream>
 
@@ -41,7 +41,7 @@ namespace impl
         }
 
         // Host will own 'plugin'
-        auto plugin = CumhdachPluginFactory::createPlugin(host); // No need for user to specify inputs/outputs
+        auto plugin = CawProcessorPluginFactory::createPlugin(host); // No need for user to specify inputs/outputs
                 
         return plugin->clapPlugin();
     }

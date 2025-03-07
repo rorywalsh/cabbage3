@@ -1,12 +1,11 @@
-// Cumhdach.h
+// CawProcessor.h
 #pragma once
 
 #include <cstddef> // for std::size_t
 #include <vector>
-#include "cumhdach/CabbageClap/Plugin.h" // Include the necessary CLAP headers
-#include "cumhdach/CabbageClap/Utils.h"
-#include "cumhdach/Cumhdach.h"
-
+#include "caw/cawClap/Plugin.h" // Include the necessary CLAP headers
+#include "caw/cawClap/Utils.h"
+#include "caw/cawProcessor.h"
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -52,7 +51,7 @@ class SineOscillator
 };
 
 
-class TestProcessor : public Cumhdach {
+class TestProcessor : public CawProcessor {
     
 public:
     // Constructor that initializes the CLAP plugin

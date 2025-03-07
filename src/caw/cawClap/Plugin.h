@@ -24,7 +24,7 @@ public:
     {
         .clap_version = CLAP_VERSION,
         .id = "your.reversed.domain.name.PluginName",
-        .name = "CabbageClap",
+        .name = "cawPlugin",
         .vendor = "CabbageAudio",
         .url = "https://cabbageaudio.com",
         .manual_url = "",
@@ -105,10 +105,10 @@ private:
     void beginParamAdjust(clap_id paramId) noexcept;
     void endParamAdjust(clap_id paramId) noexcept;
 
-    Processor *cumhdachProcessor; // Pointer to Cumhdach processor
+    Processor *CawProcessor; // Pointer to CawProcessor processor
 };
 
-class CumhdachPluginFactory {
+class CawProcessorPluginFactory {
 public:
     static ClapPlugin* createPlugin(const clap_host* host);
 };

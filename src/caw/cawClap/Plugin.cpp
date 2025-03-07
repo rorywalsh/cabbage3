@@ -4,24 +4,24 @@
 #include <clap/ext/params.h>
 #include "Utils.h"
 #include "gui/choc_WebView.h"
-#include "../Cumhdach.h"
+#include "../CawProcessor.h"
 
-#define CABBAGE_WINDOWS 1
+#define CAW_WINDOWS 1
 
-#if CABBAGE_WINDOWS
+#if CAW_WINDOWS
 #include <windows.h>
-#elif CABBAGE_MACOS
+#elif CAW_MACOS
 extern "C"
 {
     bool attachViewToParent(void *childView, void *parentView); // Forward declaration
 }
-#elif CABBAGE_LINUX
+#elif CAW_LINUX
 #include <X11/Xlib.h>
 #endif
 
-struct Processor : public Cumhdach
+struct Processor : public CawProcessor
 {
-    Processor(int numInputs, int numOutputs) : Cumhdach(numInputs, numOutputs) {}
+    Processor(int numInputs, int numOutputs) : CawProcessor(numInputs, numOutputs) {}
     ~Processor(){};
     void process(float **inputs, float **outputs, std::size_t blockSize) override{};
     virtual void setParameter(int paramId, double value) override{};
@@ -32,7 +32,7 @@ ClapPlugin::ClapPlugin(const clap_host* host, int numInputs, int numOutputs)
 : clap::helpers::Plugin<clap::helpers::MisbehaviourHandler::Terminate, clap::helpers::CheckingLevel::Maximal>(
     &descriptor, host)
 {
-    cumhdachProcessor = new Processor(numInputs, numOutputs);
+    CawProcessor = new Processor(numInputs, numOutputs);
 }
 
 ClapPlugin::~ClapPlugin()
@@ -51,7 +51,7 @@ bool ClapPlugin::audioPortsInfo(uint32_t index, bool /*isInput*/, clap_audio_por
     info->in_place_pair = CLAP_INVALID_ID;
     strncpy(info->name, "main", sizeof(info->name));
     info->flags = CLAP_AUDIO_PORT_IS_MAIN;
-    info->channel_count = cumhdachProcessor->getNumOutputs();
+    info->channel_count = CawProcessor->getNumOutputs();
     info->port_type = CLAP_PORT_STEREO;
 
     return true;
@@ -59,13 +59,13 @@ bool ClapPlugin::audioPortsInfo(uint32_t index, bool /*isInput*/, clap_audio_por
 
 bool ClapPlugin::paramsInfo(uint32_t paramIndex, clap_param_info* info) const noexcept
 {
-    auto numParameters = cumhdachProcessor->getParameters().size();
+    auto numParameters = CawProcessor->getParameters().size();
     
     if (paramIndex >= numParameters)
         return false;
 
 
-    const auto p = cumhdachProcessor->getParameters()[paramIndex];
+    const auto p = CawProcessor->getParameters()[paramIndex];
 
     info->id = paramIndex;
     info->flags = CLAP_PARAM_IS_AUTOMATABLE | CLAP_PARAM_IS_MODULATABLE;
@@ -132,7 +132,7 @@ clap_process_status ClapPlugin::process(const clap_process* process) noexcept
     float** outputs = process->audio_outputs[0].data32;
     std::size_t blockSize = process->frames_count;
 
-    cumhdachProcessor->process(inputs, outputs, blockSize);
+    CawProcessor->process(inputs, outputs, blockSize);
     return CLAP_PROCESS_CONTINUE;
 
 

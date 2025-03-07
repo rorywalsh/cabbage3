@@ -1,13 +1,13 @@
-// Cumhdach.h
+// CawProcessor.h
 #pragma once
 
 #include <cstddef> // for std::size_t
 #include <vector>
-#include <cumhdach/CabbageClap/Plugin.h> // Include the necessary CLAP headers
-#include <cumhdach/CabbageClap/Utils.h>
+#include <caw/cawClap/Plugin.h> // Include the necessary CLAP headers
+#include <caw/cawClap/Utils.h>
 
 
-class Cumhdach {
+class CawProcessor {
     struct Parameter {
         const char* name;
         float min;
@@ -26,10 +26,10 @@ class Cumhdach {
     
 public:
     // Constructor that initializes the CLAP plugin
-    Cumhdach(int numInputs, int numOutputs): numInputs(numInputs), numOutputs(numOutputs) {};
+    CawProcessor(int numInputs, int numOutputs): numInputs(numInputs), numOutputs(numOutputs) {};
     
     // Destructor to clean up resources
-    ~Cumhdach() {
+    ~CawProcessor() {
         // Destructor implementation (if needed)
     }
 
@@ -51,7 +51,7 @@ public:
     // Get the parameters
     std::vector<Parameter> getParameters(){ return parameters;  }
     
-    void addParameter(Cumhdach::Parameter parameter) { parameters.push_back(parameter); }
+    void addParameter(CawProcessor::Parameter parameter) { parameters.push_back(parameter); }
     
     
 private:
