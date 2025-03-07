@@ -324,7 +324,7 @@ class File
     template <typename T>
     static File::Soundfile<T> readAudioFile(const std::string &filePath, int targetSampleRate)
     {
-        if (!cabbage::File::fileExists(filePath))
+        if (!cabbage::File::exists(filePath))
         {
             cabbage::logDebug << "reader is not valid";
             return {};
@@ -397,10 +397,13 @@ class File
     static std::string joinPath(const std::string &dirPath, const std::string &fileName);
 
     // Retrieves the path to the current binary
-    static std::string getBinaryPath();
+    static std::string getBinaryFileAndPath();
 
-    // Checks if a file exists at the given path
-    static bool fileExists(const std::string &filePath);
+    // Checks if a file/folder exists at the given path
+    static bool exists(const std::string &filePath);
+
+    // Returns the parent directory of the given folder/file
+    static std::string getParentDirectory(const std::string &currentFile);
 
     // Checks if a directory exists at the given path
     static bool directoryExists(const std::string &dirPath);
@@ -440,6 +443,15 @@ class File
     static std::string getSettingsProperty(const std::string &section, const std::string &key);
 
   private:
+    // Retrieves the path to the directory that 'might' contain the Cabbage resources
+    static std::string getResourceDirFromBundle()
+    {
+        const auto bundleParentDirPath = getParentDirectory(getParentDirectory(getBinaryFileAndPath()));
+        return joinPath(getParentDirectory(bundleParentDirPath), "Resources");
+    }
+
+    static bool usesBundledResources() { return exists(getResourceDirFromBundle()); }
+
 #if defined(_WIN32)
     static std::string getWindowsBinaryPath()
     {

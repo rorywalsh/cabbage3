@@ -231,7 +231,7 @@ void StringFormatter::removeBackticks(std::string &str)
 //========================================================================
 // File utility class
 //========================================================================
-std::string File::getBinaryPath()
+std::string File::getBinaryFileAndPath()
 {
 #if defined(_WIN32)
     return getWindowsBinaryPath();
@@ -244,10 +244,9 @@ std::string File::getBinaryPath()
 #endif
 }
 
-bool File::fileExists(const std::string &filePath)
+bool File::exists(const std::string &filePath)
 {
-    std::ifstream file(filePath);
-    return file.good();
+    return std::filesystem::exists(filePath);
 }
 
 bool File::directoryExists(const std::string &dirPath)
@@ -261,6 +260,16 @@ bool File::directoryExists(const std::string &dirPath)
         return false;
     return (info.st_mode & S_IFDIR);
 #endif
+}
+
+std::string File::getParentDirectory(const std::string &currentFile)
+{
+    std::filesystem::path path(currentFile);
+    if (path.has_parent_path())
+    {
+        return path.parent_path().string();
+    }
+    return currentFile; // If no parent, return the original path
 }
 
 std::string File::withExtension(const std::string &filePath, const std::string &newExtension)
@@ -282,6 +291,9 @@ std::string File::withExtension(const std::string &filePath, const std::string &
 
 std::string File::getCabbageResourceDir()
 {
+    if (usesBundledResources())
+        return getResourceDirFromBundle();   
+
 #if defined(_WIN32)
     return getWindowsProgramDataDir();
 #elif defined(__APPLE__)
@@ -411,7 +423,7 @@ std::string File::getFileAsString(std::string csdFile)
 
 std::string File::getBinaryFileName()
 {
-    std::string binaryPath = getBinaryPath();
+    std::string binaryPath = getBinaryFileAndPath();
     size_t pos = binaryPath.find_last_of("/\\");
 
     if (pos != std::string::npos)
@@ -450,6 +462,12 @@ std::string File::getCsdFileAndPath()
 
     if (pos != std::string::npos)
         binaryFileName = binaryFileName.substr(0, pos);
+
+    if (usesBundledResources())
+    {
+        const std::string newPath = joinPath(resourceDir, binaryFileName + ".csd");
+        return newPath;
+    }
 
     const std::string newPath = joinPath(resourceDir, binaryFileName);
     return joinPath(newPath, binaryFileName + ".csd");
@@ -674,9 +692,15 @@ nlohmann::json File::extractPropsFromJS(const std::string &jsContent)
 
 std::string File::getCsdPath(const std::string file)
 {
+    // If loading resources from plugin bundle..
+    if (usesBundledResources())
+        return getResourceDirFromBundle();
+
+    // Otherwise figure out path to .csd file..
     if (file.empty())
     {
         std::string resourceDir = getCabbageResourceDir();
+        
         std::string binaryFileName = getBinaryFileName();
         size_t pos = binaryFileName.find_last_of(".");
         if (pos != std::string::npos)

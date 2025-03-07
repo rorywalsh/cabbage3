@@ -88,6 +88,7 @@ void CabbageProcessor::setupCallbacks()
     editorInitFuncCallback = [&]()
     {
 #ifndef CabbageApp
+        auto rootPath = cabbage::File::getCsdPath(cabbage.getCsdFile());
         if (!server.isThreadRunning())
             server.start(cabbage::File::getCsdPath(cabbage.getCsdFile()));
         const std::string mntPoint = "http://127.0.0.1:" + std::to_string(server.getCurrentPort()) + "/index.html";
@@ -133,10 +134,13 @@ void CabbageProcessor::setupCallbacks()
 #endif
     };
 
-    updateStringChannelCallback = [&](std::string channel, std::string data)
-    { cabbage.setStringChannel(channel, data); };
+    updateStringChannelCallback = [&](std::string channel, std::string data){ 
+        cabbage.setStringChannel(channel, data); 
+    };
 
-    cabbageIsReadyToLoadCsdCallback = [&]() { updateJSWidgets(); };
+    cabbageIsReadyToLoadCsdCallback = [&]() {
+        updateJSWidgets(); 
+    };
 
     interfaceHasLoadedCallback = [&]()
     {
