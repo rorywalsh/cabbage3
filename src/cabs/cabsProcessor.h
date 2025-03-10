@@ -5,8 +5,23 @@
 #include <cabs/cabsClap/Plugin.h> // Include the necessary CLAP headers
 #include <cabs/cabsClap/Utils.h>
 
+namespace cabs {
+struct PluginDescriptor {
+   const char *uniqueId;          // eg: "com.u-he.diva", mandatory
+   const char *name;        // eg: "Diva", mandatory
+   const char *vendor;      // eg: "u-he"
+   const char *url;         // eg: "https://u-he.com/products/diva/"
+   const char *manualUrl;  // eg: "https://dl.u-he.com/manuals/plugins/diva/Diva-user-guide.pdf"
+   const char *supportUrl; // eg: "https://u-he.com/support/"
+   const char *version;     // eg: "1.4.4"
+   const char *description; // eg: "The spirit of analogue"
+   const char *const *features;
+};
 
-class CabsProcessor {
+// Declare the TestProcessor descriptor as extern
+extern const PluginDescriptor pluginDescriptor;
+
+class Processor {
     struct Parameter {
         const char* name;
         float min;
@@ -14,45 +29,44 @@ class CabsProcessor {
         float value;
         float skew;
         float increment;
-
+        
         // Constructor with default values
         Parameter(const char* paramName = "", float paramMin = 0.f, float paramMax = 1.f,
                   float paramValue = 0.f, float paramIncrement = 0.01f, float paramSkew = 1.f)
-            : name(paramName), min(paramMin), max(paramMax),
-              value(paramValue), skew(paramSkew), increment(paramIncrement) {}
+        : name(paramName), min(paramMin), max(paramMax),
+        value(paramValue), skew(paramSkew), increment(paramIncrement) {}
     };
-
+    
     
 public:
     // Constructor that initializes the CLAP plugin
-    CabsProcessor(int numInputs, int numOutputs): numInputs(numInputs), numOutputs(numOutputs) {};
+    Processor(int numInputs, int numOutputs): numInputs(numInputs), numOutputs(numOutputs) {};
     
     // Destructor to clean up resources
-    ~CabsProcessor() {
+    ~Processor() {
         // Destructor implementation (if needed)
     }
-
+    
     // Process method to handle audio processing
     virtual void process(float** inputs, float** outputs, std::size_t blockSize) = 0;
-
+    
     // Set a parameter value
     virtual void setParameter(int paramId, double value) = 0;
-
+    
     // Get a parameter value
     virtual double getParameter(int paramId) const = 0;
-
+    
     // Get the number of audio outputs
     int getNumOutputs(){    return numOutputs;  };
-
+    
     // Get the number of audio inputs
     int getNumInputs(){     return numInputs;   };
-
+    
     // Get the parameters
     std::vector<Parameter> getParameters(){ return parameters;  }
     
-    void addParameter(CabsProcessor::Parameter parameter) { parameters.push_back(parameter); }
-    
-    
+    void addParameter(cabs::Processor::Parameter parameter) { parameters.push_back(parameter); }
+        
 private:
     // Number of audio inputs and outputs
     int numInputs = 0;
@@ -60,3 +74,5 @@ private:
     // Store parameters (could be a more complex structure if needed)
     std::vector<Parameter> parameters;
 };
+
+}

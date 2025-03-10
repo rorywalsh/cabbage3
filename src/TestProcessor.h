@@ -10,24 +10,6 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-// Define the descriptor
-const pluginDescriptor descriptor = {
-    .clap_version = CLAP_VERSION,
-    .id = "your.reversed.domain.name.PluginName",
-    .name = "cawPlugin",
-    .vendor = "CabbageAudio",
-    .url = "https://cabbageaudio.com",
-    .manual_url = "",
-    .support_url = "",
-    .version = "1.0.0",
-    .description = "Cabbage Audio Plugin",
-    .features = (const char *[]) {
-            CLAP_PLUGIN_FEATURE_INSTRUMENT,
-            CLAP_PLUGIN_FEATURE_SYNTHESIZER,
-            CLAP_PLUGIN_FEATURE_STEREO,
-            NULL,
-        },
-};
 
 template <typename T>
 class SineOscillator
@@ -70,7 +52,8 @@ class SineOscillator
 };
 
 
-class TestProcessor : public CabsProcessor {
+
+class TestProcessor : public cabs::Processor {
     
 public:
     // Constructor that initializes the CLAP plugin
@@ -87,6 +70,18 @@ public:
 
     // Get a parameter value
     double getParameter(int paramId) const;
+    
+    static constexpr cabs::PluginDescriptor descriptor =
+    {
+        .uniqueId = "your.reversed.domain.name.PluginName",
+        .name = "cawPlugin",
+        .vendor = "CabbageAudio",
+        .url = "https://cabbageaudio.com",
+        .manualUrl = "",
+        .supportUrl = "",
+        .version = "1.0.0",
+        .description = "Cabbage Audio Plugin",
+    };
     
 private:
     // Number of audio inputs and outputs

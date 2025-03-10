@@ -7,34 +7,11 @@ class Processor;
 class ClapPlugin;
 
 using pluginType = ClapPlugin;
-using pluginDescriptor = clap_plugin_descriptor;
 
 class ClapPlugin : public clap::helpers::Plugin<clap::helpers::MisbehaviourHandler::Ignore,
                                             clap::helpers::CheckingLevel::Maximal>
 {
 public:
-    static constexpr const char* features[4] =
-    {
-        CLAP_PLUGIN_FEATURE_AUDIO_EFFECT,
-        CLAP_PLUGIN_FEATURE_UTILITY,
-        CLAP_PLUGIN_FEATURE_STEREO,
-        nullptr
-    };
-
-    static constexpr clap_plugin_descriptor descriptor =
-    {
-        .clap_version = CLAP_VERSION,
-        .id = "your.reversed.domain.name.PluginName",
-        .name = "cawPlugin",
-        .vendor = "CabbageAudio",
-        .url = "https://cabbageaudio.com",
-        .manual_url = "",
-        .support_url = "",
-        .version = "1.0.0",
-        .description = "Cabbage Audio Plugin",
-        .features = features
-    };
-
     ClapPlugin(const clap_host* host, int numInputs, int numOutputs);
     ~ClapPlugin() override;
 
@@ -106,7 +83,7 @@ private:
     void beginParamAdjust(clap_id paramId) noexcept;
     void endParamAdjust(clap_id paramId) noexcept;
 
-    Processor *CabsProcessor; // Pointer to CawProcessor processor
+    Processor *processor; // Pointer to CawProcessor processor
 };
 
 class CawProcessorPluginFactory {
