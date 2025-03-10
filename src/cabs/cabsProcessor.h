@@ -1,13 +1,12 @@
-// CawProcessor.h
 #pragma once
 
 #include <cstddef> // for std::size_t
 #include <vector>
-#include <caw/cawClap/Plugin.h> // Include the necessary CLAP headers
-#include <caw/cawClap/Utils.h>
+#include <cabs/cabsClap/Plugin.h> // Include the necessary CLAP headers
+#include <cabs/cabsClap/Utils.h>
 
 
-class CawProcessor {
+class CabsProcessor {
     struct Parameter {
         const char* name;
         float min;
@@ -26,10 +25,10 @@ class CawProcessor {
     
 public:
     // Constructor that initializes the CLAP plugin
-    CawProcessor(int numInputs, int numOutputs): numInputs(numInputs), numOutputs(numOutputs) {};
+    CabsProcessor(int numInputs, int numOutputs): numInputs(numInputs), numOutputs(numOutputs) {};
     
     // Destructor to clean up resources
-    ~CawProcessor() {
+    ~CabsProcessor() {
         // Destructor implementation (if needed)
     }
 
@@ -51,7 +50,7 @@ public:
     // Get the parameters
     std::vector<Parameter> getParameters(){ return parameters;  }
     
-    void addParameter(CawProcessor::Parameter parameter) { parameters.push_back(parameter); }
+    void addParameter(CabsProcessor::Parameter parameter) { parameters.push_back(parameter); }
     
     
 private:

@@ -7,8 +7,9 @@ class Processor;
 class ClapPlugin;
 
 using pluginType = ClapPlugin;
+using pluginDescriptor = clap_plugin_descriptor;
 
-class ClapPlugin : public clap::helpers::Plugin<clap::helpers::MisbehaviourHandler::Terminate,
+class ClapPlugin : public clap::helpers::Plugin<clap::helpers::MisbehaviourHandler::Ignore,
                                             clap::helpers::CheckingLevel::Maximal>
 {
 public:
@@ -105,7 +106,7 @@ private:
     void beginParamAdjust(clap_id paramId) noexcept;
     void endParamAdjust(clap_id paramId) noexcept;
 
-    Processor *CawProcessor; // Pointer to CawProcessor processor
+    Processor *CabsProcessor; // Pointer to CawProcessor processor
 };
 
 class CawProcessorPluginFactory {

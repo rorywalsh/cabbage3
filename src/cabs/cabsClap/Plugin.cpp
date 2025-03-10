@@ -4,24 +4,24 @@
 #include <clap/ext/params.h>
 #include "Utils.h"
 #include "gui/choc_WebView.h"
-#include "../CawProcessor.h"
+#include "../cabsProcessor.h"
 
-#define CAW_WINDOWS 1
+#define CABBAGE_MACOS 1
 
-#if CAW_WINDOWS
+#if CABBAGE_WINDOWS
 #include <windows.h>
-#elif CAW_MACOS
+#elif CABBAGE_MACOS
 extern "C"
 {
     bool attachViewToParent(void *childView, void *parentView); // Forward declaration
 }
-#elif CAW_LINUX
+#elif CABBAGE_LINUX
 #include <X11/Xlib.h>
 #endif
 
-struct Processor : public CawProcessor
+struct Processor : public CabsProcessor
 {
-    Processor(int numInputs, int numOutputs) : CawProcessor(numInputs, numOutputs) {}
+    Processor(int numInputs, int numOutputs) : CabsProcessor(numInputs, numOutputs) {}
     ~Processor(){};
     void process(float **inputs, float **outputs, std::size_t blockSize) override{};
     virtual void setParameter(int paramId, double value) override{};
@@ -29,10 +29,10 @@ struct Processor : public CawProcessor
 };
 
 ClapPlugin::ClapPlugin(const clap_host* host, int numInputs, int numOutputs)
-: clap::helpers::Plugin<clap::helpers::MisbehaviourHandler::Terminate, clap::helpers::CheckingLevel::Maximal>(
+: clap::helpers::Plugin<clap::helpers::MisbehaviourHandler::Ignore, clap::helpers::CheckingLevel::Maximal>(
     &descriptor, host)
 {
-    CawProcessor = new Processor(numInputs, numOutputs);
+    CabsProcessor = new Processor(numInputs, numOutputs);
 }
 
 ClapPlugin::~ClapPlugin()
@@ -51,7 +51,7 @@ bool ClapPlugin::audioPortsInfo(uint32_t index, bool /*isInput*/, clap_audio_por
     info->in_place_pair = CLAP_INVALID_ID;
     strncpy(info->name, "main", sizeof(info->name));
     info->flags = CLAP_AUDIO_PORT_IS_MAIN;
-    info->channel_count = CawProcessor->getNumOutputs();
+    info->channel_count = CabsProcessor->getNumOutputs();
     info->port_type = CLAP_PORT_STEREO;
 
     return true;
@@ -59,13 +59,13 @@ bool ClapPlugin::audioPortsInfo(uint32_t index, bool /*isInput*/, clap_audio_por
 
 bool ClapPlugin::paramsInfo(uint32_t paramIndex, clap_param_info* info) const noexcept
 {
-    auto numParameters = CawProcessor->getParameters().size();
+    auto numParameters = CabsProcessor->getParameters().size();
     
     if (paramIndex >= numParameters)
         return false;
 
 
-    const auto p = CawProcessor->getParameters()[paramIndex];
+    const auto p = CabsProcessor->getParameters()[paramIndex];
 
     info->id = paramIndex;
     info->flags = CLAP_PARAM_IS_AUTOMATABLE | CLAP_PARAM_IS_MODULATABLE;
@@ -132,7 +132,7 @@ clap_process_status ClapPlugin::process(const clap_process* process) noexcept
     float** outputs = process->audio_outputs[0].data32;
     std::size_t blockSize = process->frames_count;
 
-    CawProcessor->process(inputs, outputs, blockSize);
+    CabsProcessor->process(inputs, outputs, blockSize);
     return CLAP_PROCESS_CONTINUE;
 
 
@@ -309,7 +309,6 @@ bool ClapPlugin::guiSetParent(const clap_window *window) noexcept
             ::SetWindowLongPtrW(child, GWL_STYLE, WS_CHILD);
             ::SetParent(child, parent);
             ::ShowWindow(child, SW_SHOW);
-
             return true;
         }
 #elif CABBAGE_MACOS
@@ -317,7 +316,7 @@ bool ClapPlugin::guiSetParent(const clap_window *window) noexcept
         if (strcmp(window->api, CLAP_WINDOW_API_COCOA) == 0)
         {
             void *parent = window->cocoa;
-            void *child = viewHandle;
+            void *child = webview->getViewHandle();
             utils::DebugLog("Parent handle: " + std::to_string(reinterpret_cast<uintptr_t>(parent)) +
                             ", Child handle: " + std::to_string(reinterpret_cast<uintptr_t>(child)));
             bool result = attachViewToParent(child, parent);

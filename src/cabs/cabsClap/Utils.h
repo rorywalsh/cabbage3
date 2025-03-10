@@ -6,7 +6,7 @@ namespace utils
 {
     inline void DebugLog(const std::string &message)
     {
-        OutputDebugStringA(message.c_str());
+       // OutputDebugStringA(message.c_str());
     }
 
     static constexpr auto minusInfinitydB = -96.0;

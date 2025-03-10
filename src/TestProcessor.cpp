@@ -11,7 +11,7 @@ pluginType* CawProcessorPluginFactory::createPlugin(const clap_host* host)
 //===================================================================================
 
 TestProcessor::TestProcessor(int numInputs, int numOutputs)
-    : CawProcessor(numInputs, numOutputs)
+    : CabsProcessor(numInputs, numOutputs)
 {
     addParameter({"Gain", 0, 1});
 }

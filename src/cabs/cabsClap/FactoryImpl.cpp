@@ -3,10 +3,11 @@
 //
 
 #include "FactoryImpl.h"
-#include "../CawProcessor.h"
+#include "../cabsProcessor.h"
 #include "Plugin.h"
 #include <iostream>
 
+extern const clap_plugin_descriptor descriptor;
 
 namespace impl
 {

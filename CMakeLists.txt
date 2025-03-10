@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(caw LANGUAGES CXX VERSION 0.1)
+project(cabs LANGUAGES CXX VERSION 0.1)
 
 if (APPLE)
     enable_language(OBJC)
@@ -25,22 +25,22 @@ include(cmake/Dependencies.cmake)
 include_directories(${clap_SOURCE_DIR}/include)
 include_directories(${clap-helpers_SOURCE_DIR}/include)
 
-set(PRODUCT_NAME "CabbageClap")
+set(PRODUCT_NAME "CabageBase")
 
 set(SOURCE_FILES
     src/TestProcessor.cpp
     src/TestProcessor.h
-    src/caw/cawProcessor.h
-    src/caw/cawClap/Utils.h
-    src/caw/cawClap/Plugin.h
-    src/caw/cawClap/Plugin.cpp
-    src/caw/cawClap/FactoryImpl.cpp
+    src/cabs/cabsProcessor.h
+    src/cabs/cabsClap/Utils.h
+    src/cabs/cabsClap/Plugin.h
+    src/cabs/cabsClap/Plugin.cpp
+    src/cabs/cabsClap/FactoryImpl.cpp
 )
 
 if (APPLE)
     
     list(APPEND SOURCE_FILES
-        src/caw/cawClap/platform/MacParent.mm
+        src/cabs/cabsClap/platform/MacParent.mm
     )
     
 endif()
@@ -55,8 +55,8 @@ target_include_directories(${PROJECT_NAME}-impl PRIVATE ${choc_SOURCE_DIR})
 
 if(WIN32)
     target_compile_definitions(${PROJECT_NAME}-impl PRIVATE _CRT_SECURE_NO_WARNINGS)    
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded" CACHE "Multithreaded")
 else()
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded" CACHE true)
     target_compile_options(${PROJECT_NAME}-impl PRIVATE -Wall -Wextra -pedantic)
 endif()
 
@@ -78,7 +78,7 @@ make_clapfirst_plugins(
 
         OUTPUT_NAME "${PRODUCT_NAME}"
 
-        ENTRY_SOURCE src/caw/cawClap/Factory.cpp
+        ENTRY_SOURCE src/cabs/cabsClap/Factory.cpp
 
         BUNDLE_IDENTIFER "org.yourproject.yourthing"
         BUNDLE_VERSION ${PROJECT_VERSION}

@@ -3,12 +3,31 @@
 
 #include <cstddef> // for std::size_t
 #include <vector>
-#include "caw/cawClap/Plugin.h" // Include the necessary CLAP headers
-#include "caw/cawClap/Utils.h"
-#include "caw/cawProcessor.h"
+#include "cabs/cabsClap/Plugin.h" // Include the necessary CLAP headers
+#include "cabs/cabsClap/Utils.h"
+#include "cabs/cabsProcessor.h"
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+// Define the descriptor
+const pluginDescriptor descriptor = {
+    .clap_version = CLAP_VERSION,
+    .id = "your.reversed.domain.name.PluginName",
+    .name = "cawPlugin",
+    .vendor = "CabbageAudio",
+    .url = "https://cabbageaudio.com",
+    .manual_url = "",
+    .support_url = "",
+    .version = "1.0.0",
+    .description = "Cabbage Audio Plugin",
+    .features = (const char *[]) {
+            CLAP_PLUGIN_FEATURE_INSTRUMENT,
+            CLAP_PLUGIN_FEATURE_SYNTHESIZER,
+            CLAP_PLUGIN_FEATURE_STEREO,
+            NULL,
+        },
+};
 
 template <typename T>
 class SineOscillator
@@ -51,7 +70,7 @@ class SineOscillator
 };
 
 
-class TestProcessor : public CawProcessor {
+class TestProcessor : public CabsProcessor {
     
 public:
     // Constructor that initializes the CLAP plugin
