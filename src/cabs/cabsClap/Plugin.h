@@ -3,7 +3,6 @@
 #include <clap/helpers/plugin.hh>
 #include "gui/choc_WebView.h"
 
-class Processor;
 class ClapPlugin;
 
 using pluginType = ClapPlugin;
@@ -83,10 +82,10 @@ private:
     void beginParamAdjust(clap_id paramId) noexcept;
     void endParamAdjust(clap_id paramId) noexcept;
 
-    Processor *processor; // Pointer to CawProcessor processor
+    void *processor; // Pointer to CawProcessor processor
 };
 
-class CawProcessorPluginFactory {
+class CabsProcessorPluginFactory {
 public:
     static ClapPlugin* createPlugin(const clap_host* host);
 };

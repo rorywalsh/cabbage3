@@ -2,19 +2,7 @@
 #include "TestProcessor.h"
 #include <iostream>
 
-// Define the pluginDescriptor
-const cabs::PluginDescriptor pluginDescriptor = {
-    .uniqueId = "com.audio.cabbage.test",
-    .name = "Cabbage Effect",
-    .vendor = "CabbageAudio",
-    .url = "https://cabbageaudio.com",
-    .manualUrl = "",
-    .supportUrl = "",
-    .version = "1.0.0",
-    .description = "Cabbage Audio Plugin",
-};
-
-pluginType* CawProcessorPluginFactory::createPlugin(const clap_host* host)
+pluginType* CabsProcessorPluginFactory::createPlugin(const clap_host* host)
 {
     // Default values for inputs and outputs
     return new pluginType(host, 2, 2);

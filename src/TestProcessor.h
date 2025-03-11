@@ -10,6 +10,16 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+//===========================================================
+namespace ProjectInfo
+{
+    const char* const  projectName    = "DemoRunner";
+    const char* const  companyName    = "Raw Material Software Limited";
+    const char* const  versionString  = "8.0.6";
+    const int          versionNumber  = 0x80006;
+}
+
+//===========================================================
 
 template <typename T>
 class SineOscillator
@@ -70,18 +80,6 @@ public:
 
     // Get a parameter value
     double getParameter(int paramId) const;
-    
-    static constexpr cabs::PluginDescriptor descriptor =
-    {
-        .uniqueId = "your.reversed.domain.name.PluginName",
-        .name = "cawPlugin",
-        .vendor = "CabbageAudio",
-        .url = "https://cabbageaudio.com",
-        .manualUrl = "",
-        .supportUrl = "",
-        .version = "1.0.0",
-        .description = "Cabbage Audio Plugin",
-    };
     
 private:
     // Number of audio inputs and outputs

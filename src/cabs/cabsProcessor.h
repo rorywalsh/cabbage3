@@ -6,20 +6,6 @@
 #include <cabs/cabsClap/Utils.h>
 
 namespace cabs {
-struct PluginDescriptor {
-   const char *uniqueId;          // eg: "com.u-he.diva", mandatory
-   const char *name;        // eg: "Diva", mandatory
-   const char *vendor;      // eg: "u-he"
-   const char *url;         // eg: "https://u-he.com/products/diva/"
-   const char *manualUrl;  // eg: "https://dl.u-he.com/manuals/plugins/diva/Diva-user-guide.pdf"
-   const char *supportUrl; // eg: "https://u-he.com/support/"
-   const char *version;     // eg: "1.4.4"
-   const char *description; // eg: "The spirit of analogue"
-   const char *const *features;
-};
-
-// Declare the TestProcessor descriptor as extern
-extern const PluginDescriptor pluginDescriptor;
 
 class Processor {
     struct Parameter {
@@ -48,13 +34,13 @@ public:
     }
     
     // Process method to handle audio processing
-    virtual void process(float** inputs, float** outputs, std::size_t blockSize) = 0;
+    virtual void process(float** inputs, float** outputs, std::size_t blockSize){};
     
     // Set a parameter value
-    virtual void setParameter(int paramId, double value) = 0;
+    virtual void setParameter(int paramId, double value){};
     
     // Get a parameter value
-    virtual double getParameter(int paramId) const = 0;
+    virtual double getParameter(int paramId) const {};
     
     // Get the number of audio outputs
     int getNumOutputs(){    return numOutputs;  };

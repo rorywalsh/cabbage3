@@ -3,35 +3,13 @@
 //
 
 #include "FactoryImpl.h"
-#include "../cabsProcessor.h"
+#include "../CabsProcessor.h"
 #include "Plugin.h"
 #include <iostream>
+#include "CabbagePluginInfo.h"
 
 namespace impl
 {
-
-    static constexpr const char* features[4] =
-    {
-        CLAP_PLUGIN_FEATURE_AUDIO_EFFECT,
-        CLAP_PLUGIN_FEATURE_UTILITY,
-        CLAP_PLUGIN_FEATURE_STEREO,
-        nullptr
-    };
-
-    static constexpr clap_plugin_descriptor descriptor =
-    {
-        .clap_version = CLAP_VERSION,
-        .id = "your.reversed.domain.name.PluginName",
-        .name = "cawPlugin",
-        .vendor = "CabbageAudio",
-        .url = "https://cabbageaudio.com",
-        .manual_url = "",
-        .support_url = "",
-        .version = "1.0.0",
-        .description = "Cabbage Audio Plugin",
-        .features = features
-    };
-
     bool init(const char* /*plugin_path*/)
     {        
         return true;
@@ -47,20 +25,9 @@ namespace impl
 
     const clap_plugin_descriptor* getPluginDescriptor(const clap_plugin_factory* /*factory*/, uint32_t index)
     {
-        static clap_plugin_descriptor desc; // Static variable to persist across calls
-
-        desc.id = cabs::pluginDescriptor.uniqueId;
-        desc.name = cabs::pluginDescriptor.name;
-        desc.vendor = cabs::pluginDescriptor.vendor;
-        desc.url = cabs::pluginDescriptor.url;
-        desc.manual_url = cabs::pluginDescriptor.manualUrl;
-        desc.support_url = cabs::pluginDescriptor.supportUrl;
-        desc.version = cabs::pluginDescriptor.version;
-        desc.description = cabs::pluginDescriptor.description;
-        desc.features = cabs::pluginDescriptor.features;
-
+        //the descriptor is defiend in CabbagePluginInfo.h
         if (index == 0)
-            return &desc;
+            return &descriptor;
 
         return nullptr;
     }
@@ -74,7 +41,7 @@ namespace impl
         }
 
         // Host will own 'plugin'
-        auto plugin = CawProcessorPluginFactory::createPlugin(host); // No need for user to specify inputs/outputs
+        auto plugin = CabsProcessorPluginFactory::createPlugin(host); // No need for user to specify inputs/outputs
                 
         return plugin->clapPlugin();
     }
