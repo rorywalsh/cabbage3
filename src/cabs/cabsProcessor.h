@@ -3,7 +3,7 @@
 #include <cstddef> // for std::size_t
 #include <vector>
 #include <cabs/cabsClap/Plugin.h> // Include the necessary CLAP headers
-#include <cabs/cabsClap/Utils.h>
+
 
 namespace cabs {
 
@@ -34,13 +34,13 @@ public:
     }
     
     // Process method to handle audio processing
-    virtual void process(float** inputs, float** outputs, std::size_t blockSize){};
+    virtual void process(float** inputs, float** outputs, std::size_t blockSize) = 0;
     
     // Set a parameter value
-    virtual void setParameter(int paramId, double value){};
+    virtual void setParameter(int paramId, double value) = 0;
     
     // Get a parameter value
-    virtual double getParameter(int paramId) const {};
+    virtual double getParameter(int paramId) = 0;
     
     // Get the number of audio outputs
     int getNumOutputs(){    return numOutputs;  };
@@ -49,7 +49,7 @@ public:
     int getNumInputs(){     return numInputs;   };
     
     // Get the parameters
-    std::vector<Parameter> getParameters(){ return parameters;  }
+    std::vector<Parameter>& getParameters() { return parameters; }
     
     void addParameter(cabs::Processor::Parameter parameter) { parameters.push_back(parameter); }
         

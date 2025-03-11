@@ -2,9 +2,9 @@
 #include <clap/helpers/host-proxy.hxx>
 #include <clap/helpers/plugin.hxx>
 #include <clap/ext/params.h>
-#include "Utils.h"
 #include "gui/choc_WebView.h"
 #include "../CabsProcessor.h"
+#include <nlohmann/json.hpp>
 
 #define CABBAGE_MACOS 1
 
@@ -20,11 +20,11 @@ extern "C"
 #endif
 
 
-ClapPlugin::ClapPlugin(const clap_host* host, int numInputs, int numOutputs)
+ClapPlugin::ClapPlugin(const clap_host* host, cabs::Processor& processor, int numInputs, int numOutputs)
 : clap::helpers::Plugin<clap::helpers::MisbehaviourHandler::Ignore, clap::helpers::CheckingLevel::Maximal>(
-    nullptr, host)
+    nullptr, host), processor(processor)
 {
-    processor = new cabs::Processor(numInputs, numOutputs);
+
 }
 
 ClapPlugin::~ClapPlugin()
@@ -43,29 +43,29 @@ bool ClapPlugin::audioPortsInfo(uint32_t index, bool /*isInput*/, clap_audio_por
     info->in_place_pair = CLAP_INVALID_ID;
     strncpy(info->name, "main", sizeof(info->name));
     info->flags = CLAP_AUDIO_PORT_IS_MAIN;
-    info->channel_count = static_cast<cabs::Processor*>(processor)->getNumOutputs();
+    info->channel_count = processor.getNumOutputs();
     info->port_type = CLAP_PORT_STEREO;
 
     return true;
 }
 
-bool ClapPlugin::paramsInfo(uint32_t paramIndex, clap_param_info* info) const noexcept
+bool ClapPlugin::paramsInfo(uint32_t paramId, clap_param_info* info) const noexcept
 {
-    auto numParameters = static_cast<cabs::Processor*>(processor)->getParameters().size();
+    auto numParameters = processor.getParameters().size();
     
-    if (paramIndex >= numParameters)
+    if (paramId >= numParameters)
         return false;
 
 
-    const auto p = static_cast<cabs::Processor*>(processor)->getParameters()[paramIndex];
+    const auto p = processor.getParameters()[paramId];
 
-    info->id = paramIndex;
+    info->id = paramId;
     info->flags = CLAP_PARAM_IS_AUTOMATABLE | CLAP_PARAM_IS_MODULATABLE;
     strncpy(info->name, p.name, CLAP_NAME_SIZE);
     strncpy(info->module, "", CLAP_NAME_SIZE);
-    info->min_value = p.min;
-    info->max_value = p.min;
-    info->default_value = p.value;//utils::decibelsToGain(0.0);
+    info->min_value = 0.f;
+    info->max_value = 1.f;
+    info->default_value = 0.f;//p.value;//utils::decibelsToGain(0.0);
 
 
     return true;
@@ -73,39 +73,35 @@ bool ClapPlugin::paramsInfo(uint32_t paramIndex, clap_param_info* info) const no
 
 bool ClapPlugin::paramsValue(clap_id paramId, double* value) noexcept
 {
-    if (paramId != gainPrmId_)
+    if (paramId != 0)
         return false;
 
-//    *value = utils::toLinearCurve(gain_);
+    *value = processor.getParameters()[paramId].value;
     return true;
 }
 
 bool ClapPlugin::paramsValueToText(clap_id paramId, double value, char* display, uint32_t size) noexcept
 {
-    if (paramId != gainPrmId_)
+    auto numParameters = processor.getParameters().size();
+    
+    if (paramId != 0)
         return false;
-
-    const auto valueIndB = utils::gainToDecibels(utils::toExponentialCurve(value));
-
-    if (valueIndB <= utils::minusInfinitydB)
-    {
-        snprintf(display, size, "-inf dB");
-    }
-    else
-    {
-        snprintf(display, size, "%.2f dB", valueIndB);
-    }
-
+    
+    snprintf(display, size, "%.2f dB", value);
+    std::cout << display << std::endl;
+    
     return true;
 }
 
 bool ClapPlugin::paramsTextToValue(clap_id paramId, const char* display, double* value) noexcept
 {
-    if (paramId != gainPrmId_)
+    auto numParameters = processor.getParameters().size();
+    
+    if (paramId != 0)
         return false;
 
     const double value_ = strtod(display, nullptr);
-    *value = utils::toLinearCurve(utils::decibelsToGain(value_));
+    *value = (value_);
 
     return true;
 }
@@ -124,41 +120,37 @@ clap_process_status ClapPlugin::process(const clap_process* process) noexcept
     float** outputs = process->audio_outputs[0].data32;
     std::size_t blockSize = process->frames_count;
 
-    static_cast<cabs::Processor*>(processor)->process(inputs, outputs, blockSize);
-    return CLAP_PROCESS_CONTINUE;
 
-
+    processor.process(inputs, outputs, blockSize);
 
     // Handle parameter changes
-    // auto event = process->in_events;
-    // for (uint32_t i = 0; i < event->size(event); ++i) 
-    // {
-    //     auto nextEvent = event->get(event, i);
-    //     if (nextEvent->space_id == CLAP_CORE_EVENT_SPACE_ID && 
-    //         nextEvent->type == CLAP_EVENT_PARAM_VALUE) 
-    //     {
-    //         auto gainValue = reinterpret_cast<const clap_event_param_value*>(nextEvent);
-    //         if (gainValue->param_id == gainPrmId_) 
-    //         {
-    //             gain_ = utils::toExponentialCurve(gainValue->value);
-    //             if (webview)
-    //                 webview->evaluateJavascript("updateGainFromHost(" + 
-    //                     std::to_string(utils::gainToDecibels(gain_)) + ");");
-    //         }
-    //     }
-    // }
+     auto event = process->in_events;
+     for (uint32_t i = 0; i < event->size(event); ++i) 
+     {
+         auto nextEvent = event->get(event, i);
+         if (nextEvent->space_id == CLAP_CORE_EVENT_SPACE_ID && 
+             nextEvent->type == CLAP_EVENT_PARAM_VALUE) 
+         {
+             auto p = reinterpret_cast<const clap_event_param_value*>(nextEvent);
+             if (p->param_id == 0)
+             {
+                 if (webview)
+                 {
+                     nlohmann::json j, h;
+                     j["command"] = "parameterChange";
+                     h["paramIdx"] = p->param_id;
+                     h["value"] = p->value;
+                     j["data"] = h;
+                     
+                     webview->evaluateJavascript("updateParameterFromHost(" +
+                                                 j.dump() + ");");
+                     
+                 }
+             }
+         }
+     }
 
-    // // Process audio
-    // float** input = process->audio_inputs[0].data32;
-    // float** output = process->audio_outputs[0].data32;
-    // const auto channels = process->audio_outputs->channel_count;
-    
-    // for (uint32_t i = 0; i < process->frames_count; i++) {
-    //     for (uint32_t ch = 0; ch < channels; ++ch)
-    //         output[ch][i] = input[ch][i] * gain_;
-    // }
-
-    // return CLAP_PROCESS_CONTINUE;
+    return CLAP_PROCESS_CONTINUE;
 
 }
 
@@ -179,9 +171,15 @@ bool ClapPlugin::guiCreate(const char* api, bool isFloating) noexcept {
             return false;
 
         // Add JavaScript interface for parameter control
-        webview->bind("setGainParameter", [this](const choc::value::ValueView& args) -> choc::value::Value {
-            auto value = args[0]["value"].getWithDefault<double>(0.0);
-            sendParameterValueToHost(gainPrmId_, utils::decibelsToGain(value));
+        webview->bind("setParameterFromUI", [this](const choc::value::ValueView& args) -> choc::value::Value {
+            nlohmann::json j = nlohmann::json::parse(choc::json::toString(args));
+            std::cout << j.at(0).dump(4);
+            float value = j.at(0).value("value", 0.f);
+            auto paramIdx = j.at(0).value("paramIdx", -1);
+            
+            if(paramIdx > -1)
+                sendParameterValueToHost(0, value);
+            
             return {};
         });
 
@@ -219,9 +217,9 @@ bool ClapPlugin::guiCreate(const char* api, bool isFloating) noexcept {
                 <h1>Gain Control</h1>
                 <div class="control-group">
                     <input type="range" class="slider" id="gainSlider"
-                           min="-70" max="12" step="0.1" value="0">
+                           min="0" max="1" step="0.001" value="0">
                     <div class="value-display">
-                        <span id="gainValue">0.0</span> dB
+                        <span id="gainValue">0.0</span>
                     </div>
                 </div>
 
@@ -230,18 +228,23 @@ bool ClapPlugin::guiCreate(const char* api, bool isFloating) noexcept {
                     const gainValue = document.getElementById('gainValue');
 
                     gainSlider.addEventListener('input', function() {
+                        console.log(this.value);
                         const value = parseFloat(this.value);
-                        gainValue.textContent = value.toFixed(1);
-                        window.setGainParameter({
-                            param: "gain",
-                            value: value,
-                            unit: "dB"
+                        gainValue.textContent = value.toFixed(3);
+                        window.setParameterFromUI({
+                            paramIdx: 0,
+                            value: value
                         });
                     });
 
-                    function updateGainFromHost(value) {
-                        gainSlider.value = value;
-                        gainValue.textContent = value.toFixed(1);
+                    function updateParameterFromHost(msg) {
+                        let j = typeof msg === "string" ? JSON.parse(msg) : msg;
+                        console.log(j);
+
+                        if(j["command"] === "parameterChange"){
+                            gainSlider.value = j["data"]["value"];
+                            gainValue.textContent = j["data"]["value"];
+                        }
                     }
                 </script>
             </body>
@@ -286,7 +289,6 @@ bool ClapPlugin::guiSetParent(const clap_window *window) noexcept
 {
     if (!webview)
     {
-        utils::DebugLog("WebView not created when setting parent");
         return false;
     }
 
@@ -304,15 +306,11 @@ bool ClapPlugin::guiSetParent(const clap_window *window) noexcept
             return true;
         }
 #elif CABBAGE_MACOS
-        utils::DebugLog("Setting parent for API: " + std::string(window->api));
         if (strcmp(window->api, CLAP_WINDOW_API_COCOA) == 0)
         {
             void *parent = window->cocoa;
             void *child = webview->getViewHandle();
-            utils::DebugLog("Parent handle: " + std::to_string(reinterpret_cast<uintptr_t>(parent)) +
-                            ", Child handle: " + std::to_string(reinterpret_cast<uintptr_t>(child)));
             bool result = attachViewToParent(child, parent);
-            utils::DebugLog("Parent attachment result: " + std::to_string(result));
             return result;
         }
 #elif CABBAGE_LINUX
@@ -327,12 +325,6 @@ bool ClapPlugin::guiSetParent(const clap_window *window) noexcept
     }
     catch (const std::exception &e)
     {
-        utils::DebugLog("Exception in guiSetParent: " + std::string(e.what()));
-        return false;
-    }
-    catch (...)
-    {
-        utils::DebugLog("Unknown exception in guiSetParent");
         return false;
     }
 }
@@ -341,8 +333,8 @@ bool ClapPlugin::guiSetParent(const clap_window *window) noexcept
 void ClapPlugin::sendParameterValueToHost(clap_id paramId, double value) noexcept {
     if (auto* host = _host.host()) {
         if (auto* params = (const clap_host_params*) host->get_extension(host, CLAP_EXT_PARAMS)) {
-            gain_ = value;
             params->request_flush(host);
+            processor.setParameter(paramId, value);
         }
     }
 }

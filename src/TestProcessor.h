@@ -4,7 +4,6 @@
 #include <cstddef> // for std::size_t
 #include <vector>
 #include "cabs/cabsClap/Plugin.h" // Include the necessary CLAP headers
-#include "cabs/cabsClap/Utils.h"
 #include "cabs/cabsProcessor.h"
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -79,7 +78,7 @@ public:
     void setParameter(int paramId, double value);
 
     // Get a parameter value
-    double getParameter(int paramId) const;
+    double getParameter(int paramId);
     
 private:
     // Number of audio inputs and outputs

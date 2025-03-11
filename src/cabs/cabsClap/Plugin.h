@@ -1,7 +1,12 @@
 #pragma once
 
 #include <clap/helpers/plugin.hh>
+#include <clap/helpers/event-list.hh>
 #include "gui/choc_WebView.h"
+
+namespace cabs{
+class Processor;
+}
 
 class ClapPlugin;
 
@@ -11,7 +16,7 @@ class ClapPlugin : public clap::helpers::Plugin<clap::helpers::MisbehaviourHandl
                                             clap::helpers::CheckingLevel::Maximal>
 {
 public:
-    ClapPlugin(const clap_host* host, int numInputs, int numOutputs);
+    ClapPlugin(const clap_host* host, cabs::Processor& processor, int numInputs, int numOutputs);
     ~ClapPlugin() override;
 
     bool implementsAudioPorts() const noexcept override
@@ -31,10 +36,10 @@ public:
         return true;
     }
 
-    bool isValidParamId(clap_id paramId) const noexcept override
-    {
-        return paramId == gainPrmId_;
-    }
+//    bool isValidParamId(clap_id paramId) const noexcept override
+//    {
+//        return paramId == gainPrmId_;
+//    }
 
     uint32_t paramsCount() const noexcept override
     {
@@ -64,14 +69,8 @@ public:
     bool guiSetParent(const clap_window* window) noexcept override;
 
 private:
-    static constexpr clap_id gainPrmId_ = 2345;
-
-    double gain_ = 0.0;
-    double targetGain_ = 0.0;
-    double stepSizeToTargetGain_ = 0.0;
-    int fadeLengthInSamples_ = 0;
-    int currentFadeIndex_ = fadeLengthInSamples_;
-
+    clap::helpers::EventList eventList;
+    
     // Add GUI members
     std::unique_ptr<choc::ui::WebView> webview;
     uint32_t currentWidth_ = 800;  // Default width
@@ -82,7 +81,7 @@ private:
     void beginParamAdjust(clap_id paramId) noexcept;
     void endParamAdjust(clap_id paramId) noexcept;
 
-    void *processor; // Pointer to CawProcessor processor
+    cabs::Processor& processor; // reference to processor
 };
 
 class CabsProcessorPluginFactory {

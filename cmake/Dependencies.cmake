@@ -4,8 +4,6 @@ FetchContent_Declare(
     clap
     GIT_REPOSITORY https://github.com/free-audio/clap.git
     GIT_TAG main
-    # 'FIND_PACKAGE_ARGS' will skip download if
-    # the target is already available in the system
     FIND_PACKAGE_ARGS NAMES clap
 )
 
@@ -24,9 +22,15 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
+    json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG master
+)
+
+FetchContent_Declare(
     choc
     GIT_REPOSITORY https://github.com/Tracktion/choc
     GIT_TAG 1330e77172bcce2e0e752b98a76f49c5062cf3aa
     FIND_PACKAGE_ARGS NAMES choc
 )
-FetchContent_MakeAvailable(clap clap-helpers clap-wrapper choc)
+FetchContent_MakeAvailable(clap clap-helpers clap-wrapper choc json)

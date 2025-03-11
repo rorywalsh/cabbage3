@@ -52,7 +52,6 @@ set(SOURCE_FILES
     src/TestProcessor.cpp
     src/TestProcessor.h
     src/cabs/CabsProcessor.h
-    src/cabs/cabsClap/Utils.h
     src/cabs/cabsClap/Plugin.h
     src/cabs/cabsClap/Plugin.cpp
     src/cabs/cabsClap/FactoryImpl.cpp
@@ -93,6 +92,7 @@ target_include_directories(${PROJECT_NAME}-impl PRIVATE
     ${clap_SOURCE_DIR}/include
     ${choc_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/src
+    ${json_SOURCE_DIR}/include
 )
 
 # ----------------------------
