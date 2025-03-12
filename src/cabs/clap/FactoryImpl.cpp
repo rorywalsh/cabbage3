@@ -4,7 +4,7 @@
 
 #include "FactoryImpl.h"
 #include "../CabsProcessor.h"
-#include "Plugin.h"
+#include "ClapPlugin.h"
 #include <iostream>
 #include "CabbagePluginInfo.h"
 

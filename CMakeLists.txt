@@ -52,14 +52,18 @@ set(SOURCE_FILES
     src/TestProcessor.cpp
     src/TestProcessor.h
     src/cabs/CabsProcessor.h
-    src/cabs/cabsClap/Plugin.h
-    src/cabs/cabsClap/Plugin.cpp
-    src/cabs/cabsClap/FactoryImpl.cpp
+    src/cabs/CabsServer.h
+    src/cabs/CabsServer.cpp
+    src/cabs/CabsUtils.h
+    src/cabs/CabsUtils.cpp
+    src/cabs/clap/ClapPlugin.h
+    src/cabs/clap/ClapPlugin.cpp
+    src/cabs/clap/FactoryImpl.cpp
 )
 
 # Apple-Specific Sources
 if (APPLE)    
-    list(APPEND SOURCE_FILES src/cabs/cabsClap/platform/MacParent.mm)
+    list(APPEND SOURCE_FILES src/cabs/clap/platform/MacParent.mm)
 endif()
 
 # ----------------------------
@@ -93,6 +97,7 @@ target_include_directories(${PROJECT_NAME}-impl PRIVATE
     ${choc_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/src
     ${json_SOURCE_DIR}/include
+    ${httplib_SOURCE_DIR}
 )
 
 # ----------------------------
@@ -119,10 +124,31 @@ make_clapfirst_plugins(
     TARGET_NAME ${PROJECT_NAME}
     IMPL_TARGET ${PROJECT_NAME}-impl
     OUTPUT_NAME "${PRODUCT_NAME}"
-    ENTRY_SOURCE src/cabs/cabsClap/Factory.cpp
+    ENTRY_SOURCE src/cabs/clap/Factory.cpp
     BUNDLE_IDENTIFER "org.yourproject.yourthing"
     BUNDLE_VERSION ${PROJECT_VERSION}
     COPY_AFTER_BUILD ${COPY_AFTER_BUILD}
     PLUGIN_FORMATS CLAP VST3 # AUV2
     ASSET_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_assets
 )
+
+# ----------------------------
+# Copy contents of html folder to plugin Resources folder
+# ----------------------------
+set(PLUGIN_BUNDLE_DIR ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_assets/Debug/${PROJECT_NAME}.vst3)
+set(RESOURCE_DIR ${PLUGIN_BUNDLE_DIR}/Contents/Resources)
+set(SOURCE_RESOURCE_DIR ${CMAKE_SOURCE_DIR}/html)
+
+# Define a custom target that performs the post-build actions
+add_custom_target(project_post_build
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${PLUGIN_BUNDLE_DIR}  # Create the .vst3 directory
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${RESOURCE_DIR}         # Create the Resources directory
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${SOURCE_RESOURCE_DIR} ${RESOURCE_DIR}  # Copy the contents
+    COMMENT "Ensuring plugin bundle and resources directory exists, and copying resources"
+)
+
+# Ensure the post-build actions are triggered regardless of the target
+add_dependencies(${PROJECT_NAME}-impl project_post_build)
+add_dependencies(${PROJECT_NAME}_vst3 project_post_build)
+add_dependencies(${PROJECT_NAME}_clap project_post_build)
+

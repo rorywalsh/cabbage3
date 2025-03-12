@@ -1,8 +1,9 @@
 #pragma once
 
 #include <clap/helpers/plugin.hh>
-#include <clap/helpers/event-list.hh>
 #include "gui/choc_WebView.h"
+#include "../CabsServer.h"
+#include "../CabsUtils.h"
 
 namespace cabs{
 class Processor;
@@ -69,8 +70,9 @@ public:
     bool guiSetParent(const clap_window* window) noexcept override;
 
 private:
-    clap::helpers::EventList eventList;
+    std::string htmlMntPoint = {};
     
+    cabs::Server server;
     // Add GUI members
     std::unique_ptr<choc::ui::WebView> webview;
     uint32_t currentWidth_ = 800;  // Default width

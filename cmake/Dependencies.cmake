@@ -33,4 +33,11 @@ FetchContent_Declare(
     GIT_TAG 1330e77172bcce2e0e752b98a76f49c5062cf3aa
     FIND_PACKAGE_ARGS NAMES choc
 )
-FetchContent_MakeAvailable(clap clap-helpers clap-wrapper choc json)
+
+FetchContent_Declare(
+    httplib
+    GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
+    GIT_TAG master  # Change to a specific tag like v0.13.0 for stability
+)
+
+FetchContent_MakeAvailable(clap clap-helpers clap-wrapper choc json httplib)

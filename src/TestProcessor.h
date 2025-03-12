@@ -3,7 +3,7 @@
 
 #include <cstddef> // for std::size_t
 #include <vector>
-#include "cabs/cabsClap/Plugin.h" // Include the necessary CLAP headers
+#include "cabs/clap/ClapPlugin.h" // Include the necessary CLAP headers
 #include "cabs/cabsProcessor.h"
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -72,14 +72,15 @@ public:
     ~TestProcessor(){};
 
     // Process method to handle audio processing
-    void process(float** inputs, float** outputs, std::size_t blockSize);
+    void process(float** inputs, float** outputs, std::size_t blockSize) override;
 
     // Set a parameter value
-    void setParameter(int paramId, double value);
+    void setParameter(int paramId, double value) override;
 
     // Get a parameter value
-    double getParameter(int paramId);
+    double getParameter(int paramId) override;
     
+    void onMesssgeFromWebView(nlohmann::json j) override;
 private:
     // Number of audio inputs and outputs
     int numInputs = 0;

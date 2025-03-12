@@ -1,4 +1,4 @@
-#include "Plugin.h"
+#include "ClapPlugin.h"
 #include <clap/helpers/host-proxy.hxx>
 #include <clap/helpers/plugin.hxx>
 #include <clap/ext/params.h>
@@ -25,6 +25,18 @@ ClapPlugin::ClapPlugin(const clap_host* host, cabs::Processor& processor, int nu
     nullptr, host), processor(processor)
 {
 
+    auto rootPath = cabs::File::getResourceDir();
+    
+    if (!server.isThreadRunning())
+        server.start(rootPath);
+    
+    htmlMntPoint = "http://127.0.0.1:" + std::to_string(server.getCurrentPort()) + "/index.html";
+    
+    processor.sendParameterUpdateToHost = [this](uint32_t paramId, float value) {
+        sendParameterValueToHost(paramId, value);
+    };
+    
+    
 }
 
 ClapPlugin::~ClapPlugin()
@@ -73,7 +85,9 @@ bool ClapPlugin::paramsInfo(uint32_t paramId, clap_param_info* info) const noexc
 
 bool ClapPlugin::paramsValue(clap_id paramId, double* value) noexcept
 {
-    if (paramId != 0)
+    auto numParameters = processor.getParameters().size();
+    
+    if (paramId > numParameters)
         return false;
 
     *value = processor.getParameters()[paramId].value;
@@ -84,8 +98,10 @@ bool ClapPlugin::paramsValueToText(clap_id paramId, double value, char* display,
 {
     auto numParameters = processor.getParameters().size();
     
-    if (paramId != 0)
+    if (paramId > numParameters)
         return false;
+    
+    processor.setParameter(paramId, value);
     
     snprintf(display, size, "%.2f dB", value);
     std::cout << display << std::endl;
@@ -97,10 +113,11 @@ bool ClapPlugin::paramsTextToValue(clap_id paramId, const char* display, double*
 {
     auto numParameters = processor.getParameters().size();
     
-    if (paramId != 0)
+    if (paramId > numParameters)
         return false;
 
     const double value_ = strtod(display, nullptr);
+
     *value = (value_);
 
     return true;
@@ -167,92 +184,27 @@ bool ClapPlugin::guiCreate(const char* api, bool isFloating) noexcept {
         options.enableDebugMode = true;
         
         webview = std::make_unique<choc::ui::WebView>(options);
+        
         if (!webview)
             return false;
 
         // Add JavaScript interface for parameter control
         webview->bind("setParameterFromUI", [this](const choc::value::ValueView& args) -> choc::value::Value {
             nlohmann::json j = nlohmann::json::parse(choc::json::toString(args));
-            std::cout << j.at(0).dump(4);
-            float value = j.at(0).value("value", 0.f);
-            auto paramIdx = j.at(0).value("paramIdx", -1);
-            
-            if(paramIdx > -1)
-                sendParameterValueToHost(0, value);
-            
+            processor.onMesssgeFromWebView(j);
             return {};
         });
 
-        // Load HTML content
-        webview->setHTML(R"(
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <style>
-                    body { 
-                        background: #2d2d2d;
-                        color: white;
-                        font-family: Arial, sans-serif;
-                        margin: 0;
-                        padding: 20px;
-                        box-sizing: border-box;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                    }
-                    .control-group {
-                        margin: 20px;
-                        text-align: center;
-                    }
-                    .slider {
-                        width: 200px;
-                        margin: 10px;
-                    }
-                    .value-display {
-                        font-family: monospace;
-                    }
-                </style>
-            </head>
-            <body>
-                <h1>Gain Control</h1>
-                <div class="control-group">
-                    <input type="range" class="slider" id="gainSlider"
-                           min="0" max="1" step="0.001" value="0">
-                    <div class="value-display">
-                        <span id="gainValue">0.0</span>
-                    </div>
-                </div>
-
-                <script>
-                    const gainSlider = document.getElementById('gainSlider');
-                    const gainValue = document.getElementById('gainValue');
-
-                    gainSlider.addEventListener('input', function() {
-                        console.log(this.value);
-                        const value = parseFloat(this.value);
-                        gainValue.textContent = value.toFixed(3);
-                        window.setParameterFromUI({
-                            paramIdx: 0,
-                            value: value
-                        });
-                    });
-
-                    function updateParameterFromHost(msg) {
-                        let j = typeof msg === "string" ? JSON.parse(msg) : msg;
-                        console.log(j);
-
-                        if(j["command"] === "parameterChange"){
-                            gainSlider.value = j["data"]["value"];
-                            gainValue.textContent = j["data"]["value"];
-                        }
-                    }
-                </script>
-            </body>
-            </html>
-        )");
+        webview->navigate(htmlMntPoint);
+        
         return true;
+        
     } catch (const std::exception& e) {
         std::cerr << "Exception in guiCreate: " << e.what() << std::endl;
+        return false;        
+    }
+    catch (...) {
+        std::cerr << "Unknown exception in guiCreate" << std::endl;
         return false;
     }
 }

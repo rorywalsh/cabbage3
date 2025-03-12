@@ -1,64 +1,117 @@
+/*
+    MIT License
+
+    Copyright (c) 2024 Rory Walsh
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+*/
+
 #pragma once
 
-#include <cstddef> // for std::size_t
+#include <cstddef>
 #include <vector>
-#include <cabs/cabsClap/Plugin.h> // Include the necessary CLAP headers
+#include <cabs/clap/ClapPlugin.h>
+#include <nlohmann/json.hpp>
 
+namespace cabs
+{
 
-namespace cabs {
+class Processor
+{
+    // Structure to represent a parameter
+    struct Parameter
+    {
+        const char* name;   // Parameter name
+        float min;          // Minimum value
+        float max;          // Maximum value
+        float value;        // Current value
+        float skew;         // Skew factor for scaling
+        float increment;    // Step size for parameter change
 
-class Processor {
-    struct Parameter {
-        const char* name;
-        float min;
-        float max;
-        float value;
-        float skew;
-        float increment;
-        
         // Constructor with default values
         Parameter(const char* paramName = "", float paramMin = 0.f, float paramMax = 1.f,
                   float paramValue = 0.f, float paramIncrement = 0.01f, float paramSkew = 1.f)
-        : name(paramName), min(paramMin), max(paramMax),
-        value(paramValue), skew(paramSkew), increment(paramIncrement) {}
+            : name(paramName), min(paramMin), max(paramMax),
+              value(paramValue), skew(paramSkew), increment(paramIncrement)
+        {
+        }
     };
-    
-    
+
 public:
-    // Constructor that initializes the CLAP plugin
-    Processor(int numInputs, int numOutputs): numInputs(numInputs), numOutputs(numOutputs) {};
-    
-    // Destructor to clean up resources
-    ~Processor() {
-        // Destructor implementation (if needed)
+
+    // Constructor: Initializes the plugin with a given number of inputs and outputs
+    Processor(int numInputs, int numOutputs)
+        : numInputs(numInputs), numOutputs(numOutputs)
+    {
     }
-    
-    // Process method to handle audio processing
+
+    // Virtual destructor
+    virtual ~Processor()
+    {
+        // Cleanup if necessary
+    }
+
+    // Pure virtual function to process audio data
     virtual void process(float** inputs, float** outputs, std::size_t blockSize) = 0;
-    
-    // Set a parameter value
+
+    // Pure virtual function to set a parameter value
     virtual void setParameter(int paramId, double value) = 0;
-    
-    // Get a parameter value
+
+    // Pure virtual function to handle messages from the web view
+    virtual void onMesssgeFromWebView(nlohmann::json j) = 0;
+
+    // Pure virtual function to get a parameter value
     virtual double getParameter(int paramId) = 0;
-    
+
     // Get the number of audio outputs
-    int getNumOutputs(){    return numOutputs;  };
-    
+    int getNumOutputs()
+    {
+        return numOutputs;
+    }
+
     // Get the number of audio inputs
-    int getNumInputs(){     return numInputs;   };
-    
-    // Get the parameters
-    std::vector<Parameter>& getParameters() { return parameters; }
-    
-    void addParameter(cabs::Processor::Parameter parameter) { parameters.push_back(parameter); }
-        
+    int getNumInputs()
+    {
+        return numInputs;
+    }
+
+    // Get the list of parameters
+    std::vector<Parameter>& getParameters()
+    {
+        return parameters;
+    }
+
+    // Add a new parameter to the list
+    void addParameter(cabs::Processor::Parameter parameter)
+    {
+        parameters.push_back(parameter);
+    }
+
+    // Function pointer to send parameter updates to the host
+    std::function<void(uint32_t, float)> sendParameterUpdateToHost = nullptr;
+    std::function<void(nlohmann::json)> sendWebViewMessage = nullptr;
+
 private:
-    // Number of audio inputs and outputs
-    int numInputs = 0;
-    int numOutputs = 0;
-    // Store parameters (could be a more complex structure if needed)
-    std::vector<Parameter> parameters;
+
+    int numInputs = 0;   // Number of audio inputs
+    int numOutputs = 0;  // Number of audio outputs
+    std::vector<Parameter> parameters; // List of parameters
 };
 
-}
+} // namespace cabs

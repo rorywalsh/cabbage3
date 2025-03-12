@@ -27,11 +27,17 @@ void TestProcessor::process(float** /*inputs*/, float** outputs, std::size_t blo
     }
 }
 
-void TestProcessor::setParameter(int paramId, double value) 
+void TestProcessor::onMesssgeFromWebView(nlohmann::json j)
 {
-    std::cout << "Setting parameter " << paramId << " to " << value << std::endl;
+    std::cout << j.at(0).dump(4);
+    float value = j.at(0).value("value", 0.f);
+    auto paramIdx = j.at(0).value("paramIdx", -1);
+    sendParameterUpdateToHost(paramIdx, value);
+}
+
+void TestProcessor::setParameter(int paramId, double value)
+{
     getParameters()[paramId].value = value;
-    std::cout << "Getting parameter " << paramId << " value: " << getParameter(paramId)  << std::endl;
 }
 
 double TestProcessor::getParameter(int paramId) 
