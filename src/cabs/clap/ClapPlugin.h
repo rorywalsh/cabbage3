@@ -1,9 +1,14 @@
 #pragma once
 
-#include <clap/helpers/plugin.hh>
+#include "platform/choc_DisableAllWarnings.h"
+#include <clap/helpers/host-proxy.hxx>
+#include <clap/helpers/plugin.hxx>
+#include <clap/ext/params.h>
+#include "platform/choc_ReenableAllWarnings.h"
 #include "gui/choc_WebView.h"
 #include "../CabsServer.h"
 #include "../CabsUtils.h"
+#include <deque>
 
 namespace cabs{
 class Processor;
@@ -16,41 +21,55 @@ using pluginType = ClapPlugin;
 class ClapPlugin : public clap::helpers::Plugin<clap::helpers::MisbehaviourHandler::Ignore,
                                             clap::helpers::CheckingLevel::Maximal>
 {
+    
+
+    
 public:
-    ClapPlugin(const clap_host* host, cabs::Processor& processor, int numInputs, int numOutputs);
+    ClapPlugin(const clap_host* host, cabs::Processor& processor);
     ~ClapPlugin() override;
 
-    bool implementsAudioPorts() const noexcept override
-    {
-        return true;
-    }
-
+    
+    bool audioPortsInfo(uint32_t index, bool isInput, clap_audio_port_info* info) const noexcept override;
+    bool paramsInfo(uint32_t paramIndex, clap_param_info* info) const noexcept override;
+    bool notePortsInfo(uint32_t index, bool isInput, clap_note_port_info *info) const noexcept;
+    
+    
     uint32_t audioPortsCount(bool /*isInput*/) const noexcept override
     {
         return 1;
     }
 
-    bool audioPortsInfo(uint32_t index, bool isInput, clap_audio_port_info* info) const noexcept override;
-
+    uint32_t notePortsCount(bool isInput) const noexcept override 
+    {
+        return isInput ? 1 : 0;
+    }
+    
+    uint32_t paramsCount() const noexcept override
+    {
+        return 1;
+    }
+    
     bool implementsParams() const noexcept override
     {
         return true;
     }
+    
+    bool implementsNotePorts() const noexcept override
+    {
+        return true;
+    }
 
+    bool implementsAudioPorts() const noexcept override
+    {
+        return true;
+    }
+    
 //    bool isValidParamId(clap_id paramId) const noexcept override
 //    {
 //        return paramId == gainPrmId_;
 //    }
 
-    uint32_t paramsCount() const noexcept override
-    {
-        return 1;
-    }
-
-    bool paramsInfo(uint32_t paramIndex, clap_param_info* info) const noexcept override;
-
     bool paramsValue(clap_id paramId, double* value) noexcept override;
-
     bool paramsValueToText(clap_id paramId, double value, char* display, uint32_t size) noexcept override;
     bool paramsTextToValue(clap_id paramId, const char* display, double* value) noexcept override;
     bool activate(double sampleRate, uint32_t, uint32_t) noexcept override;
@@ -71,7 +90,6 @@ public:
 
 private:
     std::string htmlMntPoint = {};
-    
     cabs::Server server;
     // Add GUI members
     std::unique_ptr<choc::ui::WebView> webview;

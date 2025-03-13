@@ -1,7 +1,4 @@
 #include "ClapPlugin.h"
-#include <clap/helpers/host-proxy.hxx>
-#include <clap/helpers/plugin.hxx>
-#include <clap/ext/params.h>
 #include "gui/choc_WebView.h"
 #include "../CabsProcessor.h"
 #include <nlohmann/json.hpp>
@@ -20,7 +17,7 @@ extern "C"
 #endif
 
 
-ClapPlugin::ClapPlugin(const clap_host* host, cabs::Processor& processor, int numInputs, int numOutputs)
+ClapPlugin::ClapPlugin(const clap_host* host, cabs::Processor& processor)
 : clap::helpers::Plugin<clap::helpers::MisbehaviourHandler::Ignore, clap::helpers::CheckingLevel::Maximal>(
     nullptr, host), processor(processor)
 {
@@ -83,6 +80,18 @@ bool ClapPlugin::paramsInfo(uint32_t paramId, clap_param_info* info) const noexc
     return true;
 }
 
+bool ClapPlugin::notePortsInfo(uint32_t index, bool isInput, clap_note_port_info *info) const noexcept
+{
+    if (!isInput || index) 
+        return false;
+    info->id = 0;
+    info->supported_dialects = CLAP_NOTE_DIALECT_MIDI | CLAP_NOTE_DIALECT_MIDI_MPE | CLAP_NOTE_DIALECT_CLAP;
+    info->preferred_dialect = CLAP_NOTE_DIALECT_CLAP;
+    snprintf(info->name, sizeof(info->name), "%s", "Note Port");
+    
+    return true;
+}
+
 bool ClapPlugin::paramsValue(clap_id paramId, double* value) noexcept
 {
     auto numParameters = processor.getParameters().size();
@@ -123,7 +132,9 @@ bool ClapPlugin::paramsTextToValue(clap_id paramId, const char* display, double*
     return true;
 }
 
-bool ClapPlugin::activate(double sampleRate, uint32_t /*minFrameCount*/, uint32_t /*maxFrameCount*/) noexcept {
+bool ClapPlugin::activate(double sampleRate, uint32_t minFrameCount, uint32_t maxFrameCount) noexcept
+{
+    processor.prepareToPlay(sampleRate, minFrameCount, maxFrameCount);
     return true;
 }
 
@@ -141,44 +152,58 @@ clap_process_status ClapPlugin::process(const clap_process* process) noexcept
     processor.process(inputs, outputs, blockSize);
 
     // Handle parameter changes
-     auto event = process->in_events;
-     for (uint32_t i = 0; i < event->size(event); ++i) 
+    auto event = process->in_events;
+    for (uint32_t i = 0; i < event->size(event); ++i)
+    {
+     auto nextEvent = event->get(event, i);
+     if (nextEvent->space_id == CLAP_CORE_EVENT_SPACE_ID &&
+         nextEvent->type == CLAP_EVENT_PARAM_VALUE)
      {
-         auto nextEvent = event->get(event, i);
-         if (nextEvent->space_id == CLAP_CORE_EVENT_SPACE_ID && 
-             nextEvent->type == CLAP_EVENT_PARAM_VALUE) 
+         auto p = reinterpret_cast<const clap_event_param_value*>(nextEvent);
+         if (p->param_id == 0)
          {
-             auto p = reinterpret_cast<const clap_event_param_value*>(nextEvent);
-             if (p->param_id == 0)
+             if (webview)
              {
-                 if (webview)
-                 {
-                     nlohmann::json j, h;
-                     j["command"] = "parameterChange";
-                     h["paramIdx"] = p->param_id;
-                     h["value"] = p->value;
-                     j["data"] = h;
-                     
-                     webview->evaluateJavascript("updateParameterFromHost(" +
-                                                 j.dump() + ");");
-                     
-                 }
+                 nlohmann::json j, h;
+                 j["command"] = "parameterChange";
+                 h["paramIdx"] = p->param_id;
+                 h["value"] = p->value;
+                 j["data"] = h;
+                 
+                 webview->evaluateJavascript("updateParameterFromHost(" +
+                                             j.dump() + ");");
+                 
              }
          }
      }
+     else if (nextEvent->type == CLAP_EVENT_NOTE_ON || nextEvent->type == CLAP_EVENT_NOTE_OFF || nextEvent->type == CLAP_EVENT_NOTE_CHOKE) {
+         const clap_event_note_t *noteEvent = (const clap_event_note_t *) nextEvent;
+         std::cout << "NoteEvent" << std::endl;
+         processor.addNoteEvent({nextEvent->type,
+                 noteEvent->key,
+                 noteEvent->velocity,
+                 noteEvent->note_id,
+                 noteEvent->header.time});
+         }
+     else if (nextEvent->type == CLAP_EVENT_MIDI){
+         std::cout << "MIDI Event" << std::endl;
+     }
+    }
 
     return CLAP_PROCESS_CONTINUE;
 
 }
 
-bool ClapPlugin::guiIsApiSupported(const char* api, bool isFloating) noexcept {
+bool ClapPlugin::guiIsApiSupported(const char* api, bool /*isFloating*/) noexcept
+{
     // We support embedded and floating windows
     return strcmp(api, CLAP_WINDOW_API_WIN32) == 0 ||
            strcmp(api, CLAP_WINDOW_API_COCOA) == 0 ||
            strcmp(api, CLAP_WINDOW_API_X11) == 0;
 }
 
-bool ClapPlugin::guiCreate(const char* api, bool isFloating) noexcept {
+bool ClapPlugin::guiCreate(const char* /*api*/, bool /*isFloating*/) noexcept
+{
     try {
         choc::ui::WebView::Options options;
         options.enableDebugMode = true;
@@ -201,7 +226,7 @@ bool ClapPlugin::guiCreate(const char* api, bool isFloating) noexcept {
         
     } catch (const std::exception& e) {
         std::cerr << "Exception in guiCreate: " << e.what() << std::endl;
-        return false;        
+        return false;
     }
     catch (...) {
         std::cerr << "Unknown exception in guiCreate" << std::endl;
@@ -209,31 +234,37 @@ bool ClapPlugin::guiCreate(const char* api, bool isFloating) noexcept {
     }
 }
 
-void ClapPlugin::guiDestroy() noexcept {
+void ClapPlugin::guiDestroy() noexcept 
+{
     webview.reset();
 }
 
-bool ClapPlugin::guiSetScale(double) noexcept {
+bool ClapPlugin::guiSetScale(double) noexcept 
+{
     return true;
 }
 
-bool ClapPlugin::guiSetSize(uint32_t width, uint32_t height) noexcept {
+bool ClapPlugin::guiSetSize(uint32_t width, uint32_t height) noexcept 
+{
     currentWidth_ = width;
     currentHeight_ = height;
     return webview != nullptr;
 }
 
-bool ClapPlugin::guiGetSize(uint32_t* width, uint32_t* height) noexcept {
+bool ClapPlugin::guiGetSize(uint32_t* width, uint32_t* height) noexcept 
+{
     *width = currentWidth_;
     *height = currentHeight_;
     return true;
 }
 
-bool ClapPlugin::guiShow() noexcept {
+bool ClapPlugin::guiShow() noexcept 
+{
     return webview != nullptr;
 }
 
-bool ClapPlugin::guiHide() noexcept {
+bool ClapPlugin::guiHide() noexcept 
+{
     return webview != nullptr;
 }
 

@@ -6,7 +6,7 @@
 pluginType* CabsProcessorPluginFactory::createPlugin(const clap_host* host)
 {
     auto* processor = new TestProcessor(2, 2);
-    return new pluginType(host, *processor, processor->getNumInputs(), processor->getNumOutputs());
+    return new pluginType(host, *processor);
 }
 //===================================================================================
 
@@ -19,6 +19,13 @@ TestProcessor::TestProcessor(int numInputs, int numOutputs)
 void TestProcessor::process(float** /*inputs*/, float** outputs, std::size_t blockSize)
 {
     const auto channels = getNumInputs();
+    auto& noteEvents = getNoteEvents();
+    
+    while (!noteEvents.empty()) {
+        auto event = noteEvents.front();
+        event.log();
+        noteEvents.pop_front();
+    }
     
     for (uint32_t i = 0; i < blockSize; i++)
     {
@@ -43,4 +50,9 @@ void TestProcessor::setParameter(int paramId, double value)
 double TestProcessor::getParameter(int paramId) 
 {
     return getParameters()[paramId].value;
+}
+
+void TestProcessor::prepareToPlay(double /*sampleRate*/, uint32_t /*minFrameCount*/, uint32_t /*maxFrameCount*/)
+{
+    
 }

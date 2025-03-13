@@ -52,6 +52,25 @@ class Processor
         {
         }
     };
+    
+    struct NoteEvent
+    {
+        uint16_t type;
+        int16_t key;
+        double velocity;
+        int32_t noteId;
+        uint32_t sampleOffset;
+
+        // Constructor
+        NoteEvent(uint16_t t, int16_t k, double v, int32_t id, uint32_t offset)
+            : type(t), key(k), velocity(v), noteId(id), sampleOffset(offset) {}
+        
+        void log() const
+        {
+            std::cout << "{ " << "type: " << type << ", " << "key: " << key << ", " << "velocity: " <<
+            velocity << ", " << "noteId: " << noteId << ", " << "sampleOffset: " << sampleOffset << " }" << std::endl;
+        }
+    };
 
 public:
 
@@ -64,7 +83,6 @@ public:
     // Virtual destructor
     virtual ~Processor()
     {
-        // Cleanup if necessary
     }
 
     // Pure virtual function to process audio data
@@ -79,6 +97,9 @@ public:
     // Pure virtual function to get a parameter value
     virtual double getParameter(int paramId) = 0;
 
+    // Prepare to play method - gets called before processing starts
+    virtual void prepareToPlay(double sampleRate, uint32_t minFrameCount, uint32_t maxFrameCount) = 0;
+    
     // Get the number of audio outputs
     int getNumOutputs()
     {
@@ -102,16 +123,32 @@ public:
     {
         parameters.push_back(parameter);
     }
-
+    
     // Function pointer to send parameter updates to the host
     std::function<void(uint32_t, float)> sendParameterUpdateToHost = nullptr;
+    
+    // Function pointer to send messages to webview
     std::function<void(nlohmann::json)> sendWebViewMessage = nullptr;
 
+    // This function gets called from the plugin process block and
+    // gets filled with note events - there is no need to manually fill it
+    void addNoteEvent(NoteEvent noteEvent)
+    {
+        noteEvents.push_back(noteEvent);
+    }
+    
+    // Note events can be accessed here
+    std::deque<NoteEvent>& getNoteEvents()
+    {     
+        return noteEvents;
+    }
+    
 private:
-
+    
     int numInputs = 0;   // Number of audio inputs
     int numOutputs = 0;  // Number of audio outputs
-    std::vector<Parameter> parameters; // List of parameters
+    std::vector<Parameter> parameters; // Vector of parameters
+    std::deque<NoteEvent> noteEvents; // Fifo for noteEvents
 };
 
 } // namespace cabs

@@ -80,7 +80,12 @@ public:
     // Get a parameter value
     double getParameter(int paramId) override;
     
+    // Called whenever the webview sends a message
     void onMesssgeFromWebView(nlohmann::json j) override;
+    
+    // Called at least once before the processing starts
+    void prepareToPlay(double sampleRate, uint32_t minFrameCount, uint32_t maxFrameCount);
+    
 private:
     // Number of audio inputs and outputs
     int numInputs = 0;
