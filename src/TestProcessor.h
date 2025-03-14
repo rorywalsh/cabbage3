@@ -10,15 +10,6 @@
 #endif
 
 //===========================================================
-namespace ProjectInfo
-{
-    const char* const  projectName    = "DemoRunner";
-    const char* const  companyName    = "Raw Material Software Limited";
-    const char* const  versionString  = "8.0.6";
-    const int          versionNumber  = 0x80006;
-}
-
-//===========================================================
 
 template <typename T>
 class SineOscillator

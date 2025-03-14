@@ -1,5 +1,20 @@
 include(FetchContent)
 
+# Use FetchContent to include RtAudio first
+FetchContent_Declare(
+    rtaudio
+    GIT_REPOSITORY https://github.com/thestk/rtaudio.git
+    GIT_TAG master
+)
+
+# Disable unnecessary backends on macOS
+if (APPLE)
+    set(RTAUDIO_API_JACK OFF CACHE BOOL "Disable JACK support" FORCE)
+    set(RTAUDIO_API_PULSE OFF CACHE BOOL "Disable PulseAudio support" FORCE)
+    set(RTAUDIO_API_ALSA OFF CACHE BOOL "Disable ALSA support" FORCE)
+endif()
+
+# Declare other dependencies
 FetchContent_Declare(
     clap
     GIT_REPOSITORY https://github.com/free-audio/clap.git
@@ -40,4 +55,5 @@ FetchContent_Declare(
     GIT_TAG master  # Change to a specific tag like v0.13.0 for stability
 )
 
-FetchContent_MakeAvailable(clap clap-helpers clap-wrapper choc json httplib)
+# Make all dependencies available
+FetchContent_MakeAvailable(rtaudio clap clap-helpers clap-wrapper choc json httplib)
