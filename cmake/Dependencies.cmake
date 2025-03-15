@@ -12,7 +12,18 @@ if (APPLE)
     set(RTAUDIO_API_JACK OFF CACHE BOOL "Disable JACK support" FORCE)
     set(RTAUDIO_API_PULSE OFF CACHE BOOL "Disable PulseAudio support" FORCE)
     set(RTAUDIO_API_ALSA OFF CACHE BOOL "Disable ALSA support" FORCE)
+    set(RTMIDI_API_JACK OFF CACHE BOOL "Disabling Jack for RtMidi" FORCE)
 endif()
+
+# Disable testing to avoid conflict with RtAudio
+set(RTMIDI_BUILD_TESTING OFF CACHE BOOL "Disable RtMidi tests" FORCE)
+
+# Use FetchContent to include RtMidi
+FetchContent_Declare(
+    rtmidi
+    GIT_REPOSITORY https://github.com/thestk/rtmidi.git
+    GIT_TAG master
+)
 
 # Declare other dependencies
 FetchContent_Declare(
@@ -56,4 +67,4 @@ FetchContent_Declare(
 )
 
 # Make all dependencies available
-FetchContent_MakeAvailable(rtaudio clap clap-helpers clap-wrapper choc json httplib)
+FetchContent_MakeAvailable(rtaudio rtmidi clap clap-helpers clap-wrapper choc json httplib)

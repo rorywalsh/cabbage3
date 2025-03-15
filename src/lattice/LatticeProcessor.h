@@ -26,11 +26,12 @@
 
 #include <cstddef>
 #include <vector>
-#include <cabs/clap/ClapPlugin.h>
+#include <lattice/clap/ClapPlugin.h>
 #include <nlohmann/json.hpp>
 
-namespace cabs
+namespace lattice
 {
+
 
 class Processor
 {
@@ -52,28 +53,39 @@ class Processor
         {
         }
     };
-    
-    struct NoteEvent
-    {
-        uint16_t type;
-        int16_t key;
-        double velocity;
-        int32_t noteId;
-        uint32_t sampleOffset;
-
-        // Constructor
-        NoteEvent(uint16_t t, int16_t k, double v, int32_t id, uint32_t offset)
-            : type(t), key(k), velocity(v), noteId(id), sampleOffset(offset) {}
-        
-        void log() const
-        {
-            std::cout << "{ " << "type: " << type << ", " << "key: " << key << ", " << "velocity: " <<
-            velocity << ", " << "noteId: " << noteId << ", " << "sampleOffset: " << sampleOffset << " }" << std::endl;
-        }
-    };
 
 public:
+    
+    struct NoteEvent {
+        // Enum for event types
+        enum class Type : uint16_t {
+            noteOn = 0,    // CLAP_EVENT_NOTE_ON
+            noteOff = 1,   // CLAP_EVENT_NOTE_OFF
+            noteChoke = 2, // CLAP_EVENT_NOTE_CHOKE
+            // Add other event types as needed
+        };
 
+        Type type;         // Event type (noteOn, noteOff, noteChoke, etc.)
+        int16_t key;       // MIDI note number
+        double velocity;   // Normalized velocity (0.0 to 1.0)
+        int32_t noteId;    // Unique note ID
+        uint32_t sampleOffset; // Sample offset
+
+        // Constructor
+        NoteEvent(Type t, int16_t k, double v, int32_t id, uint32_t offset)
+            : type(t), key(k), velocity(v), noteId(id), sampleOffset(offset) {}
+
+        // Log the event details
+        void log() const {
+            std::cout << "{ "
+                      << "type: " << static_cast<uint16_t>(type) << ", "
+                      << "key: " << key << ", "
+                      << "velocity: " << velocity << ", "
+                      << "noteId: " << noteId << ", "
+                      << "sampleOffset: " << sampleOffset << " }" << std::endl;
+        }
+    };
+    
     // Constructor: Initializes the plugin with a given number of inputs and outputs
     Processor(int numInputs, int numOutputs)
         : numInputs(numInputs), numOutputs(numOutputs)
@@ -119,7 +131,7 @@ public:
     }
 
     // Add a new parameter to the list
-    void addParameter(cabs::Processor::Parameter parameter)
+    void addParameter(lattice::Processor::Parameter parameter)
     {
         parameters.push_back(parameter);
     }
@@ -142,9 +154,8 @@ public:
     {     
         return noteEvents;
     }
-    
+
 private:
-    
     int numInputs = 0;   // Number of audio inputs
     int numOutputs = 0;  // Number of audio outputs
     std::vector<Parameter> parameters; // Vector of parameters

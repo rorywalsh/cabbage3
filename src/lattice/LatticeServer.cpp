@@ -6,8 +6,8 @@
  * See the LICENSE file for more details.
  */
 
-#include "CabsServer.h"
-#include "CabsUtils.h"
+#include "LatticeServer.h"
+#include "LatticeUtils.h"
 
 std::string dump_headers(const httplib::Headers &headers)
 {
@@ -86,12 +86,12 @@ std::string log(const httplib::Request &req, const httplib::Response &res)
     return s;
 }
 
-cabs::Server::Server()
+lattice::Server::Server()
 {
     std::cout << "creating server";
 }
 
-void cabs::Server::stop()
+void lattice::Server::stop()
 {
     if (serverThread.joinable())
     {
@@ -102,18 +102,18 @@ void cabs::Server::stop()
     }
 }
 
-void cabs::Server::changeMountPoint(std::string mp)
+void lattice::Server::changeMountPoint(std::string mp)
 {
     if (!mServer.set_mount_point("/", mp))
         std::cout << ("couldn't set up mount point");
 }
 
-void cabs::Server::start(std::string mp)
+void lattice::Server::start(std::string mp)
 {
     mountPoint = mp;
     isListening = true;
 
-    if(!cabs::File::exists(mountPoint))
+    if(!lattice::File::exists(mountPoint))
         return;
     
     if (!mServer.set_mount_point("/", mountPoint))
@@ -129,10 +129,10 @@ void cabs::Server::start(std::string mp)
 
     mPortNumber = mServer.bind_to_any_port("127.0.0.1");
 
-    serverThread = std::thread(&cabs::Server::run, this);
+    serverThread = std::thread(&lattice::Server::run, this);
 }
 
-void cabs::Server::run()
+void lattice::Server::run()
 {
     mServer.listen_after_bind();
 }

@@ -9,7 +9,7 @@
 #pragma once
 
 #include "httplib.h"
-namespace cabs {
+namespace lattice {
 
 
 class Server

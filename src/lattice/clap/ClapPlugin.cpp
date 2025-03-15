@@ -1,6 +1,6 @@
 #include "ClapPlugin.h"
 #include "gui/choc_WebView.h"
-#include "../CabsProcessor.h"
+#include "../LatticeProcessor.h"
 #include <nlohmann/json.hpp>
 
 #define CABBAGE_MACOS 1
@@ -17,12 +17,12 @@ extern "C"
 #endif
 
 
-ClapPlugin::ClapPlugin(const clap_host* host, cabs::Processor& processor)
+ClapPlugin::ClapPlugin(const clap_host* host, lattice::Processor& processor)
 : clap::helpers::Plugin<clap::helpers::MisbehaviourHandler::Ignore, clap::helpers::CheckingLevel::Maximal>(
     nullptr, host), processor(processor)
 {
 
-    auto rootPath = cabs::File::getResourceDir();
+    auto rootPath = lattice::File::getResourceDir();
     
     if (!server.isThreadRunning())
         server.start(rootPath);
@@ -178,8 +178,28 @@ clap_process_status ClapPlugin::process(const clap_process* process) noexcept
      }
      else if (nextEvent->type == CLAP_EVENT_NOTE_ON || nextEvent->type == CLAP_EVENT_NOTE_OFF || nextEvent->type == CLAP_EVENT_NOTE_CHOKE) {
          const clap_event_note_t *noteEvent = (const clap_event_note_t *) nextEvent;
-         std::cout << "NoteEvent" << std::endl;
-         processor.addNoteEvent({nextEvent->type,
+
+         // Map CLAP event types to NoteEvent::Type
+         lattice::Processor::NoteEvent::Type type;
+         
+         switch (nextEvent->type)
+         {
+             case CLAP_EVENT_NOTE_ON:
+                 type = lattice::Processor::NoteEvent::Type::noteOn;
+                 break;
+             case CLAP_EVENT_NOTE_OFF:
+                 type = lattice::Processor::NoteEvent::Type::noteOff;
+                 break;
+             case CLAP_EVENT_NOTE_CHOKE:
+                 type = lattice::Processor::NoteEvent::Type::noteChoke;
+                 break;
+             default:
+                 // Handle unexpected event types (optional)
+                 std::cerr << "Unexpected CLAP note event type: " << nextEvent->type << std::endl;
+                 return; // Skip this event
+         }
+         
+         processor.addNoteEvent({type,
                  noteEvent->key,
                  noteEvent->velocity,
                  noteEvent->note_id,

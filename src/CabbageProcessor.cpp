@@ -1,22 +1,22 @@
 // TestProcessor.cpp
-#include "TestProcessor.h"
+#include "CabbageProcessor.h"
 #include <iostream>
 
 //===================================================================================
 pluginType* CabsProcessorPluginFactory::createPlugin(const clap_host* host)
 {
-    auto* processor = new TestProcessor(2, 2);
+    auto* processor = new CabbageProcessor(2, 2);
     return new pluginType(host, *processor);
 }
 //===================================================================================
 
-TestProcessor::TestProcessor(int numInputs, int numOutputs)
+CabbageProcessor::CabbageProcessor(int numInputs, int numOutputs)
     : Processor(numInputs, numOutputs)
 {
     addParameter({"Gain", 0, 1});
 }
 
-void TestProcessor::process(float** /*inputs*/, float** outputs, std::size_t blockSize)
+void CabbageProcessor::process(float** /*inputs*/, float** outputs, std::size_t blockSize)
 {
     const auto channels = getNumInputs();
     auto& noteEvents = getNoteEvents();
@@ -30,11 +30,11 @@ void TestProcessor::process(float** /*inputs*/, float** outputs, std::size_t blo
     for (uint32_t i = 0; i < blockSize; i++)
     {
         for (uint32_t ch = 0; ch < channels; ++ch)
-            outputs[ch][i] = sine[ch].process(getParameter(0), 220);
+            outputs[ch][i] = sine[ch].process(1, 220);
     }
 }
 
-void TestProcessor::onMesssgeFromWebView(nlohmann::json j)
+void CabbageProcessor::onMesssgeFromWebView(nlohmann::json j)
 {
     std::cout << j.at(0).dump(4);
     float value = j.at(0).value("value", 0.f);
@@ -42,17 +42,17 @@ void TestProcessor::onMesssgeFromWebView(nlohmann::json j)
     sendParameterUpdateToHost(paramIdx, value);
 }
 
-void TestProcessor::setParameter(int paramId, double value)
+void CabbageProcessor::setParameter(int paramId, double value)
 {
     getParameters()[paramId].value = value;
 }
 
-double TestProcessor::getParameter(int paramId) 
+double CabbageProcessor::getParameter(int paramId)
 {
     return getParameters()[paramId].value;
 }
 
-void TestProcessor::prepareToPlay(double /*sampleRate*/, uint32_t /*minFrameCount*/, uint32_t /*maxFrameCount*/)
+void CabbageProcessor::prepareToPlay(double /*sampleRate*/, uint32_t /*minFrameCount*/, uint32_t /*maxFrameCount*/)
 {
     
 }

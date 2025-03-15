@@ -1,6 +1,6 @@
 #pragma once
 
-#define cabsAssert(exp, msg) assert(((void)msg, exp))
+#define lattAssert(exp, msg) assert(((void)msg, exp))
 
 #include <algorithm> // for std::sort
 #include <atomic>
@@ -42,7 +42,7 @@
 #include <sys/stat.h>
 #endif
 
-namespace cabs {
+namespace lattice {
 
 class File
 {

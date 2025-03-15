@@ -1,6 +1,6 @@
-#include "CabsUtils.h"
+#include "LatticeUtils.h"
 
-namespace cabs {
+namespace lattice {
 //========================================================================
 // File utility class
 //========================================================================
@@ -113,11 +113,11 @@ std::vector<std::string> File::getFilesOfType(const std::string &dirPath, const 
     std::vector<std::string> result;
 
     // Resolve the absolute path based on the current CSD file location
-    std::filesystem::path searchPath = cabs::File::formatPath(dirPath);
+    std::filesystem::path searchPath = lattice::File::formatPath(dirPath);
 
     if (searchPath.is_relative())
     {
-        std::filesystem::path dirPath = std::filesystem::path(cabs::File::getBinaryFileAndPath()).parent_path();
+        std::filesystem::path dirPath = std::filesystem::path(lattice::File::getBinaryFileAndPath()).parent_path();
         searchPath = dirPath / searchPath;
     }
 

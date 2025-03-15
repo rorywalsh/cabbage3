@@ -3,7 +3,7 @@
 //
 
 #include "FactoryImpl.h"
-#include "../CabsProcessor.h"
+#include "../LatticeProcessor.h"
 #include "ClapPlugin.h"
 #include <iostream>
 #include "CabbagePluginInfo.h"

@@ -6,15 +6,16 @@
 #include <clap/ext/params.h>
 #include "platform/choc_ReenableAllWarnings.h"
 #include "gui/choc_WebView.h"
-#include "../CabsServer.h"
-#include "../CabsUtils.h"
+#include "../LatticeServer.h"
+#include "../LatticeUtils.h"
 #include <deque>
 
-namespace cabs{
-class Processor;
-}
-
+// Forward declare lattice::Processor 
+// and ClapPlugin
 class ClapPlugin;
+namespace lattice{
+    class Processor;
+}
 
 using pluginType = ClapPlugin;
 
@@ -25,13 +26,13 @@ class ClapPlugin : public clap::helpers::Plugin<clap::helpers::MisbehaviourHandl
 
     
 public:
-    ClapPlugin(const clap_host* host, cabs::Processor& processor);
+    ClapPlugin(const clap_host* host, lattice::Processor& processor);
     ~ClapPlugin() override;
 
     
     bool audioPortsInfo(uint32_t index, bool isInput, clap_audio_port_info* info) const noexcept override;
     bool paramsInfo(uint32_t paramIndex, clap_param_info* info) const noexcept override;
-    bool notePortsInfo(uint32_t index, bool isInput, clap_note_port_info *info) const noexcept;
+    bool notePortsInfo(uint32_t index, bool isInput, clap_note_port_info *info) const noexcept override;
     
     
     uint32_t audioPortsCount(bool /*isInput*/) const noexcept override
@@ -90,7 +91,7 @@ public:
 
 private:
     std::string htmlMntPoint = {};
-    cabs::Server server;
+    lattice::Server server;
     // Add GUI members
     std::unique_ptr<choc::ui::WebView> webview;
     uint32_t currentWidth_ = 800;  // Default width
@@ -101,7 +102,7 @@ private:
     void beginParamAdjust(clap_id paramId) noexcept;
     void endParamAdjust(clap_id paramId) noexcept;
 
-    cabs::Processor& processor; // reference to processor
+    lattice::Processor& processor; // reference to processor
 };
 
 class CabsProcessorPluginFactory {
