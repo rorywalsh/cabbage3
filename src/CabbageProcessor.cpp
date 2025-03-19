@@ -106,7 +106,7 @@ void CabbageProcessor::setupCallbacks()
             // update widget objects in case UI is closed and reopened...
             try
             {
-                cabbage.getWidgetUpdateScript(widget["channel"].get<std::string>(), w.dump());
+                cabbage.getWidgetUpdateScript(widget["channel"].get<std::string>(), widget.dump());
                 
                 if (widget.contains("type") && widget["type"].get<std::string>() == "form")
                 {
