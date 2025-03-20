@@ -5,18 +5,18 @@
 //===================================================================================
 pluginType* CabsProcessorPluginFactory::createPlugin(const clap_host* host)
 {
-    auto* processor = new CabbageProcessor(2, 2);
+    auto* processor = new MultiChannelProcessor(2, 2);
     return new pluginType(host, *processor);
 }
 //===================================================================================
 
-CabbageProcessor::CabbageProcessor(int numInputs, int numOutputs)
+MultiChannelProcessor::MultiChannelProcessor(int numInputs, int numOutputs)
     : Processor(numInputs, numOutputs)
 {
     addParameter({"Gain", 0, 1});
 }
 
-void CabbageProcessor::process(float** /*inputs*/, float** outputs, std::size_t blockSize)
+void MultiChannelProcessor::process(float** /*inputs*/, float** outputs, std::size_t blockSize)
 {
     const auto channels = getNumInputs();
     auto& noteEvents = getNoteEvents();
@@ -34,7 +34,7 @@ void CabbageProcessor::process(float** /*inputs*/, float** outputs, std::size_t 
     }
 }
 
-void CabbageProcessor::onMesssgeFromWebView(nlohmann::json j)
+void MultiChannelProcessor::onMesssgeFromWebView(nlohmann::json j)
 {
     std::cout << j.at(0).dump(4);
     float value = j.at(0).value("value", 0.f);
@@ -42,17 +42,17 @@ void CabbageProcessor::onMesssgeFromWebView(nlohmann::json j)
     sendParameterUpdateToHost(paramIdx, value);
 }
 
-void CabbageProcessor::setParameter(int paramId, double value)
+void MultiChannelProcessor::setParameter(int paramId, double value)
 {
     getParameters()[paramId].value = value;
 }
 
-double CabbageProcessor::getParameter(int paramId)
+double MultiChannelProcessor::getParameter(int paramId)
 {
     return getParameters()[paramId].value;
 }
 
-void CabbageProcessor::prepareToPlay(double /*sampleRate*/, uint32_t /*minFrameCount*/, uint32_t /*maxFrameCount*/)
+void MultiChannelProcessor::prepareToPlay(double /*sampleRate*/, uint32_t /*minFrameCount*/, uint32_t /*maxFrameCount*/)
 {
     
 }

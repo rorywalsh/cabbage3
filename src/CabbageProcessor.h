@@ -53,14 +53,14 @@ class SineOscillator
 
 
 
-class CabbageProcessor : public lattice::Processor {
+class MultiChannelProcessor : public lattice::Processor {
     
 public:
     // Constructor that initializes the CLAP plugin
-    CabbageProcessor(int numInputs, int numOutputs);
+    MultiChannelProcessor(int numInputs, int numOutputs);
     
     // Destructor to clean up resources
-    ~CabbageProcessor(){};
+    ~MultiChannelProcessor(){};
 
     // Process method to handle audio processing
     void process(float** inputs, float** outputs, std::size_t blockSize) override;

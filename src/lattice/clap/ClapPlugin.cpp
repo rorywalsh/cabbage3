@@ -143,7 +143,7 @@ clap_process_status ClapPlugin::process(const clap_process* process) noexcept
     if (process->audio_outputs_count <= 0)
         return CLAP_PROCESS_CONTINUE;
 
-    // Call the CabbageProcessor's process method
+    // Call the GainProcessor's process method
     float** inputs = process->audio_inputs[0].data32;
     float** outputs = process->audio_outputs[0].data32;
     std::size_t blockSize = process->frames_count;

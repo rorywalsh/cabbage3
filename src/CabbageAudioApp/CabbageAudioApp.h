@@ -17,7 +17,7 @@ public:
     bool isStreamRunning() const;
     static void errorCallback(RtAudioErrorType type, const std::string& errorText);
 
-    CabbageProcessor processor; // Main processor
+    MultiChannelProcessor processor; // Main processor
     
 private:
     void initialiseAudio();
