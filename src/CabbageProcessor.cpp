@@ -106,11 +106,15 @@ void CabbageProcessor::setupCallbacks()
             // update widget objects in case UI is closed and reopened...
             try
             {
-                cabbage.getWidgetUpdateScript(widget["channel"].get<std::string>(), widget.dump());
-                
                 if (widget.contains("type") && widget["type"].get<std::string>() == "form")
                 {
                     Resize(widget["size"]["width"].get<int>(), widget["size"]["height"].get<int>());
+                }
+                
+                // Send any messages that were created when the UI was closed
+                for( const auto& msg : uiMessages)
+                {
+                    EvaluateJavaScript(msg.c_str());
                 }
             }
             catch (nlohmann::json::exception &e)
@@ -158,7 +162,8 @@ void CabbageProcessor::setupCallbacks()
         // EvaluateJavaScript(msg.c_str());
         for (auto &w : cabbage.getWidgets())
         {
-            cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
+            auto script = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
+            EvaluateJavaScript(script.c_str());
         }
     };
 }
@@ -245,7 +250,12 @@ void CabbageProcessor::OnParamChangeUI(int paramIdx, iplug::EParamSource source)
                 {
                     const std::string script =
                         cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), GetParam(paramIdx)->Value());
-                    EvaluateJavaScript(script.c_str());
+                    
+                    // If the UI is not open, add messages to queue
+                    if(uiIsOpen)
+                        EvaluateJavaScript(script.c_str());
+                    else
+                        uiMessages.push_back(script);
                 }
             }
         }

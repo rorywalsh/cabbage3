@@ -117,7 +117,7 @@ class CabbageProcessor final : public iplug::Plugin
     bool allowDequeuing = false;
     bool hasValidInputs = true;
     bool matchingNumInputsOutputs = true;
-
+    std::vector<std::string> uiMessages;
     void updateWidgetData(const CabbageOpcodeData &data);
 
 #if defined(OS_LINUX) && !defined(CabbageApp)

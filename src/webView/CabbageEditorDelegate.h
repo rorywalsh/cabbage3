@@ -106,6 +106,8 @@ class CabbageEditorDelegate : public iplug::IEditorDelegate, public iplug::IWebV
             {
                 if (jsonContent["paramIdx"].get<int>() != -1)
                 {
+                    cabbage::logInfo << jsonContent["paramIdx"] << ":" << jsonContent["value"];
+                    
                     SendParameterValueFromUI(jsonContent["paramIdx"], jsonContent["value"]);
                 }
                 else
