@@ -163,7 +163,10 @@ void CabbageProcessor::setupCallbacks()
         for (auto &w : cabbage.getWidgets())
         {
             auto script = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
-            EvaluateJavaScript(script.c_str());
+            if(uiIsOpen)
+                EvaluateJavaScript(script.c_str());
+            else
+                uiMessages.push_back(script);
         }
     };
 }
