@@ -1,200 +1,103 @@
+
 cmake_minimum_required(VERSION 3.25)
 
 # ----------------------------
 # Project Configuration
 # ----------------------------
-if (CABBAGE_SERVICE_APP)
-    project(CabbageServiceApp LANGUAGES CXX VERSION 0.1)
-else()
-    project(cabbagePlugin LANGUAGES CXX VERSION 0.1)
+project(Cabbage LANGUAGES CXX VERSION 0.1)
+
+if (NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
+  if (WIN32)
+    message(STATUS "CMAKE_MSVC_RUNTIME_LIBRARY not defined. Setting to static link")
+  endif()
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>") # Statically link the MSVC Runtime
 endif()
+
+# Add Lattice cmake include
+include(${CMAKE_SOURCE_DIR}/cmake/Dependencies.cmake)
+include(${lattice_SOURCE_DIR}/cmake/Dependencies.cmake)
+
+set(LATTICE_ROOT_DIR "${lattice_SOURCE_DIR}")
+# lattice.cmake need to have LATTICE_ROOT_DIR set in advance of use
+include(${LATTICE_ROOT_DIR}/cmake/lattice.cmake)
+
+
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-option(COPY_AFTER_BUILD "Install local copy after build" TRUE)
-option(CABBAGE_SERVICE_APP "Build the Cabbage service application instead of the plugin" OFF)
-
-# ----------------------------
-# Apple-Specific Settings
-# ----------------------------
-if (APPLE)
-    enable_language(OBJC)
-    enable_language(OBJCXX)
-    
-    set(CMAKE_OBJC_VISIBILITY_PRESET hidden)
-    set(CMAKE_OBJCXX_VISIBILITY_PRESET hidden)
-    set(CMAKE_OBJCXX_FLAGS "${CMAKE_OBJCXX_FLAGS} -fobjc-arc")
-
-    # Link against the Cocoa framework
-    find_library(COCOA_LIBRARY Cocoa)
-endif()
-
-# ----------------------------
-# Dependencies
-# ----------------------------
-set(CLAP_WRAPPER_DOWNLOAD_DEPENDENCIES TRUE CACHE BOOL "Download Dependencies")
-set(CLAP_WRAPPER_OUTPUT_NAME "${PROJECT_NAME}")
 set(CLAP_WRAPPER_DONT_ADD_TARGETS TRUE)
+set(CLAP_WRAPPER_DOWNLOAD_DEPENDENCIES TRUE CACHE BOOL "Download Dependencies")
+option(COPY_AFTER_BUILD "Install local copy after build" FALSE)
 
-include(cmake/Dependencies.cmake)
-include(cmake/lattice.cmake)
+set(PLUGIN_NAME CabbagePluginEffect)
+set(CLAP_WRAPPER_OUTPUT_NAME ${PLUGIN_NAME})
 
-include_directories(
-    ${clap_SOURCE_DIR}/include
-    ${clap-helpers_SOURCE_DIR}/include
-)
-
-# ----------------------------
-# Project basename
-# ----------------------------
-set(PRODUCT_NAME ${PROJECT_NAME})
-
-# ----------------------------
-# Source Files
-# ----------------------------
 set(SOURCE_FILES
     src/CabbageProcessor.cpp
     src/CabbageProcessor.h
-    src/lattice/LatticeProcessor.h
-    src/lattice/LatticeServer.h
-    src/lattice/LatticeServer.cpp
-    src/lattice/LatticeUtils.h
-    src/lattice/LatticeUtils.cpp
-    src/lattice/clap/ClapPlugin.h
-    src/lattice/clap/ClapPlugin.cpp
-    src/lattice/clap/FactoryImpl.cpp
+    ${LATTICE_SOURCE_FILES} # Include lattice source files
 )
 
-# Apple-Specific Sources
-if (APPLE)    
-    list(APPEND SOURCE_FILES src/lattice/clap/platform/MacParent.mm)
-endif()
 
-# ----------------------------
-# Conditional Build
-# ----------------------------
-if (CABBAGE_SERVICE_APP)
-    # ----------------------------
-    # Build the Service App
-    # ----------------------------
-    list(APPEND SOURCE_FILES ./src/CabbageAudioApp/main.cpp)
-    list(APPEND SOURCE_FILES ./src/CabbageAudioApp/CabbageAudioApp.cpp)
-    list(APPEND SOURCE_FILES ./src/CabbageAudioApp/CabbageAudioApp.h)
-    add_executable(${PROJECT_NAME}  ${SOURCE_FILES})
+add_library(${PLUGIN_NAME}-impl STATIC ${SOURCE_FILES})
 
-        # Include Paths
-    target_include_directories(${PROJECT_NAME} PRIVATE 
-        ${clap_SOURCE_DIR}/include
-        ${choc_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/src
-        ${json_SOURCE_DIR}/include
-        ${httplib_SOURCE_DIR}
-        ${rtaudio_SOURCE_DIR}
-        ${rtmidi_SOURCE_DIR}
-    )
+# Generate plugin header - this will define the project properties
+generate_plugin_header(${PLUGIN_NAME}-impl
+    OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}  # Output directory for the header
+    UNIQUE_ID "your.reversed.domain.name.${PLUGIN_NAME}"
+    NAME "${PLUGIN_NAME}"
+    VENDOR "CabbageAudio"
+    URL "https://cabbageaudio.com"
+    MANUAL_URL "https://docs.cabbageaudio.com"
+    SUPPORT_URL "https://support.cabbageaudio.com"
+    VERSION "1.0.0"
+    DESCRIPTION "${PLUGIN_NAME} Plugin"
+    FEATURES 
+        CLAP_PLUGIN_FEATURE_AUDIO_EFFECT 
+        CLAP_PLUGIN_FEATURE_UTILITY 
+        CLAP_PLUGIN_FEATURE_STEREO
+)
 
-        # Generate CabbagePluginInfo.h header
-    generatePluginInfoHeader(${PROJECT_NAME}
-        UNIQUE_ID "your.reversed.domain.name.PluginName"
-        NAME "cabbagePlugin"
-        VENDOR "CabbageAudio"
-        URL "https://cabbageaudio.com"
-        MANUAL_URL "https://docs.cabbageaudio.com"
-        SUPPORT_URL "https://support.cabbageaudio.com"
-        VERSION "1.2.3"
-        DESCRIPTION "Awesome Cabbage Plugin"
-        FEATURES 
-            CLAP_PLUGIN_FEATURE_AUDIO_EFFECT 
-            CLAP_PLUGIN_FEATURE_UTILITY 
-            CLAP_PLUGIN_FEATURE_STEREO
-    )
+# Include Paths
+target_include_directories(${PLUGIN_NAME}-impl PRIVATE 
+    ${LATTICE_INCLUDE_DIRS}
+)
 
-    # Specify the library directory for RtAudio
-    target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/_deps/rtaudio-build)
+# Define a preprocessor macro for the header name
+target_compile_definitions(${PLUGIN_NAME}-impl PRIVATE 
+    PLUGIN_INFO_HEADER="${PLUGIN_NAME}Info.h"
+    PRODUCT_NAME="${PLUGIN_NAME}"
+)
 
-    # Link RtAudio to the executable
-    target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi)
 
-    # Enable C++17 for the executable
-    set_target_properties(${PROJECT_NAME} PROPERTIES
-        CXX_STANDARD 17
-        CXX_STANDARD_REQUIRED ON
-    )
+# Compiler and Platform-Specific Options
+if (WIN32)
+    target_compile_definitions(${PLUGIN_NAME}-impl PRIVATE _CRT_SECURE_NO_WARNINGS)    
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded" CACHE STRING "Multithreaded")
 else()
-    # ----------------------------
-    # Build the Plugin Library
-    # ----------------------------
-    add_library(${PROJECT_NAME}-impl STATIC ${SOURCE_FILES})
-
-    # Generate CabbagePluginInfo.h header
-    generatePluginInfoHeader(${PROJECT_NAME}-impl
-        UNIQUE_ID "your.reversed.domain.name.PluginName"
-        NAME "cabbagePlugin"
-        VENDOR "CabbageAudio"
-        URL "https://cabbageaudio.com"
-        MANUAL_URL "https://docs.cabbageaudio.com"
-        SUPPORT_URL "https://support.cabbageaudio.com"
-        VERSION "1.2.3"
-        DESCRIPTION "Awesome Cabbage Plugin"
-        FEATURES 
-            CLAP_PLUGIN_FEATURE_AUDIO_EFFECT 
-            CLAP_PLUGIN_FEATURE_UTILITY 
-            CLAP_PLUGIN_FEATURE_STEREO
-    )
-
-    # Include Paths
-    target_include_directories(${PROJECT_NAME}-impl PRIVATE 
-        ${clap_SOURCE_DIR}/include
-        ${choc_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/src
-        ${json_SOURCE_DIR}/include
-        ${httplib_SOURCE_DIR}
-    )
-
-    # Compiler and Platform-Specific Options
-    if (WIN32)
-        target_compile_definitions(${PROJECT_NAME}-impl PRIVATE _CRT_SECURE_NO_WARNINGS)    
-        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded" CACHE STRING "Multithreaded")
-    else()
-        target_compile_options(${PROJECT_NAME}-impl PRIVATE -Wall -Wextra -pedantic)
-    endif()
-
-    # Linking
-    if (APPLE)
-        target_link_libraries(${PROJECT_NAME}-impl PUBLIC clap clap-helpers ${COCOA_LIBRARY})
-    endif()
-
-    # Plugin Build Configuration
-    make_clapfirst_plugins(
-        TARGET_NAME ${PROJECT_NAME}
-        IMPL_TARGET ${PROJECT_NAME}-impl
-        OUTPUT_NAME "${PRODUCT_NAME}"
-        ENTRY_SOURCE src/lattice/clap/Factory.cpp
-        BUNDLE_IDENTIFER "org.yourproject.yourthing"
-        BUNDLE_VERSION ${PROJECT_VERSION}
-        COPY_AFTER_BUILD ${COPY_AFTER_BUILD}
-        PLUGIN_FORMATS CLAP VST3 # AUV2
-        ASSET_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_assets
-    )
-
-    # ----------------------------
-    # Copy contents of html folder to plugin Resources folder
-    # ----------------------------
-    set(PLUGIN_BUNDLE_DIR ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_assets/Debug/${PROJECT_NAME}.vst3)
-    set(RESOURCE_DIR ${PLUGIN_BUNDLE_DIR}/Contents/Resources)
-    set(SOURCE_RESOURCE_DIR ${CMAKE_SOURCE_DIR}/html)
-
-    # Define a custom target that performs the post-build actions
-    add_custom_target(project_post_build
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${PLUGIN_BUNDLE_DIR}  # Create the .vst3 directory
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${RESOURCE_DIR}         # Create the Resources directory
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${SOURCE_RESOURCE_DIR} ${RESOURCE_DIR}  # Copy the contents
-        COMMENT "Ensuring plugin bundle and resources directory exists, and copying resources"
-    )
-
-    # Ensure the post-build actions are triggered regardless of the target
-    add_dependencies(${PROJECT_NAME}-impl project_post_build)
-    add_dependencies(${PROJECT_NAME}_vst3 project_post_build)
-    add_dependencies(${PROJECT_NAME}_clap project_post_build)
+    target_compile_options(${PLUGIN_NAME}-impl PRIVATE -Wall -Wextra -pedantic)
 endif()
+
+# Linking
+if (APPLE)
+    target_link_libraries(${PLUGIN_NAME}-impl PUBLIC clap clap-helpers ${COCOA_LIBRARY})
+endif()
+
+# Plugin Build Configuration
+make_clapfirst_plugins(
+    TARGET_NAME ${PLUGIN_NAME}
+    IMPL_TARGET ${PLUGIN_NAME}-impl
+    OUTPUT_NAME "${PLUGIN_NAME}"
+    ENTRY_SOURCE ${LATTICE_ROOT_DIR}/src/lattice/clap/Factory.cpp
+    BUNDLE_IDENTIFER "org.yourproject.${PLUGIN_NAME}"
+    BUNDLE_VERSION ${PROJECT_VERSION}
+    COPY_AFTER_BUILD ${COPY_AFTER_BUILD}
+    PLUGIN_FORMATS CLAP VST3 # AUV2
+    ASSET_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PLUGIN_NAME}_assets
+    STANDALONE_CONFIGURATIONS
+        standalone "${PLUGIN_NAME}" "your.reversed.domain.name.${PLUGIN_NAME}"
+)
+
+
+set(SOURCE_RESOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/html")
+COPY_PLUGIN_RESOURCES(${PLUGIN_NAME} ${SOURCE_RESOURCE_DIR})
