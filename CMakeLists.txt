@@ -1,10 +1,18 @@
 
 cmake_minimum_required(VERSION 3.25)
 
+option(CABBAGE_SERVICE_APP "Build Cabbage Service App" OFF)
+
 # ----------------------------
 # Project Configuration
 # ----------------------------
-project(Cabbage LANGUAGES CXX VERSION 0.1)
+if (CABBAGE_SERVICE_APP)
+    project(CabbageServiceApp LANGUAGES CXX VERSION 0.1)
+else()
+    project(CabbagePlugin LANGUAGES CXX VERSION 0.1)
+endif()
+
+
 
 if (NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
   if (WIN32)
@@ -17,8 +25,9 @@ endif()
 include(${CMAKE_SOURCE_DIR}/cmake/Dependencies.cmake)
 include(${lattice_SOURCE_DIR}/cmake/Dependencies.cmake)
 
-list(APPEND CMAKE_MODULE_PATH "cmake")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 find_package(CSOUND REQUIRED)
+
 
 set(LATTICE_ROOT_DIR "${lattice_SOURCE_DIR}")
 # lattice.cmake need to have LATTICE_ROOT_DIR set in advance of use
@@ -34,17 +43,37 @@ option(COPY_AFTER_BUILD "Install local copy after build" FALSE)
 set(PLUGIN_NAME CabbagePluginEffect)
 set(CLAP_WRAPPER_OUTPUT_NAME ${PLUGIN_NAME})
 
+set(CABBAGE_OPCODE_SOURCES
+    "src/opcodes/CabbageGetOpcodes.h"
+    "src/opcodes/CabbageGetOpcodes.cpp"
+    "src/opcodes/CabbageSetOpcodes.h"
+    "src/opcodes/CabbageSetOpcodes.cpp"
+    "src/opcodes/CabbageProfilerOpcodes.h"
+    "src/opcodes/CabbageProfilerOpcodes.cpp"
+    "src/opcodes/CabbageOpcodes.h"
+)
+
+set(CABBAGE_SOURCES
+    "src/CabbageProcessor.cpp"
+    "src/CabbageProcessor.h"
+    "src/Cabbage.cpp"
+    "src/Cabbage.h"
+    "src/CabbageColours.h"
+    "src/CabbageParser.cpp"
+    "src/CabbageParser.h"
+    "src/CabbageUtils.cpp"
+    "src/CabbageUtils.h"
+)
+
 set(SOURCE_FILES
-    src/CabbageProcessor.cpp
-    src/CabbageProcessor.h
-    src/Cabbage.cpp
-    src/Cabbage.h
-    src/CabbageColours.h
-    src/CabbageParser.cpp
-    src/CabbageParser.h
-    src/CabbageUtils.h
+    ${CABBAGE_SOURCES}
+    ${CABBAGE_OPCODE_SOURCES}
     ${LATTICE_SOURCE_FILES} # Include lattice source files
 )
+
+source_group("Cabbage Source" FILES ${CABBAGE_SOURCES})
+source_group("Cabbage Opcodes" FILES ${CABBAGE_OPCODE_SOURCES})
+source_group("Lattice Source" FILES ${LATTICE_SOURCE_FILES})
 
 
 add_library(${PLUGIN_NAME}-impl STATIC ${SOURCE_FILES})
@@ -66,10 +95,14 @@ generate_plugin_header(${PLUGIN_NAME}-impl
         CLAP_PLUGIN_FEATURE_STEREO
 )
 
+
 # Include Paths
 target_include_directories(${PLUGIN_NAME}-impl PRIVATE 
+    ${lattice_SOURCE_DIR}/src
+    ${choc_SOURCE_DIR}
+    ${readerwriterqueue_SOURCE_DIR}
     ${LATTICE_INCLUDE_DIRS}
-    ${CSOUND_INCLUDE_DIRS}
+    ${CSOUND_INCLUDE_DIR}
 )
 
 # Define a preprocessor macro for the header name
