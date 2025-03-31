@@ -3,38 +3,37 @@
 #include <iostream>
 
 //===================================================================================
-pluginType* CabsProcessorPluginFactory::createPlugin(const clap_host* host)
+pluginType* LatticeProcessorPluginFactory::createPlugin(const clap_host* host)
 {
-    auto* processor = new MultiChannelProcessor(2, 2);
+    //create a new instance of CabbageProcessor 
+    auto *processor = new CabbageProcessor();
     return new pluginType(host, *processor);
 }
 //===================================================================================
 
-MultiChannelProcessor::MultiChannelProcessor(int numInputs, int numOutputs)
-    : Processor(numInputs, numOutputs)
+CabbageProcessor::CabbageProcessor()
+    : Processor()
 {
-    addParameter({"Gain", 0, 1});
+	addInputBus("Input Bus", 2, lattice::ChannelLayout::Stereo);
+    addInputBus("Output Bus", 2, lattice::ChannelLayout::Stereo);
+
+    addParameter({ "Gain", 0, 1 });
+
+    setEditorSize(400, 300);
 }
 
-void MultiChannelProcessor::process(float** /*inputs*/, float** outputs, std::size_t blockSize)
+void CabbageProcessor::process(float** inputs, float** outputs, std::size_t blockSize)
 {
-    const auto channels = getNumInputs();
-    auto& noteEvents = getNoteEvents();
-    
-    while (!noteEvents.empty()) {
-        auto event = noteEvents.front();
-        event.log();
-        noteEvents.pop_front();
-    }
+	const auto channels = getChannelConfig().getTotalNumInputChannels();
     
     for (uint32_t i = 0; i < blockSize; i++)
     {
         for (uint32_t ch = 0; ch < channels; ++ch)
-            outputs[ch][i] = sine[ch].process(1, 220);
+            outputs[ch][i] = inputs[ch][i]*getParameter("Gain");
     }
 }
 
-void MultiChannelProcessor::onMesssgeFromWebView(nlohmann::json j)
+void CabbageProcessor::onMesssgeFromWebView(const nlohmann::json& j)
 {
     std::cout << j.at(0).dump(4);
     float value = j.at(0).value("value", 0.f);
@@ -42,17 +41,14 @@ void MultiChannelProcessor::onMesssgeFromWebView(nlohmann::json j)
     sendParameterUpdateToHost(paramIdx, value);
 }
 
-void MultiChannelProcessor::setParameter(int paramId, double value)
+// This can be called from the host - if so update the
+// corresponding parameter value using updateParameter() function
+void CabbageProcessor::setParameter(int paramId, double value)
 {
     getParameters()[paramId].value = value;
 }
 
-double MultiChannelProcessor::getParameter(int paramId)
-{
-    return getParameters()[paramId].value;
-}
-
-void MultiChannelProcessor::prepareToPlay(double /*sampleRate*/, uint32_t /*minFrameCount*/, uint32_t /*maxFrameCount*/)
+void CabbageProcessor::prepareToPlay(double /*sampleRate*/, uint32_t /*minFrameCount*/, uint32_t /*maxFrameCount*/)
 {
     
 }

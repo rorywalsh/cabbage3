@@ -17,10 +17,12 @@ endif()
 include(${CMAKE_SOURCE_DIR}/cmake/Dependencies.cmake)
 include(${lattice_SOURCE_DIR}/cmake/Dependencies.cmake)
 
+list(APPEND CMAKE_MODULE_PATH "cmake")
+find_package(CSOUND REQUIRED)
+
 set(LATTICE_ROOT_DIR "${lattice_SOURCE_DIR}")
 # lattice.cmake need to have LATTICE_ROOT_DIR set in advance of use
 include(${LATTICE_ROOT_DIR}/cmake/lattice.cmake)
-
 
 
 set(CMAKE_CXX_STANDARD 20)
@@ -35,6 +37,12 @@ set(CLAP_WRAPPER_OUTPUT_NAME ${PLUGIN_NAME})
 set(SOURCE_FILES
     src/CabbageProcessor.cpp
     src/CabbageProcessor.h
+    src/Cabbage.cpp
+    src/Cabbage.h
+    src/CabbageColours.h
+    src/CabbageParser.cpp
+    src/CabbageParser.h
+    src/CabbageUtils.h
     ${LATTICE_SOURCE_FILES} # Include lattice source files
 )
 
@@ -61,6 +69,7 @@ generate_plugin_header(${PLUGIN_NAME}-impl
 # Include Paths
 target_include_directories(${PLUGIN_NAME}-impl PRIVATE 
     ${LATTICE_INCLUDE_DIRS}
+    ${CSOUND_INCLUDE_DIRS}
 )
 
 # Define a preprocessor macro for the header name
@@ -80,7 +89,9 @@ endif()
 
 # Linking
 if (APPLE)
-    target_link_libraries(${PLUGIN_NAME}-impl PUBLIC clap clap-helpers ${COCOA_LIBRARY})
+    target_link_libraries(${PLUGIN_NAME}-impl PUBLIC clap clap-helpers ${COCOA_LIBRARY} ${CSOUND_FRAMEWORK})
+else()
+    target_link_libraries(${PLUGIN_NAME}-impl PUBLIC ${CSOUND_LIBRARY})
 endif()
 
 # Plugin Build Configuration
