@@ -8,6 +8,9 @@
 #include <iomanip>
 #include <numeric>
 
+// choc string utility class
+#include <text/choc_StringUtilities.h>
+
 namespace cabbage
 {
 
@@ -31,7 +34,7 @@ std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string &csdFil
     std::ifstream file(csdFile);
     if (!file.is_open())
     {
-        cabbage::logInfo << "Error opening CSD file: " << csdFile;
+        lattice::logInfo << "Error opening CSD file: " << csdFile;
         return widgets;
     }
 
@@ -80,7 +83,7 @@ std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string &csdFil
     }
     else
     {
-        cabbage::logInfo << "No <Cabbage> section found in the file: " << csdFile;
+        lattice::logInfo << "No <Cabbage> section found in the file: " << csdFile;
     }
 
     return widgets;
@@ -105,7 +108,7 @@ void Parser::parseContent(const std::string &content, std::vector<nlohmann::json
                     }
                     else
                     {
-                        cabbage::logError << "Widget type is not valid: " << item["type"].get<std::string>();
+                        lattice::logError << "Widget type is not valid: " << item["type"].get<std::string>();
                     }
                 }
             }
@@ -113,7 +116,7 @@ void Parser::parseContent(const std::string &content, std::vector<nlohmann::json
     }
     catch (const nlohmann::json::parse_error &e)
     {
-        cabbage::logInfo << "JSON parse error: " << e.what();
+        lattice::logInfo << "JSON parse error: " << e.what();
     }
 }
 
@@ -122,7 +125,7 @@ void Parser::parseJsonFile(const std::string &filename, std::vector<nlohmann::js
     std::ifstream jsonFile(filename);
     if (!jsonFile.is_open())
     {
-        cabbage::logDebug << "Error opening JSON file:" << filename;
+        lattice::logDebug << "Error opening JSON file:" << filename;
         return;
     }
 
@@ -176,7 +179,7 @@ void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJ
 
                     std::vector<std::string> files =
                         File::getFilesOfType(value["directory"].get<std::string>(),
-                                             Utils::sanitisePath(value["fileType"].get<std::string>()));
+                                             cabbage::Utils::sanitisePath(value["fileType"].get<std::string>()));
 
                     jsonObj["channelType"] = "string";
 
@@ -221,14 +224,14 @@ void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJ
             {
                 if (value.is_string())
                 {
-                    jsonObj["file"] = Utils::sanitisePath(value.get<std::string>());
+                    jsonObj["file"] = cabbage::Utils::sanitisePath(value.get<std::string>());
                 }
             }
             else if (key == "text")
             {
                 if (value.is_string())
                 {
-                    if (Utils::toLower(jsonObj["type"].get<std::string>()).find("button") != std::string::npos)
+                    if (choc::text::toLowerCase(jsonObj["type"].get<std::string>()).find("button") != std::string::npos)
                     {
                         jsonObj["text"]["on"] = escapeJSON(value.get<std::string>());
                         jsonObj["text"]["off"] = escapeJSON(value.get<std::string>());
@@ -254,7 +257,7 @@ void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJ
     }
     catch (const nlohmann::json::exception &e)
     {
-        cabbage::logInfo << "JSON exception: " << e.what();
+        lattice::logInfo << "JSON exception: " << e.what();
     }
 }
 

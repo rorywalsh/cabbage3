@@ -11,12 +11,14 @@
 #include "opcodes/CabbageSetOpcodes.h"
 #include "opcodes/CabbageGetOpcodes.h"
 
+#include <text/choc_StringUtilities.h>
+
 namespace cabbage
 {
 
-Engine::Engine(CabbageProcessor &p, std::string file) : processor(p), csdFile(file)
+Engine::Engine(CabbageProcessor &p, std::string file) : csdFile(file), processor(p) 
 {
-    sampleRate = p.GetSampleRate();
+
 };
 
 Engine::~Engine()
@@ -89,9 +91,9 @@ bool Engine::setupCsound()
     csound->SetOption((char *)"-n");
     csound->SetOption((char *)"-d");
     csound->SetOption((char *)"-b0");
-    csound->SetOption(std::string("--sample-rate=" + std::to_string(sampleRate)).c_str());
-    csound->SetOption(std::string("--nchnls=" + std::to_string(processor.NOutChansConnected())).c_str());
-    csound->SetOption(std::string("--nchnls_i=" + std::to_string(processor.NInChansConnected())).c_str());
+    csound->SetOption(std::string("--sample-rate=" + std::to_string(processor.getSampleRate())).c_str());
+    csound->SetOption(std::string("--nchnls=" + std::to_string(processor.getChannelConfig().getTotalNumOutputChannels())).c_str());
+    csound->SetOption(std::string("--nchnls_i=" + std::to_string(processor.getChannelConfig().getTotalNumInputChannels())).c_str());
 
     //    csdFile = "/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/CabbagePluginEffect.csd";
     std::filesystem::path file = csdFile.empty() ? cabbage::File::getCsdFileAndPath() : csdFile;
@@ -109,16 +111,14 @@ bool Engine::setupCsound()
             csScale = csound->Get0dBFS();
             setReservedChannels();
 
-            std::string csoundAddress =
-                cabbage::StringFormatter::format("Resetting csound ...\ncsound = 0x<>", csound.get());
-            cabbage::logDebug << csoundAddress;
+            lattice::logDebug << "Resetting csound ...\ncsound = " << csound.get();
         }
         else
         {
             // Csound could not compile your file?
             while (csound->GetMessageCnt() > 0)
             {
-                cabbage::logInfo << csound->GetFirstMessage();
+                lattice::logInfo << csound->GetFirstMessage();
                 compileErrors += csound->GetFirstMessage();
                 csound->PopFirstMessage();
             }
@@ -128,61 +128,61 @@ bool Engine::setupCsound()
         widgets.clear();
         widgets = cabbage::Parser::parseCsdForWidgets(csdFile);
         std::vector<std::string> rangeTypes = getRangeWidgetTypes(widgets);
-        for (auto &w : widgets)
-        {
-            if (w.contains("automatable") && w["automatable"] == 1 &&
-                (!w.contains("channelType") || w["channelType"] == "number"))
-            {
-                const std::string widgetType = w["type"].get<std::string>();
-                // check if widget has a range - range widget parameters are initialised differently to other widgets
-                if (std::any_of(rangeTypes.begin(), rangeTypes.end(),
-                                [&](const std::string &type) { return widgetType == type; }))
-                {
-                    try
-                    {
-                        processor.GetParam(numberOfParameters)
-                            ->InitDouble(w["channel"].get<std::string>().c_str(),
-                                         w["range"]["defaultValue"].get<float>(), w["range"]["min"].get<float>(),
-                                         w["range"]["max"].get<float>(), w["range"]["increment"].get<float>(),
-                                         std::string(w["channel"].get<std::string>() + "Label1").c_str(),
-                                         iplug::IParam::EFlags::kFlagsNone, "",
-                                         iplug::IParam::ShapePowCurve(w["range"]["skew"].get<float>()));
-                        parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()),
-                                                     w["range"]["defaultValue"].get<float>()});
-                        csound->SetControlChannel(w["channel"].get<std::string>().c_str(),
-                                                  w["range"]["defaultValue"].get<float>());
-                        numberOfParameters++;
-                    }
-                    catch (nlohmann::json::exception &e)
-                    {
-                        cabbage::logInfo << "JSON error: " << e.what() << "\n" << w.dump(4);
-                        cabAssert(false, "");
-                    }
-                }
-                else
-                {
-                    try
-                    {
-                        processor.GetParam(numberOfParameters)
-                            ->InitInt(w["channel"].get<std::string>().c_str(), w["defaultValue"].get<int>(),
-                                      w["min"].get<int>(), w["max"].get<int>(),
-                                      std::string(w["channel"].get<std::string>() + "Label1").c_str(),
-                                      iplug::IParam::EFlags::kFlagsNone, "");
-                        parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()),
-                                                     w["defaultValue"].get<float>()});
-                        csound->SetControlChannel(w["channel"].get<std::string>().c_str(),
-                                                  w["defaultValue"].get<float>());
-                        numberOfParameters++;
-                    }
-                    catch (nlohmann::json::exception &e)
-                    {
-                        cabbage::logInfo << "JSON error: " << e.what() << "\n" << w.dump(4);
-                        cabAssert(false, "");
-                        //                        cabAssert(false, "");
-                    }
-                }
-            }
-        }
+//        for (auto &w : widgets)
+//        {
+//            if (w.contains("automatable") && w["automatable"] == 1 &&
+//                (!w.contains("channelType") || w["channelType"] == "number"))
+//            {
+//                const std::string widgetType = w["type"].get<std::string>();
+//                // check if widget has a range - range widget parameters are initialised differently to other widgets
+//                if (std::any_of(rangeTypes.begin(), rangeTypes.end(),
+//                                [&](const std::string &type) { return widgetType == type; }))
+//                {
+//                    try
+//                    {
+//                        processor.GetParam(numberOfParameters)
+//                            ->InitDouble(w["channel"].get<std::string>().c_str(),
+//                                         w["range"]["defaultValue"].get<float>(), w["range"]["min"].get<float>(),
+//                                         w["range"]["max"].get<float>(), w["range"]["increment"].get<float>(),
+//                                         std::string(w["channel"].get<std::string>() + "Label1").c_str(),
+//                                         iplug::IParam::EFlags::kFlagsNone, "",
+//                                         iplug::IParam::ShapePowCurve(w["range"]["skew"].get<float>()));
+//                        parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()),
+//                                                     w["range"]["defaultValue"].get<float>()});
+//                        csound->SetControlChannel(w["channel"].get<std::string>().c_str(),
+//                                                  w["range"]["defaultValue"].get<float>());
+//                        numberOfParameters++;
+//                    }
+//                    catch (nlohmann::json::exception &e)
+//                    {
+//                        lattice::logInfo << "JSON error: " << e.what() << "\n" << w.dump(4);
+//                        cabAssert(false, "");
+//                    }
+//                }
+//                else
+//                {
+//                    try
+//                    {
+//                        processor.GetParam(numberOfParameters)
+//                            ->InitInt(w["channel"].get<std::string>().c_str(), w["defaultValue"].get<int>(),
+//                                      w["min"].get<int>(), w["max"].get<int>(),
+//                                      std::string(w["channel"].get<std::string>() + "Label1").c_str(),
+//                                      iplug::IParam::EFlags::kFlagsNone, "");
+//                        parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()),
+//                                                     w["defaultValue"].get<float>()});
+//                        csound->SetControlChannel(w["channel"].get<std::string>().c_str(),
+//                                                  w["defaultValue"].get<float>());
+//                        numberOfParameters++;
+//                    }
+//                    catch (nlohmann::json::exception &e)
+//                    {
+//                        lattice::logInfo << "JSON error: " << e.what() << "\n" << w.dump(4);
+//                        cabAssert(false, "");
+//                        //                        cabAssert(false, "");
+//                    }
+//                }
+//            }
+//        }
 
         return true;
     }
@@ -265,7 +265,7 @@ void Engine::processCsoundMessages()
     {
         std::string message(getCsound()->GetFirstMessage());
         message.erase(std::remove(message.begin(), message.end(), '\n'), message.end());
-        cabbage::logInfo << message;
+        lattice::logInfo << message;
         // EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
         getCsound()->PopFirstMessage();
     }
@@ -315,31 +315,30 @@ const std::string Engine::updateWidgetState(nlohmann::json j)
 }
 //===========================================================================================
 
-std::string Engine::getWidgetUpdateScript(std::string channel, std::string data)
+std::string Engine::getWidgetUpdateScript(const std::string& channel, std::string data)
 {
     std::string result;
-    result = StringFormatter::format(R"(
+    result = choc::text::replace(R"(
         window.postMessage({
             command: "widgetUpdate",
-            channel: "<>",
-            data: `<>`
+            channel: "$CHANNEL",
+            data: `$DATA`
         });
-    )",
-                                     channel, data);
+    )", "$CHANNEL", channel, "$DATA", data);
     return result.c_str();
 }
 
-std::string Engine::getWidgetUpdateScript(std::string channel, float value)
+std::string Engine::getWidgetUpdateScript(const std::string& channel, float value)
 {
     std::string result;
-    result = StringFormatter::format(R"(
+    result = choc::text::replace(R"(
         window.postMessage({
             command: "widgetUpdate",
-            channel: "<>",
-            value: <>
+            channel: "$CHANNEL",
+            value: $VALUE
         });
-    )",
-                                     channel, value);
+    )", "$CHANNEL", channel, "$VALUE", std::to_string(value));
+            
     return result.c_str();
 }
 
@@ -363,7 +362,7 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
         }
         catch (nlohmann::json::exception &e)
         {
-            cabbage::logDebug << e.what();
+            lattice::logDebug << e.what();
         }
     }
     else if (data.cabbageJson.contains("file"))
@@ -372,17 +371,17 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
         {
             cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size());
             const int tableNumber = jsonObj["tableNumber"];
-            auto soundfile = File::readAudioFile<double>(jsonObj["file"].get<std::string>(), sampleRate);
+            auto soundfile = cabbage::File::readAudioFile<double>(jsonObj["file"].get<std::string>(), sampleRate);
             auto samples = soundfile.audioData;
 
             if (samples.size() == 0)
                 return;
 
-            auto createTable = StringFormatter::format(R"(giTable<> ftgen <>, 0, <>, -7, 0, 0)", tableNumber,
-                                                       tableNumber, samples.size());
-
-            getCsound()->CompileOrc(createTable.c_str());
+            std::stringstream ss;
+            ss << "giTable" << tableNumber << " ftgen " << samples.size() << " 0, -7, 0, 0";
+            getCsound()->CompileOrc(ss.str().c_str());
             const int tableSize = getCsound()->TableLength(tableNumber);
+            
             if (tableSize != -1)
             {
                 MYFLT *tablePtr = nullptr;
@@ -404,12 +403,12 @@ void Engine::setTableJSON(std::string channel, std::vector<double> samples, nloh
 
     // no point in sending more samples that can be displayed per pixel...
     const float incr = float(endSample - startSample) / ((jsonObj["bounds"]["width"].get<float>()));
-    cabbage::logDebug << "Updating function table";
+    lattice::logDebug << "Updating function table";
     for (float i = startSample; i < static_cast<int>(endSample); i += incr)
     {
         widgetSampleData.push_back(samples[int(i)]);
     }
-    cabbage::logDebug << "Table size" << widgetSampleData.size();
+    lattice::logDebug << "Table size" << widgetSampleData.size();
     //
     //    while(widgetSampleData.size() < jsonObj["bounds"]["width"].get<int>()))
     //    {
@@ -419,14 +418,15 @@ void Engine::setTableJSON(std::string channel, std::vector<double> samples, nloh
     jsonObj["samples"] = widgetSampleData;
 }
 
-const std::string Engine::getCsoundOutputUpdateScript(std::string output)
+const std::string Engine::getCsoundOutputUpdateScript(const std::string &output)
 {
-    StringFormatter::removeBackticks(output);
+    auto outputText = choc::text::replace(output, "`", "");
+
     std::string result;
-    result = StringFormatter::format(R"(
-         window.postMessage({ command: "csoundOutputUpdate", text: `<>` });
-        )",
-                                     output);
+    result = choc::text::replace(R"(
+         window.postMessage({ command: "csoundOutputUpdate", text: `$OUTPUT_TEXT` });
+        )", "$OUTPUT_TEXT", outputText);
+
     return result.c_str();
 }
 

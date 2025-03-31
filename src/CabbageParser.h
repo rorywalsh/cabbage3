@@ -6,7 +6,7 @@
 #include <regex>
 #include <string>
 #include <vector>
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 #include "CabbageUtils.h"
 #include "CabbageColours.h"
 

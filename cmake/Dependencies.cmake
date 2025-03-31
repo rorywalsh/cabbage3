@@ -33,5 +33,12 @@ FetchContent_Declare(
     GIT_TAG main
 )
 
+FetchContent_Declare(
+    readerwriterqueue
+    GIT_REPOSITORY https://github.com/rorywalsh/readerwriterqueue.git
+    GIT_TAG ab2082837bda45e8a1a2d6934b211212ae3e2d1b
+)
+
+
 # Make all dependencies available
-FetchContent_MakeAvailable(lattice)
+FetchContent_MakeAvailable(lattice readerwriterqueue)

@@ -19,7 +19,7 @@
 #include <readerwriterqueue.h>
 
 class CabbageProcessor;
-class CabbageOpcodeData;
+struct CabbageOpcodeData;
 
 namespace cabbage
 {
@@ -35,7 +35,7 @@ class Engine
     struct ParameterChannel
     {
         std::string name;
-        void setValue(float v, float min = 0, float max = 1, float skew = 1, float increment = 1) { value = v; }
+        void setValue(float v) { value = v; }
 
         float getValue() { return value; }
 
@@ -85,9 +85,6 @@ class Engine
     // Get the KSMPS value
     int getKsmps() { return csdKsmps; }
 
-    // Get the MIDI queue
-    std::vector<iplug::IMidiMsg> &getMidiQueue() { return midiQueue; }
-
     // Stop processing
     void stopProcessing() { csCompileResult = -1; }
 
@@ -128,8 +125,8 @@ class Engine
     void processCsoundMessages();
 
     // return a JS script that will trigger a widget's properties to be updated
-    static std::string getWidgetUpdateScript(std::string channel, std::string data);
-    static std::string getWidgetUpdateScript(std::string channel, float value);
+    static std::string getWidgetUpdateScript(const std::string& channel, std::string data);
+    static std::string getWidgetUpdateScript(const std::string& channel, float value);
 
     // these two methods return combine with getWidgetIdentifierUpdateScript() to return a JS method
     // that packs samples for a given table
@@ -137,7 +134,7 @@ class Engine
     static void setTableJSON(std::string channel, std::vector<double> samples, nlohmann::json &jsonObj);
 
     // returns a script that will update a csoundoutput widget
-    const std::string getCsoundOutputUpdateScript(std::string output);
+    const std::string getCsoundOutputUpdateScript(const std::string& output);
 
     // return a vector of all widget types that have a range object
     static std::vector<std::string> getRangeWidgetTypes(const std::vector<nlohmann::json> widgets);
@@ -157,10 +154,12 @@ class Engine
     {
         if (compileErrors.length() > 0)
         {
-            cabbage::logInfo << compileErrors.c_str();
+            lattice::logInfo << compileErrors.c_str();
             compileErrors.clear();
         }
     }
+    
+    CabbageProcessor& getProcessor(){   return processor;  }
 
   private:
     void addOpcodes();
@@ -175,7 +174,6 @@ class Engine
     MYFLT csScale = 0.0;
     MYFLT *csSpin = nullptr;
     double sampleRate = 44100;
-    std::vector<iplug::IMidiMsg> midiQueue;
     std::string csdFile = {};
     std::string compileErrors;
     std::unique_ptr<Csound> csound;

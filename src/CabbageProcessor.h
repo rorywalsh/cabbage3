@@ -1,16 +1,24 @@
 #pragma once
 
 #include "lattice/LatticeProcessor.h"
+#include "Cabbage.h"
 
 
 class CabbageProcessor : public lattice::Processor {
     
 public:
-  CabbageProcessor();
+    CabbageProcessor();
     
     // Destructor to clean up resources
-  ~CabbageProcessor(){};
+    ~CabbageProcessor(){};
 
+    // Csound API functions for deailing with midi input
+    static int OpenMidiInputDevice(CSOUND *csnd, void **userData, const char *devName);
+    static int OpenMidiOutputDevice(CSOUND *csnd, void **userData, const char *devName);
+    static int ReadMidiData(CSOUND *csound, void *userData, unsigned char *mbuf, int nbytes);
+    static int WriteMidiData(CSOUND *csound, void *userData, const unsigned char *mbuf, int nbytes);
+
+    
     // Process method to handle audio processing
     void process(float** inputs, float** outputs, std::size_t blockSize) override;
 
@@ -22,7 +30,9 @@ public:
     
     // Called at least once before the processing starts
     void prepareToPlay(double sampleRate, uint32_t minFrameCount, uint32_t maxFrameCount) override;
-    
+        
+    int getSampleRate(){    return sampleRate;  }
 private:
-
+    int sampleRate;
+    cabbage::Engine cabbage;
 };
