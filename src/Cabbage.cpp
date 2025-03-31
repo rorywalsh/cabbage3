@@ -127,7 +127,8 @@ bool Engine::setupCsound()
 
         widgets.clear();
         widgets = cabbage::Parser::parseCsdForWidgets(csdFile);
-        std::vector<std::string> rangeTypes = getRangeWidgetTypes(widgets);
+        
+
 //        for (auto &w : widgets)
 //        {
 //            if (w.contains("automatable") && w["automatable"] == 1 &&
@@ -191,6 +192,15 @@ bool Engine::setupCsound()
 }
 
 //===========================================================================================
+void Engine::initParameter(const nlohmann::json& w)
+{
+    parameterChannels.push_back(
+        {cabbage::Parser::removeQuotes(w["channel"].get<std::string>()), w["range"]["defaultValue"].get<float>()});
+    csound->SetControlChannel(w["channel"].get<std::string>().c_str(), w["range"]["defaultValue"].get<float>());
+    numberOfParameters++;
+}
+
+//===========================================================================================
 void Engine::setReservedChannels()
 {
     auto path = cabbage::File::getCsdPath(csdFile);
@@ -239,11 +249,37 @@ const std::string Engine::getIOChannalConfig(const std::string &csdFile)
                               : cabbage::File::getNumberOfInputChannels(csdFile);
 
     if (cabbage::Utils::validateChannelConfig(channelConfig, numInputs, numOutputs))
-        return std::to_string(numInputs) + "-" + std::to_string(numOutputs);
+        return channelConfig;
     else
         return "2-2";
 }
 
+std::pair<std::vector<int>, std::vector<int>> Engine::parseBusConfiguration(const std::string &config)
+{
+    auto splitAndParse = [](const std::string &str) -> std::vector<int>
+    {
+        std::vector<int> buses;
+        std::stringstream ss(str);
+        std::string segment;
+
+        while (std::getline(ss, segment, '.'))
+            buses.push_back(std::stoi(segment)); // Convert to int and store
+
+        return buses;
+    };
+
+    size_t dashPos = config.find('-');
+    if (dashPos == std::string::npos)
+        throw std::invalid_argument("Invalid format. Expected '-' in input.");
+
+    std::string inputPart = config.substr(0, dashPos);
+    std::string outputPart = config.substr(dashPos + 1);
+
+    std::vector<int> inputBuses = splitAndParse(inputPart);
+    std::vector<int> outputBuses = splitAndParse(outputPart);
+
+    return {inputBuses, outputBuses};
+}
 //===========================================================================================
 
 void Engine::setControlChannel(const std::string channel, MYFLT value)

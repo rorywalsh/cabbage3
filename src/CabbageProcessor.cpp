@@ -6,7 +6,7 @@
 pluginType* LatticeProcessorPluginFactory::createPlugin(const clap_host* host)
 {
     //create a new instance of CabbageProcessor 
-    auto *processor = new CabbageProcessor();
+    auto* processor = new CabbageProcessor();
     return new pluginType(host, *processor);
 }
 //===================================================================================
@@ -16,17 +16,92 @@ pluginType* LatticeProcessorPluginFactory::createPlugin(const clap_host* host)
 CabbageProcessor::CabbageProcessor()
     : Processor(), cabbage(*this, "")
 {
+    addParameters();
+    addChannels();
+
     auto rootPath = cabbage::File::getCsdPath(cabbage.getCsdFile());
     setMountPoint(rootPath);
+
     
-	addInputBus("Input Bus", 2, lattice::ChannelLayout::Stereo);
-    addInputBus("Output Bus", 2, lattice::ChannelLayout::Stereo);
+    if (auto json = cabbage::File::parseCabbageSection(cabbage.getCsdFile()))
+    {
+        auto w = cabbage::Utils::findPropertyInForm<int>(*json, "size.width");
+        auto h = cabbage::Utils::findPropertyInForm<int>(*json, "size.height");
+        setEditorSize(400, 300);
+    }
+      
 
-
-    setEditorSize(400, 300);
+  
 }
 #endif
 
+//==================================================================================
+void CabbageProcessor::addChannels()
+{
+    auto channelConfig = cabbage::Engine::getIOChannalConfig(cabbage.getCsdFile());
+    auto [inputBuses, outputBuses] = cabbage.parseBusConfiguration(channelConfig);
+
+    int inputBusIndex = 1;
+    for (int bus : inputBuses)
+    {
+        addInputBus("Input Bus" + std::to_string(inputBusIndex), bus, lattice::ChannelLayout(bus));
+        inputBusIndex++;
+    }
+
+    int outputBusIndex = 1;
+    for (int bus : outputBuses)
+    {
+        addInputBus("Output Bus" + std::to_string(outputBusIndex), bus, lattice::ChannelLayout(bus));
+        outputBusIndex++;
+    }
+}
+
+void CabbageProcessor::addParameters()
+{
+    std::vector<std::string> rangeTypes = cabbage.getRangeWidgetTypes(cabbage.getWidgets());
+    for (auto &w : cabbage.getWidgets())
+    {
+        if (w.contains("automatable") && w["automatable"] == 1 &&
+            (!w.contains("channelType") || w["channelType"] == "number"))
+        {
+            const std::string widgetType = w["type"].get<std::string>();
+
+                try
+                {
+                    // check if widget has a range - range widget parameters are initialised differently to other
+                    // widgets
+                    if (std::any_of(rangeTypes.begin(), rangeTypes.end(),
+                                    [&](const std::string &type) { return widgetType == type; }))
+                    {
+                        addParameter({w["channel"].get<std::string>(), 
+                            w["range"]["min"].get<float>(),
+                            w["range"]["max"].get<float>(), 
+                            w["range"]["defaultValue"].get<float>(),
+                            w["range"]["increment"].get<float>(), 
+                            w["range"]["skew"].get<float>()});
+                    }
+                    else
+                    {
+                        addParameter({w["channel"].get<std::string>(), 
+                            w["min"].get<float>(),
+                            w["max"].get<float>(), 
+                            w["defaultValue"].get<float>()});
+                    }
+
+                   cabbage.initParameter(w);
+                }
+                catch (nlohmann::json::exception &e)
+                {
+                    lattice::logInfo << "JSON error: " << e.what() << "\n" << w.dump(4);
+                    cabbage::Utils::check(false, "");
+                }
+            }
+        }
+    }
+}
+
+
+//=================================================================================
 void CabbageProcessor::process(float** inputs, float** outputs, std::size_t blockSize)
 {
 	const auto channels = getChannelConfig().getTotalNumInputChannels();

@@ -18,7 +18,12 @@ public:
     static int ReadMidiData(CSOUND *csound, void *userData, unsigned char *mbuf, int nbytes);
     static int WriteMidiData(CSOUND *csound, void *userData, const unsigned char *mbuf, int nbytes);
 
-    
+    // Add parameters based on automatable widgets
+    void addParameters(); 
+
+    // Set up channel config
+    void addChannels();
+
     // Process method to handle audio processing
     void process(float** inputs, float** outputs, std::size_t blockSize) override;
 

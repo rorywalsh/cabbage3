@@ -88,6 +88,9 @@ class Engine
     // Stop processing
     void stopProcessing() { csCompileResult = -1; }
 
+    // init and set up parameter
+    void initParameter(const nlohmann::json &w);
+
     // Get a parameter channel by index
     ParameterChannel &getParameterChannel(int index) { return parameterChannels[index]; }
 
@@ -117,6 +120,9 @@ class Engine
 
     // return the channel config string, e.g., '2-2'
     static const std::string getIOChannalConfig(const std::string &csdFile);
+
+    // return a vector pair contining input and output buses
+    static std::pair<std::vector<int>, std::vector<int>> parseBusConfiguration(const std::string &config);
 
     // utility script to remove control characters from string - needed to santise Cabbage code going to JS
     static std::string removeControlCharacters(const std::string &input);

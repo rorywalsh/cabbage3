@@ -38,19 +38,39 @@ public:
         }
     }
     
-    // Quickly find a property defined in a user's "form" object
+    // Quickly find a property defined in a user's "form" object - sppourts flat and nested properties
     template <typename T>
     static std::optional<T> findPropertyInForm(const nlohmann::json &json, const std::string &propertyName)
     {
+        auto getNestedValue = [](const nlohmann::json &jsonObj,
+                                 const std::string &path) -> std::optional<nlohmann::json>
+        {
+            nlohmann::json current = jsonObj;
+            std::stringstream ss(path);
+            std::string segment;
+
+            // Split on '.' to navigate through nested properties
+            while (std::getline(ss, segment, '.'))
+            {
+                if (!current.contains(segment))
+                    return std::nullopt;
+                current = current[segment];
+            }
+            return current;
+        };
+
         for (const auto &item : json)
         {
-            if (item.contains("type") && item["type"] == "form" && item.contains(propertyName))
+            if (item.contains("type") && item["type"] == "form")
             {
-                return item[propertyName].get<T>();
+                auto valueOpt = getNestedValue(item, propertyName);
+                if (valueOpt.has_value())
+                    return valueOpt->get<T>();
             }
         }
         return std::nullopt; // Return empty optional if not found
     }
+
     
 };
 
