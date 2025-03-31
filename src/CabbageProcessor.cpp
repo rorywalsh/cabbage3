@@ -66,35 +66,34 @@ void CabbageProcessor::addParameters()
         {
             const std::string widgetType = w["type"].get<std::string>();
 
-                try
+            try
+            {
+                // check if widget has a range - range widget parameters are initialised differently to other
+                // widgets
+                if (std::any_of(rangeTypes.begin(), rangeTypes.end(),
+                                [&](const std::string &type) { return widgetType == type; }))
                 {
-                    // check if widget has a range - range widget parameters are initialised differently to other
-                    // widgets
-                    if (std::any_of(rangeTypes.begin(), rangeTypes.end(),
-                                    [&](const std::string &type) { return widgetType == type; }))
-                    {
-                        addParameter({w["channel"].get<std::string>(), 
-                            w["range"]["min"].get<float>(),
-                            w["range"]["max"].get<float>(), 
-                            w["range"]["defaultValue"].get<float>(),
-                            w["range"]["increment"].get<float>(), 
-                            w["range"]["skew"].get<float>()});
-                    }
-                    else
-                    {
-                        addParameter({w["channel"].get<std::string>(), 
-                            w["min"].get<float>(),
-                            w["max"].get<float>(), 
-                            w["defaultValue"].get<float>()});
-                    }
+                    addParameter({w["channel"].get<std::string>(), 
+                        w["range"]["min"].get<float>(),
+                        w["range"]["max"].get<float>(), 
+                        w["range"]["defaultValue"].get<float>(),
+                        w["range"]["increment"].get<float>(), 
+                        w["range"]["skew"].get<float>()});
+                }
+                else
+                {
+                    addParameter({w["channel"].get<std::string>(), 
+                        w["min"].get<float>(),
+                        w["max"].get<float>(), 
+                        w["defaultValue"].get<float>()});
+                }
 
-                   cabbage.initParameter(w);
-                }
-                catch (nlohmann::json::exception &e)
-                {
-                    lattice::logInfo << "JSON error: " << e.what() << "\n" << w.dump(4);
-                    cabbage::Utils::check(false, "");
-                }
+                cabbage.initParameter(w);
+            }
+            catch (nlohmann::json::exception &e)
+            {
+                lattice::logInfo << "JSON error: " << e.what() << "\n" << w.dump(4);
+                cabbage::Utils::check(false, "");
             }
         }
     }
