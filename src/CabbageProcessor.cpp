@@ -1,25 +1,28 @@
-// TestProcessor.cpp
+
 #include "CabbageProcessor.h"
 #include <iostream>
 
-//===================================================================================
+//========================================================================================
 pluginType* LatticeProcessorPluginFactory::createPlugin(const clap_host* host)
 {
     //create a new instance of CabbageProcessor 
     auto* processor = new CabbageProcessor();
     return new pluginType(host, *processor);
 }
-//===================================================================================
+//========================================================================================
+
 #if defined(CABBAGE_SERVICE_APP)
 
 #else
 CabbageProcessor::CabbageProcessor()
     : Processor(), cabbage(*this, "")
 {
+    
     addParameters();
     addChannels();
 
-    auto rootPath = cabbage::File::getCsdPath(cabbage.getCsdFile());
+    auto rootPath = cabbage::File::getParentDirectory(cabbage::File::getCsdFileAndPath());
+    
     setMountPoint(rootPath);
 
     
@@ -27,20 +30,30 @@ CabbageProcessor::CabbageProcessor()
     {
         auto w = cabbage::Utils::findPropertyInForm<int>(*json, "size.width");
         auto h = cabbage::Utils::findPropertyInForm<int>(*json, "size.height");
-        setEditorSize(400, 300);
+        setEditorSize(w.value(), h.value());
     }
       
-
+    
   
 }
 #endif
 
-//==================================================================================
+//========================================================================================
+// Add channels based on channelConfig property
+//========================================================================================
 void CabbageProcessor::addChannels()
 {
-    auto channelConfig = cabbage::Engine::getIOChannalConfig(cabbage.getCsdFile());
+    auto file = cabbage::File::getCsdFileAndPath();
+    lattice::logInfo << file;
+    
+    cabbage::Utils::check(lattice::File::exists(file), "Can't find csd file");
+    
+    
+    auto channelConfig = cabbage::Engine::getIOChannalConfig(file);
     auto [inputBuses, outputBuses] = cabbage.parseBusConfiguration(channelConfig);
-
+    
+    matchingNumInputsOutputs = inputBuses.size() == outputBuses.size();
+    
     int inputBusIndex = 1;
     for (int bus : inputBuses)
     {
@@ -54,8 +67,17 @@ void CabbageProcessor::addChannels()
         addInputBus("Output Bus" + std::to_string(outputBusIndex), bus, lattice::ChannelLayout(bus));
         outputBusIndex++;
     }
+    
+    auto config = getChannelConfig();
+    totalNumInputs = config.getTotalNumInputChannels();
+    totalNumOutputs = config.getTotalNumOutputChannels();
+    
+    
 }
 
+//========================================================================================
+// Add parameters based on widget declarations
+//========================================================================================
 void CabbageProcessor::addParameters()
 {
     std::vector<std::string> rangeTypes = cabbage.getRangeWidgetTypes(cabbage.getWidgets());
@@ -99,19 +121,70 @@ void CabbageProcessor::addParameters()
     }
 }
 
-
-//=================================================================================
+//========================================================================================
+// Main processing function
+//========================================================================================
 void CabbageProcessor::process(float** inputs, float** outputs, std::size_t blockSize)
 {
-	const auto channels = getChannelConfig().getTotalNumInputChannels();
-    
-    for (uint32_t i = 0; i < blockSize; i++)
+    // only process audio if Csound has compiled successfully.
+    if (cabbage.csdCompiledWithoutError())
     {
-        for (uint32_t ch = 0; ch < channels; ++ch)
-            outputs[ch][i] = inputs[ch][i]*getParameter("Gain");
+        for (int i = 0; i < static_cast<int>(blockSize); i++, ++csndIndex)
+        {
+            if (csndIndex >= cabbage.getKsmps())
+            {
+                cabbage.performKsmps();
+                csndIndex = 0;
+            }
+
+            // In cases where we have the same number of inputs/outputs we can read
+            // and write in the same loop. In cases where we have a different number
+            // of inputs/outputs we first iterate over the inputs, and then the outputs.
+            // This adds a little overhead, hence this is only done when needed.
+            if (matchingNumInputsOutputs)
+            {
+                for (int channel = 0; channel < totalNumOutputs; channel++)
+                {
+                    pos = csndIndex * totalNumOutputs;
+                    cabbage.setSpIn(channel + pos, inputs[channel][i]);
+                    // outputs[channel][i] = inputs[channel][i] + cabbage.getSpOut(channel + pos);
+                    outputs[channel][i] = cabbage.getSpOut(channel + pos);
+                }
+            }
+            else
+            {
+                // Process inputs first
+                for (int inputChannel = 0; inputChannel < totalNumInputs; inputChannel++)
+                {
+                    pos = csndIndex * totalNumInputs; // Position in interleaved array
+                    cabbage.setSpIn(inputChannel + pos, inputs[inputChannel][i]);
+                }
+
+                // Process outputs
+                for (int outputChannel = 0; outputChannel < totalNumOutputs; outputChannel++)
+                {
+                    pos = csndIndex * totalNumOutputs; // Position in interleaved array
+                    // Fill output buffer from Csound's processed output
+                    outputs[outputChannel][i] = cabbage.getSpOut(outputChannel + pos);
+                }
+            }
+        }
+    }
+    else
+    {
+        // calling this once here in case errors are missed in vscode logger
+        cabbage.displayAndClearCompileErrors();
+
+        // zero outputs so we don't get unwanted signal when csound fails
+        for (int i = 0; i < static_cast<int>(blockSize); i++)
+            for (int channel = 0; channel < totalNumOutputs; channel++)
+                outputs[channel][i] = 0;
     }
 }
 
+//========================================================================================
+// Callback function - triggered when a message is sent from the webview
+//========================================================================================
 void CabbageProcessor::onMesssgeFromWebView(const nlohmann::json& j)
 {
     std::cout << j.at(0).dump(4);
@@ -132,16 +205,20 @@ void CabbageProcessor::prepareToPlay(double sr, uint32_t /*minFrameCount*/, uint
     sampleRate = sr;
 }
 
-//======================== CSOUND MIDI FUNCTIONS ================================
+//========================================================================================
+//=============================== CSOUND MIDI FUNCTIONS ==================================
+//========================================================================================
+// Opens MIDI input device
+//========================================================================================
 int CabbageProcessor::OpenMidiInputDevice(CSOUND *csound, void **userData, const char * /*devName*/)
 {
     *userData = csoundGetHostData(csound);
     return 0;
 }
 
-//==============================================================================
+//========================================================================================
 // Reads MIDI input data from host, gets called every time there is MIDI input to our plugin
-//==============================================================================
+//========================================================================================
 int CabbageProcessor::ReadMidiData(CSOUND * /*csound*/, void *userData, unsigned char *mbuf, int nbytes)
 {
     auto *pluginData = static_cast<cabbage::Engine *>(userData);
@@ -193,21 +270,21 @@ int CabbageProcessor::ReadMidiData(CSOUND * /*csound*/, void *userData, unsigned
 }
 
 
-//==============================================================================
+//========================================================================================
 // Opens MIDI output device, adding -QN to your CsOptions will causes this method to be called
 // as soon as your plugin loads
-//==============================================================================
+//========================================================================================
 int CabbageProcessor::OpenMidiOutputDevice(CSOUND *csound, void **userData, const char * /*devName*/)
 {
     *userData = csoundGetHostData(csound);
     return 0;
 }
 
-//==============================================================================
+//========================================================================================
 // Write MIDI data to plugin's MIDI output. Each time Csound outputs a midi message this
 // method should be called. Note: you must have -Q set in your CsOptions
-//==============================================================================
-int CabbageProcessor::WriteMidiData(CSOUND * /*csound*/, void *_userData, const unsigned char *mbuf, int nbytes)
+//========================================================================================
+int CabbageProcessor::WriteMidiData(CSOUND * /*csound*/, void *_userData, const unsigned char* /*mbuf*/, int nbytes)
 {
     auto *userData = static_cast<CabbageProcessor *>(_userData);
 
@@ -217,7 +294,5 @@ int CabbageProcessor::WriteMidiData(CSOUND * /*csound*/, void *_userData, const 
         return 0;
     }
 
-    //    juce::MidiMessage message (mbuf, nbytes, 0);
-    //    userData->midiOutputBuffer.addEvent (message, 0);
     return nbytes;
 }

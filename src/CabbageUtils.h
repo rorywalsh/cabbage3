@@ -33,7 +33,7 @@ public:
     
     static void check(bool condition, const std::string& message)
     {
-        if (condition) {
+        if (!condition) {
             throw std::runtime_error("Assertion failed: " + message);
         }
     }
@@ -65,7 +65,7 @@ public:
             {
                 auto valueOpt = getNestedValue(item, propertyName);
                 if (valueOpt.has_value())
-                    return valueOpt->get<T>();
+                    return valueOpt->template get<T>();
             }
         }
         return std::nullopt; // Return empty optional if not found
@@ -90,7 +90,48 @@ public:
     static std::string getCsdPath(const std::string& file = "");
     // Extract widget properties from corresponding JS file
     static nlohmann::json extractPropsFromJS(const std::string &jsContent);
-    
+    // Returns path to Cabbage specific resources folder
+    static std::string getCabbageResourceDir();
+#if defined(_WIN32)
+    static std::string getWindowsProgramDataDir()
+    {
+           char path[MAX_PATH];
+           if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_COMMON_APPDATA, NULL, 0, path)))
+               return std::string(path) + "\\CabbageAudio";
+           else
+               return "";
+    }
+#elif defined(__APPLE__)
+    static std::string getMacCabbageResourceDir()
+    {
+        const char *homeDir = getenv("HOME");
+        if (homeDir)
+            return std::string(homeDir) + "/Library/CabbageAudio";
+        else
+        {
+            struct passwd *pw = getpwuid(getuid());
+            if (pw)
+                return std::string(pw->pw_dir) + "/Library/CabbageAudio";
+            else
+                return "";
+        }
+    }
+#elif defined(__linux__)
+    static std::string getLinuxHomeDir()
+    {
+        const char *homeDir = getenv("HOME");
+        if (homeDir)
+            return std::string(homeDir);
+        else
+        {
+            struct passwd *pw = getpwuid(getuid());
+            if (pw)
+                return std::string(pw->pw_dir);
+            else
+                return "";
+        }
+    }
+#endif
     //===========================================================================================
     template <typename T>
     static File::Soundfile<T> readAudioFile(const std::string &filePath, int targetSampleRate)

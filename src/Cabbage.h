@@ -171,11 +171,8 @@ class Engine
     void addOpcodes();
     int numberOfParameters = 0;
     std::vector<ParameterChannel> parameterChannels;
-    int samplePosForMidi = 0;
     std::string csoundOutput = {};
     int csCompileResult = -1;
-    int numCsoundOutputChannels = 0;
-    int numCsoundInputChannels = 0;
     int csdKsmps = 0;
     MYFLT csScale = 0.0;
     MYFLT *csSpin = nullptr;

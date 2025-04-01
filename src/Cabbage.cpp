@@ -429,7 +429,7 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
     }
 }
 
-void Engine::setTableJSON(std::string channel, std::vector<double> samples, nlohmann::json &jsonObj)
+void Engine::setTableJSON(std::string /*channel*/, std::vector<double> samples, nlohmann::json &jsonObj)
 {
     // this is a condensed version of the sample data that is passed around between C++ and JS.
     std::vector<double> widgetSampleData;

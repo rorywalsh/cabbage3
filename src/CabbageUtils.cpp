@@ -209,6 +209,22 @@ int File::getNumberOfOutputChannels(const std::string &csdFile)
     return 2;
 }
 
+std::string File::getCabbageResourceDir()
+{
+    if (lattice::File::usesBundledResources())
+        return lattice::File::getResourceDirFromBundle();
+
+#if defined(_WIN32)
+    return getWindowsProgramDataDir();
+#elif defined(__APPLE__)
+    return getMacCabbageResourceDir();
+#elif defined(__linux__)
+    return getLinuxHomeDir() + "/.config/CabbageAudio";
+#else
+    return "";
+#endif
+}
+
 std::string File::getCsdPath(const std::string& file)
 {
     // If loading resources from plugin bundle..
@@ -218,7 +234,7 @@ std::string File::getCsdPath(const std::string& file)
     // Otherwise figure out path to .csd file..
     if (file.empty())
     {
-        std::string resourceDir = getResourceDir();
+        std::string resourceDir = getResourceDirFromBundle();
         
         std::string binaryFileName = getBinaryFileName();
         size_t pos = binaryFileName.find_last_of(".");
@@ -236,7 +252,7 @@ std::string File::getCsdPath(const std::string& file)
 
 std::string File::getCsdFileAndPath()
 {
-    std::string resourceDir = lattice::File::getResourceDir();
+    std::string resourceDir = lattice::File::getResourceDirFromBundle();
     std::string binaryFileName = lattice::File::getBinaryFileName();
     size_t pos = binaryFileName.find_last_of(".");
     
@@ -245,11 +261,19 @@ std::string File::getCsdFileAndPath()
     
     if (usesBundledResources())
     {
-        const std::string newPath = joinPath(resourceDir, binaryFileName + ".csd");
+        const std::string newPath = joinPath(resourceDir, binaryFileName + std::string(".csd"));
         return newPath;
     }
-    
+        
     const std::string newPath = joinPath(resourceDir, binaryFileName);
+    
+    if(!lattice::File::exists(newPath))
+    {
+        auto fullPath = lattice::File::joinPath(cabbage::File::getCabbageResourceDir(), binaryFileName, binaryFileName + std::string(".csd"));
+        return fullPath;
+    }
+    
+    
     return joinPath(newPath, binaryFileName + ".csd");
 }
 

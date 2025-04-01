@@ -85,7 +85,7 @@ int CabbageProfilerPrint::kperf()
     int trig = args[1];
 
     profiler = (Profiler **)csound->query_global_variable(identifier.c_str());
-    Profiler *profilerData;
+    Profiler* profilerData;
 
     if (profiler != nullptr)
     {

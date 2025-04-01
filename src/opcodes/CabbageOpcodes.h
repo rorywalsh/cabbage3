@@ -211,8 +211,7 @@ struct CabbageOpcodes
     }
 
     template <typename T>
-    void updateWidgetJson(nlohmann::json &jsonObj, csnd::Param<NumInputParams> &args, int argIndex, int numIns,
-                          std::string identifier)
+    void updateWidgetJson(nlohmann::json &jsonObj, csnd::Param<NumInputParams> &args, int argIndex, std::string identifier)
     {
         // check if the identifier is already a JSON object, i.e, as in the case below
         // cabbageSet metro(1), "infoText", sprintf({{"text":"%s"}}, SText)

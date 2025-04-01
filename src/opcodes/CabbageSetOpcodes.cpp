@@ -73,9 +73,9 @@ int CabbageSetPerfString::setIdentifier(int /*pass*/)
     else
     {
         if (in_count() - argIndex == 1)
-            updateWidgetJson<std::string>(data.cabbageJson, args, argIndex, in_count(), data.identifier);
+            updateWidgetJson<std::string>(data.cabbageJson, args, argIndex, data.identifier);
         else
-            updateWidgetJson<std::string>(data.cabbageJson, args, argIndex + 1, in_count(), data.identifier);
+            updateWidgetJson<std::string>(data.cabbageJson, args, argIndex + 1, data.identifier);
         hostData->opcodeData.enqueue(data);
     }
 
@@ -101,9 +101,9 @@ int CabbageSetInitString::setIdentifier(int /*pass*/)
     }
 
     if (in_count() == 3)
-        updateWidgetJson<std::string>(data.cabbageJson, args, argIndex + 1, in_count(), data.identifier);
+        updateWidgetJson<std::string>(data.cabbageJson, args, argIndex + 1, data.identifier);
     else
-        updateWidgetJson<std::string>(data.cabbageJson, args, argIndex + 1, in_count(), data.identifier);
+        updateWidgetJson<std::string>(data.cabbageJson, args, argIndex + 1, data.identifier);
 
     hostData->opcodeData.enqueue(data);
 
@@ -135,7 +135,7 @@ int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
     }
     else
     {
-        updateWidgetJson<MYFLT>(data.cabbageJson, args, argIndex + 1, in_count(), data.identifier);
+        updateWidgetJson<MYFLT>(data.cabbageJson, args, argIndex + 1, data.identifier);
         hostData->opcodeData.enqueue(data);
     }
 
@@ -159,9 +159,9 @@ int CabbageSetInitMYFLT::setIdentifier(int /*pass*/)
     }
 
     if (in_count() == 3)
-        updateWidgetJson<MYFLT>(data.cabbageJson, args, argIndex + 1, in_count(), data.identifier);
+        updateWidgetJson<MYFLT>(data.cabbageJson, args, argIndex + 1, data.identifier);
     else
-        updateWidgetJson<MYFLT>(data.cabbageJson, args, argIndex + 1, in_count(), data.identifier);
+        updateWidgetJson<MYFLT>(data.cabbageJson, args, argIndex + 1, data.identifier);
 
     hostData->opcodeData.enqueue(data);
 
@@ -193,7 +193,7 @@ int CabbageSetPerfMYFLTArray::setIdentifier(int /*pass*/)
     }
     else
     {
-        updateWidgetJson<MYFLT>(data.cabbageJson, args, argIndex + 1, in_count(), data.identifier);
+        updateWidgetJson<MYFLT>(data.cabbageJson, args, argIndex + 1, data.identifier);
         hostData->opcodeData.enqueue(data);
     }
 
@@ -216,7 +216,7 @@ int CabbageSetInitMYFLTArray::setIdentifier(int /*pass*/)
         return NOTOK;
     }
 
-    updateWidgetJson<MYFLT>(data.cabbageJson, args, argIndex + 1, in_count(), data.identifier);
+    updateWidgetJson<MYFLT>(data.cabbageJson, args, argIndex + 1, data.identifier);
     hostData->opcodeData.enqueue(data);
 
     return IS_OK;

@@ -38,6 +38,11 @@ public:
         
     int getSampleRate(){    return sampleRate;  }
 private:
-    int sampleRate;
+    int sampleRate = 44100;
     cabbage::Engine cabbage;
+    bool matchingNumInputsOutputs = true;
+    int csndIndex = 0;
+    int pos = 0;
+    int totalNumOutputs = 0;
+    int totalNumInputs = 0;
 };
