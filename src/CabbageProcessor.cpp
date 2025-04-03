@@ -18,6 +18,15 @@ CabbageProcessor::CabbageProcessor()
     : Processor(), cabbage(*this, "")
 {
     
+    if (!cabbage.setupCsound())
+    {
+        lattice::logInfo << "Csound could not be compiled";
+        return;
+    }
+
+    // All message to webview will be wrapped in window.postMessage()
+    setWebViewSendFunctionName("window.postMessage");
+    
     addParameters();
     addChannels();
 
@@ -64,7 +73,7 @@ void CabbageProcessor::addChannels()
     int outputBusIndex = 1;
     for (int bus : outputBuses)
     {
-        addInputBus("Output Bus" + std::to_string(outputBusIndex), bus, lattice::ChannelLayout(bus));
+        addOutputBus("Output Bus" + std::to_string(outputBusIndex), bus, lattice::ChannelLayout(bus));
         outputBusIndex++;
     }
     
@@ -187,17 +196,61 @@ void CabbageProcessor::process(float** inputs, float** outputs, std::size_t bloc
 //========================================================================================
 void CabbageProcessor::onMesssgeFromWebView(const nlohmann::json& j)
 {
-    std::cout << j.at(0).dump(4);
-    float value = j.at(0).value("value", 0.f);
-    auto paramIdx = j.at(0).value("paramIdx", -1);
-    sendParameterUpdateToHost(paramIdx, value);
+    // Incoming JSON message is always wrapped in []
+    auto incomingMessage = j.at(0);
+    lattice::logInfo << incomingMessage.dump(4);
+
+    if (incomingMessage["command"] == "cabbageIsReadyToLoad")
+    {
+        updateUI();
+    }
+    else if (incomingMessage["command"] == "parameterChange")
+    {
+        try
+        {
+            // Parse the JSON string contained in "obj"
+            auto obj = nlohmann::json::parse(incomingMessage["obj"].get<std::string>());
+            
+            // Extract values
+            float value = obj.value("value", 0.f);
+            auto paramIdx = obj.value("paramIdx", -1);
+
+            // Update Csound channel
+            cabbage.setControlChannel(obj.value("channel", ""), value);
+            sendParameterUpdateToHost(paramIdx, value);
+        }
+        catch (const nlohmann::json::exception& e)
+        {
+            lattice::logError << "Failed to parse 'obj': " << e.what();
+        }
+    }
 }
 
+
+//========================================================================================
+// Update UI - we typically call this when we want to update widgets in the UI
+//========================================================================================
+void CabbageProcessor::updateUI()
+{
+    // iterate over all widget objects and send to webview
+    for (auto &w : cabbage.getWidgets())
+    {
+        if (w.contains("channel")) // only let valid object through.
+        {
+            auto result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
+            sendWebViewMessage(result);
+        }
+    }
+}
+
+//========================================================================================
 // This can be called from the host - if so update the
 // corresponding parameter value using updateParameter() function
+//========================================================================================
 void CabbageProcessor::setParameter(int paramId, double value)
 {
     getParameters()[paramId].value = value;
+    cabbage.setControlChannel(getParameters()[paramId].name, value);
 }
 
 void CabbageProcessor::prepareToPlay(double sr, uint32_t /*minFrameCount*/, uint32_t /*maxFrameCount*/)

@@ -239,7 +239,8 @@ public:
         cabbage::File::getSettingsProperty("currentConfig", "jsSourceDir") + "/cabbage/widgets";
         ;
 #else
-        std::string widgetPath = cabbage::File::getCsdPath() + "/cabbage/widgets"; // Folder containing widget files
+        const auto resourceDir = lattice::File::getParentDirectory(cabbage::File::getCsdFileAndPath());
+        std::string widgetPath = lattice::File::joinPath(resourceDir, "cabbage", "widgets"); // Folder containing widget files
 #endif
         
         if (!cabbage::File::directoryExists(widgetPath))

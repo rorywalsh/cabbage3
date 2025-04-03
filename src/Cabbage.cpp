@@ -127,63 +127,7 @@ bool Engine::setupCsound()
 
         widgets.clear();
         widgets = cabbage::Parser::parseCsdForWidgets(csdFile);
-        
-
-//        for (auto &w : widgets)
-//        {
-//            if (w.contains("automatable") && w["automatable"] == 1 &&
-//                (!w.contains("channelType") || w["channelType"] == "number"))
-//            {
-//                const std::string widgetType = w["type"].get<std::string>();
-//                // check if widget has a range - range widget parameters are initialised differently to other widgets
-//                if (std::any_of(rangeTypes.begin(), rangeTypes.end(),
-//                                [&](const std::string &type) { return widgetType == type; }))
-//                {
-//                    try
-//                    {
-//                        processor.GetParam(numberOfParameters)
-//                            ->InitDouble(w["channel"].get<std::string>().c_str(),
-//                                         w["range"]["defaultValue"].get<float>(), w["range"]["min"].get<float>(),
-//                                         w["range"]["max"].get<float>(), w["range"]["increment"].get<float>(),
-//                                         std::string(w["channel"].get<std::string>() + "Label1").c_str(),
-//                                         iplug::IParam::EFlags::kFlagsNone, "",
-//                                         iplug::IParam::ShapePowCurve(w["range"]["skew"].get<float>()));
-//                        parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()),
-//                                                     w["range"]["defaultValue"].get<float>()});
-//                        csound->SetControlChannel(w["channel"].get<std::string>().c_str(),
-//                                                  w["range"]["defaultValue"].get<float>());
-//                        numberOfParameters++;
-//                    }
-//                    catch (nlohmann::json::exception &e)
-//                    {
-//                        lattice::logInfo << "JSON error: " << e.what() << "\n" << w.dump(4);
-//                        cabAssert(false, "");
-//                    }
-//                }
-//                else
-//                {
-//                    try
-//                    {
-//                        processor.GetParam(numberOfParameters)
-//                            ->InitInt(w["channel"].get<std::string>().c_str(), w["defaultValue"].get<int>(),
-//                                      w["min"].get<int>(), w["max"].get<int>(),
-//                                      std::string(w["channel"].get<std::string>() + "Label1").c_str(),
-//                                      iplug::IParam::EFlags::kFlagsNone, "");
-//                        parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()),
-//                                                     w["defaultValue"].get<float>()});
-//                        csound->SetControlChannel(w["channel"].get<std::string>().c_str(),
-//                                                  w["defaultValue"].get<float>());
-//                        numberOfParameters++;
-//                    }
-//                    catch (nlohmann::json::exception &e)
-//                    {
-//                        lattice::logInfo << "JSON error: " << e.what() << "\n" << w.dump(4);
-//                        cabAssert(false, "");
-//                        //                        cabAssert(false, "");
-//                    }
-//                }
-//            }
-//        }
+   
 
         return true;
     }
@@ -355,11 +299,11 @@ std::string Engine::getWidgetUpdateScript(const std::string& channel, std::strin
 {
     std::string result;
     result = choc::text::replace(R"(
-        window.postMessage({
+        {
             command: "widgetUpdate",
             channel: "$CHANNEL",
             data: `$DATA`
-        });
+        }
     )", "$CHANNEL", channel, "$DATA", data);
     return result.c_str();
 }
@@ -368,11 +312,11 @@ std::string Engine::getWidgetUpdateScript(const std::string& channel, float valu
 {
     std::string result;
     result = choc::text::replace(R"(
-        window.postMessage({
+        {
             command: "widgetUpdate",
             channel: "$CHANNEL",
             value: $VALUE
-        });
+        }
     )", "$CHANNEL", channel, "$VALUE", std::to_string(value));
             
     return result.c_str();
