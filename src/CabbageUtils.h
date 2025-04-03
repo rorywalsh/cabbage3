@@ -31,10 +31,10 @@ public:
     static std::string getJsonWithLineNumbers(const nlohmann::json &j);
     static std::string getJsonWithLineNumbers(const std::string &json_str);
     
-    static void check(bool condition, const std::string& message)
+    static void check(bool condition, const std::string& message = "")
     {
         if (!condition) {
-            throw std::runtime_error("Assertion failed: " + message);
+            throw std::runtime_error(message.empty() ? "" : "Assertion failed: " + message);
         }
     }
     
@@ -77,7 +77,8 @@ public:
 class File : public lattice::File
 {
 public:
-    static std::string getCsdFileAndPath();
+    // Returns the csd file. If csdFile is emtpy it willdeduct the location
+    static std::string getCsdFileAndPath(std::string csdFile = "");
     // Reads and parses the cabbage section from the file
     static std::optional<nlohmann::json> parseCabbageSection(const std::string &csdFile);
     // Function to get the number of input channels (nchnls_i)
@@ -92,6 +93,13 @@ public:
     static nlohmann::json extractPropsFromJS(const std::string &jsContent);
     // Returns path to Cabbage specific resources folder
     static std::string getCabbageResourceDir();
+    
+    // Return the user's Cabbage file
+    static std::string getSettingsFile();
+    
+    // Returns a property from teh aettings file
+    static std::string getSettingsProperty(const std::string &section, const std::string &key);
+    
 #if defined(_WIN32)
     static std::string getWindowsProgramDataDir()
     {

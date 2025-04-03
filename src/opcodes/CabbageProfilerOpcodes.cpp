@@ -85,7 +85,7 @@ int CabbageProfilerPrint::kperf()
     int trig = args[1];
 
     profiler = (Profiler **)csound->query_global_variable(identifier.c_str());
-    Profiler* profilerData;
+    Profiler* profilerData = {};
 
     if (profiler != nullptr)
     {
@@ -99,12 +99,11 @@ int CabbageProfilerPrint::kperf()
         std::map<std::string, std::unique_ptr<ProfilerTimer>>::iterator it;
         std::stringstream output = {};
         output << identifier << " | ";
-//        for (auto const &t : profilerData->timer)
-//        {
-//            /* if(t.second.get())
-//                 output << t.first << ":" << std::string(t.second.get()->getAverage(), 4).paddedLeft(' ',
-//               10).toStdString() << "\t\t";*/
-//        }
+        for (auto const &t : profilerData->timer)
+        {
+             if(t.second.get())
+                 output << t.first << ":" << std::string(t.second.get()->getAverage(), 4) << "\t\t";
+        }
 
         csound->message(output.str());
     }

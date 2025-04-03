@@ -121,7 +121,7 @@ std::string Utils::getJsonWithLineNumbers(const std::string &json_str)
 std::string File::getCabbageSection(const std::string &csdFile)
 {
 
-    auto csdFilePath = csdFile.empty() ? getCsdFileAndPath() : csdFile;
+    auto csdFilePath = (!csdFile.empty() && lattice::File::exists(csdFile)) ? csdFile : getCsdFileAndPath();
     auto csdText = choc::file::loadFileAsString(csdFilePath);
     
     std::regex cabbageRegex(R"(<Cabbage>([\s\S]*?)</Cabbage>)");
@@ -250,8 +250,11 @@ std::string File::getCsdPath(const std::string& file)
     }
 }
 
-std::string File::getCsdFileAndPath()
+std::string File::getCsdFileAndPath(std::string csdFile)
 {
+    if(lattice::File::exists(csdFile))
+        return csdFile;
+    
     std::string resourceDir = lattice::File::getResourceDirFromBundle();
     std::string binaryFileName = lattice::File::getBinaryFileName();
     size_t pos = binaryFileName.find_last_of(".");
@@ -341,6 +344,74 @@ nlohmann::json File::extractPropsFromJS(const std::string &jsContent)
     }
 
     return {};
+}
+
+std::string File::getSettingsFile()
+{
+    // if in CabbageApp mode, the widget src dir is set by the Cabbage .ini settings
+    std::stringstream settingsPath;
+#if defined WIN32
+    cabbage::Utils::check(false, "fix this");
+    /* TCHAR strPath[2048];
+     SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
+     std::string settingsPath = std::string(strPath) + "\\Cabbage\\settings.json";
+     return settingsPath;*/
+    CHAR strPath[256];
+    SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
+    iniPath.SetFormatted(256, "%s\\%s\\", strPath, "Cabbage");
+    iniPath.Append("settings.json"); // add file name to path
+    return iniPath.Get();
+
+#elif defined __APPLE__
+    settingsPath << getenv("HOME") << "/Library/Application Support/Cabbage/settings.json";
+    return settingsPath.str();
+#else
+    cabbage::Utils::check(false, "fix this");
+    iniPath.SetFormatted(2048, "%s/.config/%s/", getenv("HOME"), "Cabbage");
+    iniPath.Append("settings.json"); // add file name to path
+    return iniPath.Get();
+#endif
+
+    return {};
+}
+
+std::string File::getSettingsProperty(const std::string &section, const std::string &key)
+{
+    // Open the settings file in binary mode
+    std::ifstream file(getSettingsFile(), std::ios::binary);
+    if (!file.is_open())
+    {
+        std::cerr << "Error: Could not open the file " << getSettingsFile() << std::endl;
+        return "";
+    }
+
+    // Read file contents
+    std::ostringstream oss;
+    oss << file.rdbuf();
+    std::string fileContent = oss.str();
+    file.close();
+
+    // Parse JSON data
+    nlohmann::json jsonData;
+
+    try
+    {
+        jsonData = nlohmann::json::parse(fileContent);
+    }
+    catch (const nlohmann::json::parse_error &e)
+    {
+        lattice::logInfo << "Parse error : " << e.what() << " at byte position " << e.byte;
+        return "";
+    }
+
+    // Validate section and key existence
+    if (jsonData.contains(section) && jsonData[section].contains(key))
+    {
+        return jsonData[section][key].get<std::string>();
+    }
+
+    lattice::logInfo << "Error: Section '" << section << "' or key '" << key << "' not found.";
+    return "";
 }
 
 }

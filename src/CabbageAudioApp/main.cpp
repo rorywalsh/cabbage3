@@ -38,7 +38,7 @@ BOOL WINAPI consoleHandler(DWORD signal)
 }
 #endif
 
-int main() {
+int main(int argc, char* argv[]) {
     // Set up signal handling
     std::signal(SIGTERM, signalHandler);
     std::signal(SIGINT, signalHandler);
@@ -47,9 +47,9 @@ int main() {
 #ifdef _WIN32
     SetConsoleCtrlHandler(consoleHandler, TRUE);
 #endif
-
+    
     // Create an instance of CabbageAudioApp
-    appInstance = new CabbageAudioApp();
+    appInstance = new CabbageAudioApp(argc, argv);
 
     // Keep the program running while the stream is active
     while (appInstance->isStreamRunning()) {

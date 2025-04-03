@@ -1,22 +1,42 @@
 #include "CabbageAudioApp.h"
 #include <iostream>
 #include <algorithm>
+#include "argparse.hpp"
 
-CabbageAudioApp::CabbageAudioApp()
-    : numChannels(2), bufferSize(512), isRunning(false), processor(2, 2)
+CabbageAudioApp::CabbageAudioApp(int argc, char* argv[])
+    : numChannels(2), bufferSize(512), isRunning(false)
 {
-    // Preallocate the empty input buffer
+    cabbage::Utils::check(parseComandLineArgs(argc, argv));
+    
+    processor = std::make_unique<CabbageProcessor>(csdFileAndPath);
+    
+    // Preallocate the empty input buffer in case of no input device
     emptyInputBuffer = new float *[numChannels];
     for (unsigned int ch = 0; ch < numChannels; ++ch)
     {
         emptyInputBuffer[ch] = new float[bufferSize];
         std::fill(emptyInputBuffer[ch], emptyInputBuffer[ch] + bufferSize, 0.0f); // Initialize with zeros
     }
-
-    // Initialize audio
+    
+    // Init audio and MIDI
     initialiseAudio();
-    // Initialise midi
     initialiseMidi();
+
+    // Optionally start test serverfor development purposes
+    if(startTestServer)
+    {
+        testServerRunning = true;
+        startWebSocketServerForTesting();
+        // Wait for the server to start (adjust delay if needed)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    }
+    
+    // Init websocket client connection
+    initialiseWebSocketConnection();
+    
+    // Register callback - will be triggered from CabbageProcessor
+    processor->hostCallback = [&](CabbageOpcodeData data){   hostCallback(data);    };
+
 }
 
 CabbageAudioApp::~CabbageAudioApp()
@@ -36,15 +56,279 @@ CabbageAudioApp::~CabbageAudioApp()
             audio->closeStream();
         }
     }
+    
     // Clean up the preallocated empty input buffer
     for (unsigned int ch = 0; ch < numChannels; ++ch)
     {
         delete[] emptyInputBuffer[ch];
     }
+    
     delete[] emptyInputBuffer;
+    
+    // Stop test server if its running
+    if(startTestServer)
+        testServerRunning = false;
 }
 
+//==============================================================================
+bool CabbageAudioApp::parseComandLineArgs(int argc, char* argv[])
+{
+    argparse::ArgumentParser program("CabbageApp");
 
+    // Define the --file argument (required string)
+    program.add_argument("--file")
+        .help("Path to the CSD file")
+        .required()  // Make it a required argument
+        .default_value(std::string("")); // Default to empty string if not provided
+
+    // Define the --portNumber argument (integer)
+    program.add_argument("--portNumber")
+        .help("Port number for the server")
+        .required()  // Make it a required argument
+        .action([](const std::string& value) {
+            return std::stoi(value);  // Convert the string to an integer
+        });
+
+    // Define the --startTestServer argument (boolean)
+    program.add_argument("--startTestServer")
+        .help("Whether to start the test server (true/false)")
+        .default_value(false)  // Default to false if not provided
+        .action([](const std::string& value) {
+            return value == "true";  // Convert "true" to true, otherwise false
+        });
+
+    try {
+        // Parse command-line arguments
+        program.parse_args(argc, argv);
+    } catch (const std::runtime_error& err) {
+        // If an error occurs, print it and exit
+        std::cerr << err.what() << std::endl;
+        return false;
+    }
+
+    // Retrieve the parsed arguments
+    csdFileAndPath = program.get<std::string>("--file");
+    portNumber = program.get<int>("--portNumber");
+    startTestServer = program.get<bool>("--startTestServer");
+    return true;
+    
+}
+//==============================================================================
+void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
+{
+    auto &cabbage = processor->getCabbageEngine();
+    auto widgetOpt = cabbage.getWidget(data.channel);
+    
+    if (widgetOpt.has_value())
+    {
+        auto &j = widgetOpt.value().get();
+
+        // this will update a genTable
+        if (j["type"].get<std::string>() == "genTable")
+        {
+            cabbage.updateFunctionTable(data, j);
+            nlohmann::json msg;
+            msg["command"] = "widgetUpdate";
+            msg["channel"] = data.channel;
+            msg["data"] = j.dump();
+            webSocket.send(msg.dump());
+        }
+        else
+        {
+            if (data.type == CabbageOpcodeData::MessageType::Value)
+            {
+                nlohmann::json json;
+                cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+                nlohmann::json msg;
+                msg["command"] = "widgetUpdate";
+                msg["channel"] = data.channel;
+                msg["value"] = j["value"].get<float>();
+                webSocket.send(msg.dump());
+            }
+            else
+            {
+                nlohmann::json json;
+                cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+                nlohmann::json msg;
+                msg["command"] = "widgetUpdate";
+                msg["channel"] = data.channel;
+                msg["data"] = j.dump();
+                webSocket.send(msg.dump());
+            }
+        }
+    }
+}
+
+//==============================================================================
+void CabbageAudioApp::startWebSocketServerForTesting()
+{
+    // Lambda function to run the server in a thread
+    auto serverThreadFunc = [this]() {
+        ix::WebSocketServer server(portNumber);
+        
+        server.setOnClientMessageCallback(
+            [](std::shared_ptr<ix::ConnectionState> connectionState,
+               ix::WebSocket& webSocket,
+               const ix::WebSocketMessagePtr& msg) {
+                if (msg->type == ix::WebSocketMessageType::Message) {
+                    lattice::logDebug << "Server received: " << msg->str;
+//                    webSocket.send("Message received: " + msg->str);
+                }
+            }
+        );
+
+        auto result = server.listen();
+        if (result.first) {
+            lattice::logDebug << "WebSocket Server listening on port " << portNumber;
+            server.start();
+            
+            // Keep the server running until `serverRunning` is false
+            while (testServerRunning) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+            
+            server.stop();
+        } else {
+            lattice::logDebug << "Failed to start WebSocket Server on port " << portNumber;
+            lattice::logDebug << "Error: " << result.second;
+        }
+    };
+
+    // Start the server thread
+    webSocketServerThread = std::thread(serverThreadFunc);
+}
+//==============================================================================
+bool CabbageAudioApp::initialiseWebSocketConnection()
+{
+    std::string address("ws://localhost:");
+    address.append(std::to_string(portNumber).c_str());
+    lattice::logDebug << "Attempting to connect to WebSocket at " << address;
+    webSocket.setUrl(address);
+
+    webSocket.setOnMessageCallback(
+        [this](const ix::WebSocketMessagePtr &msg)
+        {
+            auto &cabbage = processor->getCabbageEngine();
+            if (msg->type == ix::WebSocketMessageType::Message)
+            {
+                try
+                {
+                    auto json = nlohmann::json::parse(msg->str, nullptr, false);
+                    const std::string command = json["command"];
+                    nlohmann::json jsonObj;
+                    if (json.contains("obj"))
+                        jsonObj = nlohmann::json::parse(json["obj"].get<std::string>());
+
+                    if (command == "parameterChange")
+                    {
+                        for (int i = 0; i < cabbage.getNumberOfParameters(); i++)
+                        {
+                            if (cabbage.getParameterChannel(i).name == jsonObj["channel"].get<std::string>())
+                            {
+                                // update underlying JSON object if the value has changed
+                                auto widgetOpt = cabbage.getWidget(jsonObj["channel"]);
+                                if (widgetOpt.has_value())
+                                {
+                                    auto &widgetObj = widgetOpt.value().get();
+                                    widgetObj["value"] = jsonObj["value"].get<double>();
+                                }
+                                processor->setParameter(i, jsonObj["value"].get<double>());
+                            }
+                        }
+                        //                            SendParameterValueFromUI(message["paramIdx"], message["value"]);
+                    }
+                    else if (command == "fileOpenFromVSCode")
+                    {
+                        if (jsonObj.contains("fileName"))
+                        {
+                            cabbage.setStringChannel(jsonObj["channel"].get<std::string>(),
+                                                     jsonObj["fileName"].get<std::string>());
+                        }
+                    }
+                    else if (command == "setFileAsInput")
+                    {
+                    }
+
+                    else if (command == "widgetStateUpdate")
+                    {
+                        cabbage.updateWidgetState(jsonObj);
+                    }
+                    else if (command == "midiMessage")
+                    {
+                        cabbage::Utils::check(false, "need to add this");
+                    }
+                    else if (command == "cabbageIsReadyToLoad")
+                    {
+                        nlohmann::json msg;
+                        msg["command"] = "cabbageIsReadyToLoad";
+                        msg["data"] = "";
+                        webSocket.send(msg.dump());
+                        lattice::logInfo << "CabbageIsReadyToLoad";
+                    }
+                    else if (command == "stopCsound")
+                    {
+                        std::cout << "stopping Csound" << msg->str << std::endl;
+//                        processor->stopProcessing();
+                    }
+                    else if (command == "stopAudio")
+                    {
+                        //when VS Code tries to end the process, it first send a stopAudio message..
+                        lattice::logDebug << "Closing audio and MIDI devices....";
+                        audio->closeStream();
+                    }
+                    else
+                    {
+                        // std::cout << "received message: " << msg->str << std::endl;
+                        std::cout << "> " << std::flush;
+                    }
+                }
+                catch (nlohmann::json::exception &e)
+                {
+                    lattice::logDebug << "Error:" << e.what() << " - ";
+                    lattice::logDebug << msg->str;
+                    return false;
+                }
+            }
+            else if (msg->type == ix::WebSocketMessageType::Open)
+            {
+                lattice::logDebug << "Connection established";
+                // if connection is open we need to send all parse jSON objects to VS-Code..
+                nlohmann::json msg;
+                msg["command"] = "cabbageIsReadyToLoad";
+                msg["data"] = "";
+                webSocket.send(msg.dump());
+                lattice::logInfo << "CabbageIsReadyToLoad";
+                
+                for (auto &w : cabbage.getWidgets())
+                {
+                    nlohmann::json msg;
+                    msg["command"] = "widgetUpdate";
+                    msg["channel"] = w["channel"];
+                    msg["data"] = w.dump();
+                    webSocket.send(msg.dump());
+                }
+            }
+            else if (msg->type == ix::WebSocketMessageType::Close)
+            {
+                lattice::logDebug << "websocket connection closed..";
+            }
+            else if (msg->type == ix::WebSocketMessageType::Error)
+            {
+                // Maybe SSL is not configured properly
+                lattice::logDebug << "Connection error: " << msg->errorInfo.reason;
+                // std::cout << "> " << std::flush;
+            }
+
+            return true;
+        });
+
+    // Now that our callback is setup, we can start our background thread and receive messages
+    webSocket.start();
+
+    return true;
+}
+
+//==============================================================================
 void CabbageAudioApp::initialiseMidi()
 {
     try
@@ -75,34 +359,77 @@ void CabbageAudioApp::initialiseMidi()
     return true;
 }
 
+int CabbageAudioApp::getAudioDeviceId(const std::string& deviceName) const
+{
+    const auto ids = audio->getDeviceIds();
+    for (const auto &id : ids)
+    {
+        const auto name = audio->getDeviceInfo(id).name;
+        if (deviceName == name)
+            return id;
+    }
+
+    return -1;
+}
+
 void CabbageAudioApp::initialiseAudio()
 {
     // Create an instance of RtAudio
     std::vector<RtAudio::Api> apis;
     RtAudio::getCompiledApi(apis);
-    audio = std::make_unique<RtAudio>(apis[0], errorCallback);
-
+    
+    
+#if defined LATTICE_WINDOWS
+    if (mState.mAudioDriverType == kDeviceASIO)
+        audio = std::make_unique<RtAudio>(RtAudio::WINDOWS_ASIO, errorCallback);
+    else
+        audio = std::make_unique<RtAudio>(RtAudio::WINDOWS_DS, errorCallback);
+#elif defined LATTICE_MACOS
+    // RtAudio::Api::MACOSX_CORE is default on MacOS
+    audio = std::make_unique<RtAudio>(RtAudio::Api::MACOSX_CORE, errorCallback);
+#else
+    audio = std::make_unique<RtAudio>(RtAudio::LINUX_ALSA);
+#endif
+    
+    auto settingsFilePath = cabbage::File::getSettingsFile();
+    addDevicesToSettings(settingsFilePath);
+    audioConfig.loadFromJson(settingsFilePath);
+    
     // Check if audio devices are available
     if (audio->getDeviceCount() < 1)
     {
-        std::cerr << "No audio devices found!" << std::endl;
+        lattice::logError << "No audio devices found!";
         return;
     }
 
-    // Set up stream parameters
-    RtAudio::StreamParameters parameters;
-    parameters.deviceId = audio->getDefaultOutputDevice();
-    parameters.nChannels = 2; // Stereo
-    parameters.firstChannel = 0;
+    // Set up output stream parameters
+    RtAudio::StreamParameters outputParameters;
+    const int outputDeviceId = getAudioDeviceId(audioConfig.audioOutDev);;
+    outputParameters.deviceId = outputDeviceId != -1 ? outputDeviceId : audio->getDefaultOutputDevice();
+    outputParameters.nChannels = 2; // Stereo
+    outputParameters.firstChannel = 0;
 
-    unsigned int sampleRate = 44100;
-    unsigned int bufferFrames = bufferSize; // 512 sample frames
+    
+    // Set up input stream parameters
+    RtAudio::StreamParameters inputParameters;
+    const int inputDeviceId = getAudioDeviceId(audioConfig.audioInDev);;
+    inputParameters.deviceId = inputDeviceId != -1 ? inputDeviceId : audio->getDefaultInputDevice();
+    
+    unsigned int sampleRate = audioConfig.audioSR;
+    unsigned int bufferFrames = audioConfig.bufferSize;
 
     try
     {
-        // Open the audio stream
-        audio->openStream(&parameters, nullptr, RTAUDIO_FLOAT32, sampleRate,
-                          &bufferFrames, &CabbageAudioApp::audioCallback, this); // Pass 'this' as userData
+        // Open the audio stream. If the selected audio input device has no
+        // channels, i.e., it's not valid, pass nullptr for input stream
+        audio->openStream(&outputParameters,
+                          inputParameters.nChannels == 0 ? nullptr : &inputParameters,
+                          RTAUDIO_FLOAT32,
+                          sampleRate,
+                          &bufferFrames, 
+                          &CabbageAudioApp::audioCallback,
+                          this); // Pass 'this' as userData
+        
         audio->startStream();
         isRunning = true; // Mark the stream as running
     }
@@ -149,7 +476,7 @@ void CabbageAudioApp::midiCallback(double deltatime, std::vector<uint8_t> *msg, 
     uint8_t status = (*msg)[0];
 
     // Determine the MIDI message type (note on, note off, etc.)
-    lattice::Processor::NoteEvent::Type type;
+    lattice::NoteEvent::Type type = lattice::NoteEvent::Type::undefined;
     int16_t key = -1;              // MIDI note number
     double velocity = 0.0;         // MIDI velocity (normalized to 0.0-1.0)
     int32_t noteId = -1;           // Unique note ID (you can generate this if needed)
@@ -166,12 +493,12 @@ void CabbageAudioApp::midiCallback(double deltatime, std::vector<uint8_t> *msg, 
             // For Note Off messages with velocity 0, treat them as Note On with velocity 0
             if ((status & 0xF0) == 0x80 || velocity == 0.0)
             {
-                type = lattice::Processor::NoteEvent::Type::noteOff; // Mark as Note Off
+                type = lattice::NoteEvent::Type::noteOff; // Mark as Note Off
                 velocity = 0.0; // Force velocity to 0 for Note Off
             }
             else
             {
-                type = lattice::Processor::NoteEvent::Type::noteOn; // Mark as Note On
+                type = lattice::NoteEvent::Type::noteOn; // Mark as Note On
             }
 
             // Generate a unique note ID (you can use a counter or another method)
@@ -185,7 +512,7 @@ void CabbageAudioApp::midiCallback(double deltatime, std::vector<uint8_t> *msg, 
     }
 
     // Add the NoteEvent to the processor
-    app->processor.addNoteEvent({type, key, velocity, noteId, sampleOffset});
+    app->processor->addNoteEvent({type, key, velocity, noteId, sampleOffset});
 
 }
 
@@ -231,7 +558,7 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
     }
 
     // Pass the deinterleaved buffers to the process method
-    app->processor.process(deinterleavedInput, deinterleavedOutput, nBufferFrames);
+    app->processor->process(deinterleavedInput, deinterleavedOutput, nBufferFrames);
 
     // Interleave the processed output back into the RtAudio buffer
     for (unsigned int ch = 0; ch < numChannels; ++ch)
@@ -259,3 +586,83 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
 
     return 0;
 }
+
+
+//============================================================================================
+void CabbageAudioApp::addDevicesToSettings(const std::string& settingsPath)
+{
+    std::ifstream file(settingsPath);
+    if (!file) {
+        std::cerr << "Error: Could not open settings file: " << settingsPath << std::endl;
+        return;
+    }
+
+    nlohmann::json settingsJson;
+
+    // Check if file is empty before parsing
+    if (file.peek() != std::ifstream::traits_type::eof()) {
+        try {
+            file >> settingsJson; // Parse existing JSON
+        } catch (nlohmann::json::exception& e) {
+            std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+            file.close();
+            return;
+        }
+    } else {
+        std::cout << "Settings file is empty. Starting with a blank JSON object." << std::endl;
+    }
+
+    file.close(); // Close read mode
+
+    try {
+        RtAudio::DeviceInfo info;
+        int inputCnt = 0;
+        int outputCnt = 0;
+        
+        auto listOfCurrentDevices = audio->getDeviceIds();
+
+        for (unsigned int i = 0; i < listOfCurrentDevices.size(); i++)
+        {
+            info = audio->getDeviceInfo(listOfCurrentDevices[i]);
+            
+            if (info.outputChannels > 0)
+            {
+                const std::string outputDevice = info.name;
+                nlohmann::json j;
+                j["deviceId"] = info.ID;
+                j["numChannels"] = info.outputChannels;
+                j["sampleRates"] = info.sampleRates;
+
+                settingsJson["systemAudioMidiIOListing"]["audioOutputDevices"][outputDevice] = j;
+                outputCnt++;
+            }
+            
+            if (info.inputChannels > 0)
+            {
+                const std::string inputDevice = info.name;
+                nlohmann::json j;
+                j["deviceId"] = info.ID;
+                j["numChannels"] = info.inputChannels;
+
+                settingsJson["systemAudioMidiIOListing"]["audioInputDevices"][inputDevice] = j;
+                inputCnt++;
+            }
+        }
+
+        // Write updated JSON back to file
+        std::ofstream outFile(settingsPath);
+        if (!outFile) {
+            std::cerr << "Error: Could not open settings file for writing: " << settingsPath << std::endl;
+            return;
+        }
+        outFile << std::setw(4) << settingsJson;
+        outFile.close();
+
+        std::cout << "Devices successfully added to settings file." << std::endl;
+
+    } catch (nlohmann::json::exception& e) {
+        std::cerr << "Error processing JSON: " << e.what() << std::endl;
+    }
+}
+
+

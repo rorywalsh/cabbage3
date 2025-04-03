@@ -17,6 +17,8 @@
 #include "csound.hpp"
 #include "CabbageParser.h"
 #include <readerwriterqueue.h>
+#include "opcodes/CabbageSetOpcodes.h"
+#include "opcodes/CabbageGetOpcodes.h"
 
 class CabbageProcessor;
 struct CabbageOpcodeData;
@@ -131,8 +133,8 @@ class Engine
     void processCsoundMessages();
 
     // return a JS script that will trigger a widget's properties to be updated
-    static std::string getWidgetUpdateScript(const std::string& channel, std::string data);
-    static std::string getWidgetUpdateScript(const std::string& channel, float value);
+    static std::string getUpdatedWidgetJsonStr(const std::string& channel, std::string data);
+    static std::string getUpdatedWidgetJsonStr(const std::string& channel, float value);
 
     // these two methods return combine with getWidgetIdentifierUpdateScript() to return a JS method
     // that packs samples for a given table

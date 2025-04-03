@@ -7,7 +7,7 @@
 class CabbageProcessor : public lattice::Processor {
     
 public:
-    CabbageProcessor();
+    CabbageProcessor(std::string = "");
     
     // Destructor to clean up resources
     ~CabbageProcessor(){};
@@ -40,7 +40,21 @@ public:
     void prepareToPlay(double sampleRate, uint32_t minFrameCount, uint32_t maxFrameCount) override;
         
     int getSampleRate(){    return sampleRate;  }
+ 
+    cabbage::Engine &getCabbageEngine() { return cabbage; }
+#ifdef CabbageApp
+    std::function<void(CabbageOpcodeData)> hostCallback = nullptr;
+#endif
+    
 private:
+    void onIdle();
+    void onIdleScheduler();
+    void startOnIdle();
+    void stopOnIdle();
+    void updateWidgetData(const CabbageOpcodeData &data);
+    
+    bool uiIsOpen = false;
+    bool allowDequeuing = false;
     int sampleRate = 44100;
     cabbage::Engine cabbage;
     bool matchingNumInputsOutputs = true;
@@ -48,4 +62,7 @@ private:
     int pos = 0;
     int totalNumOutputs = 0;
     int totalNumInputs = 0;
+    std::atomic<bool> isIdleRunning;
+    std::thread idleThread;
+    int idleCounter = 0;
 };

@@ -8,8 +8,7 @@
 
 #include "Cabbage.h"
 #include "CabbageProcessor.h"
-#include "opcodes/CabbageSetOpcodes.h"
-#include "opcodes/CabbageGetOpcodes.h"
+
 
 #include <text/choc_StringUtilities.h>
 
@@ -287,7 +286,7 @@ const std::string Engine::updateWidgetState(nlohmann::json j)
     {
         auto &w = widgetOpt.value().get();
         w.merge_patch(j);
-        auto result = getWidgetUpdateScript(w["channel"], w.dump());
+        auto result = getUpdatedWidgetJsonStr(w["channel"], w.dump());
         return result;
     }
 
@@ -295,7 +294,7 @@ const std::string Engine::updateWidgetState(nlohmann::json j)
 }
 //===========================================================================================
 
-std::string Engine::getWidgetUpdateScript(const std::string& channel, std::string data)
+std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, std::string data)
 {
     std::string result;
     result = choc::text::replace(R"(
@@ -308,7 +307,7 @@ std::string Engine::getWidgetUpdateScript(const std::string& channel, std::strin
     return result.c_str();
 }
 
-std::string Engine::getWidgetUpdateScript(const std::string& channel, float value)
+std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, float value)
 {
     std::string result;
     result = choc::text::replace(R"(

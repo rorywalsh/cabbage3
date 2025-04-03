@@ -11,13 +11,10 @@ pluginType* LatticeProcessorPluginFactory::createPlugin(const clap_host* host)
 }
 //========================================================================================
 
-#if defined(CABBAGE_SERVICE_APP)
-
-#else
-CabbageProcessor::CabbageProcessor()
-    : Processor(), cabbage(*this, "")
+CabbageProcessor::CabbageProcessor(std::string csdFile)
+    : Processor(), cabbage(*this, csdFile)
 {
-    
+
     if (!cabbage.setupCsound())
     {
         lattice::logInfo << "Csound could not be compiled";
@@ -30,29 +27,28 @@ CabbageProcessor::CabbageProcessor()
     addParameters();
     addChannels();
 
-    auto rootPath = cabbage::File::getParentDirectory(cabbage::File::getCsdFileAndPath());
+    auto rootPath = cabbage::File::getParentDirectory(cabbage::File::getCsdFileAndPath(cabbage.getCsdFile()));
     
     setMountPoint(rootPath);
 
-    
-    if (auto json = cabbage::File::parseCabbageSection(cabbage.getCsdFile()))
+    if (auto json = cabbage::File::parseCabbageSection(cabbage::File::getCsdFileAndPath(cabbage.getCsdFile())))
     {
         auto w = cabbage::Utils::findPropertyInForm<int>(*json, "size.width");
         auto h = cabbage::Utils::findPropertyInForm<int>(*json, "size.height");
         setEditorSize(w.value(), h.value());
     }
       
-    
+    startOnIdle();
   
 }
-#endif
+
 
 //========================================================================================
 // Add channels based on channelConfig property
 //========================================================================================
 void CabbageProcessor::addChannels()
 {
-    auto file = cabbage::File::getCsdFileAndPath();
+    auto file = cabbage::File::getCsdFileAndPath(cabbage.getCsdFile());
     lattice::logInfo << file;
     
     cabbage::Utils::check(lattice::File::exists(file), "Can't find csd file");
@@ -192,6 +188,114 @@ void CabbageProcessor::process(float** inputs, float** outputs, std::size_t bloc
 }
 
 //========================================================================================
+// onIdle function
+//========================================================================================
+void CabbageProcessor::onIdle()
+{
+#ifndef CabbageApp
+    if (uiIsOpen)
+    {
+#endif
+        cabbage.processCsoundMessages();
+
+#if defined(LINUX) && !defined(CabbageApp)
+        nlohmann::json message;
+        while (memoryQueue.receiveFromChild(message))
+        {
+            OnMessageFromWebView(message.dump(4).c_str());
+        }
+#endif
+
+#ifndef CabbageApp
+    }
+#endif
+
+    CabbageOpcodeData data;
+
+    if (allowDequeuing)
+    {
+        while (cabbage.opcodeData.try_dequeue(data))
+        {
+            for (auto &widget : cabbage.getWidgets())
+            {
+                if (data.channel == cabbage::Parser::removeQuotes(widget["channel"]))
+                {
+                    cabbage::Parser::updateJson(widget, data.cabbageJson, widget.size());
+                }
+            }
+
+#ifdef CabbageApp
+            hostCallback(data);
+#else
+            cabbage.processCsoundMessages();
+            updateWidgetData(data);
+#endif
+        }
+    }
+}
+
+//========================================================================================
+// this function will be called from the onIdle function if Csound has sent update messages
+//========================================================================================
+void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
+{
+    std::string updatedWidgetJson;
+
+    if (data.type == CabbageOpcodeData::MessageType::Value)
+    {
+        updatedWidgetJson = cabbage.getUpdatedWidgetJsonStr(data.channel, data.cabbageJson["value"].get<float>());
+    }
+    else
+    {
+        auto widgetOpt = cabbage.getWidget(data.channel);
+        if (widgetOpt.has_value())
+        {
+            auto &j = widgetOpt.value().get();
+            if (j["type"].get<std::string>() == "genTable")
+            {
+                cabbage.updateFunctionTable(data, j);
+            }
+            cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+            updatedWidgetJson = cabbage.getUpdatedWidgetJsonStr(data.channel, j.dump());
+        }
+    }
+
+    if (!updatedWidgetJson.empty())
+        sendWebViewMessage(updatedWidgetJson);
+}
+
+
+void CabbageProcessor::onIdleScheduler()
+{
+    while (isIdleRunning)
+    {
+        idleCounter++;
+        if (idleCounter % 100 == 0)
+        {
+            onIdle();
+        }
+    }
+}
+
+// Start idle thread in a separate non-realtime thread
+void CabbageProcessor::startOnIdle()
+{
+    isIdleRunning = true;
+    idleThread = std::thread(&CabbageProcessor::onIdleScheduler, this);
+}
+
+// Stop the idle background thread
+void CabbageProcessor::stopOnIdle()
+{
+    isIdleRunning = false;
+    
+    if (idleThread.joinable())
+    {
+        idleThread.join();
+    }
+}
+
+//========================================================================================
 // Callback function - triggered when a message is sent from the webview
 //========================================================================================
 void CabbageProcessor::onMesssgeFromWebView(const nlohmann::json& j)
@@ -202,6 +306,8 @@ void CabbageProcessor::onMesssgeFromWebView(const nlohmann::json& j)
 
     if (incomingMessage["command"] == "cabbageIsReadyToLoad")
     {
+        uiIsOpen = true;
+        allowDequeuing = true;
         updateUI();
     }
     else if (incomingMessage["command"] == "parameterChange")
@@ -237,8 +343,8 @@ void CabbageProcessor::updateUI()
     {
         if (w.contains("channel")) // only let valid object through.
         {
-            auto result = cabbage.getWidgetUpdateScript(w["channel"].get<std::string>(), w.dump());
-            sendWebViewMessage(result);
+            auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(w["channel"].get<std::string>(), w.dump());
+            sendWebViewMessage(updatedWidget);
         }
     }
 }
