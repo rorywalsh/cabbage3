@@ -141,7 +141,3 @@ make_clapfirst_plugins(
     STANDALONE_CONFIGURATIONS
         standalone "${PLUGIN_NAME}" "your.reversed.domain.name.${PLUGIN_NAME}"
 )
-
-
-set(SOURCE_RESOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/html")
-COPY_PLUGIN_RESOURCES(${PLUGIN_NAME} ${SOURCE_RESOURCE_DIR})
