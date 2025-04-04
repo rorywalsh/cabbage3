@@ -36,7 +36,7 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
                 -DCABBAGE_BUILD_TARGET=${target} 
                 -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                 -DFETCHCONTENT_BASE_DIR=${FETCHCONTENT_BASE_DIR}
-                -DCMAKE_OSX_DEPLOYMENT_TARGET="10.16"
+                -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0"
                 -S ${CMAKE_SOURCE_DIR} 
                 -G ${CMAKE_GENERATOR}
                 -B ${CMAKE_BINARY_DIR}/${target}
