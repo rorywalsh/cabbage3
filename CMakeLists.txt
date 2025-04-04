@@ -7,6 +7,11 @@ set(CABBAGE_VERSION 0.0.100)
 # Define common base directory for all dependency downloads and builds
 set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/_deps" CACHE PATH "Base directory for downloaded dependencies")
 
+# -----------------------------
+# Set compiler standard and build options for CLAP wrapper
+# -----------------------------
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ----------------------------
 # If no specific build target is provided, build all targets
@@ -43,6 +48,7 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
 
         # Build the target
         if(BUILD)
+            message(STATUS "Building target: ${target}")
             execute_process(
                 COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/${target}
                 RESULT_VARIABLE result
@@ -98,15 +104,9 @@ find_package(CSOUND REQUIRED)
 set(LATTICE_ROOT_DIR "${lattice_SOURCE_DIR}")
 include(${LATTICE_ROOT_DIR}/cmake/lattice.cmake)
 
-# -----------------------------
-# Set compiler standard and build options for CLAP wrapper
-# -----------------------------
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CLAP_WRAPPER_DONT_ADD_TARGETS TRUE)
-set(CLAP_WRAPPER_DOWNLOAD_DEPENDENCIES TRUE CACHE BOOL "Download Dependencies")
-option(COPY_AFTER_BUILD "Install local copy after build" FALSE)
-
+# ----------------------------
+# Set project name and output name
+# ----------------------------
 set(PROJECT_NAME ${CABBAGE_BUILD_TARGET})
 set(CLAP_WRAPPER_OUTPUT_NAME ${PROJECT_NAME})
 add_compile_definitions(${CABBAGE_BUILD_TARGET})
