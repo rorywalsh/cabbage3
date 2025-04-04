@@ -43,8 +43,8 @@ jobs:
           # Get absolute paths to compilers
           CC_PATH=$(which clang)
           CXX_PATH=$(which clang++)
-          
-          cmake -B build \
+
+          cmake -B -GXcode build \
           -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
           -DCMAKE_C_COMPILER=$CC_PATH \
           -DCMAKE_CXX_COMPILER=$CXX_PATH \
