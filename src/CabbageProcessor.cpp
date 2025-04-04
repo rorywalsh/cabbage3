@@ -211,7 +211,7 @@ void CabbageProcessor::onIdle()
 #endif
 
     CabbageOpcodeData data;
-
+    
     if (allowDequeuing)
     {
         while (cabbage.opcodeData.try_dequeue(data))
@@ -223,7 +223,7 @@ void CabbageProcessor::onIdle()
                     cabbage::Parser::updateJson(widget, data.cabbageJson, widget.size());
                 }
             }
-
+            
 #ifdef CabbageApp
             hostCallback(data);
 #else
@@ -296,18 +296,26 @@ void CabbageProcessor::stopOnIdle()
 }
 
 //========================================================================================
+// Triggered when Cabbage is ready to start processing messages
+//========================================================================================
+void CabbageProcessor::setCabbageIsReady()
+{
+    lattice::logDebug << "Cabbage is now ready";
+    uiIsOpen = true;
+    allowDequeuing = true;
+}
+
+//========================================================================================
 // Callback function - triggered when a message is sent from the webview
 //========================================================================================
 void CabbageProcessor::onMesssgeFromWebView(const nlohmann::json& j)
 {
     // Incoming JSON message is always wrapped in []
     auto incomingMessage = j.at(0);
-    lattice::logInfo << incomingMessage.dump(4);
 
     if (incomingMessage["command"] == "cabbageIsReadyToLoad")
     {
-        uiIsOpen = true;
-        allowDequeuing = true;
+        setCabbageIsReady();
         updateUI();
     }
     else if (incomingMessage["command"] == "parameterChange")

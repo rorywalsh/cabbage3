@@ -41,6 +41,9 @@ public:
         
     int getSampleRate(){    return sampleRate;  }
  
+    // Triggered by CabbageApp whenever websocket connection is established
+    void setCabbageIsReady();
+    
     cabbage::Engine &getCabbageEngine() { return cabbage; }
 #ifdef CabbageApp
     std::function<void(CabbageOpcodeData)> hostCallback = nullptr;

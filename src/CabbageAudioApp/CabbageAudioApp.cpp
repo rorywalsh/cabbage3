@@ -3,6 +3,10 @@
 #include <algorithm>
 #include "argparse.hpp"
 
+//==============================================================================
+// Constructor - responsible for creating processor and initialising audio/midi
+// and websocket connection to vscode
+//==============================================================================
 CabbageAudioApp::CabbageAudioApp(int argc, char* argv[])
     : numChannels(2), bufferSize(512), isRunning(false)
 {
@@ -38,13 +42,14 @@ CabbageAudioApp::CabbageAudioApp(int argc, char* argv[])
     processor->hostCallback = [&](CabbageOpcodeData data){   hostCallback(data);    };
 
 }
-
+//==============================================================================
 CabbageAudioApp::~CabbageAudioApp()
 {
     if (isRunning)
     {
         try
         {
+            lattice::logInfo << "Stopping rtaudio stream";
             audio->stopStream();
         }
         catch (const std::runtime_error &e)
@@ -53,6 +58,7 @@ CabbageAudioApp::~CabbageAudioApp()
         }
         if (audio->isStreamOpen())
         {
+            lattice::logInfo << "Closing rtaudio stream";
             audio->closeStream();
         }
     }
@@ -70,6 +76,8 @@ CabbageAudioApp::~CabbageAudioApp()
         testServerRunning = false;
 }
 
+//==============================================================================
+// Parse command line arguments
 //==============================================================================
 bool CabbageAudioApp::parseComandLineArgs(int argc, char* argv[])
 {
@@ -113,6 +121,10 @@ bool CabbageAudioApp::parseComandLineArgs(int argc, char* argv[])
     return true;
     
 }
+
+//==============================================================================
+// This method gets call via the processor - whenever Csound updates some widgets
+// through calls to cabbageSet opcodes....
 //==============================================================================
 void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
 {
@@ -160,6 +172,8 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
 }
 
 //==============================================================================
+// Simple test server for development and testing
+//==============================================================================
 void CabbageAudioApp::startWebSocketServerForTesting()
 {
     // Lambda function to run the server in a thread
@@ -172,19 +186,43 @@ void CabbageAudioApp::startWebSocketServerForTesting()
                const ix::WebSocketMessagePtr& msg) {
                 if (msg->type == ix::WebSocketMessageType::Message) {
                     lattice::logDebug << "Server received: " << msg->str;
-//                    webSocket.send("Message received: " + msg->str);
                 }
             }
         );
 
         auto result = server.listen();
         if (result.first) {
-            lattice::logDebug << "WebSocket Server listening on port " << portNumber;
+            lattice::logDebug << "WebSocket Test Server listening on port " << portNumber;
             server.start();
             
             // Keep the server running until `serverRunning` is false
             while (testServerRunning) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                
+                // Send random parameter changes every second (adjust timing as needed)
+                static auto lastSendTime = std::chrono::steady_clock::now();
+                auto now = std::chrono::steady_clock::now();
+                if (now - lastSendTime > std::chrono::seconds(1)) {
+                    lastSendTime = now;
+                    
+                    // Create JSON message with random value
+                    nlohmann::json innerObj = {
+                        {"paramIdx", 0},
+                        {"channel", "gainL"},
+                        {"value", static_cast<float>(rand()) / static_cast<float>(RAND_MAX)}, // Random value between 0 and 1
+                        {"channelType", "number"}
+                    };
+                    
+                    nlohmann::json outerObj = {
+                        {"command", "parameterChange"},
+                        {"obj", innerObj.dump()} // Stringify the inner object
+                    };
+                    
+                    // Send to all connected clients
+                    for (auto&& client : server.getClients()) {
+                        client->send(outerObj.dump());
+                    }
+                }
             }
             
             server.stop();
@@ -197,6 +235,9 @@ void CabbageAudioApp::startWebSocketServerForTesting()
     // Start the server thread
     webSocketServerThread = std::thread(serverThreadFunc);
 }
+
+//==============================================================================
+// Sets upo websocket client and waits for connection from vscode - or test server
 //==============================================================================
 bool CabbageAudioApp::initialiseWebSocketConnection()
 {
@@ -214,6 +255,7 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                 try
                 {
                     auto json = nlohmann::json::parse(msg->str, nullptr, false);
+                    lattice::logDebug << json.dump(4);
                     const std::string command = json["command"];
                     nlohmann::json jsonObj;
                     if (json.contains("obj"))
@@ -263,7 +305,6 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                         msg["command"] = "cabbageIsReadyToLoad";
                         msg["data"] = "";
                         webSocket.send(msg.dump());
-                        lattice::logInfo << "CabbageIsReadyToLoad";
                     }
                     else if (command == "stopCsound")
                     {
@@ -297,7 +338,7 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                 msg["command"] = "cabbageIsReadyToLoad";
                 msg["data"] = "";
                 webSocket.send(msg.dump());
-                lattice::logInfo << "CabbageIsReadyToLoad";
+                
                 
                 for (auto &w : cabbage.getWidgets())
                 {
@@ -307,6 +348,8 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                     msg["data"] = w.dump();
                     webSocket.send(msg.dump());
                 }
+                
+                processor->setCabbageIsReady();
             }
             else if (msg->type == ix::WebSocketMessageType::Close)
             {
@@ -339,7 +382,7 @@ void CabbageAudioApp::initialiseMidi()
     {
         midiIn = nullptr;
         error.printMessage();
-        return false;
+        return;
     }
 
     try
@@ -350,13 +393,12 @@ void CabbageAudioApp::initialiseMidi()
     {
         midiOut = nullptr;
         error.printMessage();
-        return false;
+        return;
     }
 
     midiIn->setCallback(&midiCallback, this);
     midiIn->ignoreTypes(false, true, false);
 
-    return true;
 }
 
 int CabbageAudioApp::getAudioDeviceId(const std::string& deviceName) const

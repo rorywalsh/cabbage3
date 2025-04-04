@@ -93,12 +93,12 @@ public:
     static nlohmann::json extractPropsFromJS(const std::string &jsContent);
     // Returns path to Cabbage specific resources folder
     static std::string getCabbageResourceDir();
-    
     // Return the user's Cabbage file
     static std::string getSettingsFile();
-    
-    // Returns a property from teh aettings file
+    // Returns a property from the settings file
     static std::string getSettingsProperty(const std::string &section, const std::string &key);
+    // Retrun binary without extension
+    static std::string getBinaryWithoutExtension();
     
 #if defined(_WIN32)
     static std::string getWindowsProgramDataDir()

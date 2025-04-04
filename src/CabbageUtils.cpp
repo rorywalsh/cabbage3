@@ -118,6 +118,21 @@ std::string Utils::getJsonWithLineNumbers(const std::string &json_str)
 }
 
 //======================================================================================================
+std::string File::getBinaryWithoutExtension()
+{
+    std::string binaryFileName = getBinaryFileName(); // Get the full filename
+    size_t pos = binaryFileName.find_last_of(".");    // Find the last period (.)
+
+    if (pos != std::string::npos)
+    {
+        // Return the substring before the last period
+        return binaryFileName.substr(0, pos);
+    }
+
+    // If there's no period (i.e., no extension), return the full filename
+    return binaryFileName;
+}
+
 std::string File::getCabbageSection(const std::string &csdFile)
 {
 

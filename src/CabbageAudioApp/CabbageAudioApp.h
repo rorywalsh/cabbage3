@@ -127,6 +127,21 @@ private:
     
     int portNumber = 0;
     std::string csdFileAndPath = "";
+    
+    // Utility function to open browser with web frontend for testing
+    void openBrowser(const std::string& url)
+    {
+    #if defined(LATTICE_WINDOWS)
+        std::string command = "start " + url;
+    #elif defined(LATTICE_MACOS)
+        std::string command = "open " + url;
+    #elif defined(LATTICE_LINUX)
+        std::string command = "xdg-open " + url;
+    #else
+        #error "Unsupported platform"
+    #endif
+        std::system(command.c_str());
+    }
 };
 
 #endif // CABBAGEAUDIOAPP_H

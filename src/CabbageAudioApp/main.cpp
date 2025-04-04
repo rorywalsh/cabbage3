@@ -15,11 +15,15 @@ static CabbageAudioApp* appInstance = nullptr;
 void signalHandler(int signal) 
 {
     if (appInstance) {
-        std::cout << "Received signal " << signal << ". Cleaning up..." << std::endl;
-        delete appInstance; // Call the destructor to clean up
-        appInstance = nullptr;
+        try {
+            lattice::logInfo << "Received signal " << signal << ". Cleaning up...";
+            delete appInstance;
+            appInstance = nullptr;
+        } catch (...) {
+            std::cerr << "Error during cleanup" << std::endl;
+        }
     }
-    std::exit(signal); // Exit the program
+    std::_Exit(signal); // Use _Exit to avoid re-entering destructors
 }
 
 #ifdef _WIN32
@@ -43,6 +47,7 @@ int main(int argc, char* argv[]) {
     std::signal(SIGTERM, signalHandler);
     std::signal(SIGINT, signalHandler);
     std::signal(SIGABRT, signalHandler);
+    std::signal(SIGKILL, signalHandler);
 
 #ifdef _WIN32
     SetConsoleCtrlHandler(consoleHandler, TRUE);
