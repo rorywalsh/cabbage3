@@ -30,13 +30,17 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
 
         file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/${target})
 
-        # Run CMake configuration for the current target
+        # Run CMake configuration for the current target - this needs to be a little verbose for GH actions
         execute_process(
             COMMAND ${CMAKE_COMMAND} 
                 -DCABBAGE_BUILD_TARGET=${target} 
                 -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                 -DFETCHCONTENT_BASE_DIR=${FETCHCONTENT_BASE_DIR}
-                -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0"
+                -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+                -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+                -DCMAKE_OBJC_COMPILER=${CMAKE_OBJC_COMPILER}
+                -DCMAKE_OBJCXX_COMPILER=${CMAKE_OBJCXX_COMPILER}
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
                 -S ${CMAKE_SOURCE_DIR} 
                 -G ${CMAKE_GENERATOR}
                 -B ${CMAKE_BINARY_DIR}/${target}
