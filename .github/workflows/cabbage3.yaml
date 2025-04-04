@@ -38,6 +38,12 @@ jobs:
 
       - name: Configure and build
         run: |
+          export CC=/usr/bin/clang
+          export CXX=/usr/bin/clang++
+          # Get absolute paths to compilers
+          CC_PATH=$(which clang)
+          CXX_PATH=$(which clang++)
+          
           cmake -B build \
           -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
           -DCMAKE_C_COMPILER=$CC_PATH \
