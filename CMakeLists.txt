@@ -59,6 +59,11 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
         # Build the target
         if(BUILD_TARGETS AND BUILD_TARGETS STREQUAL "True" OR BUILD_TARGETS)
             message(STATUS "Building target: ${target}")
+
+            if(NOT CMAKE_BUILD_TYPE)
+                set(CMAKE_BUILD_TYPE "Release")
+            endif()
+
             execute_process(
                 COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/${target} --config ${CMAKE_BUILD_TYPE}
                 RESULT_VARIABLE result
