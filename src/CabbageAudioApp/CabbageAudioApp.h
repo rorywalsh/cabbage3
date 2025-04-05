@@ -17,6 +17,10 @@
 
 #include "CabbageProcessor.h"
 
+#ifdef LATTICE_WINDOWS
+    #pragma comment(lib, "Ws2_32.lib")
+    #pragma comment(lib, "Shell32.lib")
+#endif
 
 
 

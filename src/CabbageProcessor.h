@@ -3,7 +3,6 @@
 #include "lattice/LatticeProcessor.h"
 #include "Cabbage.h"
 
-
 class CabbageProcessor : public lattice::Processor {
     
 public:

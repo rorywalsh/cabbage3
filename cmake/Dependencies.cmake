@@ -31,6 +31,7 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
         GIT_TAG master
     )
 
+    
     # Fetch the IXWebSocket repository
     FetchContent_Declare(
         ixwebsocket
@@ -40,6 +41,9 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
 
     # Set the BUILD_SHARED_LIBS option for IXWebSocket to OFF to build static library
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static library for IXWebSocket" FORCE)
+    # Set the USE_SSL option for IXWebSocket to OFF to disable SSL support
+    set(USE_SSL OFF CACHE BOOL "Disabling SSL for ixwebsocket" FORCE)
+    set(USE_ZLIB  OFF CACHE BOOL "Disabling zlib for ixwebsocket" FORCE)
 
     # Make all dependencies available
     FetchContent_MakeAvailable(ixwebsocket rtaudio rtmidi)

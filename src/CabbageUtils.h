@@ -6,6 +6,7 @@
  * See the LICENSE file for more details.
  */
 
+#include <lattice/LatticeProcessor.h>
 #include <lattice/LatticeUtils.h>
 // choc classes for reading audio files
 #include <audio/choc_AudioFileFormat.h>
@@ -15,7 +16,9 @@
 #include <audio/choc_AudioFileFormat_MP3.h>
 #include <audio/choc_SampleBuffers.h>
 
-
+#ifdef LATTICE_WINDOWS
+#include <shlobj.h>
+#endif
 #pragma once
 
 namespace cabbage
@@ -104,7 +107,7 @@ public:
     static std::string getWindowsProgramDataDir()
     {
            char path[MAX_PATH];
-           if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_COMMON_APPDATA, NULL, 0, path)))
+            if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, path)))
                return std::string(path) + "\\CabbageAudio";
            else
                return "";
