@@ -14,6 +14,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)  # Optional: use standard-compliant mode
 
+option(BUILD_TARGETS "Build targets after configuration" OFF)
+
 # ----------------------------
 # If no specific build target is provided, build all targets
 # ----------------------------
@@ -55,12 +57,15 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
         endif()
 
         # Build the target
-        if(BUILD_TARGETS)
+        if(BUILD_TARGETS AND BUILD_TARGETS STREQUAL "True" OR BUILD_TARGETS)
             message(STATUS "Building target: ${target}")
             execute_process(
-                COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/${target}
+                COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/${target} --config ${CMAKE_BUILD_TYPE}
                 RESULT_VARIABLE result
             )
+            if(NOT result EQUAL 0)
+                message(FATAL_ERROR "Failed to build ${target}")
+            endif()
         endif()
 
     endforeach()
@@ -165,6 +170,17 @@ source_group("Cabbage Opcodes" FILES ${CABBAGE_OPCODE_SOURCES})
 source_group("Lattice Source" FILES ${LATTICE_SOURCE_FILES})
 
 # ----------------------------
+# Set include directories for all targets
+# ----------------------------
+include_directories(
+    ${lattice_SOURCE_DIR}/src
+    ${choc_SOURCE_DIR}
+    ${readerwriterqueue_SOURCE_DIR}
+    ${LATTICE_INCLUDE_DIRS}
+    ${CSOUND_INCLUDE_DIR}
+)
+
+# ----------------------------
 # Build Executable Target (App)
 # ----------------------------
 if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
@@ -180,11 +196,6 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
 
     # Set include paths for external dependencies
     target_include_directories(${PROJECT_NAME} PRIVATE 
-        ${lattice_SOURCE_DIR}/src
-        ${choc_SOURCE_DIR}
-        ${readerwriterqueue_SOURCE_DIR}
-        ${LATTICE_INCLUDE_DIRS}
-        ${CSOUND_INCLUDE_DIR}
         ${rtaudio_SOURCE_DIR}
         ${rtmidi_SOURCE_DIR}
         ${ixwebsocket_SOURCE_DIR}
@@ -228,14 +239,6 @@ else()
         PLUGIN_INFO_HEADER="${CMAKE_SOURCE_DIR}/src/CabbagePluginEffectInfo.h"
         PRODUCT_NAME="${PROJECT_NAME}"
         "${CABBAGE_BUILD_TARGET}"
-    )
-
-    target_include_directories(${PROJECT_NAME}-impl PRIVATE 
-        ${lattice_SOURCE_DIR}/src
-        ${choc_SOURCE_DIR}
-        ${readerwriterqueue_SOURCE_DIR}
-        ${LATTICE_INCLUDE_DIRS}
-        ${CSOUND_INCLUDE_DIR}
     )
 
     # Platform-specific options

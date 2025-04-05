@@ -50,17 +50,16 @@ jobs:
           -DCMAKE_CXX_COMPILER=$CXX_PATH \
           -DCMAKE_OBJC_COMPILER=$CC_PATH \
           -DCMAKE_OBJCXX_COMPILER=$CXX_PATH \
-          -DBUILD=True
-
-
+          -DBUILD_TARGETS=True \
+          -DCMAKE_BUILD_TAGET=Release
 
       - name: Zip the macOS app bundle
         run: |
           cd build
           zip -r CabbageBundle.zip \
-            CabbagePluginEffect/CabbagePluginEffect_assets/Debug/CabbagePluginEffect.vst3 \
-            CabbagePluginSynth/CabbagePluginEffect_assets/Debug/CabbagePluginSynth.vst3 \
-            CabbageApp/Debug/CabbageApp
+            CabbagePluginEffect/CabbagePluginEffect_assets/Release/CabbagePluginEffect.vst3 \
+            CabbagePluginSynth/CabbagePluginEffect_assets/Release/CabbagePluginSynth.vst3 \
+            CabbageApp/Release/CabbageApp
 
 
       - name: Upload macOS app artifact
@@ -69,72 +68,42 @@ jobs:
           name: CabbageBundle-macos
           path: build/CabbageBundle.zip
 
-  # windows_build:
-  #   name: Windows build
-  #   runs-on: windows-latest
-  #   steps:
-  #     - name: Checkout source code
-  #       uses: actions/checkout@v1
-  #       with:
-  #         fetch-depth: 1
-  #         submodules: true
+  windows_build:
+    name: Windows build
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+          submodules: true
 
-  #     - name: Download and Extract Csound
-  #       shell: pwsh
-  #       run: |
-  #         Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/41g11e00yb4v66fduyw3f/Csound7.zip?rlkey=231ot83u6rmnxapwe03krm04z&st=5bzhtada&dl=1" -OutFile "Csound7.zip"
-  #         Expand-Archive -Path "Csound7.zip" -DestinationPath "$env:ProgramFiles"
-  #         Get-ChildItem "$env:ProgramFiles\Csound7"
+      - name: Download and Extract Csound
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/41g11e00yb4v66fduyw3f/Csound7.zip?rlkey=231ot83u6rmnxapwe03krm04z&st=5bzhtada&dl=1" -OutFile "Csound7.zip"
+          Expand-Archive -Path "Csound7.zip" -DestinationPath "$env:ProgramFiles"
+          Get-ChildItem "$env:ProgramFiles\Csound7"
 
-  #     - name: Configure build
-  #       shell: cmd
-  #       run: |
-  #         cmake -G "Visual Studio 17 2022" -S . -B build 
-        
-  #     - name: Build Windows app
-  #       shell: cmd
-  #       run: |
-  #         cmake --build build --config Debug --target CabbageApp
-  #       continue-on-error: true
+      - name: Configure build
+        shell: cmd
+        run: |
+          cmake -G "Visual Studio 17 2022" -S . -B build -DBUILD_TARGETS=ON -DCMAKE_BUILD_TAGET=Release
 
-  #     - name: Build VST Effect Plugin
-  #       shell: cmd
-  #       run: |
-  #         echo "The plugin copying/install phase breaks this step, but the plugin still builds fine. So we'll just ignore the error for now"
-  #         cmake --build build --config Debug --target CabbageVST3Effect
-  #       continue-on-error: true
+      - name: Zip the Windows app artifacts
+        shell: pwsh
+        run: |
+          cd build
+          Compress-Archive -Path @(
+            "CabbagePluginEffect/CabbagePluginEffect_assets/Debug/CabbagePluginEffect.vst3",
+            "CabbagePluginSynth/CabbagePluginEffect_assets/Debug/CabbagePluginSynth.vst3",
+            "CabbageApp/Debug/CabbageApp.exe"
+          ) -DestinationPath CabbageBundle.zip
 
-  #     - name: Build VST Synth Plugin
-  #       shell: cmd
-  #       run: |
-  #         echo "The plugin copying/install phase breaks this step, but the plugin still builds fine. So we'll just ignore the error for now"
-  #         cmake --build build --config Debug --target CabbageVST3Synth
-  #       continue-on-error: true
-
-  #     - name: Verify builds
-  #       shell: cmd
-  #       run: |
-  #         echo "Checking if the build artifacts exist for CabbageApp"
-  #         tree build/CabbageApp/CabbageApp-app
-  #         echo "Checking if the build artifacts exist for CabbageVST3Synth/Effect"
-  #         ls build/CabbageVST3Effect/out
-  #         ls build/CabbageVST3Synth/out
-          
-
-  #     - name: Zip the Windows app artifacts
-  #       shell: pwsh
-  #       run: |
-  #         cd build
-  #         Compress-Archive -Path @(
-  #           "CabbageApp\CabbageApp-app\Release\CabbageApp.exe",
-  #           "CabbageVST3Effect\out\CabbageVST3Effect.vst3",
-  #           "CabbageVST3Synth\out\CabbageVST3Synth.vst3"
-  #         ) -DestinationPath CabbageBundle.zip
-
-  #     - name: Upload Windows app artifact
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: CabbageBundle-windows
-  #         path: build\CabbageBundle.zip
+      - name: Upload Windows app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CabbageBundle-windows
+          path: build\CabbageBundle.zip
 
 
