@@ -95,9 +95,9 @@ jobs:
         run: |
           cd build
           Compress-Archive -Path @(
-            "CabbagePluginEffect/CabbagePluginEffect_assets/Debug/CabbagePluginEffect.vst3",
-            "CabbagePluginSynth/CabbagePluginEffect_assets/Debug/CabbagePluginSynth.vst3",
-            "CabbageApp/Debug/CabbageApp.exe"
+            "CabbagePluginEffect/CabbagePluginEffect_assets/Release/CabbagePluginEffect.vst3",
+            "CabbagePluginSynth/CabbagePluginEffect_assets/Release/CabbagePluginSynth.vst3",
+            "CabbageApp/Release/CabbageApp.exe"
           ) -DestinationPath CabbageBundle.zip
 
       - name: Upload Windows app artifact
