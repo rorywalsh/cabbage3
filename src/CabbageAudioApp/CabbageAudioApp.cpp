@@ -422,7 +422,7 @@ void CabbageAudioApp::initialiseAudio()
     
     
 #if defined LATTICE_WINDOWS
-    if (mState.mAudioDriverType == kDeviceASIO)
+    if (audioConfig.audioDriverType == RtAudio::Api::WINDOWS_ASIO)
         audio = std::make_unique<RtAudio>(RtAudio::WINDOWS_ASIO, errorCallback);
     else
         audio = std::make_unique<RtAudio>(RtAudio::WINDOWS_DS, errorCallback);

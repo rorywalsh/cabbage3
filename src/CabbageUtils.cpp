@@ -371,11 +371,13 @@ std::string File::getSettingsFile()
      SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
      std::string settingsPath = std::string(strPath) + "\\Cabbage\\settings.json";
      return settingsPath;*/
-    CHAR strPath[256];
-    SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
-    iniPath.SetFormatted(256, "%s\\%s\\", strPath, "Cabbage");
-    iniPath.Append("settings.json"); // add file name to path
-    return iniPath.Get();
+    CHAR path[MAX_PATH];
+    if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, path)))
+    {
+        std::stringstream settingsPath;
+        settingsPath << path << "\\Cabbage\\settings.json";
+        return settingsPath.str();
+    }
 
 #elif defined __APPLE__
     settingsPath << getenv("HOME") << "/Library/Application Support/Cabbage/settings.json";

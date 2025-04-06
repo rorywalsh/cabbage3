@@ -47,10 +47,11 @@ int main(int argc, char* argv[]) {
     std::signal(SIGTERM, signalHandler);
     std::signal(SIGINT, signalHandler);
     std::signal(SIGABRT, signalHandler);
-    std::signal(SIGKILL, signalHandler);
 
 #ifdef _WIN32
     SetConsoleCtrlHandler(consoleHandler, TRUE);
+#else 
+        std::signal(SIGKILL, signalHandler);
 #endif
     
     // Create an instance of CabbageAudioApp
