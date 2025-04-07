@@ -113,44 +113,47 @@ class Engine
     // Set string channel data
     void setStringChannel(const std::string channel, std::string data);
 
-    // returns a JSON widget references from the lists of widget
+    // Returns a JSON widget references from the lists of widget
     std::optional<std::reference_wrapper<nlohmann::json>> getWidget(const std::string &channel);
 
-    // returns number of plugin paremters - even though lots of widgets have channels, only a select few can be plugin
+    // Returns number of plugin paremters - even though lots of widgets have channels, only a select few can be plugin
     // parameters
     static int getNumberOfParameters(const std::string &csdFile);
+    
+    // Returns the current number of parameters registered
+    int getCurrentParameterCount(){ return numberOfParameters;  }
 
-    // return the channel config string, e.g., '2-2'
+    // Return the channel config string, e.g., '2-2'
     static const std::string getIOChannalConfig(const std::string &csdFile);
 
-    // return a vector pair contining input and output buses
+    // Return a vector pair contining input and output buses
     static std::pair<std::vector<int>, std::vector<int>> parseBusConfiguration(const std::string &config);
 
-    // utility script to remove control characters from string - needed to santise Cabbage code going to JS
+    // Utility script to remove control characters from string - needed to santise Cabbage code going to JS
     static std::string removeControlCharacters(const std::string &input);
 
-    // process Csound console messages
+    // Process Csound console messages
     void processCsoundMessages();
 
-    // return a JS script that will trigger a widget's properties to be updated
+    // Return a JS script that will trigger a widget's properties to be updated
     static std::string getUpdatedWidgetJsonStr(const std::string& channel, std::string data);
     static std::string getUpdatedWidgetJsonStr(const std::string& channel, float value);
 
-    // these two methods return combine with getWidgetIdentifierUpdateScript() to return a JS method
+    // These two methods return combine with getWidgetIdentifierUpdateScript() to return a JS method
     // that packs samples for a given table
     void updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj);
     static void setTableJSON(std::string channel, std::vector<double> samples, nlohmann::json &jsonObj);
 
-    // returns a script that will update a csoundoutput widget
+    // Returns a script that will update a csoundoutput widget
     const std::string getCsoundOutputUpdateScript(const std::string& output);
 
-    // return a vector of all widget types that have a range object
+    // Return a vector of all widget types that have a range object
     static std::vector<std::string> getRangeWidgetTypes(const std::vector<nlohmann::json> widgets);
 
-    // setup reserved channel
+    // Setup reserved channel
     void setReservedChannels();
 
-    // get full range value from widget
+    // Get full range value from widget
     static float remap(double n, double start1, double stop1, double start2, double stop2);
     float getFullRangeValue(std::string channel, float normalValue);
 

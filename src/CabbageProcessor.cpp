@@ -103,7 +103,7 @@ void CabbageProcessor::addParameters()
                     addParameter({w["channel"].get<std::string>(), 
                         w["range"]["min"].get<float>(),
                         w["range"]["max"].get<float>(), 
-                        w["range"]["defaultValue"].get<float>(),
+                        w["range"]["value"].get<float>(),
                         w["range"]["increment"].get<float>(), 
                         w["range"]["skew"].get<float>()});
                 }
@@ -112,9 +112,10 @@ void CabbageProcessor::addParameters()
                     addParameter({w["channel"].get<std::string>(), 
                         w["min"].get<float>(),
                         w["max"].get<float>(), 
-                        w["defaultValue"].get<float>()});
+                        w["value"].get<float>()});
                 }
-
+                
+                w["parameterIndex"] = cabbage.getCurrentParameterCount();
                 cabbage.initParameter(w);
             }
             catch (nlohmann::json::exception &e)

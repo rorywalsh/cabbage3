@@ -27,10 +27,10 @@ CabbageAudioApp::CabbageAudioApp(int argc, char* argv[])
     initialiseMidi();
 
     // Optionally start test serverfor development purposes
-    if(startTestServer)
+    if(shouldStartTestServer)
     {
-        testServerRunning = true;
         startWebSocketServerForTesting();
+        testServer->setUpdateInterval(10);
         // Wait for the server to start (adjust delay if needed)
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
@@ -72,8 +72,8 @@ CabbageAudioApp::~CabbageAudioApp()
     delete[] emptyInputBuffer;
     
     // Stop test server if its running
-    if(startTestServer)
-        testServerRunning = false;
+    if(testServer)
+        testServer->stop();
 }
 
 //==============================================================================
@@ -102,7 +102,12 @@ bool CabbageAudioApp::parseComandLineArgs(int argc, char* argv[])
         .help("Whether to start the test server (true/false)")
         .default_value(false)  // Default to false if not provided
         .action([](const std::string& value) {
-            return value == "true";  // Convert "true" to true, otherwise false
+            // Convert to lowercase first for case-insensitive comparison
+            std::string lowerValue;
+            lowerValue.resize(value.size());
+            std::transform(value.begin(), value.end(), lowerValue.begin(),
+                           [](unsigned char c) { return std::tolower(c); });
+            return lowerValue == "true";
         });
 
     try {
@@ -117,7 +122,7 @@ bool CabbageAudioApp::parseComandLineArgs(int argc, char* argv[])
     // Retrieve the parsed arguments
     csdFileAndPath = program.get<std::string>("--file");
     portNumber = program.get<int>("--portNumber");
-    startTestServer = program.get<bool>("--startTestServer");
+    shouldStartTestServer = program.get<bool>("--startTestServer");
     return true;
     
 }
@@ -176,66 +181,24 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
 //==============================================================================
 void CabbageAudioApp::startWebSocketServerForTesting()
 {
-    // Lambda function to run the server in a thread
-    auto serverThreadFunc = [this]() {
-        ix::WebSocketServer server(portNumber);
-        
-        server.setOnClientMessageCallback(
-            [](std::shared_ptr<ix::ConnectionState> connectionState,
-               ix::WebSocket& webSocket,
-               const ix::WebSocketMessagePtr& msg) {
-                if (msg->type == ix::WebSocketMessageType::Message) {
-                    lattice::logDebug << "Server received: " << msg->str;
-                }
-            }
-        );
+    if (!testServer)
+    {
+        // Setting repeatable to true - this ensure each test is the same
+        testServer = std::make_unique<WebSocketTestServer>(portNumber, true);
+    }
+    
+    testServer->initialise(processor->getCabbageEngine().getWidgets());
+    testServer->start();
 
-        auto result = server.listen();
-        if (result.first) {
-            lattice::logDebug << "WebSocket Test Server listening on port " << portNumber;
-            server.start();
-            
-            // Keep the server running until `serverRunning` is false
-            while (testServerRunning) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                
-                // Send random parameter changes every second (adjust timing as needed)
-                static auto lastSendTime = std::chrono::steady_clock::now();
-                auto now = std::chrono::steady_clock::now();
-                if (now - lastSendTime > std::chrono::seconds(1)) {
-                    lastSendTime = now;
-                    
-                    // Create JSON message with random value
-                    nlohmann::json innerObj = {
-                        {"paramIdx", 0},
-                        {"channel", "gainL"},
-                        {"value", static_cast<float>(rand()) / static_cast<float>(RAND_MAX)}, // Random value between 0 and 1
-                        {"channelType", "number"}
-                    };
-                    
-                    nlohmann::json outerObj = {
-                        {"command", "parameterChange"},
-                        {"obj", innerObj.dump()} // Stringify the inner object
-                    };
-                    
-                    // Send to all connected clients
-                    for (auto&& client : server.getClients()) {
-                        client->send(outerObj.dump());
-                    }
-                }
-            }
-            
-            server.stop();
-        } else {
-            lattice::logDebug << "Failed to start WebSocket Server on port " << portNumber;
-            lattice::logDebug << "Error: " << result.second;
-        }
-    };
-
-    // Start the server thread
-    webSocketServerThread = std::thread(serverThreadFunc);
 }
 
+void CabbageAudioApp::stopWebSocketServerForTesting()
+{
+    if (testServer)
+    {
+        testServer->stop();
+    }
+}
 //==============================================================================
 // Sets upo websocket client and waits for connection from vscode - or test server
 //==============================================================================
@@ -255,12 +218,17 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                 try
                 {
                     auto json = nlohmann::json::parse(msg->str, nullptr, false);
-                    lattice::logDebug << json.dump(4);
                     const std::string command = json["command"];
                     nlohmann::json jsonObj;
                     if (json.contains("obj"))
-                        jsonObj = nlohmann::json::parse(json["obj"].get<std::string>());
-
+                    {
+                        //"obj" can be a string when coming from vscode - but will always be
+                        // and object when testing outside vscode
+                        if(json["obj"].is_string())
+                            jsonObj = nlohmann::json::parse(json["obj"].get<std::string>());
+                        else
+                            jsonObj = json["obj"];
+                    }
                     if (command == "parameterChange")
                     {
                         for (int i = 0; i < cabbage.getNumberOfParameters(); i++)
@@ -460,6 +428,11 @@ void CabbageAudioApp::initialiseAudio()
     unsigned int sampleRate = audioConfig.audioSR;
     unsigned int bufferFrames = audioConfig.bufferSize;
 
+    lattice::logDebug << "Attempting to start audio with the following settings:\nSR: " << audioConfig.audioSR
+                      << "\nBuffer Size: " << audioConfig.bufferSize << "\nInput device: " << audioConfig.audioInDev
+                      << "\nNumber of channels: " << inputParameters.nChannels << "\nOutput device: " << audioConfig.audioOutDev
+                      << "\nNumber of channels: " << outputParameters.nChannels;
+    
     try
     {
         // Open the audio stream. If the selected audio input device has no

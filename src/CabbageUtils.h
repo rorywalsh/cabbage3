@@ -83,13 +83,13 @@ public:
     // Returns the csd file. If csdFile is emtpy it willdeduct the location
     static std::string getCsdFileAndPath(std::string csdFile = "");
     // Reads and parses the cabbage section from the file
-    static std::optional<nlohmann::json> parseCabbageSection(const std::string &csdFile);
+    static std::optional<nlohmann::json> parseCabbageSection(const std::string &csdFilePath);
     // Function to get the number of input channels (nchnls_i)
-    static int getNumberOfInputChannels(const std::string &csdFile);
+    static int getNumberOfInputChannels(const std::string &csdFilePath);
     // Function to get the number of output channels (nchnls)
-    static int getNumberOfOutputChannels(const std::string &csdFile);
+    static int getNumberOfOutputChannels(const std::string &csdFilePath);
     // Function to get the Cabbage section fo text from a csd file
-    static std::string getCabbageSection(const std::string &csdFile);
+    static std::string getCabbageSection(const std::string &csdFilePath);
     // Return the csd path
     static std::string getCsdPath(const std::string& file = "");
     // Extract widget properties from corresponding JS file

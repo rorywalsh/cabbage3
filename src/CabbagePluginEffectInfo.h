@@ -2,13 +2,17 @@
 #include <clap/clap.h>
 #include "CabbageProcessor.h"
 
+
 namespace {
     struct PluginInfo {
         std::string name;
         std::string id;
         
-        PluginInfo() :
-            name(cabbage::File::getBinaryWithoutExtension()),
+        PluginInfo()
+#ifdef CabbageApp
+            : name(""), id("")
+#else
+            :name(cabbage::File::getBinaryWithoutExtension()),
             id([this](){
                 const std::string cabbageJson(cabbage::File::getCabbageSection(cabbage::File::getCsdFileAndPath()));
                 if (nlohmann::json::accept(cabbageJson))
@@ -24,6 +28,7 @@ namespace {
                 }
                 return "com.cabbageaudio." + name;
             }())
+#endif
         {}
     };
 

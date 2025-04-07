@@ -133,11 +133,11 @@ std::string File::getBinaryWithoutExtension()
     return binaryFileName;
 }
 
-std::string File::getCabbageSection(const std::string &csdFile)
+std::string File::getCabbageSection(const std::string &csdFilePath)
 {
 
-    auto csdFilePath = (!csdFile.empty() && lattice::File::exists(csdFile)) ? csdFile : getCsdFileAndPath();
-    auto csdText = choc::file::loadFileAsString(csdFilePath);
+    auto csdFile = (!csdFilePath.empty() && lattice::File::exists(csdFilePath)) ? csdFilePath : getCsdFileAndPath();
+    auto csdText = choc::file::loadFileAsString(csdFile);
     
     std::regex cabbageRegex(R"(<Cabbage>([\s\S]*?)</Cabbage>)");
     std::smatch match;

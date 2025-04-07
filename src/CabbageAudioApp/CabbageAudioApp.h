@@ -16,7 +16,7 @@
 #include <ixwebsocket/IXWebSocketServer.h>
 
 #include "CabbageProcessor.h"
-
+#include "WebSocketTestServer.h"
 
 
 class CabbageAudioApp {
@@ -91,13 +91,18 @@ private:
     AudioConfig audioConfig;
     void initialiseAudio();
     void initialiseMidi();
-    bool initialiseWebSocketConnection();
-    void startWebSocketServerForTesting();
+    
+    // Websocket server - for communication with vscode
     ix::WebSocketServer webSocketServer;
-    std::thread webSocketServerThread;  // Thread for running the server
-    std::atomic<bool> serverRunning{false};  // Flag to control server lifetime
-    bool startTestServer = false;
-    bool testServerRunning = true;  // Set flag to true
+    bool initialiseWebSocketConnection();
+    
+    
+    // Functions for running test server - for tests without vscode
+    bool shouldStartTestServer = false;
+    std::unique_ptr<WebSocketTestServer> testServer;
+    void startWebSocketServerForTesting();
+    void stopWebSocketServerForTesting();
+    
     
     // Return a valid device ID for a given device name
     int getAudioDeviceId(const std::string& deviceName) const;
@@ -119,6 +124,7 @@ private:
     float** getEmptyInputBuffer() const;
     unsigned int getNumChannels() const;
 
+    // Callbacks for audio and midi
     static int audioCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames,
                             double streamTime, RtAudioStreamStatus status, void* userData);
     
@@ -127,20 +133,7 @@ private:
     int portNumber = 0;
     std::string csdFileAndPath = "";
     
-    // Utility function to open browser with web frontend for testing
-    void openBrowser(const std::string& url)
-    {
-    #if defined(LATTICE_WINDOWS)
-        std::string command = "start " + url;
-    #elif defined(LATTICE_MACOS)
-        std::string command = "open " + url;
-    #elif defined(LATTICE_LINUX)
-        std::string command = "xdg-open " + url;
-    #else
-        #error "Unsupported platform"
-    #endif
-        std::system(command.c_str());
-    }
+
 };
 
 #endif // CABBAGEAUDIOAPP_H
