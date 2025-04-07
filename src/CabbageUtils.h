@@ -84,6 +84,8 @@ public:
     static std::string getCsdFileAndPath(std::string csdFile = "");
     // Reads and parses the cabbage section from the file
     static std::optional<nlohmann::json> parseCabbageSection(const std::string &csdFilePath);
+    // Returns the CsOptions
+    static std::string getCsOptions(const std::string& csdFilePath);    
     // Function to get the number of input channels (nchnls_i)
     static int getNumberOfInputChannels(const std::string &csdFilePath);
     // Function to get the number of output channels (nchnls)

@@ -40,20 +40,20 @@ bool Utils::validateChannelConfig(const std::string &channelConfig, int maxInput
 {
     std::istringstream ss(channelConfig);
     std::string pair;
-
+    
     while (ss >> pair)
     {
         size_t dashPos = pair.find('-');
         size_t dotPos = pair.find('.');
-
+        
         int inputs = 0;
         int outputs = 0;
-
+        
         if (dotPos != std::string::npos)
         {
             std::string inputPart = pair.substr(0, dashPos);
             std::string outputPart = pair.substr(dashPos + 1);
-
+            
             inputs = std::stoi(inputPart.substr(0, dotPos)) + std::stoi(inputPart.substr(dotPos + 1));
             outputs = std::stoi(outputPart);
         }
@@ -62,16 +62,16 @@ bool Utils::validateChannelConfig(const std::string &channelConfig, int maxInput
             inputs = std::stoi(pair.substr(0, dashPos));
             outputs = std::stoi(pair.substr(dashPos + 1));
         }
-
+        
         if (inputs > maxInputs || outputs > maxOutputs)
         {
             std::cout << "Error: Channel configuration exceeds the maximum limits. Inputs: " << inputs
-                      << ", MaxInputs: " << maxInputs << ", Outputs: " << outputs << ", MaxOutputs: " << maxOutputs
-                      << std::endl;
+            << ", MaxInputs: " << maxInputs << ", Outputs: " << outputs << ", MaxOutputs: " << maxOutputs
+            << std::endl;
             return false; // Invalid configuration
         }
     }
-
+    
     return true; // Valid configuration
 }
 
@@ -82,13 +82,13 @@ std::string Utils::getJsonWithLineNumbers(const nlohmann::json &j)
     std::string line;
     int line_number = 1;
     std::ostringstream result;
-
+    
     while (std::getline(stream, line))
     {
         result << line_number << ": " << line << "\n";
         line_number++;
     }
-
+    
     return result.str();
 }
 
@@ -106,13 +106,13 @@ std::string Utils::getJsonWithLineNumbers(const std::string &json_str)
         std::istringstream json_stream(json_str);
         std::string line;
         int line_number = 1;
-
+        
         while (std::getline(json_stream, line))
         {
             error_output << line_number << ": " << line << "\n";
             line_number++;
         }
-
+        
         return error_output.str();
     }
 }
@@ -122,32 +122,32 @@ std::string File::getBinaryWithoutExtension()
 {
     std::string binaryFileName = getBinaryFileName(); // Get the full filename
     size_t pos = binaryFileName.find_last_of(".");    // Find the last period (.)
-
+    
     if (pos != std::string::npos)
     {
         // Return the substring before the last period
         return binaryFileName.substr(0, pos);
     }
-
+    
     // If there's no period (i.e., no extension), return the full filename
     return binaryFileName;
 }
 
 std::string File::getCabbageSection(const std::string &csdFilePath)
 {
-
+    
     auto csdFile = (!csdFilePath.empty() && lattice::File::exists(csdFilePath)) ? csdFilePath : getCsdFileAndPath();
     auto csdText = choc::file::loadFileAsString(csdFile);
     
     std::regex cabbageRegex(R"(<Cabbage>([\s\S]*?)</Cabbage>)");
     std::smatch match;
-
+    
     // Search for the content using the regex
     if (std::regex_search(csdText, match, cabbageRegex) && match.size() > 1)
     {
         return match[1].str(); // Return the captured group
     }
-
+    
     return "";
 }
 // Reads and parses the cabbage section from the file
@@ -157,7 +157,7 @@ std::optional<nlohmann::json> File::parseCabbageSection(const std::string &csdFi
     {
         // Get the cabbage section from the file
         const std::string cabbageContents = cabbage::File::getCabbageSection(csdFile);
-
+        
         // Parse the cabbageContents as a JSON object
         return nlohmann::json::parse(cabbageContents);
     }
@@ -228,7 +228,7 @@ std::string File::getCabbageResourceDir()
 {
     if (lattice::File::usesBundledResources())
         return lattice::File::getResourceDirFromBundle();
-
+    
 #if defined(_WIN32)
     return getWindowsProgramDataDir();
 #elif defined(__APPLE__)
@@ -245,7 +245,7 @@ std::string File::getCsdPath(const std::string& file)
     // If loading resources from plugin bundle..
     if (usesBundledResources())
         return getResourceDirFromBundle();
-
+    
     // Otherwise figure out path to .csd file..
     if (file.empty())
     {
@@ -282,7 +282,7 @@ std::string File::getCsdFileAndPath(std::string csdFile)
         const std::string newPath = joinPath(resourceDir, binaryFileName + std::string(".csd"));
         return newPath;
     }
-        
+    
     const std::string newPath = joinPath(resourceDir, binaryFileName);
     
     if(!lattice::File::exists(newPath))
@@ -303,7 +303,7 @@ nlohmann::json File::extractPropsFromJS(const std::string &jsContent)
 {
     std::string propsKey = "this.props =";
     size_t propsPos = jsContent.find(propsKey);
-
+    
     if (propsPos != std::string::npos)
     {
         // Start of the actual props object (after "this.props =")
@@ -313,11 +313,11 @@ nlohmann::json File::extractPropsFromJS(const std::string &jsContent)
             std::cerr << "No opening brace for props found." << std::endl;
             return {};
         }
-
+        
         // Manual brace matching
         int braceCount = 1;
         size_t end = start + 1;
-
+        
         while (end < jsContent.size() && braceCount > 0)
         {
             if (jsContent[end] == '{')
@@ -330,17 +330,17 @@ nlohmann::json File::extractPropsFromJS(const std::string &jsContent)
             }
             ++end;
         }
-
+        
         // If we exited and braceCount is not zero, something went wrong
         if (braceCount != 0)
         {
             std::cerr << "Mismatched braces in the props object." << std::endl;
             return {};
         }
-
+        
         // Extract the props object string
         std::string propsString = jsContent.substr(start, end - start);
-
+        
         // Parse the props string into a JSON object using nlohmann::json
         try
         {
@@ -349,7 +349,7 @@ nlohmann::json File::extractPropsFromJS(const std::string &jsContent)
         catch (const nlohmann::json::parse_error &e)
         {
             lattice::logInfo << "JSON parse error: " << e.what() << "\nOffending JSON:\n"
-                             << cabbage::Utils::getJsonWithLineNumbers(propsString);
+            << cabbage::Utils::getJsonWithLineNumbers(propsString);
             return {};
         }
     }
@@ -357,7 +357,7 @@ nlohmann::json File::extractPropsFromJS(const std::string &jsContent)
     {
         std::cerr << "No props object found in the JavaScript file." << std::endl;
     }
-
+    
     return {};
 }
 
@@ -378,7 +378,7 @@ std::string File::getSettingsFile()
         settingsPath << path << "\\Cabbage\\settings.json";
         return settingsPath.str();
     }
-
+    
 #elif defined __APPLE__
     settingsPath << getenv("HOME") << "/Library/Application Support/Cabbage/settings.json";
     return settingsPath.str();
@@ -388,7 +388,7 @@ std::string File::getSettingsFile()
     iniPath.Append("settings.json"); // add file name to path
     return iniPath.Get();
 #endif
-
+    
     return {};
 }
 
@@ -401,16 +401,16 @@ std::string File::getSettingsProperty(const std::string &section, const std::str
         std::cerr << "Error: Could not open the file " << getSettingsFile() << std::endl;
         return "";
     }
-
+    
     // Read file contents
     std::ostringstream oss;
     oss << file.rdbuf();
     std::string fileContent = oss.str();
     file.close();
-
+    
     // Parse JSON data
     nlohmann::json jsonData;
-
+    
     try
     {
         jsonData = nlohmann::json::parse(fileContent);
@@ -420,16 +420,39 @@ std::string File::getSettingsProperty(const std::string &section, const std::str
         lattice::logInfo << "Parse error : " << e.what() << " at byte position " << e.byte;
         return "";
     }
-
+    
     // Validate section and key existence
     if (jsonData.contains(section) && jsonData[section].contains(key))
     {
         return jsonData[section][key].get<std::string>();
     }
-
+    
     lattice::logInfo << "Error: Section '" << section << "' or key '" << key << "' not found.";
     return "";
 }
 
+
+std::string File::getCsOptions(const std::string& csdFilePath)
+{
+    std::ifstream file(csdFilePath);
+    if (!file.is_open())
+    {
+        throw std::runtime_error("Failed to open file: " + csdFilePath);
+    }
+    
+    std::string content((std::istreambuf_iterator<char>(file)),
+                        std::istreambuf_iterator<char>());
+    
+    size_t startPos = content.find("<CsOptions>");
+    size_t endPos = content.find("</CsOptions>");
+    
+    if (startPos == std::string::npos || endPos == std::string::npos)
+    {
+        return ""; // No CsOptions tag found
+    }
+    
+    startPos += 11; // Move past "<CsOptions>"
+    return content.substr(startPos, endPos - startPos);
 }
- 
+
+} // end of namespace

@@ -13,7 +13,9 @@
 #undef logDebug
 #undef logWarning
 #undef logError
+#include "platform/choc_DisableAllWarnings.h"
 #include <ixwebsocket/IXWebSocketServer.h>
+#include "platform/choc_ReenableAllWarnings.h"
 
 #include "CabbageProcessor.h"
 #include "WebSocketTestServer.h"

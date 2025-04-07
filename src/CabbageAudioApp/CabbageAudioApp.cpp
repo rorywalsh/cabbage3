@@ -2,6 +2,7 @@
 #include <iostream>
 #include <algorithm>
 #include "argparse.hpp"
+#include <filesystem>
 
 //==============================================================================
 // Constructor - responsible for creating processor and initialising audio/midi
@@ -30,7 +31,7 @@ CabbageAudioApp::CabbageAudioApp(int argc, char* argv[])
     if(shouldStartTestServer)
     {
         startWebSocketServerForTesting();
-        testServer->setUpdateInterval(10);
+        testServer->setUpdateInterval(250);
         // Wait for the server to start (adjust delay if needed)
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
@@ -120,7 +121,9 @@ bool CabbageAudioApp::parseComandLineArgs(int argc, char* argv[])
     }
 
     // Retrieve the parsed arguments
-    csdFileAndPath = program.get<std::string>("--file");
+    csdFileAndPath = std::filesystem::absolute(program.get<std::string>("--file"));
+    cabbage::Utils::check(lattice::File::exists(csdFileAndPath), "file doesn't exist");
+        
     portNumber = program.get<int>("--portNumber");
     shouldStartTestServer = program.get<bool>("--startTestServer");
     return true;
@@ -181,13 +184,19 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
 //==============================================================================
 void CabbageAudioApp::startWebSocketServerForTesting()
 {
+    auto csOptionsText = cabbage::File::getCsOptions(csdFileAndPath);
+    
+    std::regex rtMidiPattern(R"(-\+rtmidi\s*=\s*NULL)");
+    bool testMidi = std::regex_search(csOptionsText, rtMidiPattern);
+    
     if (!testServer)
     {
         // Setting repeatable to true - this ensure each test is the same
-        testServer = std::make_unique<WebSocketTestServer>(portNumber, true);
+        testServer = std::make_unique<WebSocketTestServer>(*processor, portNumber, true);
+        testServer->testMidi(testMidi);
     }
     
-    testServer->initialise(processor->getCabbageEngine().getWidgets());
+    testServer->initialise();
     testServer->start();
 
 }

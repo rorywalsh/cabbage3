@@ -1,8 +1,11 @@
 
 #pragma once
-
+#include "platform/choc_DisableAllWarnings.h"
 #include <ixwebsocket/IXWebSocketServer.h>
+#include "platform/choc_ReenableAllWarnings.h"
 #include <random>
+#include "../CabbageProcessor.h"
+#include <text/choc_StringUtilities.h>
 //==============================================================================
 // WebSocket Test Server with configurable test data generation
 //
@@ -10,6 +13,96 @@
 //
 //  --file="../../tests/rotarySlider.csd" --portNumber=9991 --startTestServer=True
 //==============================================================================
+
+#include <map>
+#include <vector>
+#include <random>
+#include <algorithm>
+
+class NoteGenerator {
+private:
+    std::map<int16_t, int32_t> activeNotes; // Tracks {key: noteId}
+    std::vector<int16_t> noteSequence;      // Fixed note sequence
+    size_t sequenceIndex = 0;               // Current position in sequence
+    int targetPolyphony = 3;                // Desired overlapping notes
+    std::mt19937 gen{std::random_device{}()};
+
+public:
+    // Initialize with a specific note sequence (e.g., C major scale)
+    NoteGenerator() {
+        noteSequence = {60, 62, 64, 65, 67, 69, 71, 72}; // C4 to C5
+    }
+
+    // Optionally set a custom sequence
+    void setSequence(const std::vector<int16_t>& sequence) {
+        noteSequence = sequence;
+        sequenceIndex = 0;
+    }
+
+    lattice::NoteEvent generateNoteEvent() 
+    {
+        std::uniform_real_distribution<double> velDist(0.3, 1.0);
+
+        // Case 1: Force noteOff if too many active notes
+        if (activeNotes.size() >= targetPolyphony) {
+            return generateNoteOff();
+        }
+
+        // Case 2: Generate next note in sequence
+        int16_t key = noteSequence[sequenceIndex];
+        sequenceIndex = (sequenceIndex + 1) % noteSequence.size();
+
+        // If key is active, release it first
+        if (activeNotes.count(key)) 
+        {
+            auto noteOff = generateNoteOff(key);
+            activeNotes.erase(key);
+            return noteOff;
+        }
+
+        // Create new noteOn
+        int32_t noteId = static_cast<int32_t>(gen());
+        activeNotes[key] = noteId;
+        return {
+            lattice::NoteEvent::Type::noteOn,
+            key,
+            velDist(gen), // Random velocity
+            noteId,
+            0 // sampleOffset
+        };
+    }
+
+private:
+    lattice::NoteEvent generateNoteOff(int16_t specificKey = -1) 
+    {
+        if (activeNotes.empty()) 
+        {
+            return generateNoteEvent(); // Fallback if no active notes
+        }
+
+        // Release oldest note if no key specified
+        auto it = (specificKey != -1)
+            ? activeNotes.find(specificKey)
+            : activeNotes.begin();
+        
+        if (it == activeNotes.end()) 
+        {
+            it = activeNotes.begin();
+        }
+
+        int16_t key = it->first;
+        int32_t noteId = it->second;
+        activeNotes.erase(it);
+
+        return {
+            lattice::NoteEvent::Type::noteOff,
+            key,
+            0.0, // Velocity 0 for noteOff
+            noteId,
+            0
+        };
+    }
+};
 
 class WebSocketTestServer
 {
@@ -27,11 +120,13 @@ public:
             float skew;
             float increment;
         } range;
+        
     };
 
     // Disable 'repeatable' to test with truly random values
-    WebSocketTestServer(int port, bool repeatable)
-        : portNumber(port),
+    WebSocketTestServer(CabbageProcessor &p, int port, bool repeatable)
+        : processor(p),
+          portNumber(port),
           serverRunning(false)
     {
         setDeterministicMode(repeatable);
@@ -49,18 +144,20 @@ public:
         deterministicGenerator.seed(testSeed);
     }
     
-    void initialise(const std::vector<nlohmann::json>& widgets)
+    void initialise()
     {
         std::lock_guard<std::mutex> lock(controlsMutex);
         controls.clear();
         
-        for (const auto& widget : widgets)
+        for (const auto& widget : processor.getCabbageEngine().getWidgets())
         {
             try
             {
                 const std::string type = widget["type"].get<std::string>();
+                
                 // Skip if not a control we care about
-                if (type != "rotarySlider" && type != "verticalSlider" && type != "horizontalSlider")
+                if (type != "rotarySlider" && type != "verticalSlider" && type != "horizontalSlider" 
+                    && type != "comboBox" )
                 {
                     continue;
                 }
@@ -85,17 +182,29 @@ public:
                     const auto& range = widget["range"];
                     control.range.min = range.value("min", 0.0f);
                     control.range.max = range.value("max", 1.0f);
-                    control.range.value = range.value("value", 0.0f);
+                    control.range.value = range.value("defaultValue", 0.0f);
                     control.range.skew = range.value("skew", 1.0f);
                     control.range.increment = range.value("increment", 0.001f);
                     control.paramIdx = paramIdx;
                     controls.push_back(control);
                 }
                 // todo - add other types
-                else if (type == "checkBox")
+                else if (type == "comboBox")
                 {
+                    ControlInfo control;
+                    control.type = type;
+                    control.channel = channel;
                     
+                    const auto& items = choc::text::splitString(widget["items"].get<std::string>(), ',', false);
+                    control.range.min = 0;
+                    control.range.max = items.size() - 1;
+                    control.range.value = 0.0f;
+                    control.range.skew = 1;
+                    control.range.increment = 1;
+                    control.paramIdx = paramIdx;
+                    controls.push_back(control);
                 }
+                
             }
             catch (const nlohmann::json::exception& e)
             {
@@ -134,6 +243,10 @@ public:
     }
 
     bool isRunning(){   return serverRunning;   }
+    
+    // Enable to send MIDI note during testing
+    void testMidi(bool shouldTest){ shouldTestMidi = shouldTest;  }
+    
 private:
     void runServer()
     {
@@ -191,11 +304,24 @@ private:
         {
             for (const auto& message : messages)
             {
+                lattice::logInfo << message.dump(4);
                 client->send(message.dump());
+                
+            }
+            if(shouldTestMidi)
+            {
+                if(testPacketCount % 2 == 0)
+                {
+                    
+                    processor.addNoteEvent(generator.generateNoteEvent());
+                }
+                
+                testPacketCount++;
             }
         }
     }
 
+    
     std::vector<nlohmann::json> generateTestData()
     {
         std::vector<nlohmann::json> messages;
@@ -215,24 +341,28 @@ private:
         
         for (auto& control : controls)
         {
-            if (control.type == "rotarySlider" || control.type == "linearSlider")
+            if (control.type == "rotarySlider" || control.type == "linearSlider" || control.type == "comboBox")
             {
-                float skewedValue = control.range.min + 
-                                   (control.range.max - control.range.min) * 
+                float skewedValue = control.range.min +
+                                   (control.range.max - control.range.min) *
                                    pow(random, control.range.skew);
                 
                 if (control.range.increment > 0)
                 {
-                    float steps = (control.range.max - control.range.min) / control.range.increment;
-                    skewedValue = round(skewedValue * steps) / steps;
+                    // Correct stepping implementation:
+                    float steps = round((skewedValue - control.range.min) / control.range.increment);
+                    skewedValue = control.range.min + (steps * control.range.increment);
+                    
+                    // Clamp to ensure we stay within bounds
+                    skewedValue = std::clamp(skewedValue, control.range.min, control.range.max);
                 }
                 
                 control.range.value = skewedValue;
                 
-                nlohmann::json message = 
+                nlohmann::json message =
                 {
                     {"command", "parameterChange"},
-                    {"obj", 
+                    {"obj",
                         {
                             {"paramIdx", control.paramIdx},
                             {"channel", control.channel},
@@ -248,7 +378,7 @@ private:
         
         return messages;
     }
-
+    
     int portNumber;
     bool serverRunning;
     std::thread serverThread;
@@ -258,5 +388,10 @@ private:
     std::mt19937_64 deterministicGenerator; // Mersenne Twister engine
     bool useDeterministicValues = false;
     uint64_t testSeed = 0;
+    bool noteOn = true;
+    bool shouldTestMidi = false;
+    CabbageProcessor &processor;
+    NoteGenerator generator;
+    int testPacketCount = 0;
 };
 
