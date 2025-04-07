@@ -103,8 +103,8 @@ void CabbageProcessor::addParameters()
                     addParameter({w["channel"].get<std::string>(), 
                         w["range"]["min"].get<float>(),
                         w["range"]["max"].get<float>(), 
-                        w["range"]["value"].get<float>(),
-                        w["range"]["increment"].get<float>(), 
+                        w["range"]["defaultValue"].get<float>(),
+                        w["range"]["increment"].get<float>(),
                         w["range"]["skew"].get<float>()});
                 }
                 else
@@ -112,9 +112,10 @@ void CabbageProcessor::addParameters()
                     addParameter({w["channel"].get<std::string>(), 
                         w["min"].get<float>(),
                         w["max"].get<float>(), 
-                        w["value"].get<float>()});
+                        w["defaultValue"].get<float>()});
                 }
                 
+                lattice::logDebug << w.dump(4);
                 w["parameterIndex"] = cabbage.getCurrentParameterCount();
                 cabbage.initParameter(w);
             }
@@ -339,8 +340,47 @@ void CabbageProcessor::onMesssgeFromWebView(const nlohmann::json& j)
             lattice::logError << "Failed to parse 'obj': " << e.what();
         }
     }
+    else if (incomingMessage["command"] == "midiMessage")
+    {
+        addNoteEventFromJson(nlohmann::json::parse(incomingMessage["obj"].get<std::string>()));
+        //"{\"statusByte\":144,\"dataByte1\":77,\"dataByte2\":127}"
+    }
 }
 
+//========================================================================================
+// Adds a note event from a JSON message
+//========================================================================================
+void CabbageProcessor::addNoteEventFromJson(const nlohmann::json& j)
+{
+    uint8_t statusByte = j["statusByte"].get<uint8_t>();
+    uint8_t dataByte1 = j["dataByte1"].get<uint8_t>();
+    uint8_t dataByte2 = j["dataByte2"].get<uint8_t>();
+    
+    // Determine the event type based on MIDI status byte
+    lattice::NoteEvent::Type eventType;
+    if ((statusByte & 0xF0) == 0x90)
+    {
+        // MIDI note-on with velocity 0 is treated as note-off
+        eventType = (dataByte2 == 0) ? lattice::NoteEvent::Type::noteOff : lattice::NoteEvent::Type::noteOn;
+    }
+    else if ((statusByte & 0xF0) == 0x80)
+    {  // Note-off message
+        eventType = lattice::NoteEvent::Type::noteOff;
+    }
+    else
+    {
+        // Handle other cases or throw an error
+        throw std::runtime_error("Unsupported MIDI message type");
+    }
+    
+    // Convert MIDI velocity (0-127) to normalized velocity (0.0-1.0)
+    double velocity = static_cast<double>(dataByte2) / 127.0;
+    
+    // Create the NoteEvent
+
+    auto noteEvent = lattice::NoteEvent(eventType, static_cast<int16_t>(dataByte1), velocity, -1, 0);
+    addNoteEvent(noteEvent);
+}
 
 //========================================================================================
 // Update UI - we typically call this when we want to update widgets in the UI
@@ -387,51 +427,39 @@ int CabbageProcessor::OpenMidiInputDevice(CSOUND *csound, void **userData, const
 //========================================================================================
 // Reads MIDI input data from host, gets called every time there is MIDI input to our plugin
 //========================================================================================
-int CabbageProcessor::ReadMidiData(CSOUND * /*csound*/, void *userData, unsigned char *mbuf, int nbytes)
-{
-    auto *pluginData = static_cast<cabbage::Engine *>(userData);
-
-    if (!userData)
-    {
-        cabbage::Utils::check(userData, "\nInvalid");
+int CabbageProcessor::ReadMidiData(CSOUND* /*csound*/, void* userData, unsigned char* mbuf, int nbytes) {
+    auto* pluginData = static_cast<cabbage::Engine*>(userData);
+    if (!userData) {
+        cabbage::Utils::check(userData, "\nInvalid user data");
         return 0;
     }
 
     int cnt = 0;
+    auto& noteEvents = pluginData->getProcessor().getNoteEvents();
 
-    // Access the note event queue
-    auto noteEvents = pluginData->getProcessor().getNoteEvents();
-    while (!noteEvents.empty())
+    while (!noteEvents.empty() && cnt + 3 <= nbytes) 
     {
-        // Get the front event
-        auto event = noteEvents.front();
+        const auto& event = noteEvents.front(); // Get event
 
-        // Prevent overflow
-        if (cnt + 3 > nbytes) break;
-
-        // Determine the MIDI status byte
-        uint8_t statusByte = 0;
-        uint8_t velocity = static_cast<uint8_t>(event.velocity * 127); // Normalize velocity to MIDI range
-
-        if (event.type == lattice::NoteEvent::Type::noteOn)
-            statusByte = 0x90; // Note On, channel 1
-        else if (event.type == lattice::NoteEvent::Type::noteOff)
-            statusByte = 0x80; // Note Off, channel 1
-        else
+        // Skip unsupported types (e.g., noteChoke)
+        if (event.type != lattice::NoteEvent::Type::noteOn &&
+            event.type != lattice::NoteEvent::Type::noteOff) 
         {
-            noteEvents.pop_front(); // Move to the next event
-            continue; // Skip unsupported types
+            noteEvents.pop_front();
+            continue;
         }
 
-        // Fill the MIDI buffer
-        *mbuf++ = statusByte;
-        *mbuf++ = static_cast<uint8_t>(event.key); // MIDI note number (0-127)
-        *mbuf++ = velocity;
+        // Convert to MIDI message
+        uint8_t statusByte = (event.type == lattice::NoteEvent::Type::noteOn) ? 0x90 : 0x80;
+        uint8_t velocity = static_cast<uint8_t>(event.velocity * 127.0); // Scale to 0-127
+
+        // Write MIDI bytes
+        *mbuf++ = statusByte;     // Status (note-on/off + channel 1)
+        *mbuf++ = event.key;      // MIDI note number (0-127)
+        *mbuf++ = velocity;       // Velocity (0-127)
 
         cnt += 3;
-
-        // Remove the processed event from the queue
-        noteEvents.pop_front();
+        noteEvents.pop_front();    // Remove processed event
     }
 
     return cnt;

@@ -49,6 +49,7 @@ public:
 #endif
     
 private:
+    void addNoteEventFromJson(const nlohmann::json& j);
     void onIdle();
     void onIdleScheduler();
     void startOnIdle();

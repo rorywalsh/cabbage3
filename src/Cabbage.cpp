@@ -137,10 +137,18 @@ bool Engine::setupCsound()
 //===========================================================================================
 void Engine::initParameter(const nlohmann::json& w)
 {
-    parameterChannels.push_back(
-        {cabbage::Parser::removeQuotes(w["channel"].get<std::string>()), w["range"]["value"].get<float>()});
-    
-    csound->SetControlChannel(w["channel"].get<std::string>().c_str(), w["range"]["value"].get<float>());
+    if(w.contains("range"))
+    {
+        parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()),
+                                    w["range"]["defaultValue"].get<float>()});
+        csound->SetControlChannel(w["channel"].get<std::string>().c_str(), w["range"]["defaultValue"].get<float>());
+    }
+    else
+    {
+        parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()),
+                                    w["defaultValue"].get<float>()});
+        csound->SetControlChannel(w["channel"].get<std::string>().c_str(), w["defaultValue"].get<float>());
+    }
     
     numberOfParameters++;
 }
