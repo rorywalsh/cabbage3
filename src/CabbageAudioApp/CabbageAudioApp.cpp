@@ -121,7 +121,7 @@ bool CabbageAudioApp::parseComandLineArgs(int argc, char* argv[])
     }
 
     // Retrieve the parsed arguments
-    csdFileAndPath = std::filesystem::absolute(program.get<std::string>("--file"));
+    csdFileAndPath = std::filesystem::absolute(program.get<std::string>("--file")).string();
     cabbage::Utils::check(lattice::File::exists(csdFileAndPath), "file doesn't exist");
         
     portNumber = program.get<int>("--portNumber");
