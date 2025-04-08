@@ -28,9 +28,10 @@ private:
     std::mt19937 gen{std::random_device{}()};
 
 public:
-    // Initialize with a specific note sequence (e.g., C major scale)
-    NoteGenerator() {
-        noteSequence = {60, 62, 64, 65, 67, 69, 71, 72}; // C4 to C5
+    // Initialize with a specific note sequence
+    NoteGenerator() 
+    {
+        noteSequence = {60, 62, 64, 65, 67, 69, 71, 72}; 
     }
 
     // Optionally set a custom sequence
@@ -43,12 +44,13 @@ public:
     {
         std::uniform_real_distribution<double> velDist(0.3, 1.0);
 
-        // Case 1: Force noteOff if too many active notes
-        if (activeNotes.size() >= targetPolyphony) {
+        // Force noteOff if too many active notes
+        if (activeNotes.size() >= targetPolyphony) 
+        {
             return generateNoteOff();
         }
 
-        // Case 2: Generate next note in sequence
+        // Generate next note in sequence
         int16_t key = noteSequence[sequenceIndex];
         sequenceIndex = (sequenceIndex + 1) % noteSequence.size();
 
@@ -66,9 +68,9 @@ public:
         return {
             lattice::NoteEvent::Type::noteOn,
             key,
-            velDist(gen), // Random velocity
+            velDist(gen),
             noteId,
-            0 // sampleOffset
+            0 
         };
     }
 
@@ -149,62 +151,54 @@ public:
         std::lock_guard<std::mutex> lock(controlsMutex);
         controls.clear();
         
+        // This is where we get the controls from the Cabbage engine
+        // and use them to create test data for our WebSocket server
         for (const auto& widget : processor.getCabbageEngine().getWidgets())
         {
             try
             {
-                const std::string type = widget["type"].get<std::string>();
-                
-                // Skip if not a control we care about
-                if (type != "rotarySlider" && type != "verticalSlider" && type != "horizontalSlider" 
-                    && type != "comboBox" )
+                // Only add those controls that are marked as automatable
+                if (widget.contains("automatable") && widget["automatable"].get<int>() == 1)
                 {
-                    continue;
-                }
+                    ControlInfo control;
+                    control.type = widget["type"].get<std::string>();
+                    control.channel = widget["channel"].get<std::string>();
+                    const int paramIdx = widget["parameterIndex"].get<int>();
 
-                
-                const std::string channel = widget["channel"].get<std::string>();
-                lattice::logInfo << widget.dump(4);
-                const int paramIdx = widget["parameterIndex"].get<int>();
-
-                // Sliders define a range object, other widgets don't..
-                if (type == "rotarySlider" || type == "verticalSlider" || type == "horizontalSlider")
-                {
-                    if (!widget.contains("range"))
+                    if (widget.contains("range"))
                     {
-                        continue;
+                        const auto &range = widget["range"];
+                        control.range.min = range.value("min", 0.0f);
+                        control.range.max = range.value("max", 1.0f);
+                        control.range.value = range.value("defaultValue", 0.0f);
+                        control.range.skew = range.value("skew", 1.0f);
+                        control.range.increment = range.value("increment", 0.001f);
                     }
 
-                    ControlInfo control;
-                    control.type = type;
-                    control.channel = channel;
-                    
-                    const auto& range = widget["range"];
-                    control.range.min = range.value("min", 0.0f);
-                    control.range.max = range.value("max", 1.0f);
-                    control.range.value = range.value("defaultValue", 0.0f);
-                    control.range.skew = range.value("skew", 1.0f);
-                    control.range.increment = range.value("increment", 0.001f);
+                    // We need to create a range for a comboBox 
+                    else if (control.type == "comboBox")
+                    {
+                        const auto &items = choc::text::splitString(widget["items"].get<std::string>(), ',', false);
+                        control.range.min = 0;
+                        control.range.max = items.size() - 1;
+                        control.range.value = 0.0f;
+                        control.range.skew = 1;
+                        control.range.increment = 1;
+
+                    }
+                    // All other controls emit a 0 or 1
+                    else
+                    {
+                        control.range.min = 0;
+                        control.range.max = 1;
+                        control.range.value = 0.0f;
+                        control.range.skew = 1;
+                        control.range.increment = 1;
+                    }
+
                     control.paramIdx = paramIdx;
                     controls.push_back(control);
                 }
-                // todo - add other types
-                else if (type == "comboBox")
-                {
-                    ControlInfo control;
-                    control.type = type;
-                    control.channel = channel;
-                    
-                    const auto& items = choc::text::splitString(widget["items"].get<std::string>(), ',', false);
-                    control.range.min = 0;
-                    control.range.max = items.size() - 1;
-                    control.range.value = 0.0f;
-                    control.range.skew = 1;
-                    control.range.increment = 1;
-                    control.paramIdx = paramIdx;
-                    controls.push_back(control);
-                }
-                
             }
             catch (const nlohmann::json::exception& e)
             {
@@ -304,7 +298,7 @@ private:
         {
             for (const auto& message : messages)
             {
-                lattice::logInfo << message.dump(4);
+                //lattice::logInfo << message.dump(4);
                 client->send(message.dump());
                 
             }
@@ -341,39 +335,36 @@ private:
         
         for (auto& control : controls)
         {
-            if (control.type == "rotarySlider" || control.type == "linearSlider" || control.type == "comboBox")
+            float skewedValue = control.range.min +
+                                (control.range.max - control.range.min) *
+                                pow(random, control.range.skew);
+                
+            if (control.range.increment > 0)
             {
-                float skewedValue = control.range.min +
-                                   (control.range.max - control.range.min) *
-                                   pow(random, control.range.skew);
-                
-                if (control.range.increment > 0)
-                {
-                    // Correct stepping implementation:
-                    float steps = round((skewedValue - control.range.min) / control.range.increment);
-                    skewedValue = control.range.min + (steps * control.range.increment);
+                // Correct stepping implementation:
+                float steps = round((skewedValue - control.range.min) / control.range.increment);
+                skewedValue = control.range.min + (steps * control.range.increment);
                     
-                    // Clamp to ensure we stay within bounds
-                    skewedValue = std::clamp(skewedValue, control.range.min, control.range.max);
-                }
-                
-                control.range.value = skewedValue;
-                
-                nlohmann::json message =
-                {
-                    {"command", "parameterChange"},
-                    {"obj",
-                        {
-                            {"paramIdx", control.paramIdx},
-                            {"channel", control.channel},
-                            {"value", skewedValue},
-                            {"channelType", "number"}
-                        }
-                    }
-                };
-                
-                messages.push_back(message);
+                // Clamp to ensure we stay within bounds
+                skewedValue = std::clamp(skewedValue, control.range.min, control.range.max);
             }
+                
+            control.range.value = skewedValue;
+                
+            nlohmann::json message =
+            {
+                {"command", "parameterChange"},
+                {"obj",
+                    {
+                        {"paramIdx", control.paramIdx},
+                        {"channel", control.channel},
+                        {"value", skewedValue},
+                        {"channelType", "number"}
+                    }
+                }
+            };
+                
+            messages.push_back(message);
         }
         
         return messages;

@@ -57,7 +57,7 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
         endif()
 
         # Build the target
-        if(BUILD_TARGETS AND BUILD_TARGETS STREQUAL "True" OR BUILD_TARGETS)
+        if(BUILD_ALL_TARGETS AND BUILD_ALL_TARGETS STREQUAL "True" OR BUILD_ALL_TARGETS)
             message(STATUS "Building target: ${target}")
 
             if(NOT CMAKE_BUILD_TYPE)
@@ -193,6 +193,7 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/main.cpp"
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioApp.cpp"
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioApp.h"
+        "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/WebSocketTestServer.h"
     )
     list(APPEND SOURCE_FILES ${CABBAGE_SERVICE_APP_SOURCES})
     source_group("Cabbage Service App" FILES ${CABBAGE_SERVICE_APP_SOURCES})
