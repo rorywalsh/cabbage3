@@ -188,11 +188,15 @@ include_directories(
 # ----------------------------
 # Build Executable Target (App)
 # ----------------------------
+# In order to debug CabbageApp without vscode - start with it the following command:
+# --file"path_to_file.csd" --portNumber=NNNN --startTestServer=True
+
 if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
     set(CABBAGE_SERVICE_APP_SOURCES
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/main.cpp"
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioApp.cpp"
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioApp.h"
+        "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/WebSocketTestServer.h"
     )
     list(APPEND SOURCE_FILES ${CABBAGE_SERVICE_APP_SOURCES})
     source_group("Cabbage Service App" FILES ${CABBAGE_SERVICE_APP_SOURCES})
@@ -270,7 +274,7 @@ else()
         BUNDLE_IDENTIFER "org.yourproject.${PROJECT_NAME}"
         BUNDLE_VERSION ${PROJECT_VERSION}
         COPY_AFTER_BUILD ${COPY_AFTER_BUILD}
-        PLUGIN_FORMATS CLAP VST3 # AUV2
+        PLUGIN_FORMATS CLAP VST3 AUV2
         ASSET_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_assets
         # STANDALONE_CONFIGURATIONS
         #     standalone "${PROJECT_NAME}" "your.reversed.domain.name.${PROJECT_NAME}"
