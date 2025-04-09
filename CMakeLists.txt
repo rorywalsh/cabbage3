@@ -57,7 +57,7 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
         endif()
 
         # Build the target
-        if(BUILD_TARGETS AND BUILD_TARGETS STREQUAL "True" OR BUILD_TARGETS)
+        if(BUILD_ALL_TARGETS AND BUILD_ALL_TARGETS STREQUAL "True" OR BUILD_ALL_TARGETS)
             message(STATUS "Building target: ${target}")
 
             if(NOT CMAKE_BUILD_TYPE)

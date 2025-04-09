@@ -31,7 +31,7 @@ CabbageAudioApp::CabbageAudioApp(int argc, char* argv[])
     if(shouldStartTestServer)
     {
         startWebSocketServerForTesting();
-        testServer->setUpdateInterval(250);
+        testServer->setUpdateInterval(500);
         // Wait for the server to start (adjust delay if needed)
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
@@ -121,7 +121,7 @@ bool CabbageAudioApp::parseComandLineArgs(int argc, char* argv[])
     }
 
     // Retrieve the parsed arguments
-    csdFileAndPath = std::filesystem::absolute(program.get<std::string>("--file"));
+    csdFileAndPath = std::filesystem::absolute(program.get<std::string>("--file")).string();
     cabbage::Utils::check(lattice::File::exists(csdFileAndPath), "file doesn't exist");
         
     portNumber = program.get<int>("--portNumber");
@@ -422,10 +422,12 @@ void CabbageAudioApp::initialiseAudio()
     }
 
     // Set up output stream parameters
+    
+
     RtAudio::StreamParameters outputParameters;
     const int outputDeviceId = getAudioDeviceId(audioConfig.audioOutDev);;
     outputParameters.deviceId = outputDeviceId != -1 ? outputDeviceId : audio->getDefaultOutputDevice();
-    outputParameters.nChannels = 2; // Stereo
+    outputParameters.nChannels = audio->getDeviceInfo(outputParameters.deviceId).outputChannels; 
     outputParameters.firstChannel = 0;
 
     
@@ -433,14 +435,14 @@ void CabbageAudioApp::initialiseAudio()
     RtAudio::StreamParameters inputParameters;
     const int inputDeviceId = getAudioDeviceId(audioConfig.audioInDev);;
     inputParameters.deviceId = inputDeviceId != -1 ? inputDeviceId : audio->getDefaultInputDevice();
-    
+    inputParameters.nChannels = audio->getDeviceInfo(inputParameters.deviceId).inputChannels; 
     unsigned int sampleRate = audioConfig.audioSR;
     unsigned int bufferFrames = audioConfig.bufferSize;
 
     lattice::logDebug << "Attempting to start audio with the following settings:\nSR: " << audioConfig.audioSR
                       << "\nBuffer Size: " << audioConfig.bufferSize << "\nInput device: " << audioConfig.audioInDev
-                      << "\nNumber of channels: " << inputParameters.nChannels << "\nOutput device: " << audioConfig.audioOutDev
-                      << "\nNumber of channels: " << outputParameters.nChannels;
+                      << "\nNumber of input channels: " << inputParameters.nChannels << "\nOutput device: " << audioConfig.audioOutDev
+                      << "\nNumber of output channels: " << outputParameters.nChannels;
     
     try
     {

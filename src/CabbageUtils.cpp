@@ -366,11 +366,6 @@ std::string File::getSettingsFile()
     // if in CabbageApp mode, the widget src dir is set by the Cabbage .ini settings
     std::stringstream settingsPath;
 #if defined WIN32
-    cabbage::Utils::check(false, "fix this");
-    /* TCHAR strPath[2048];
-     SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, strPath);
-     std::string settingsPath = std::string(strPath) + "\\Cabbage\\settings.json";
-     return settingsPath;*/
     CHAR path[MAX_PATH];
     if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, path)))
     {

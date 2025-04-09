@@ -28,8 +28,7 @@ nchnls = 2
 giWave ftgen 1, 0, 4096, 10, 1, .2, .1, .2, .1
 
 instr 1
-
-    
+   
     a1 oscili tonek(cabbageGetValue:k("harmonic1"), 10), 50, giWave
     a2 oscili tonek(cabbageGetValue:k("harmonic2"), 10), 100, giWave
     a3 oscili tonek(cabbageGetValue:k("harmonic3"), 10), 150, giWave

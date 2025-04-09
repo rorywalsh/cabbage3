@@ -49,7 +49,6 @@ CabbageProcessor::CabbageProcessor(std::string csdFile)
 void CabbageProcessor::addChannels()
 {
     auto file = cabbage::File::getCsdFileAndPath(cabbage.getCsdFile());
-    lattice::logInfo << file;
     
     cabbage::Utils::check(lattice::File::exists(file), "Can't find csd file");
     
@@ -115,7 +114,6 @@ void CabbageProcessor::addParameters()
                         w["defaultValue"].get<float>()});
                 }
                 
-                lattice::logDebug << w.dump(4);
                 w["parameterIndex"] = cabbage.getCurrentParameterCount();
                 cabbage.initParameter(w);
             }
