@@ -111,16 +111,19 @@ void CabbageProcessor::setupCallbacks()
                     Resize(widget["size"]["width"].get<int>(), widget["size"]["height"].get<int>());
                 }
                 
-                // Send any messages that were created when the UI was closed
-                for( const auto& msg : uiMessages)
-                {
-                    EvaluateJavaScript(msg.c_str());
-                }
+                auto script = cabbage.getWidgetUpdateScript(widget["channel"].get<std::string>(), widget.dump());
+                EvaluateJavaScript(script.c_str());
             }
             catch (nlohmann::json::exception &e)
             {
                 cabbage::logDebug << e.what();
             }
+        }
+        
+        // Send any messages that were created when the UI was closed
+        for( const auto& msg : uiMessages)
+        {
+            EvaluateJavaScript(msg.c_str());
         }
     };
 
