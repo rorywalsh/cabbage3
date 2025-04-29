@@ -1,17 +1,26 @@
-## ClapPluginCppTemplate
+# Cabbage3
 
-A basic template with as few lines of code as possible for someone starting out building a clap plugin in c++. To get the infamous gain plugin ready to be used in a host:
+This repository contains the **Cabbage3** project. 
+
+> NOTE: Cabbage3 is still very much under development! The source code presented here is experimental and may undergo significant changes. Features are not final, and stability or performance may vary. Use at your own discretion, and expect frequent updates and potential breaking changes.
+
+
+### Build Instructions
+
+The github repo has a CI build that will produce binaries from teh most up to date source. If you need to build yourself you can do so by running the following cmake command
+
+```bash
+cmake -S . -B build -DCABBAGE_BUILD_TARGET=CabbageApp
 ```
-git clone https://github.com/witte/ClapPluginCppTemplate.git
-cd ClapPluginCppTemplate
-cmake -S . -B build
-cmake --build build     # plugin will be at './build/ClapPluginCppTemplate.clap'
-```
-<br>
 
-- if the [clap SDK](https://github.com/free-audio/clap) and the [clap c++ helpers](https://github.com/free-audio/clap-helpers) are available through cmake's `find_package` anywhere in your machine they will be used, otherwise they will be downloaded and setup automatically.
-- macOS only for now
-- contributions are welcome!
+Valid targets are:
+* `CabbageApp` : The VSCode service app. This application is ran each time you run an instrument in vscode.
+* `CabbageVST3Effect` : The VST3 plugin effect target
+* `CabbageVST3Synth` : The VST3 plugin synth target
+* `CabbageAUv2Effect` : The AUv2 plugin effect target
+* `CabbageAUv2Synth` : The AUv2 plugin synth target
 
-## License
-MIT
+### Getting started with Cabbage3
+
+Temporary docs for Cabbage 3 are available [here](https://rorywalsh.github.io/cabbage3website/docs/intro). These docs will be merged in to the main Cabbage website when the first release is made public. 
+
