@@ -11,37 +11,22 @@
 CabbageAudioApp::CabbageAudioApp(int argc, char* argv[])
     : numChannels(2), bufferSize(512), isRunning(false)
 {
-    cabbage::Utils::check(parseComandLineArgs(argc, argv));
-    
-    processor = std::make_unique<CabbageProcessor>(csdFileAndPath);
-    
-    // Preallocate the empty input buffer in case of no input device
-    emptyInputBuffer = new float *[numChannels];
-    for (unsigned int ch = 0; ch < numChannels; ++ch)
-    {
-        emptyInputBuffer[ch] = new float[bufferSize];
-        std::fill(emptyInputBuffer[ch], emptyInputBuffer[ch] + bufferSize, 0.0f); // Initialize with zeros
-    }
-    
-    // Init audio and MIDI
-    initialiseAudio();
-    initialiseMidi();
-
-    // Optionally start test serverfor development purposes
-    if(shouldStartTestServer)
+    // Parse command line flags. If not valid file is passed, we wait 
+    // for websocket message to load a file instead. In this way we can debug
+    // the app without having to pass a file from vscode on startup.
+    parseComandLineArgs(argc, argv);
+     
+    // Optionally start test server for development purposes
+    if (shouldStartTestServer)
     {
         startWebSocketServerForTesting();
         testServer->setUpdateInterval(500);
         // Wait for the server to start (adjust delay if needed)
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
-    
+
     // Init websocket client connection
     initialiseWebSocketConnection();
-    
-    // Register callback - will be triggered from CabbageProcessor
-    processor->hostCallback = [&](CabbageOpcodeData data){   hostCallback(data);    };
-
 }
 //==============================================================================
 CabbageAudioApp::~CabbageAudioApp()
@@ -51,26 +36,30 @@ CabbageAudioApp::~CabbageAudioApp()
         try
         {
             lattice::logInfo << "Stopping rtaudio stream";
-            audio->stopStream();
+            audioDevice->stopStream();
         }
         catch (const std::runtime_error &e)
         {
-            std::cerr << "Error: " << e.what() << std::endl;
+            lattice::logDebug << "Error: " << e.what();
         }
-        if (audio->isStreamOpen())
+        if (audioDevice->isStreamOpen())
         {
             lattice::logInfo << "Closing rtaudio stream";
-            audio->closeStream();
+            audioDevice->closeStream();
         }
     }
     
-    // Clean up the preallocated empty input buffer
-    for (unsigned int ch = 0; ch < numChannels; ++ch)
+    if (emptyInputBufferInitialized)
     {
-        delete[] emptyInputBuffer[ch];
+        // Clean up the preallocated empty input buffer
+        for (unsigned int ch = 0; ch < numChannels; ++ch)
+        {
+            delete[] emptyInputBuffer[ch];
+        }
+
+        delete[] emptyInputBuffer;
     }
-    
-    delete[] emptyInputBuffer;
+   
     
     // Stop test server if its running
     if(testServer)
@@ -116,13 +105,20 @@ bool CabbageAudioApp::parseComandLineArgs(int argc, char* argv[])
         program.parse_args(argc, argv);
     } catch (const std::runtime_error& err) {
         // If an error occurs, print it and exit
-        std::cerr << err.what() << std::endl;
-        return false;
+        lattice::logDebug << err.what();
     }
 
-    // Retrieve the parsed arguments
+    // Retrieve the parsed arguments. If not file is given launch anyway, and listen for a file
+    // to be sent over websocket connection
     csdFileAndPath = std::filesystem::absolute(program.get<std::string>("--file")).string();
-    cabbage::Utils::check(lattice::File::exists(csdFileAndPath), "file doesn't exist");
+    if (lattice::File::exists(csdFileAndPath))
+    {
+        initCabbage();
+    }
+    else
+    {
+        debugMode = true;
+    }
         
     portNumber = program.get<int>("--portNumber");
     shouldStartTestServer = program.get<bool>("--startTestServer");
@@ -264,8 +260,15 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                                                      jsonObj["fileName"].get<std::string>());
                         }
                     }
-                    else if (command == "setFileAsInput")
+                    else if (command == "onFileChanged")
                     {
+                        csdFileAndPath = json["lastSavedFileName"].get<std::string>();
+                        if (lattice::File::exists(csdFileAndPath))
+                        {
+                            processor = nullptr;
+                            initCabbage();
+                            sendWidgetDataToVscode();
+                        }
                     }
 
                     else if (command == "widgetStateUpdate")
@@ -285,19 +288,19 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                     }
                     else if (command == "stopCsound")
                     {
-                        std::cout << "stopping Csound" << msg->str << std::endl;
-//                        processor->stopProcessing();
+                        lattice::logDebug << "stopping Csound" << msg->str;
+                        //                        processor->stopProcessing();
                     }
                     else if (command == "stopAudio")
                     {
                         //when VS Code tries to end the process, it first send a stopAudio message..
                         lattice::logDebug << "Closing audio and MIDI devices....";
-                        audio->closeStream();
+                        if (audioDevice)
+                            audioDevice->closeStream();
                     }
                     else
                     {
-                        // std::cout << "received message: " << msg->str << std::endl;
-                        std::cout << "> " << std::flush;
+                        //lattice::logDebug << "received message: " << msg->str;
                     }
                 }
                 catch (nlohmann::json::exception &e)
@@ -310,23 +313,16 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
             else if (msg->type == ix::WebSocketMessageType::Open)
             {
                 lattice::logDebug << "Connection established";
-                // if connection is open we need to send all parse jSON objects to VS-Code..
-                nlohmann::json msg;
-                msg["command"] = "cabbageIsReadyToLoad";
-                msg["data"] = "";
-                webSocket.send(msg.dump());
-                
-                
-                for (auto &w : cabbage.getWidgets())
+
+                if (csdFileAndPath.empty())
                 {
-                    nlohmann::json msg;
-                    msg["command"] = "widgetUpdate";
-                    msg["channel"] = w["channel"];
-                    msg["data"] = w.dump();
-                    webSocket.send(msg.dump());
+                    lattice::logDebug << "Waiting for file to be sent from VS-Code";
                 }
+                else
+                {
+                    sendWidgetDataToVscode();
+                }                
                 
-                processor->setCabbageIsReady();
             }
             else if (msg->type == ix::WebSocketMessageType::Close)
             {
@@ -347,43 +343,67 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
 
     return true;
 }
+//==============================================================================
+void CabbageAudioApp::sendWidgetDataToVscode()
+{
+    // if connection is open we need to send all parse jSON objects to VS-Code..
+    nlohmann::json msg;
+    msg["command"] = "cabbageIsReadyToLoad";
+    msg["data"] = "";
+    webSocket.send(msg.dump());
 
+    auto &cabbage = processor->getCabbageEngine();
+
+    for (auto &w : cabbage.getWidgets())
+    {
+        nlohmann::json msg;
+        msg["command"] = "widgetUpdate";
+        msg["channel"] = w["channel"];
+        msg["data"] = w.dump();
+        webSocket.send(msg.dump());
+    }
+
+    processor->setCabbageIsReady();
+}
+
+//==============================================================================
+// This method is called from the RtMidiIn callback
 //==============================================================================
 void CabbageAudioApp::initialiseMidi()
 {
     try
     {
-        midiIn = std::make_unique<RtMidiIn>();
+        midiInDevice = std::make_unique<RtMidiIn>();
     }
     catch (RtMidiError &error)
     {
-        midiIn = nullptr;
+        midiInDevice = nullptr;
         error.printMessage();
         return;
     }
 
     try
     {
-        midiOut = std::make_unique<RtMidiOut>();
+        midiOutDevice = std::make_unique<RtMidiOut>();
     }
     catch (RtMidiError &error)
     {
-        midiOut = nullptr;
+        midiOutDevice = nullptr;
         error.printMessage();
         return;
     }
 
-    midiIn->setCallback(&midiCallback, this);
-    midiIn->ignoreTypes(false, true, false);
+    midiInDevice->setCallback(&midiCallback, this);
+    midiInDevice->ignoreTypes(false, true, false);
 
 }
 
 int CabbageAudioApp::getAudioDeviceId(const std::string& deviceName) const
 {
-    const auto ids = audio->getDeviceIds();
+    const auto ids = audioDevice->getDeviceIds();
     for (const auto &id : ids)
     {
-        const auto name = audio->getDeviceInfo(id).name;
+        const auto name = audioDevice->getDeviceInfo(id).name;
         if (deviceName == name)
             return id;
     }
@@ -391,6 +411,36 @@ int CabbageAudioApp::getAudioDeviceId(const std::string& deviceName) const
     return -1;
 }
 
+//==============================================================================
+// Initialise Cabbage - create processor and set up audio and midi
+//==============================================================================
+void CabbageAudioApp::initCabbage()
+{
+    processor = std::make_unique<CabbageProcessor>(csdFileAndPath);
+
+    // Preallocate the empty input buffer in case of no input device
+    emptyInputBuffer = new float *[numChannels];
+    for (unsigned int ch = 0; ch < numChannels; ++ch)
+    {
+        emptyInputBuffer[ch] = new float[bufferSize];
+        std::fill(emptyInputBuffer[ch], emptyInputBuffer[ch] + bufferSize, 0.0f); // Initialize with zeros
+    }
+
+    emptyInputBufferInitialized = true;
+
+    // Init audio and MIDI
+    initialiseAudio();
+    initialiseMidi();
+
+
+    // Register callback - will be triggered from CabbageProcessor
+    processor->hostCallback = [&](CabbageOpcodeData data) { hostCallback(data); };
+}
+
+
+//==============================================================================
+// Initialise rtaudio - set up divers, etc
+//==============================================================================
 void CabbageAudioApp::initialiseAudio()
 {
     // Create an instance of RtAudio
@@ -400,9 +450,9 @@ void CabbageAudioApp::initialiseAudio()
     
 #if defined LATTICE_WINDOWS
     if (audioConfig.audioDriverType == RtAudio::Api::WINDOWS_ASIO)
-        audio = std::make_unique<RtAudio>(RtAudio::WINDOWS_ASIO, errorCallback);
+        audioDevice = std::make_unique<RtAudio>(RtAudio::WINDOWS_ASIO, errorCallback);
     else
-        audio = std::make_unique<RtAudio>(RtAudio::WINDOWS_DS, errorCallback);
+        audioDevice = std::make_unique<RtAudio>(RtAudio::WINDOWS_DS, errorCallback);
 #elif defined LATTICE_MACOS
     // RtAudio::Api::MACOSX_CORE is default on MacOS
     audio = std::make_unique<RtAudio>(RtAudio::Api::MACOSX_CORE, errorCallback);
@@ -415,7 +465,7 @@ void CabbageAudioApp::initialiseAudio()
     audioConfig.loadFromJson(settingsFilePath);
     
     // Check if audio devices are available
-    if (audio->getDeviceCount() < 1)
+    if (audioDevice->getDeviceCount() < 1)
     {
         lattice::logError << "No audio devices found!";
         return;
@@ -426,16 +476,16 @@ void CabbageAudioApp::initialiseAudio()
 
     RtAudio::StreamParameters outputParameters;
     const int outputDeviceId = getAudioDeviceId(audioConfig.audioOutDev);;
-    outputParameters.deviceId = outputDeviceId != -1 ? outputDeviceId : audio->getDefaultOutputDevice();
-    outputParameters.nChannels = audio->getDeviceInfo(outputParameters.deviceId).outputChannels; 
+    outputParameters.deviceId = outputDeviceId != -1 ? outputDeviceId : audioDevice->getDefaultOutputDevice();
+    outputParameters.nChannels = audioDevice->getDeviceInfo(outputParameters.deviceId).outputChannels; 
     outputParameters.firstChannel = 0;
 
     
     // Set up input stream parameters
     RtAudio::StreamParameters inputParameters;
     const int inputDeviceId = getAudioDeviceId(audioConfig.audioInDev);;
-    inputParameters.deviceId = inputDeviceId != -1 ? inputDeviceId : audio->getDefaultInputDevice();
-    inputParameters.nChannels = audio->getDeviceInfo(inputParameters.deviceId).inputChannels; 
+    inputParameters.deviceId = inputDeviceId != -1 ? inputDeviceId : audioDevice->getDefaultInputDevice();
+    inputParameters.nChannels = audioDevice->getDeviceInfo(inputParameters.deviceId).inputChannels; 
     unsigned int sampleRate = audioConfig.audioSR;
     unsigned int bufferFrames = audioConfig.bufferSize;
 
@@ -448,7 +498,7 @@ void CabbageAudioApp::initialiseAudio()
     {
         // Open the audio stream. If the selected audio input device has no
         // channels, i.e., it's not valid, pass nullptr for input stream
-        audio->openStream(&outputParameters,
+        audioDevice->openStream(&outputParameters,
                           inputParameters.nChannels == 0 ? nullptr : &inputParameters,
                           RTAUDIO_FLOAT32,
                           sampleRate,
@@ -456,19 +506,19 @@ void CabbageAudioApp::initialiseAudio()
                           &CabbageAudioApp::audioCallback,
                           this); // Pass 'this' as userData
         
-        audio->startStream();
+        audioDevice->startStream();
         isRunning = true; // Mark the stream as running
     }
     catch (const std::runtime_error &e)
     {
-        std::cerr << "Error: " << e.what() << std::endl;
+        lattice::logDebug << "Error: " << e.what();
         return;
     }
 }
 
 void CabbageAudioApp::errorCallback(RtAudioErrorType type, const std::string &errorText)
 {
-    std::cout << errorText;
+    lattice::logDebug << errorText;
 }
 
 bool CabbageAudioApp::isStreamRunning() const
@@ -494,7 +544,7 @@ void CabbageAudioApp::midiCallback(double deltatime, std::vector<uint8_t> *msg, 
     // Ensure the MIDI message is not empty
     if (msg->empty())
     {
-        std::cerr << "Empty MIDI message received!" << std::endl;
+        lattice::logDebug << "Empty MIDI message received!";
         return;
     }
 
@@ -619,7 +669,7 @@ void CabbageAudioApp::addDevicesToSettings(const std::string& settingsPath)
 {
     std::ifstream file(settingsPath);
     if (!file) {
-        std::cerr << "Error: Could not open settings file: " << settingsPath << std::endl;
+        lattice::logDebug << "Error: Could not open settings file: " << settingsPath;
         return;
     }
 
@@ -630,12 +680,12 @@ void CabbageAudioApp::addDevicesToSettings(const std::string& settingsPath)
         try {
             file >> settingsJson; // Parse existing JSON
         } catch (nlohmann::json::exception& e) {
-            std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+            lattice::logDebug << "Error parsing JSON: " << e.what();
             file.close();
             return;
         }
     } else {
-        std::cout << "Settings file is empty. Starting with a blank JSON object." << std::endl;
+        lattice::logDebug << "Settings file is empty. Starting with a blank JSON object.";
     }
 
     file.close(); // Close read mode
@@ -645,11 +695,11 @@ void CabbageAudioApp::addDevicesToSettings(const std::string& settingsPath)
         int inputCnt = 0;
         int outputCnt = 0;
         
-        auto listOfCurrentDevices = audio->getDeviceIds();
+        auto listOfCurrentDevices = audioDevice->getDeviceIds();
 
         for (unsigned int i = 0; i < listOfCurrentDevices.size(); i++)
         {
-            info = audio->getDeviceInfo(listOfCurrentDevices[i]);
+            info = audioDevice->getDeviceInfo(listOfCurrentDevices[i]);
             
             if (info.outputChannels > 0)
             {
@@ -678,16 +728,16 @@ void CabbageAudioApp::addDevicesToSettings(const std::string& settingsPath)
         // Write updated JSON back to file
         std::ofstream outFile(settingsPath);
         if (!outFile) {
-            std::cerr << "Error: Could not open settings file for writing: " << settingsPath << std::endl;
+            lattice::logDebug << "Error: Could not open settings file for writing: " << settingsPath;
             return;
         }
         outFile << std::setw(4) << settingsJson;
         outFile.close();
 
-        std::cout << "Devices successfully added to settings file." << std::endl;
+        lattice::logDebug << "Devices successfully added to settings file.";
 
     } catch (nlohmann::json::exception& e) {
-        std::cerr << "Error processing JSON: " << e.what() << std::endl;
+        lattice::logDebug << "Error processing JSON: " << e.what();
     }
 }
 

@@ -87,10 +87,15 @@ public:
 
     std::unique_ptr<CabbageProcessor> processor; // Main processor
     
+    bool isRunningInDebugMode() { return debugMode; };
+
+    void sendWidgetDataToVscode();
+
 private:
     void hostCallback(CabbageOpcodeData data);
     ix::WebSocket webSocket;
     AudioConfig audioConfig;
+    void initCabbage();
     void initialiseAudio();
     void initialiseMidi();
     
@@ -112,15 +117,16 @@ private:
     // Settings functions
     void addDevicesToSettings(const std::string& settingsFile);
     
-    std::unique_ptr<RtAudio> audio = nullptr;
-    std::unique_ptr<RtMidiIn> midiIn = nullptr;
-    std::unique_ptr<RtMidiOut> midiOut = nullptr;
+    std::unique_ptr<RtAudio> audioDevice = nullptr;
+    std::unique_ptr<RtMidiIn> midiInDevice = nullptr;
+    std::unique_ptr<RtMidiOut> midiOutDevice = nullptr;
     int midiOutChannel = -1;
     int midiInChannel = -1;
 
     unsigned int numChannels; // Number of audio channels
     std::atomic<bool> isRunning; // Flag to track stream state
     float** emptyInputBuffer; // Preallocated empty input buffer
+    bool emptyInputBufferInitialized = false; // Flag to check if the buffer is initialized
     unsigned int bufferSize; // Size of the audio buffer (in frames)
 
     float** getEmptyInputBuffer() const;
@@ -134,6 +140,7 @@ private:
     
     int portNumber = 0;
     std::string csdFileAndPath = "";
+    bool debugMode = false; // Debug mode flag to run the app without a file
     
 
 };
