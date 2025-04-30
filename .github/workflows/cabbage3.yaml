@@ -58,7 +58,7 @@ jobs:
           cd build
           zip -r CabbageBundle.zip \
             CabbagePluginSynth/CabbagePluginSynth_assets/Release/CabbagePluginSynth.vst3 \
-            CabbagePluginSynth/CabbagePluginEffect_assets/Release/CabbagePluginEffect.vst3 \
+            CabbagePluginEffect/CabbagePluginEffect_assets/Release/CabbagePluginEffect.vst3 \
             CabbageApp/Release/CabbageApp
 
 
