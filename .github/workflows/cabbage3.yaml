@@ -95,8 +95,8 @@ jobs:
         run: |
           cd build
           Compress-Archive -Path @(
-            "CabbagePluginEffect/VST3/Release/CabbagePluginEffect.vst3",
-            "CabbagePluginSynth/VST3/Release/CabbagePluginSynth.vst3",
+            "CabbagePluginEffect/CabbagePluginEffect_assets/VST3/Release/CabbagePluginEffect.vst3",
+            "CabbagePluginSynth/CabbagePluginSynth_assets/VST3/Release/CabbagePluginSynth.vst3",
             "CabbageApp/Release/CabbageApp.exe"
           ) -DestinationPath CabbageBundle.zip
 
