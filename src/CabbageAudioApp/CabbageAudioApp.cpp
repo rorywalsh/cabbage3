@@ -30,7 +30,19 @@ CabbageAudioApp::CabbageAudioApp(int argc, char* argv[])
 }
 //==============================================================================
 CabbageAudioApp::~CabbageAudioApp()
+{    
+    closeAudioDevice();
+    
+    // Stop test server if its running
+    if(testServer)
+        testServer->stop();
+}
+
+void CabbageAudioApp::closeAudioDevice()
 {
+    if (processor)
+        processor->suspendProcessing();
+
     if (isRunning)
     {
         try
@@ -48,7 +60,7 @@ CabbageAudioApp::~CabbageAudioApp()
             audioDevice->closeStream();
         }
     }
-    
+
     if (emptyInputBufferInitialized)
     {
         // Clean up the preallocated empty input buffer
@@ -59,11 +71,6 @@ CabbageAudioApp::~CabbageAudioApp()
 
         delete[] emptyInputBuffer;
     }
-   
-    
-    // Stop test server if its running
-    if(testServer)
-        testServer->stop();
 }
 
 //==============================================================================
@@ -222,6 +229,7 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
             {
                 try
                 {
+                    lattice::logDebug << msg->str;
                     auto json = nlohmann::json::parse(msg->str, nullptr, false);
                     const std::string command = json["command"];
                     nlohmann::json jsonObj;
@@ -265,7 +273,14 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                         csdFileAndPath = json["lastSavedFileName"].get<std::string>();
                         if (lattice::File::exists(csdFileAndPath))
                         {
-                            processor = nullptr;
+                            closeAudioDevice();
+                            if (processor)
+                            {
+                                processor->stopIdleThread();
+                                processor.reset();
+                            }
+
+                            
                             initCabbage();
                             sendWidgetDataToVscode();
                         }
@@ -277,7 +292,7 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                     }
                     else if (command == "midiMessage")
                     {
-                        cabbage::Utils::check(false, "need to add this");
+                        processor->addNoteEventFromJson(jsonObj);
                     }
                     else if (command == "cabbageIsReadyToLoad")
                     {
@@ -289,12 +304,13 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                     else if (command == "stopCsound")
                     {
                         lattice::logDebug << "stopping Csound" << msg->str;
-                        //                        processor->stopProcessing();
+                        //processor->stopProcessing();
                     }
                     else if (command == "stopAudio")
                     {
                         //when VS Code tries to end the process, it first send a stopAudio message..
                         lattice::logDebug << "Closing audio and MIDI devices....";
+
                         if (audioDevice)
                             audioDevice->closeStream();
                     }
@@ -351,6 +367,9 @@ void CabbageAudioApp::sendWidgetDataToVscode()
     msg["command"] = "cabbageIsReadyToLoad";
     msg["data"] = "";
     webSocket.send(msg.dump());
+
+    //threr is an issue here in terms of timing. Needs attenion..
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500)); // Sleep for 50ms
 
     auto &cabbage = processor->getCabbageEngine();
 

@@ -80,6 +80,7 @@ public:
     
     CabbageAudioApp(int argc, char* argv[]);
     ~CabbageAudioApp();
+    void closeAudioDevice();
     bool parseComandLineArgs(int argc, char* argv[]);
     
     bool isStreamRunning() const;
