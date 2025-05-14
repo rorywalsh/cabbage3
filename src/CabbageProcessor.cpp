@@ -42,6 +42,11 @@ CabbageProcessor::CabbageProcessor(std::string csdFile)
   
 }
 
+CabbageProcessor::~CabbageProcessor()
+{
+    stopIdleThread();
+}
+
 
 //========================================================================================
 // Add channels based on channelConfig property
@@ -131,6 +136,11 @@ void CabbageProcessor::addParameters()
 //========================================================================================
 void CabbageProcessor::process(float** inputs, float** outputs, std::size_t blockSize)
 {
+    if (!processingEnabled.load(std::memory_order_relaxed))
+    {
+        return;
+    }
+
     // only process audio if Csound has compiled successfully.
     if (cabbage.csdCompiledWithoutError())
     {
@@ -300,7 +310,6 @@ void CabbageProcessor::stopOnIdle()
 //========================================================================================
 void CabbageProcessor::setCabbageIsReady()
 {
-    lattice::logDebug << "Cabbage is now ready";
     uiIsOpen = true;
     allowDequeuing = true;
 }
@@ -378,6 +387,17 @@ void CabbageProcessor::addNoteEventFromJson(const nlohmann::json& j)
 
     auto noteEvent = lattice::NoteEvent(eventType, static_cast<int16_t>(dataByte1), velocity, -1, 0);
     addNoteEvent(noteEvent);
+}
+
+void CabbageProcessor::stopIdleThread()
+{
+    isIdleRunning.store(false, std::memory_order_relaxed);
+
+    if (idleThread.joinable())
+    {        
+        std::cout << "Joining thread before reset..." << std::endl;
+        idleThread.join(); // Ensure the thread is joined before reset
+    }
 }
 
 //========================================================================================

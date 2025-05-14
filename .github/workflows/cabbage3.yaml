@@ -50,15 +50,15 @@ jobs:
           -DCMAKE_CXX_COMPILER=$CXX_PATH \
           -DCMAKE_OBJC_COMPILER=$CC_PATH \
           -DCMAKE_OBJCXX_COMPILER=$CXX_PATH \
-          -DBUILD_TARGETS=True \
+          -DBUILD_ALL_TARGETS=True \
           -DCMAKE_BUILD_TYPE=Release
 
       - name: Zip the macOS app bundle
         run: |
           cd build
           zip -r CabbageBundle.zip \
+            CabbagePluginSynth/CabbagePluginSynth_assets/Release/CabbagePluginSynth.vst3 \
             CabbagePluginEffect/CabbagePluginEffect_assets/Release/CabbagePluginEffect.vst3 \
-            CabbagePluginSynth/CabbagePluginEffect_assets/Release/CabbagePluginSynth.vst3 \
             CabbageApp/Release/CabbageApp
 
 
@@ -88,15 +88,15 @@ jobs:
       - name: Configure build
         shell: cmd
         run: |
-          cmake -G "Visual Studio 17 2022" -S . -B build -DBUILD_TARGETS=ON -DCMAKE_BUILD_TYPE=Release
+          cmake -G "Visual Studio 17 2022" -S . -B build -DBUILD_ALL_TARGETS=ON -DCMAKE_BUILD_TYPE=Release
 
       - name: Zip the Windows app artifacts
         shell: pwsh
         run: |
           cd build
           Compress-Archive -Path @(
-            "CabbagePluginEffect/Release/CabbagePluginEffect.vst3",
-            "CabbagePluginSynth/Release/CabbagePluginSynth.vst3",
+            "CabbagePluginEffect/CabbagePluginEffect_assets/VST3/Release/CabbagePluginEffect.vst3",
+            "CabbagePluginSynth/CabbagePluginSynth_assets/VST3/Release/CabbagePluginSynth.vst3",
             "CabbageApp/Release/CabbageApp.exe"
           ) -DestinationPath CabbageBundle.zip
 

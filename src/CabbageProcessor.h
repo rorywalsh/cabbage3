@@ -9,7 +9,7 @@ public:
     CabbageProcessor(std::string = "");
     
     // Destructor to clean up resources
-    ~CabbageProcessor(){};
+    ~CabbageProcessor();
 
     // Csound API functions for deailing with midi input
     static int OpenMidiInputDevice(CSOUND *csnd, void **userData, const char *devName);
@@ -48,14 +48,19 @@ public:
     std::function<void(CabbageOpcodeData)> hostCallback = nullptr;
 #endif
     
-private:
-    void addNoteEventFromJson(const nlohmann::json& j);
+    // Adds a MIDI note event to the midi event queue
+    void addNoteEventFromJson(const nlohmann::json &j);
+    void suspendProcessing() { processingEnabled.store(false, std::memory_order_relaxed); }
+    void stopIdleThread();
+
+  private:
+    
     void onIdle();
     void onIdleScheduler();
     void startOnIdle();
     void stopOnIdle();
     void updateWidgetData(const CabbageOpcodeData &data);
-    
+    std::atomic<bool> processingEnabled{true};
     bool uiIsOpen = false;
     bool allowDequeuing = false;
     int sampleRate = 44100;

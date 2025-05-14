@@ -58,7 +58,8 @@ int main(int argc, char* argv[]) {
     appInstance = new CabbageAudioApp(argc, argv);
 
     // Keep the program running while the stream is active
-    while (appInstance->isStreamRunning()) {
+    while (appInstance->isStreamRunning() || appInstance->isRunningInDebugMode())
+    {
         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Sleep to avoid busy-waiting
     }
 
