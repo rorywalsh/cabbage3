@@ -137,7 +137,14 @@ std::string File::getCabbageSection(const std::string &csdFilePath)
 {
     
     auto csdFile = (!csdFilePath.empty() && lattice::File::exists(csdFilePath)) ? csdFilePath : getCsdFileAndPath();
-    auto csdText = choc::file::loadFileAsString(csdFile);
+    
+    try {
+        // Attempt to load the file as a string
+        auto csdText = choc::file::loadFileAsString(csdFile);
+    }
+    catch (const choc::file::Error& e) {
+        return "";
+    }
     
     std::regex cabbageRegex(R"(<Cabbage>([\s\S]*?)</Cabbage>)");
     std::smatch match;
@@ -175,7 +182,13 @@ int File::getNumberOfInputChannels(const std::string &csdFile)
 {
     
     auto csdFilePath = csdFile.empty() ? getCsdFileAndPath() : csdFile;
-    auto input = choc::file::loadFileAsString(csdFilePath);
+    try {
+        // Attempt to load the file as a string
+        auto csdText = choc::file::loadFileAsString(csdFile);
+    }
+    catch (const choc::file::Error& e) {
+        return 2;
+    }
     
     // Define the regex for inputs (nchnls_i)
     std::regex inputRegex(R"(^\s*nchnls_i\s*=\s*(\d+)\s*$)", std::regex_constants::icase);
@@ -202,7 +215,14 @@ int File::getNumberOfInputChannels(const std::string &csdFile)
 int File::getNumberOfOutputChannels(const std::string &csdFile)
 {
     auto csdFilePath = csdFile.empty() ? getCsdFileAndPath() : csdFile;
-    auto input = choc::file::loadFileAsString(csdFilePath);
+    
+    try {
+        // Attempt to load the file as a string
+        auto csdText = choc::file::loadFileAsString(csdFile);
+    }
+    catch (const choc::file::Error& e) {
+        return 2;
+    }
     
     // Define the regex for outputs (nchnls)
     std::regex outputRegex(R"(^\s*nchnls\s*=\s*(\d+)\s*$)", std::regex_constants::icase);
