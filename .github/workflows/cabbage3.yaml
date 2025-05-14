@@ -3,6 +3,8 @@ name: cabbage3-build
 on:
   push:
     branches:
+      - main
+      - develop
 
 jobs:
   macos_build:
