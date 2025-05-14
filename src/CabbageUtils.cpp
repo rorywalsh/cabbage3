@@ -137,10 +137,11 @@ std::string File::getCabbageSection(const std::string &csdFilePath)
 {
     
     auto csdFile = (!csdFilePath.empty() && lattice::File::exists(csdFilePath)) ? csdFilePath : getCsdFileAndPath();
+    std::string csdText = {};
     
     try {
         // Attempt to load the file as a string
-        auto csdText = choc::file::loadFileAsString(csdFile);
+        csdText = choc::file::loadFileAsString(csdFile);
     }
     catch (const choc::file::Error& e) {
         return "";
@@ -181,10 +182,12 @@ std::optional<nlohmann::json> File::parseCabbageSection(const std::string &csdFi
 int File::getNumberOfInputChannels(const std::string &csdFile)
 {
     
+    std::string input = {};
     auto csdFilePath = csdFile.empty() ? getCsdFileAndPath() : csdFile;
+    
     try {
         // Attempt to load the file as a string
-        auto csdText = choc::file::loadFileAsString(csdFile);
+        input = choc::file::loadFileAsString(csdFile);
     }
     catch (const choc::file::Error& e) {
         return 2;
@@ -215,10 +218,11 @@ int File::getNumberOfInputChannels(const std::string &csdFile)
 int File::getNumberOfOutputChannels(const std::string &csdFile)
 {
     auto csdFilePath = csdFile.empty() ? getCsdFileAndPath() : csdFile;
+    std::string input = {};
     
     try {
         // Attempt to load the file as a string
-        auto csdText = choc::file::loadFileAsString(csdFile);
+        input = choc::file::loadFileAsString(csdFilePath);
     }
     catch (const choc::file::Error& e) {
         return 2;
