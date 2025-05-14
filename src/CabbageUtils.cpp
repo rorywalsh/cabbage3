@@ -135,7 +135,6 @@ std::string File::getBinaryWithoutExtension()
 
 std::string File::getCabbageSection(const std::string &csdFilePath)
 {
-    
     auto csdFile = (!csdFilePath.empty() && lattice::File::exists(csdFilePath)) ? csdFilePath : getCsdFileAndPath();
     std::string csdText = {};
     
@@ -144,6 +143,7 @@ std::string File::getCabbageSection(const std::string &csdFilePath)
         csdText = choc::file::loadFileAsString(csdFile);
     }
     catch (const choc::file::Error& e) {
+        lattice::logDebug << "Couldn't parse csd file for text";
         return "";
     }
     
@@ -190,6 +190,7 @@ int File::getNumberOfInputChannels(const std::string &csdFile)
         input = choc::file::loadFileAsString(csdFile);
     }
     catch (const choc::file::Error& e) {
+        lattice::logDebug << "Couldn't parse csd file for text";
         return 2;
     }
     
@@ -225,6 +226,7 @@ int File::getNumberOfOutputChannels(const std::string &csdFile)
         input = choc::file::loadFileAsString(csdFilePath);
     }
     catch (const choc::file::Error& e) {
+        lattice::logDebug << "Couldn't parse csd file for text";
         return 2;
     }
     

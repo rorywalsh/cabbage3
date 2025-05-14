@@ -276,6 +276,8 @@ else()
         COPY_AFTER_BUILD ${COPY_AFTER_BUILD}
         PLUGIN_FORMATS CLAP VST3 AUV2
         ASSET_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_assets
+        MANUFACTURER_NAME CabbageAudio
+        AUV2_MANUFACTURER_NAME CabbageAudio
         # STANDALONE_CONFIGURATIONS
         #     standalone "${PROJECT_NAME}" "your.reversed.domain.name.${PROJECT_NAME}"
     )
