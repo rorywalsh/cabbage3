@@ -96,8 +96,10 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbageApp LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
 elseif (CabbagePluginEffect STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbagePluginEffect LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
+    set(CabbageAUInstrumentType aufx)
 elseif (CabbagePluginSynth STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbagePluginSynth LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
+    set(CabbageAUInstrumentType aumi)
 endif()
 
 # ----------------------------
@@ -277,6 +279,8 @@ else()
         PLUGIN_FORMATS CLAP VST3 AUV2
         ASSET_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_assets
         AUV2_MANUFACTURER_CODE "CaBB"
+        AUV2_SUBTYPE_CODE "Cabf"
+        AUV2_INSTRUMENT_TYPE "${CabbageAUInstrumentType}"
         AUV2_MANUFACTURER_NAME CabbageAudio
         # STANDALONE_CONFIGURATIONS
         #     standalone "${PROJECT_NAME}" "your.reversed.domain.name.${PROJECT_NAME}"
