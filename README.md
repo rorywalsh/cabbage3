@@ -14,13 +14,11 @@ cmake -S . -B build -DCABBAGE_BUILD_TARGET=CabbageApp
 ```
 
 Valid targets are:
-* `CabbageApp` : The VSCode service app. This application is ran each time you run an instrument in vscode.
-* `CabbageVST3Effect` : The VST3 plugin effect target
-* `CabbageVST3Synth` : The VST3 plugin synth target
-* `CabbageAUv2Effect` : The AUv2 plugin effect target
-* `CabbageAUv2Synth` : The AUv2 plugin synth target
+* `CabbageApp` : The VSCode service app. This application is run each time you run an instrument in vscode.
+* `CabbagePluginEffect` : Plugin effect targets
+* `CabbagePluginSynth` : Plugin synth targets
+
 
 ### Getting started with Cabbage3
 
-Temporary docs for Cabbage 3 are available [here](https://rorywalsh.github.io/cabbage3website/docs/intro). These docs will be merged in to the main Cabbage website when the first release is made public. 
-
+Temporary docs for Cabbage 3 are available [here](https://rorywalsh.github.io/cabbage3website/docs/intro). These docs will be merged to the main Cabbage website when the first release is made public. 
