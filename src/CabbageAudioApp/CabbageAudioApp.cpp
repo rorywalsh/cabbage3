@@ -16,6 +16,16 @@ CabbageAudioApp::CabbageAudioApp(int argc, char* argv[])
     // the app without having to pass a file from vscode on startup.
     parseComandLineArgs(argc, argv);
      
+    if (lattice::File::exists(csdFileAndPath))
+    {
+        initCabbage();
+        lattice::logDebug << csdFileAndPath << " passed to server on launch";
+    }
+    else
+    {
+        debugMode = true;
+    }
+    
     // Optionally start test server for development purposes
     if (shouldStartTestServer)
     {
@@ -83,13 +93,12 @@ bool CabbageAudioApp::parseComandLineArgs(int argc, char* argv[])
     // Define the --file argument (required string)
     program.add_argument("--file")
         .help("Path to the CSD file")
-        .required()  // Make it a required argument
-        .default_value(std::string("")); // Default to empty string if not provided
+        .default_value(std::string("null")); // Default to empty string if not provided
 
     // Define the --portNumber argument (integer)
     program.add_argument("--portNumber")
         .help("Port number for the server")
-        .required()  // Make it a required argument
+        .default_value(9991)
         .action([](const std::string& value) {
             return std::stoi(value);  // Convert the string to an integer
         });
@@ -117,16 +126,10 @@ bool CabbageAudioApp::parseComandLineArgs(int argc, char* argv[])
 
     // Retrieve the parsed arguments. If not file is given launch anyway, and listen for a file
     // to be sent over websocket connection
-    csdFileAndPath = std::filesystem::absolute(program.get<std::string>("--file")).string();
-    if (lattice::File::exists(csdFileAndPath))
-    {
-        initCabbage();
-    }
-    else
-    {
-        debugMode = true;
-    }
-        
+    if(program.get<std::string>("--file") != "null")
+        csdFileAndPath = std::filesystem::absolute(program.get<std::string>("--file")).string();
+
+    
     portNumber = program.get<int>("--portNumber");
     shouldStartTestServer = program.get<bool>("--startTestServer");
     return true;
@@ -218,7 +221,7 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
 {
     std::string address("ws://localhost:");
     address.append(std::to_string(portNumber).c_str());
-    lattice::logDebug << "Attempting to connect to WebSocket at " << address;
+    lattice::logInfo << "Attempting to connect to WebSocket at " << address;
     webSocket.setUrl(address);
 
     webSocket.setOnMessageCallback(
@@ -328,7 +331,7 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
             }
             else if (msg->type == ix::WebSocketMessageType::Open)
             {
-                lattice::logDebug << "Connection established";
+                lattice::logInfo << "Websocket connection established";
 
                 if (csdFileAndPath.empty())
                 {
@@ -346,9 +349,8 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
             }
             else if (msg->type == ix::WebSocketMessageType::Error)
             {
-                // Maybe SSL is not configured properly
+                //Silencing this debug statement..
                 lattice::logDebug << "Connection error: " << msg->errorInfo.reason;
-                // std::cout << "> " << std::flush;
             }
 
             return true;
@@ -368,8 +370,8 @@ void CabbageAudioApp::sendWidgetDataToVscode()
     msg["data"] = "";
     webSocket.send(msg.dump());
 
-    //threr is an issue here in terms of timing. Needs attenion..
-    std::this_thread::sleep_for(std::chrono::milliseconds(1500)); // Sleep for 50ms
+    //there is an issue here in terms of timing. Needs attention..
+//    std::this_thread::sleep_for(std::chrono::milliseconds(1500)); // Sleep for 50ms
 
     auto &cabbage = processor->getCabbageEngine();
 
@@ -474,9 +476,9 @@ void CabbageAudioApp::initialiseAudio()
         audioDevice = std::make_unique<RtAudio>(RtAudio::WINDOWS_DS, errorCallback);
 #elif defined LATTICE_MACOS
     // RtAudio::Api::MACOSX_CORE is default on MacOS
-    audio = std::make_unique<RtAudio>(RtAudio::Api::MACOSX_CORE, errorCallback);
+    audioDevice = std::make_unique<RtAudio>(RtAudio::Api::MACOSX_CORE, errorCallback);
 #else
-    audio = std::make_unique<RtAudio>(RtAudio::LINUX_ALSA);
+    audioDevice = std::make_unique<RtAudio>(RtAudio::LINUX_ALSA);
 #endif
     
     auto settingsFilePath = cabbage::File::getSettingsFile();
