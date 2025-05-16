@@ -106,13 +106,16 @@ public:
     static std::string getBinaryWithoutExtension();
     // Find path to Cabbage widgets JS source dir
     static std::string findCabbageJSWidgetPath();
-    
+      
 #if defined(_WIN32)
     static std::string getWindowsProgramDataDir()
     {
            char path[MAX_PATH];
-            if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, path)))
+        if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_COMMON_APPDATA, NULL, 0, path)))
+           {
                return std::string(path) + "\\CabbageAudio";
+           }
+              
            else
                return "";
     }

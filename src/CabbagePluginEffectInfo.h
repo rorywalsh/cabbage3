@@ -38,16 +38,16 @@ namespace {
 
 #if defined(CabbagePluginSynth)
     static constexpr const char* features[] = {
-        "CLAP_PLUGIN_FEATURE_INSTRUMENT",
-        "CLAP_PLUGIN_FEATURE_SYNTHESIZER",
-        "CLAP_PLUGIN_FEATURE_STEREO",
+        CLAP_PLUGIN_FEATURE_INSTRUMENT,
+        CLAP_PLUGIN_FEATURE_SYNTHESIZER,
+        CLAP_PLUGIN_FEATURE_STEREO,
         nullptr
     };
 #else
     static constexpr const char* features[] = {
-        "CLAP_PLUGIN_FEATURE_AUDIO_EFFECT",
-        "CLAP_PLUGIN_FEATURE_UTILITY",
-        "CLAP_PLUGIN_FEATURE_STEREO",
+        CLAP_PLUGIN_FEATURE_AUDIO_EFFECT,
+        CLAP_PLUGIN_FEATURE_UTILITY,
+        CLAP_PLUGIN_FEATURE_STEREO,
         nullptr
     };
 #endif

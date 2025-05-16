@@ -120,17 +120,31 @@ std::string Utils::getJsonWithLineNumbers(const std::string &json_str)
 //======================================================================================================
 std::string File::getBinaryWithoutExtension()
 {
-    std::string binaryFileName = getBinaryFileName(); // Get the full filename
-    size_t pos = binaryFileName.find_last_of(".");    // Find the last period (.)
-    
-    if (pos != std::string::npos)
+    std::string binaryFileName = getBinaryFileName(); // Full path with extension
+
+    size_t pos = binaryFileName.find_last_of(".");
+    std::string withoutExtension = (pos != std::string::npos) ? binaryFileName.substr(0, pos) : binaryFileName;
+
+    // Check if the file without extension exists
+    std::ifstream f(withoutExtension);
+    if (f.good())
     {
-        // Return the substring before the last period
-        return binaryFileName.substr(0, pos);
+        return withoutExtension;
     }
-    
-    // If there's no period (i.e., no extension), return the full filename
-    return binaryFileName;
+
+    // If not, and it ends with 'd', try removing the 'd' and check again
+    if (!withoutExtension.empty() && withoutExtension.back() == 'd')
+    {
+        std::string stripped = withoutExtension.substr(0, withoutExtension.length() - 1);
+        std::ifstream f2(stripped);
+        if (f2.good())
+        {
+            return stripped;
+        }
+    }
+
+    // Fallback: return original version
+    return withoutExtension;
 }
 
 std::string File::findCabbageJSWidgetPath()
@@ -201,7 +215,7 @@ std::string File::getCabbageSection(const std::string &csdFilePath)
         csdText = choc::file::loadFileAsString(csdFile);
     }
     catch (const choc::file::Error& e) {
-        lattice::logDebug << "Couldn't parse csd file for text";
+        lattice::logDebug << "Couldn't parse "<< csdFile << " file for text";
         return "";
     }
     
@@ -248,7 +262,7 @@ int File::getNumberOfInputChannels(const std::string &csdFile)
         input = choc::file::loadFileAsString(csdFile);
     }
     catch (const choc::file::Error& e) {
-        lattice::logDebug << "Couldn't parse csd file for text";
+        lattice::logDebug << "Couldn't parse " << csdFilePath << " file for text";
         return 2;
     }
     
@@ -284,7 +298,7 @@ int File::getNumberOfOutputChannels(const std::string &csdFile)
         input = choc::file::loadFileAsString(csdFilePath);
     }
     catch (const choc::file::Error& e) {
-        lattice::logDebug << "Couldn't parse csd file for text";
+        lattice::logDebug << "Couldn't parse " << csdFilePath << " file for text";
         return 2;
     }
     
