@@ -133,6 +133,64 @@ std::string File::getBinaryWithoutExtension()
     return binaryFileName;
 }
 
+std::string File::findCabbageJSWidgetPath()
+{
+    std::string widgetPath;
+
+#ifdef CabbageApp
+    // Primary: Get path from settings
+    widgetPath = cabbage::File::getSettingsProperty("currentConfig", "jsSourceDir") + "/cabbage/widgets";
+#else
+    const auto resourceDir = lattice::File::getParentDirectory(cabbage::File::getCsdFileAndPath());
+    widgetPath = lattice::File::joinPath(resourceDir, "cabbage", "widgets");
+#endif
+
+    if (cabbage::File::directoryExists(widgetPath))
+        return widgetPath;
+
+    // Try fallback in VSCode extensions
+    std::vector<std::string> vscodePaths;
+
+#if defined(_WIN32)
+    const char *homeDrive = std::getenv("HOMEDRIVE");
+    const char *homePath = std::getenv("HOMEPATH");
+    if (homeDrive && homePath)
+        vscodePaths.emplace_back(std::string(homeDrive) + homePath + "\\.vscode\\extensions");
+#elif defined(__APPLE__) || defined(__linux__)
+    const char *home = std::getenv("HOME");
+    if (home)
+        vscodePaths.emplace_back(std::string(home) + "/.vscode/extensions");
+#endif
+
+    for (const auto &path : vscodePaths)
+    {
+        if (!std::filesystem::exists(path))
+            continue;
+
+        std::regex cabbagePattern(R"(cabbageaudio\.vscabbage-[^/\\]+)");
+        for (const auto &dirEntry : std::filesystem::directory_iterator(path))
+        {
+            const auto &dirPath = dirEntry.path();
+            if (dirEntry.is_directory())
+            {
+                const std::string dirname = dirPath.filename().string();
+                if (std::regex_match(dirname, cabbagePattern))
+                {
+                    std::filesystem::path candidate = dirPath / "src" / "cabbage" / "widgets";
+                    if (std::filesystem::exists(candidate))
+                    {
+                        return candidate.string();
+                    }
+                }
+            }
+        }
+    }
+
+    // If all else fails
+    lattice::logDebug << "Could not locate widget JS files in settings or fallback path.";
+    return {};
+}
+
 std::string File::getCabbageSection(const std::string &csdFilePath)
 {
     auto csdFile = (!csdFilePath.empty() && lattice::File::exists(csdFilePath)) ? csdFilePath : getCsdFileAndPath();

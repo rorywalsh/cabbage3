@@ -104,6 +104,8 @@ public:
     static std::string getSettingsProperty(const std::string &section, const std::string &key);
     // Retrun binary without extension
     static std::string getBinaryWithoutExtension();
+    // Find path to Cabbage widgets JS source dir
+    static std::string findCabbageJSWidgetPath();
     
 #if defined(_WIN32)
     static std::string getWindowsProgramDataDir()
@@ -211,7 +213,7 @@ public:
     static std::vector<std::string> getWidgetTypes()
     {
         std::vector<std::string> widgetTypes;
-        std::string widgetPath = cabbage::File::getCsdPath() + "/widgets"; // Folder containing widget files
+        std::string widgetPath = cabbage::File::findCabbageJSWidgetPath(); // Folder containing widget files
         
         // Check if the directory exists
         if (!std::filesystem::exists(widgetPath) || !std::filesystem::is_directory(widgetPath))
@@ -246,16 +248,8 @@ public:
     {
         
         std::vector<std::string> widgetTypes;
-#ifdef CabbageApp
-        // this folder will be different for plugins than for the vscode extension
-        std::string widgetPath =
-        cabbage::File::getSettingsProperty("currentConfig", "jsSourceDir") + "/cabbage/widgets";
-        ;
-#else
-        const auto resourceDir = lattice::File::getParentDirectory(cabbage::File::getCsdFileAndPath());
-        std::string widgetPath = lattice::File::joinPath(resourceDir, "cabbage", "widgets"); // Folder containing widget files
-#endif
-        
+        std::string widgetPath = cabbage::File::findCabbageJSWidgetPath(); // Folder containing widget files
+
         if (!cabbage::File::directoryExists(widgetPath))
         {
             lattice::logDebug << "Invalid widget JS files path:" << widgetPath;
