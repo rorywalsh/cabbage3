@@ -3,7 +3,7 @@
 #include <algorithm>
 #include "argparse.hpp"
 #include <filesystem>
-
+  
 //==============================================================================
 // Constructor - responsible for creating processor and initialising audio/midi
 // and websocket connection to vscode
@@ -241,6 +241,7 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                     auto json = nlohmann::json::parse(msg->str, nullptr, false);
                     const std::string command = json["command"];
                     nlohmann::json jsonObj;
+
                     if (json.contains("obj"))
                     {
                         //"obj" can be a string when coming from vscode - but will always be
@@ -250,6 +251,7 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                         else
                             jsonObj = json["obj"];
                     }
+
                     if (command == "parameterChange")
                     {
                         for (int i = 0; i < cabbage.getNumberOfParameters(); i++)
@@ -268,6 +270,7 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                         }
                         //                            SendParameterValueFromUI(message["paramIdx"], message["value"]);
                     }
+
                     else if (command == "fileOpenFromVSCode")
                     {
                         if (jsonObj.contains("fileName"))
@@ -276,6 +279,7 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                                                      jsonObj["fileName"].get<std::string>());
                         }
                     }
+
                     else if (command == "onFileChanged")
                     {
                         csdFileAndPath = json["lastSavedFileName"].get<std::string>();
@@ -298,22 +302,24 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                     {
                         cabbage.updateWidgetState(jsonObj);
                     }
+
                     else if (command == "midiMessage")
                     {
                         processor->addNoteEventFromJson(jsonObj);
                     }
-                    else if (command == "cabbageIsReadyToLoad")
-                    {
-                        nlohmann::json msg;
-                        msg["command"] = "cabbageIsReadyToLoad";
-                        msg["data"] = "";
-                        webSocket.send(msg.dump());
-                    }
+                    
                     else if (command == "stopCsound")
                     {
                         lattice::logDebug << "stopping Csound" << msg->str;
                         //processor->stopProcessing();
                     }
+                    
+                    else if (command == "initialiseWidgets")
+                    {
+                        // vscode will notify when it's ready to receive the Cabbage widget data
+                        sendWidgetDataToVscode();
+                    }
+
                     else if (command == "stopAudio")
                     {
                         //when VS Code tries to end the process, it first send a stopAudio message..
@@ -322,6 +328,7 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                         if (audioDevice)
                             audioDevice->closeStream();
                     }
+
                     else
                     {
                         //lattice::logDebug << "received message: " << msg->str;
@@ -369,14 +376,8 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
 //==============================================================================
 void CabbageAudioApp::sendWidgetDataToVscode()
 {
-    // if connection is open we need to send all parse jSON objects to VS-Code..
-    nlohmann::json msg;
-    msg["command"] = "cabbageIsReadyToLoad";
-    msg["data"] = "";
-    webSocket.send(msg.dump());
-
     //there is an issue here in terms of timing. Needs attention..
-//    std::this_thread::sleep_for(std::chrono::milliseconds(1500)); // Sleep for 50ms
+    //std::this_thread::sleep_for(std::chrono::milliseconds(1500)); // Sleep for 50ms
 
     auto &cabbage = processor->getCabbageEngine();
 
@@ -443,6 +444,8 @@ int CabbageAudioApp::getAudioDeviceId(const std::string& deviceName) const
 void CabbageAudioApp::initCabbage()
 {
     processor = std::make_unique<CabbageProcessor>(csdFileAndPath);
+    
+    lattice::logDebug << "Num widgets : " << processor->getCabbageEngine().getWidgets().size();
 
     // Preallocate the empty input buffer in case of no input device
     emptyInputBuffer = new float *[numChannels];
