@@ -749,6 +749,14 @@ void CabbageAudioApp::addDevicesToSettings(const std::string& settingsPath)
             }
         }
 
+#ifdef LATTICE_WINDOWS
+        settingsJson["systemAudioMidiIOListing"]["audioDrivers"] = {"DirectSound", "ASIO"};
+#elif defined LATTICE_MACOS
+        settingsJSON["systemAudioMidiIOListing"]["audioDrivers"] = "CoreAudio";
+#else
+        settingsJSON["systemAudioMidiIOListing"]["audioDrivers"] = {"Pulse", "Alsa", "Jack"};
+#endif
+
         // Write updated JSON back to file
         std::ofstream outFile(settingsPath);
         if (!outFile) {
