@@ -15,7 +15,12 @@ CabbageAudioApp::CabbageAudioApp(int argc, char* argv[])
     // for websocket message to load a file instead. In this way we can debug
     // the app without having to pass a file from vscode on startup.
     parseComandLineArgs(argc, argv);
-     
+    
+    //quickly init/deinit audio in order to query devices..
+    initialiseAudio(false);
+    initialiseMidi();
+    deinitAudioAndMidi();
+    
     if (lattice::File::exists(csdFileAndPath))
     {
         initCabbage();
@@ -453,7 +458,7 @@ void CabbageAudioApp::initCabbage()
     emptyInputBufferInitialized = true;
 
     // Init audio and MIDI
-    initialiseAudio();
+    initialiseAudio(true);
     initialiseMidi();
 
 
@@ -465,7 +470,7 @@ void CabbageAudioApp::initCabbage()
 //==============================================================================
 // Initialise rtaudio - set up divers, etc
 //==============================================================================
-void CabbageAudioApp::initialiseAudio()
+void CabbageAudioApp::initialiseAudio(bool startStream)
 {
     // Create an instance of RtAudio
     std::vector<RtAudio::Api> apis;
@@ -513,33 +518,98 @@ void CabbageAudioApp::initialiseAudio()
     unsigned int sampleRate = audioConfig.audioSR;
     unsigned int bufferFrames = audioConfig.bufferSize;
 
-    lattice::logDebug << "Attempting to start audio with the following settings:\nSR: " << audioConfig.audioSR
-                      << "\nBuffer Size: " << audioConfig.bufferSize << "\nInput device: " << audioConfig.audioInDev
-                      << "\nNumber of input channels: " << inputParameters.nChannels << "\nOutput device: " << audioConfig.audioOutDev
-                      << "\nNumber of output channels: " << outputParameters.nChannels;
-    
-    try
+    if(startStream)
     {
-        // Open the audio stream. If the selected audio input device has no
-        // channels, i.e., it's not valid, pass nullptr for input stream
-        audioDevice->openStream(&outputParameters,
-                          inputParameters.nChannels == 0 ? nullptr : &inputParameters,
-                          RTAUDIO_FLOAT32,
-                          sampleRate,
-                          &bufferFrames, 
-                          &CabbageAudioApp::audioCallback,
-                          this); // Pass 'this' as userData
+        lattice::logDebug << "Attempting to start audio with the following settings:\nSR: " << audioConfig.audioSR
+        << "\nBuffer Size: " << audioConfig.bufferSize << "\nInput device: " << audioConfig.audioInDev
+        << "\nNumber of input channels: " << inputParameters.nChannels << "\nOutput device: " << audioConfig.audioOutDev
+        << "\nNumber of output channels: " << outputParameters.nChannels;
         
-        audioDevice->startStream();
-        isRunning = true; // Mark the stream as running
-    }
-    catch (const std::runtime_error &e)
-    {
-        lattice::logDebug << "Error: " << e.what();
-        return;
+        try
+        {
+            // Open the audio stream. If the selected audio input device has no
+            // channels, i.e., it's not valid, pass nullptr for input stream
+            audioDevice->openStream(&outputParameters,
+                                    inputParameters.nChannels == 0 ? nullptr : &inputParameters,
+                                    RTAUDIO_FLOAT32,
+                                    sampleRate,
+                                    &bufferFrames,
+                                    &CabbageAudioApp::audioCallback,
+                                    this); // Pass 'this' as userData
+            
+            audioDevice->startStream();
+            isRunning = true; // Mark the stream as running
+        }
+        catch (const std::runtime_error &e)
+        {
+            lattice::logDebug << "Error: " << e.what();
+            return;
+        }
     }
 }
 
+//==============================================================================
+// Clean up audio and MIDI resources
+//==============================================================================
+void CabbageAudioApp::deinitAudioAndMidi()
+{
+    // Stop and close audio stream if running
+    if (isRunning)
+    {
+        try
+        {
+            lattice::logInfo << "Stopping audio stream...";
+            audioDevice->stopStream();
+        }
+        catch (const std::runtime_error &e)
+        {
+            lattice::logDebug << "Error stopping audio stream: " << e.what();
+        }
+
+        if (audioDevice->isStreamOpen())
+        {
+            lattice::logInfo << "Closing audio stream...";
+            audioDevice->closeStream();
+        }
+        
+        isRunning = false;
+    }
+
+    // Clean up MIDI devices
+    if (midiInDevice)
+    {
+        lattice::logInfo << "Closing MIDI input device...";
+        midiInDevice->cancelCallback();
+        midiInDevice->closePort();
+        midiInDevice = nullptr;
+    }
+
+    if (midiOutDevice)
+    {
+        lattice::logInfo << "Closing MIDI output device...";
+        midiOutDevice->closePort();
+        midiOutDevice = nullptr;
+    }
+
+    // Clean up empty input buffer if it was initialized
+    if (emptyInputBufferInitialized)
+    {
+        lattice::logInfo << "Cleaning up empty input buffer...";
+        for (unsigned int ch = 0; ch < numChannels; ++ch)
+        {
+            delete[] emptyInputBuffer[ch];
+        }
+        delete[] emptyInputBuffer;
+        emptyInputBufferInitialized = false;
+    }
+
+    // Reset audio device
+    audioDevice = nullptr;
+    
+    lattice::logInfo << "Audio and MIDI devices successfully deinitialized";
+}
+
+//============================================================================
 void CabbageAudioApp::errorCallback(RtAudioErrorType type, const std::string &errorText)
 {
     lattice::logDebug << errorText;

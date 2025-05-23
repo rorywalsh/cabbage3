@@ -97,8 +97,9 @@ private:
     ix::WebSocket webSocket;
     AudioConfig audioConfig;
     void initCabbage();
-    void initialiseAudio();
+    void initialiseAudio(bool startStream);
     void initialiseMidi();
+    void deinitAudioAndMidi();
     
     // Websocket server - for communication with vscode
     ix::WebSocketServer webSocketServer;
