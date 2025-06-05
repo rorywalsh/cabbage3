@@ -15,6 +15,7 @@ CabbageProcessor::CabbageProcessor(std::string csdFile)
     : Processor(), cabbage(*this, csdFile)
 {
 
+    
     if (!cabbage.setupCsound())
     {
         lattice::logInfo << "Csound could not be compiled";
@@ -132,7 +133,7 @@ void CabbageProcessor::addParameters()
 }
 
 //========================================================================================
-// Main processing function
+// Main processing function - this is called by the CLAP process function
 //========================================================================================
 void CabbageProcessor::process(float** inputs, float** outputs, std::size_t blockSize)
 {
@@ -312,12 +313,17 @@ void CabbageProcessor::setCabbageIsReady()
 {
     uiIsOpen = true;
     allowDequeuing = true;
+
+#ifndef CabbageApp
+    //We update the UI each time the plugin window is shown
+    updateUI();
+#endif
 }
 
 //========================================================================================
 // Callback function - triggered when a message is sent from the webview
 //========================================================================================
-void CabbageProcessor::onMesssgeFromWebView(const nlohmann::json& j)
+void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
 {
     // Incoming JSON message is always wrapped in []
     auto incomingMessage = j.at(0);
@@ -337,10 +343,29 @@ void CabbageProcessor::onMesssgeFromWebView(const nlohmann::json& j)
             // Extract values
             float value = obj.value("value", 0.f);
             auto paramIdx = obj.value("paramIdx", -1);
+            auto gesture = obj.value("gesture", "complete");
 
             // Update Csound channel
             cabbage.setControlChannel(obj.value("channel", ""), value);
-            sendParameterUpdateToHost(paramIdx, value);
+            getParameters()[paramIdx].value = value;
+
+            if (gesture == "begin") {
+                addParameterChange({paramIdx, getParameter(paramIdx).toNormalised(value), lattice::ParamChangeType::GestureBegin});
+            } else if (gesture == "value") {
+                addParameterChange({paramIdx, getParameter(paramIdx).toNormalised(value), lattice::ParamChangeType::Value});
+            } else if (gesture == "end") {
+                addParameterChange({paramIdx, getParameter(paramIdx).toNormalised(value), lattice::ParamChangeType::GestureEnd});
+            }
+            else{
+                addParameterChange({paramIdx, getParameter(paramIdx).toNormalised(value), lattice::ParamChangeType::Complete});
+            }
+            
+            auto widgetOpt = cabbage.getWidget(obj.value("channel", ""));
+            if (widgetOpt.has_value())
+            {
+                auto &j = widgetOpt.value().get();
+                j["value"] = value;
+            }
         }
         catch (const nlohmann::json::exception& e)
         {
@@ -408,22 +433,94 @@ void CabbageProcessor::updateUI()
     // iterate over all widget objects and send to webview
     for (auto &w : cabbage.getWidgets())
     {
-        if (w.contains("channel")) // only let valid object through.
+        if (w.contains("channel")) // only let valid objects through.
         {
             auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(w["channel"].get<std::string>(), w.dump());
             sendWebViewMessage(updatedWidget);
         }
     }
+    
+    // Check if editor has any pending messages when loaded..
+    for (const auto &param : webviewMessageQueue)
+    {
+        auto widgetOpt = cabbage.getWidget(param.name);
+        if (widgetOpt.has_value())
+        {
+            auto &j = widgetOpt.value().get();
+            j["value"] = param.value;
+            auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(param.name, param.value);
+            cabbage.setControlChannel(param.name, param.value);
+            sendWebViewMessage(updatedWidget);
+        }
+    }
+    webviewMessageQueue.clear();
+    
+}
+//========================================================================================
+// Plugin state/loding functions
+//========================================================================================
+nlohmann::json CabbageProcessor::savePluginState()
+{
+    const auto parameters = getParameters();
+    
+    // Use array instead of object so we can maintain order
+    nlohmann::json j = nlohmann::json::array();
+
+    // Store parameters by index in array
+    for (size_t i = 0; i < parameters.size(); i++)
+    {
+        nlohmann::json param;
+        param["name"] = parameters[i].name;
+        param["value"] = parameters[i].value;
+        j.push_back(param);
+    }
+    
+    return j;
+}
+
+void CabbageProcessor::loadPluginState(nlohmann::json state)
+{
+    auto json = nlohmann::json::parse(state.dump(4));
+    int idx = 0;
+
+    // Iterate through array
+    for (const auto& param : json)
+    {
+        // Read values
+        float value = param.value("value", 0.f);
+
+        // Add parameter updates to queue for host - these should be normalised
+        addParameterChange({idx, getParameter(idx).toNormalised(value), lattice::ParamChangeType::Value});
+        // Set parameter values for plugin
+        getParameters()[idx].value = value;
+        
+        // Save to message queue - denormalise value for webview
+        auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(getParameters()[idx].name, getParameter(idx).fromNormalised(value));
+        webviewMessageQueue.push_back({getParameters()[idx].name, -1, -1, value, -1, -1});
+        idx++;
+    }
 }
 
 //========================================================================================
-// This can be called from the host - if so update the
-// corresponding parameter value using updateParameter() function
+// This is called from the host
 //========================================================================================
 void CabbageProcessor::setParameter(int paramId, double value)
 {
-    getParameters()[paramId].value = value;
-    cabbage.setControlChannel(getParameters()[paramId].name, value);
+    const float denormalValue = getParameter(paramId).fromNormalised(value);
+    getParameters()[paramId].value = denormalValue;
+    cabbage.setControlChannel(getParameters()[paramId].name, denormalValue);
+    
+    // This method is called from the host, therefore we need to update out UI
+    // and the widgets vector which contains all the widget json objects
+    const auto channel = getParameters()[paramId].name;
+    auto widgetOpt = cabbage.getWidget(channel);
+    if (widgetOpt.has_value())
+    {
+        auto &j = widgetOpt.value().get();
+        j["value"] = denormalValue;
+        auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(channel, denormalValue);
+        sendWebViewMessage(updatedWidget);
+    }
 }
 
 void CabbageProcessor::prepareToPlay(double sr, uint32_t /*minFrameCount*/, uint32_t /*maxFrameCount*/)

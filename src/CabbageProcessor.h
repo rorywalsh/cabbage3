@@ -30,7 +30,7 @@ public:
     void setParameter(int paramId, double value) override;
     
     // Called whenever the webview sends a message
-    void onMesssgeFromWebView(const nlohmann::json &j) override;
+    void onMessageFromWebView(const nlohmann::json &j) override;
     
     // Called whenever the UI iwdgets need updating
     void updateUI();
@@ -43,7 +43,13 @@ public:
     // Triggered by CabbageApp whenever websocket connection is established
     void setCabbageIsReady();
     
+    // Plugin load/save state
+    void loadPluginState(nlohmann::json state) override;
+    nlohmann::json savePluginState() override;
+
+    
     cabbage::Engine &getCabbageEngine() { return cabbage; }
+    
 #ifdef CabbageApp
     std::function<void(CabbageOpcodeData)> hostCallback = nullptr;
 #endif
@@ -73,4 +79,5 @@ public:
     std::atomic<bool> isIdleRunning;
     std::thread idleThread;
     int idleCounter = 0;
+    std::vector<lattice::Parameter> webviewMessageQueue;
 };
