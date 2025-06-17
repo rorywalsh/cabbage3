@@ -688,7 +688,7 @@ void CabbageAudioApp::midiCallback(double deltatime, std::vector<uint8_t> *msg, 
 
 
 int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
-                                   double streamTime, RtAudioStreamStatus status, void *userData)
+                                   double /*streamTime*/, RtAudioStreamStatus /*status*/, void *userData)
 {
     // Cast userData to CabbageAudioApp*
     CabbageAudioApp *app = static_cast<CabbageAudioApp *>(userData);

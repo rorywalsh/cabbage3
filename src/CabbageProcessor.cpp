@@ -512,15 +512,15 @@ void CabbageProcessor::setParameter(int paramId, double value)
     
     // This method is called from the host, therefore we need to update out UI
     // and the widgets vector which contains all the widget json objects
-    const auto channel = getParameters()[paramId].name;
-    auto widgetOpt = cabbage.getWidget(channel);
-    if (widgetOpt.has_value())
-    {
-        auto &j = widgetOpt.value().get();
-        j["value"] = denormalValue;
-        auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(channel, denormalValue);
-        sendWebViewMessage(updatedWidget);
-    }
+//    const auto channel = getParameters()[paramId].name;
+//    auto widgetOpt = cabbage.getWidget(channel);
+//    if (widgetOpt.has_value())
+//    {
+//        auto &j = widgetOpt.value().get();
+//        j["value"] = denormalValue;
+//        auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(channel, denormalValue);
+//        sendWebViewMessage(updatedWidget);
+//    }
 }
 
 void CabbageProcessor::prepareToPlay(double sr, uint32_t /*minFrameCount*/, uint32_t /*maxFrameCount*/)
