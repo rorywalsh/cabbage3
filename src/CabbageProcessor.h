@@ -31,6 +31,9 @@ public:
     
     // Called whenever the webview sends a message
     void onMessageFromWebView(const nlohmann::json &j) override;
+   
+    // Called whenever the plugin webview is ready
+    void onWebViewIsReady() override;
     
     // Called whenever the UI iwdgets need updating
     void updateUI();
@@ -58,6 +61,7 @@ public:
     void addNoteEventFromJson(const nlohmann::json &j);
     void suspendProcessing() { processingEnabled.store(false, std::memory_order_relaxed); }
     void stopIdleThread();
+    bool isIdleThreadRunning(){   return isIdleRunning.load(std::memory_order_acquire);   }
 
   private:
     

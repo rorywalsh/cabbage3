@@ -280,11 +280,8 @@ void CabbageProcessor::onIdleScheduler()
 {
     while (isIdleRunning)
     {
-        idleCounter++;
-        if (idleCounter % 100 == 0)
-        {
-            onIdle();
-        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(50)); // Sleep to avoid busy-waiting
+        onIdle();
     }
 }
 
@@ -309,6 +306,11 @@ void CabbageProcessor::stopOnIdle()
 //========================================================================================
 // Triggered when Cabbage is ready to start processing messages
 //========================================================================================
+void CabbageProcessor::onWebViewIsReady()
+{
+
+}
+
 void CabbageProcessor::setCabbageIsReady()
 {
     uiIsOpen = true;
@@ -422,6 +424,7 @@ void CabbageProcessor::stopIdleThread()
     {        
         std::cout << "Joining thread before reset..." << std::endl;
         idleThread.join(); // Ensure the thread is joined before reset
+        std::cout << "Thread joined" << std::endl;
     }
 }
 

@@ -325,6 +325,8 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                         //when VS Code tries to end the process, it first send a stopAudio message..
                         lattice::logDebug << "Closing audio and MIDI devices....";
 
+                        processor->suspendProcessing();
+                        
                         if (audioDevice)
                             audioDevice->closeStream();
                     }
@@ -343,13 +345,10 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
             }
             else if (msg->type == ix::WebSocketMessageType::Open)
             {
-                lattice::logInfo << "Websocket connection established";
-
-                if (csdFileAndPath.empty())
-                {
-                    lattice::logDebug << "Waiting for file to be sent from VS-Code";
-                }
-                else
+                lattice::logInfo << "Websocket connection established. " << (csdFileAndPath.empty() ? "Waiting for file to be sent from VS-Code." : "");
+                
+                                                                             
+                if(!csdFileAndPath.empty())
                 {
                     sendWidgetDataToVscode();
                 }                
@@ -376,8 +375,6 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
 //==============================================================================
 void CabbageAudioApp::sendWidgetDataToVscode()
 {
-    //there is an issue here in terms of timing. Needs attention..
-    //std::this_thread::sleep_for(std::chrono::milliseconds(1500)); // Sleep for 50ms
 
     auto &cabbage = processor->getCabbageEngine();
 
@@ -444,6 +441,11 @@ int CabbageAudioApp::getAudioDeviceId(const std::string& deviceName) const
 void CabbageAudioApp::initCabbage()
 {
     processor = std::make_unique<CabbageProcessor>(csdFileAndPath);
+    
+    if(!processor->getCabbageEngine().csdCompiledWithoutError()){
+        closeAudioDevice();
+        return;
+    }
     
     lattice::logDebug << "Num widgets : " << processor->getCabbageEngine().getWidgets().size();
 

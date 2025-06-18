@@ -10,6 +10,7 @@
 
 // Static pointer to the CabbageAudioApp instance
 static CabbageAudioApp* appInstance = nullptr;
+volatile sig_atomic_t terminateRequested = 0;
 
 // Signal handler for Unix-like systems
 void signalHandler(int signal) 
@@ -17,6 +18,7 @@ void signalHandler(int signal)
     if (appInstance) {
         try {
             lattice::logInfo << "Received signal " << signal << ". Cleaning up...";
+            terminateRequested = 1;
             delete appInstance;
             appInstance = nullptr;
         } catch (...) {
@@ -50,15 +52,13 @@ int main(int argc, char* argv[]) {
 
 #ifdef _WIN32
     SetConsoleCtrlHandler(consoleHandler, TRUE);
-#else 
-        std::signal(SIGKILL, signalHandler);
 #endif
     
     // Create an instance of CabbageAudioApp
     appInstance = new CabbageAudioApp(argc, argv);
 
     // Keep the program running while the stream is active
-    while (appInstance->isStreamRunning() || appInstance->isRunningInDebugMode())
+    while (!terminateRequested && (appInstance->isStreamRunning() || appInstance->isRunningInDebugMode()))
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Sleep to avoid busy-waiting
     }
