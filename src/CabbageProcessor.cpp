@@ -422,9 +422,9 @@ void CabbageProcessor::stopIdleThread()
 
     if (idleThread.joinable())
     {        
-        std::cout << "Joining thread before reset..." << std::endl;
+//        std::cout << "Joining thread before reset..." << std::endl;
         idleThread.join(); // Ensure the thread is joined before reset
-        std::cout << "Thread joined" << std::endl;
+//        std::cout << "Thread joined" << std::endl;
     }
 }
 

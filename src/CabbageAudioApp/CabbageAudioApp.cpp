@@ -24,7 +24,6 @@ CabbageAudioApp::CabbageAudioApp(int argc, char* argv[])
     if (lattice::File::exists(csdFileAndPath))
     {
         initCabbage();
-        lattice::logDebug << csdFileAndPath << " passed to server on launch";
     }
     else
     {
@@ -62,8 +61,8 @@ void CabbageAudioApp::closeAudioDevice()
     {
         try
         {
-            lattice::logInfo << "Stopping rtaudio stream";
-            audioDevice->stopStream();
+            if(audioDevice->isStreamOpen())
+                audioDevice->stopStream();
         }
         catch (const std::runtime_error &e)
         {
@@ -293,8 +292,16 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                             }
 
                             
-                            initCabbage();
-                            sendWidgetDataToVscode();
+                            if(initCabbage())
+                            {
+                                sendWidgetDataToVscode();
+                            }
+                            else
+                            {
+                                nlohmann::json msg;
+                                msg["command"] = "failedToCompile";
+                                webSocket.send(msg.dump());
+                            }
                         }
                     }
 
@@ -438,13 +445,13 @@ int CabbageAudioApp::getAudioDeviceId(const std::string& deviceName) const
 //==============================================================================
 // Initialise Cabbage - create processor and set up audio and midi
 //==============================================================================
-void CabbageAudioApp::initCabbage()
+bool CabbageAudioApp::initCabbage()
 {
     processor = std::make_unique<CabbageProcessor>(csdFileAndPath);
     
     if(!processor->getCabbageEngine().csdCompiledWithoutError()){
         closeAudioDevice();
-        return;
+        return false;
     }
     
     lattice::logDebug << "Num widgets : " << processor->getCabbageEngine().getWidgets().size();
@@ -466,6 +473,7 @@ void CabbageAudioApp::initCabbage()
 
     // Register callback - will be triggered from CabbageProcessor
     processor->hostCallback = [&](CabbageOpcodeData data) { hostCallback(data); };
+    return true;
 }
 
 

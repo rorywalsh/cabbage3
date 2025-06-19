@@ -96,7 +96,7 @@ private:
     void hostCallback(CabbageOpcodeData data);
     ix::WebSocket webSocket;
     AudioConfig audioConfig;
-    void initCabbage();
+    bool initCabbage();
     void initialiseAudio(bool startStream);
     void initialiseMidi();
     void deinitAudioAndMidi();
