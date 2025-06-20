@@ -59,6 +59,7 @@ public:
     
     // Adds a MIDI note event to the midi event queue
     void addNoteEventFromJson(const nlohmann::json &j);
+    void suspendProcessing() { processingEnabled.store(false, std::memory_order_relaxed); }
     void stopIdleThread();
     bool isIdleThreadRunning(){   return isIdleRunning.load(std::memory_order_acquire);   }
 
@@ -69,6 +70,7 @@ public:
     void startOnIdle();
     void stopOnIdle();
     void updateWidgetData(const CabbageOpcodeData &data);
+    std::atomic<bool> processingEnabled{true};
     bool uiIsOpen = false;
     bool allowDequeuing = false;
     int sampleRate = 44100;

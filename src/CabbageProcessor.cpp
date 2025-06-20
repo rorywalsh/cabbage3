@@ -18,7 +18,7 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
     
     if (!cabbage.setupCsound())
     {
-        lattice::logInfo << "Csound could not be compiled";
+        suspendProcessing();
         return;
     }
 
@@ -139,6 +139,11 @@ void CabbageProcessor::addParameters()
 //========================================================================================
 void CabbageProcessor::process(float** inputs, float** outputs, std::size_t blockSize)
 {
+    if (!processingEnabled.load(std::memory_order_relaxed))
+    {
+        return;
+    }
+
     // only process audio if Csound has compiled successfully.
     if (cabbage.csdCompiledWithoutError())
     {

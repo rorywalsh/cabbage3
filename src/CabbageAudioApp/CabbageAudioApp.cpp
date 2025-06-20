@@ -284,7 +284,8 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                         csdFileAndPath = json["lastSavedFileName"].get<std::string>();
                         if (lattice::File::exists(csdFileAndPath))
                         {
-                            closeAudioDevice();
+                            canProcessAudio.store(false);
+//                            closeAudioDevice();
                             if (processor)
                             {
                                 processor->stopIdleThread();
@@ -301,6 +302,7 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                                 nlohmann::json msg;
                                 msg["command"] = "failedToCompile";
                                 webSocket.send(msg.dump());
+                                
                             }
                         }
                     }
@@ -324,6 +326,7 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                     else if (command == "initialiseWidgets")
                     {
                         // vscode will notify when it's ready to receive the Cabbage widget data
+                        lattice::logDebug << "********* line 330 ******************";
                         sendWidgetDataToVscode();
                     }
 
@@ -357,6 +360,7 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                                                                              
                 if(!csdFileAndPath.empty())
                 {
+                    lattice::logDebug << "********* line 363 ******************";
                     sendWidgetDataToVscode();
                 }                
                 
@@ -382,9 +386,14 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
 //==============================================================================
 void CabbageAudioApp::sendWidgetDataToVscode()
 {
-
+    if(!processor)
+        return;
+    
     auto &cabbage = processor->getCabbageEngine();
 
+    
+    lattice::logDebug << "********* line 394 ******************";
+    
     for (auto &w : cabbage.getWidgets())
     {
         nlohmann::json msg;
@@ -458,7 +467,7 @@ bool CabbageAudioApp::initCabbage()
     processor = std::make_unique<CabbageProcessor>(csdFileAndPath, config.str());
     
     if(!processor->getCabbageEngine().csdCompiledWithoutError()){
-        closeAudioDevice();
+//        closeAudioDevice();
         return false;
     }
     

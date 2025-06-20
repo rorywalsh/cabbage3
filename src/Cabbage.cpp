@@ -122,6 +122,7 @@ bool Engine::setupCsound()
                 csound->PopFirstMessage();
             }
             return false;
+
         }
 
         widgets.clear();
