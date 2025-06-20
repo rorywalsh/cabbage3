@@ -11,7 +11,7 @@ pluginType* LatticeProcessorPluginFactory::createPlugin(const clap_host* host)
 }
 //========================================================================================
 
-CabbageProcessor::CabbageProcessor(std::string csdFile)
+CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
     : Processor(), cabbage(*this, csdFile)
 {
 
@@ -26,7 +26,7 @@ CabbageProcessor::CabbageProcessor(std::string csdFile)
     setWebViewSendFunctionName("window.postMessage");
     
     addParameters();
-    addChannels();
+    addChannels(config);
 
     auto rootPath = cabbage::File::getParentDirectory(cabbage::File::getCsdFileAndPath(cabbage.getCsdFile()));
     
@@ -52,17 +52,17 @@ CabbageProcessor::~CabbageProcessor()
 //========================================================================================
 // Add channels based on channelConfig property
 //========================================================================================
-void CabbageProcessor::addChannels()
+void CabbageProcessor::addChannels(const std::string& config)
 {
     auto file = cabbage::File::getCsdFileAndPath(cabbage.getCsdFile());
     
     cabbage::Utils::check(lattice::File::exists(file), "Can't find csd file");
     
     
-    auto channelConfig = cabbage::Engine::getIOChannalConfig(file);
+    auto channelConfig = config.empty() ? cabbage::Engine::getIOChannalConfig(file) : config;
     auto [inputBuses, outputBuses] = cabbage.parseBusConfiguration(channelConfig);
     
-    matchingNumInputsOutputs = inputBuses.size() == outputBuses.size();
+   
     
     int inputBusIndex = 1;
     for (int bus : inputBuses)
@@ -78,9 +78,11 @@ void CabbageProcessor::addChannels()
         outputBusIndex++;
     }
     
-    auto config = getChannelConfig();
-    totalNumInputs = config.getTotalNumInputChannels();
-    totalNumOutputs = config.getTotalNumOutputChannels();
+    auto ioConfig = getChannelConfig();
+    totalNumInputs = ioConfig.getTotalNumInputChannels();
+    totalNumOutputs = ioConfig.getTotalNumOutputChannels();
+    
+    matchingNumInputsOutputs = totalNumInputs == totalNumOutputs;
     
     
 }
@@ -137,11 +139,6 @@ void CabbageProcessor::addParameters()
 //========================================================================================
 void CabbageProcessor::process(float** inputs, float** outputs, std::size_t blockSize)
 {
-    if (!processingEnabled.load(std::memory_order_relaxed))
-    {
-        return;
-    }
-
     // only process audio if Csound has compiled successfully.
     if (cabbage.csdCompiledWithoutError())
     {

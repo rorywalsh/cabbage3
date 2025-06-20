@@ -9,7 +9,7 @@
 // and websocket connection to vscode
 //==============================================================================
 CabbageAudioApp::CabbageAudioApp(int argc, char* argv[])
-    : numChannels(2), bufferSize(512), isRunning(false)
+    : bufferSize(512), isRunning(false)
 {
     // Parse command line flags. If not valid file is passed, we wait 
     // for websocket message to load a file instead. In this way we can debug
@@ -55,7 +55,7 @@ CabbageAudioApp::~CabbageAudioApp()
 void CabbageAudioApp::closeAudioDevice()
 {
     if (processor)
-        processor->suspendProcessing();
+        canProcessAudio.store(false);
 
     if (isRunning)
     {
@@ -78,7 +78,7 @@ void CabbageAudioApp::closeAudioDevice()
     if (emptyInputBufferInitialized)
     {
         // Clean up the preallocated empty input buffer
-        for (unsigned int ch = 0; ch < numChannels; ++ch)
+        for (unsigned int ch = 0; ch < numInputChannels; ++ch)
         {
             delete[] emptyInputBuffer[ch];
         }
@@ -331,8 +331,8 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                     {
                         //when VS Code tries to end the process, it first send a stopAudio message..
                         lattice::logDebug << "Closing audio and MIDI devices....";
-
-                        processor->suspendProcessing();
+                        
+                        canProcessAudio.store(false);
                         
                         if (audioDevice)
                             audioDevice->closeStream();
@@ -447,7 +447,15 @@ int CabbageAudioApp::getAudioDeviceId(const std::string& deviceName) const
 //==============================================================================
 bool CabbageAudioApp::initCabbage()
 {
-    processor = std::make_unique<CabbageProcessor>(csdFileAndPath);
+    canProcessAudio.store(false);
+    // Init audio and MIDI
+    initialiseAudio(true);
+    initialiseMidi();
+
+    std::stringstream config;
+    config << std::to_string(getNumInputChannels()) << "-" << std::to_string(getNumOutputChannels());
+                             lattice::logDebug << config.str();
+    processor = std::make_unique<CabbageProcessor>(csdFileAndPath, config.str());
     
     if(!processor->getCabbageEngine().csdCompiledWithoutError()){
         closeAudioDevice();
@@ -457,8 +465,8 @@ bool CabbageAudioApp::initCabbage()
     lattice::logDebug << "Num widgets : " << processor->getCabbageEngine().getWidgets().size();
 
     // Preallocate the empty input buffer in case of no input device
-    emptyInputBuffer = new float *[numChannels];
-    for (unsigned int ch = 0; ch < numChannels; ++ch)
+    emptyInputBuffer = new float *[numInputChannels];
+    for (unsigned int ch = 0; ch < numInputChannels; ++ch)
     {
         emptyInputBuffer[ch] = new float[bufferSize];
         std::fill(emptyInputBuffer[ch], emptyInputBuffer[ch] + bufferSize, 0.0f); // Initialize with zeros
@@ -466,11 +474,8 @@ bool CabbageAudioApp::initCabbage()
 
     emptyInputBufferInitialized = true;
 
-    // Init audio and MIDI
-    initialiseAudio(true);
-    initialiseMidi();
 
-
+    canProcessAudio.store(true);
     // Register callback - will be triggered from CabbageProcessor
     processor->hostCallback = [&](CabbageOpcodeData data) { hostCallback(data); };
     return true;
@@ -517,6 +522,7 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
     const int outputDeviceId = getAudioDeviceId(audioConfig.audioOutDev);;
     outputParameters.deviceId = outputDeviceId != -1 ? outputDeviceId : audioDevice->getDefaultOutputDevice();
     outputParameters.nChannels = audioDevice->getDeviceInfo(outputParameters.deviceId).outputChannels; 
+    numOutputChannels = outputParameters.nChannels;
     outputParameters.firstChannel = 0;
 
     
@@ -525,6 +531,8 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
     const int inputDeviceId = getAudioDeviceId(audioConfig.audioInDev);;
     inputParameters.deviceId = inputDeviceId != -1 ? inputDeviceId : audioDevice->getDefaultInputDevice();
     inputParameters.nChannels = audioDevice->getDeviceInfo(inputParameters.deviceId).inputChannels; 
+    numInputChannels = inputParameters.nChannels;
+    
     unsigned int sampleRate = audioConfig.audioSR;
     unsigned int bufferFrames = audioConfig.bufferSize;
 
@@ -541,7 +549,7 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
             // channels, i.e., it's not valid, pass nullptr for input stream
             audioDevice->openStream(&outputParameters,
                                     inputParameters.nChannels == 0 ? nullptr : &inputParameters,
-                                    RTAUDIO_FLOAT32,
+                                    RTAUDIO_FLOAT64,
                                     sampleRate,
                                     &bufferFrames,
                                     &CabbageAudioApp::audioCallback,
@@ -605,7 +613,7 @@ void CabbageAudioApp::deinitAudioAndMidi()
     if (emptyInputBufferInitialized)
     {
         lattice::logInfo << "Cleaning up empty input buffer...";
-        for (unsigned int ch = 0; ch < numChannels; ++ch)
+        for (unsigned int ch = 0; ch < numInputChannels; ++ch)
         {
             delete[] emptyInputBuffer[ch];
         }
@@ -635,9 +643,14 @@ float **CabbageAudioApp::getEmptyInputBuffer() const
     return emptyInputBuffer;
 }
 
-unsigned int CabbageAudioApp::getNumChannels() const
+unsigned int CabbageAudioApp::getNumInputChannels() const
 {
-    return numChannels;
+    return numInputChannels;
+}
+
+unsigned int CabbageAudioApp::getNumOutputChannels() const
+{
+    return numOutputChannels;
 }
 
 void CabbageAudioApp::midiCallback(double deltatime, std::vector<uint8_t> *msg, void *userData)
@@ -698,29 +711,30 @@ void CabbageAudioApp::midiCallback(double deltatime, std::vector<uint8_t> *msg, 
 
 
 int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
-                                   double /*streamTime*/, RtAudioStreamStatus /*status*/, void *userData)
+                                  double /*streamTime*/, RtAudioStreamStatus /*status*/, void *userData)
 {
     // Cast userData to CabbageAudioApp*
     CabbageAudioApp *app = static_cast<CabbageAudioApp *>(userData);
 
     // Cast buffers to float*
-    float *floatInputBuffer = static_cast<float *>(inputBuffer);
-    float *floatOutputBuffer = static_cast<float *>(outputBuffer);
+    MYFLT *myfltInputBuffer = static_cast<MYFLT *>(inputBuffer);
+    MYFLT *myfltOutputBuffer = static_cast<MYFLT *>(outputBuffer);
 
-    // Get the number of channels
-    unsigned int numChannels = app->getNumChannels();
+    // Get the number of input and output channels
+    unsigned int numInputChannels = app->getNumInputChannels();
+    unsigned int numOutputChannels = app->getNumOutputChannels();
 
     // Deinterleave the input buffer into separate channels
     float **deinterleavedInput = nullptr;
-    if (floatInputBuffer)
+    if (myfltInputBuffer && numInputChannels > 0)
     {
-        deinterleavedInput = new float *[numChannels];
-        for (unsigned int ch = 0; ch < numChannels; ++ch)
+        deinterleavedInput = new float *[numInputChannels];
+        for (unsigned int ch = 0; ch < numInputChannels; ++ch)
         {
             deinterleavedInput[ch] = new float[nBufferFrames];
             for (unsigned int i = 0; i < nBufferFrames; ++i)
             {
-                deinterleavedInput[ch][i] = floatInputBuffer[i * numChannels + ch];
+                deinterleavedInput[ch][i] = myfltInputBuffer[i * numInputChannels + ch];
             }
         }
     }
@@ -731,34 +745,37 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
     }
 
     // Deinterleave the output buffer into separate channels
-    float **deinterleavedOutput = new float *[numChannels];
-    for (unsigned int ch = 0; ch < numChannels; ++ch)
+    float **deinterleavedOutput = new float *[numOutputChannels];
+    for (unsigned int ch = 0; ch < numOutputChannels; ++ch)
     {
         deinterleavedOutput[ch] = new float[nBufferFrames];
+        // Initialize to silence
+        memset(deinterleavedOutput[ch], 0, nBufferFrames * sizeof(float));
     }
 
     // Pass the deinterleaved buffers to the process method
-    app->processor->process(deinterleavedInput, deinterleavedOutput, nBufferFrames);
+    if(app->canProcessAudio.load())
+        app->processor->process(deinterleavedInput, deinterleavedOutput, nBufferFrames);
 
     // Interleave the processed output back into the RtAudio buffer
-    for (unsigned int ch = 0; ch < numChannels; ++ch)
+    for (unsigned int ch = 0; ch < numOutputChannels; ++ch)
     {
         for (unsigned int i = 0; i < nBufferFrames; ++i)
         {
-            floatOutputBuffer[i * numChannels + ch] = deinterleavedOutput[ch][i];
+            myfltOutputBuffer[i * numOutputChannels + ch] = deinterleavedOutput[ch][i];
         }
     }
 
     // Clean up the deinterleaved buffers (except the preallocated empty input buffer)
-    if (floatInputBuffer)
+    if (myfltInputBuffer && numInputChannels > 0)
     {
-        for (unsigned int ch = 0; ch < numChannels; ++ch)
+        for (unsigned int ch = 0; ch < numInputChannels; ++ch)
         {
             delete[] deinterleavedInput[ch];
         }
         delete[] deinterleavedInput;
     }
-    for (unsigned int ch = 0; ch < numChannels; ++ch)
+    for (unsigned int ch = 0; ch < numOutputChannels; ++ch)
     {
         delete[] deinterleavedOutput[ch];
     }
@@ -766,7 +783,6 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
 
     return 0;
 }
-
 
 //============================================================================================
 void CabbageAudioApp::addDevicesToSettings(const std::string& settingsPath)

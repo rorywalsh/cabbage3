@@ -6,7 +6,7 @@
 class CabbageProcessor : public lattice::Processor {
     
 public:
-    CabbageProcessor(std::string = "");
+    CabbageProcessor(std::string csdFile = "", std::string config = "");
     
     // Destructor to clean up resources
     ~CabbageProcessor();
@@ -21,7 +21,7 @@ public:
     void addParameters(); 
 
     // Set up channel config
-    void addChannels();
+    void addChannels(const std::string& config = "");
 
     // Process method to handle audio processing
     void process(float** inputs, float** outputs, std::size_t blockSize) override;
@@ -59,7 +59,6 @@ public:
     
     // Adds a MIDI note event to the midi event queue
     void addNoteEventFromJson(const nlohmann::json &j);
-    void suspendProcessing() { processingEnabled.store(false, std::memory_order_relaxed); }
     void stopIdleThread();
     bool isIdleThreadRunning(){   return isIdleRunning.load(std::memory_order_acquire);   }
 
@@ -70,7 +69,6 @@ public:
     void startOnIdle();
     void stopOnIdle();
     void updateWidgetData(const CabbageOpcodeData &data);
-    std::atomic<bool> processingEnabled{true};
     bool uiIsOpen = false;
     bool allowDequeuing = false;
     int sampleRate = 44100;

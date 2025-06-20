@@ -125,14 +125,17 @@ private:
     int midiOutChannel = -1;
     int midiInChannel = -1;
 
-    unsigned int numChannels; // Number of audio channels
+    unsigned int numOutputChannels = 2; // Number of audio channels
+    unsigned int numInputChannels = 1;
     std::atomic<bool> isRunning; // Flag to track stream state
+    std::atomic<bool> canProcessAudio{false}; // Flag to track stream state
     float** emptyInputBuffer; // Preallocated empty input buffer
     bool emptyInputBufferInitialized = false; // Flag to check if the buffer is initialized
     unsigned int bufferSize; // Size of the audio buffer (in frames)
 
     float** getEmptyInputBuffer() const;
-    unsigned int getNumChannels() const;
+    unsigned int getNumInputChannels() const;
+    unsigned int getNumOutputChannels() const;
 
     // Callbacks for audio and midi
     static int audioCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames,
