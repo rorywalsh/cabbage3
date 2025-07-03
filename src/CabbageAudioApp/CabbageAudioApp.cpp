@@ -9,7 +9,7 @@
 // and websocket connection to vscode
 //==============================================================================
 CabbageAudioApp::CabbageAudioApp(int argc, char* argv[])
-    : bufferSize(512), isRunning(false)
+    : bufferSize(512)
 {
     // Parse command line flags. If not valid file is passed, we wait 
     // for websocket message to load a file instead. In this way we can debug
@@ -54,26 +54,22 @@ CabbageAudioApp::~CabbageAudioApp()
 
 void CabbageAudioApp::closeAudioDevice()
 {
-    if (processor)
-        canProcessAudio.store(false);
-
-    if (isRunning)
+        
+    try
     {
-        try
-        {
-            if(audioDevice->isStreamOpen())
-                audioDevice->stopStream();
-        }
-        catch (const std::runtime_error &e)
-        {
-            lattice::logDebug << "Error: " << e.what();
-        }
-        if (audioDevice->isStreamOpen())
-        {
-            lattice::logInfo << "Closing rtaudio stream";
-            audioDevice->closeStream();
-        }
+        if(audioDevice->isStreamOpen())
+            audioDevice->stopStream();
     }
+    catch (const std::runtime_error &e)
+    {
+        lattice::logDebug << "Error: " << e.what();
+    }
+    if (audioDevice->isStreamOpen())
+    {
+        lattice::logInfo << "Closing rtaudio stream";
+        audioDevice->closeStream();
+    }
+
 
     if (emptyInputBufferInitialized)
     {
@@ -236,7 +232,6 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
             {
                 try
                 {
-                    lattice::logDebug << msg->str;
                     auto json = nlohmann::json::parse(msg->str, nullptr, false);
                     const std::string command = json["command"];
                     nlohmann::json jsonObj;
@@ -284,26 +279,8 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                         csdFileAndPath = json["lastSavedFileName"].get<std::string>();
                         if (lattice::File::exists(csdFileAndPath))
                         {
-                            canProcessAudio.store(false);
-//                            closeAudioDevice();
-                            if (processor)
-                            {
-                                processor->stopIdleThread();
-                                processor.reset();
-                            }
-
-                            
-                            if(initCabbage())
-                            {
-                                sendWidgetDataToVscode();
-                            }
-                            else
-                            {
-                                nlohmann::json msg;
-                                msg["command"] = "failedToCompile";
-                                webSocket.send(msg.dump());
-                                
-                            }
+                            //push this to FIFO queue on main thread..
+                            addMessageToQueue(CabbageAudioApp::CommandType::InitCabbage);
                         }
                     }
 
@@ -316,29 +293,19 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                     {
                         processor->addNoteEventFromJson(jsonObj);
                     }
-                    
-                    else if (command == "stopCsound")
-                    {
-                        lattice::logDebug << "stopping Csound" << msg->str;
-                        //processor->stopProcessing();
-                    }
-                    
+                                    
                     else if (command == "initialiseWidgets")
                     {
                         // vscode will notify when it's ready to receive the Cabbage widget data
-                        lattice::logDebug << "********* line 330 ******************";
                         sendWidgetDataToVscode();
                     }
 
                     else if (command == "stopAudio")
                     {
                         //when VS Code tries to end the process, it first send a stopAudio message..
-                        lattice::logDebug << "Closing audio and MIDI devices....";
-                        
-                        canProcessAudio.store(false);
-                        
-                        if (audioDevice)
-                            audioDevice->closeStream();
+                        //push this to FIFO queue on main thread..
+                        addMessageToQueue(CabbageAudioApp::CommandType::StopAudio);
+                        addMessageToQueue(CabbageAudioApp::CommandType::KillProcessor);
                     }
 
                     else
@@ -360,7 +327,6 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                                                                              
                 if(!csdFileAndPath.empty())
                 {
-                    lattice::logDebug << "********* line 363 ******************";
                     sendWidgetDataToVscode();
                 }                
                 
@@ -390,9 +356,6 @@ void CabbageAudioApp::sendWidgetDataToVscode()
         return;
     
     auto &cabbage = processor->getCabbageEngine();
-
-    
-    lattice::logDebug << "********* line 394 ******************";
     
     for (auto &w : cabbage.getWidgets())
     {
@@ -457,17 +420,19 @@ int CabbageAudioApp::getAudioDeviceId(const std::string& deviceName) const
 bool CabbageAudioApp::initCabbage()
 {
     canProcessAudio.store(false);
+    canDestroyProcessor.store(false);
     // Init audio and MIDI
-    initialiseAudio(true);
+    initialiseAudio(true);    
     initialiseMidi();
 
     std::stringstream config;
     config << std::to_string(getNumInputChannels()) << "-" << std::to_string(getNumOutputChannels());
-                             lattice::logDebug << config.str();
+    lattice::logDebug << config.str();
+    lattice::logDebug << "csdFileAndPath:" << csdFileAndPath;
     processor = std::make_unique<CabbageProcessor>(csdFileAndPath, config.str());
     
     if(!processor->getCabbageEngine().csdCompiledWithoutError()){
-//        closeAudioDevice();
+        lattice::logDebug << "Coudn't compile Csound...";
         return false;
     }
     
@@ -482,11 +447,11 @@ bool CabbageAudioApp::initCabbage()
     }
 
     emptyInputBufferInitialized = true;
-
-
-    canProcessAudio.store(true);
+    
     // Register callback - will be triggered from CabbageProcessor
     processor->hostCallback = [&](CabbageOpcodeData data) { hostCallback(data); };
+    
+    canProcessAudio.store(true);
     return true;
 }
 
@@ -499,19 +464,30 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
     // Create an instance of RtAudio
     std::vector<RtAudio::Api> apis;
     RtAudio::getCompiledApi(apis);
+    canProcessAudio.store(false);
     
-    
+    if (!audioDevice)
+    {
 #if defined LATTICE_WINDOWS
-    if (audioConfig.audioDriverType == RtAudio::Api::WINDOWS_ASIO)
-        audioDevice = std::make_unique<RtAudio>(RtAudio::WINDOWS_ASIO, errorCallback);
-    else
-        audioDevice = std::make_unique<RtAudio>(RtAudio::WINDOWS_DS, errorCallback);
+        audioDevice = std::make_unique<RtAudio>(
+            (audioConfig.audioDriverType == RtAudio::Api::WINDOWS_ASIO)
+                ? RtAudio::WINDOWS_ASIO
+                : RtAudio::WINDOWS_DS,
+            errorCallback);
 #elif defined LATTICE_MACOS
-    // RtAudio::Api::MACOSX_CORE is default on MacOS
-    audioDevice = std::make_unique<RtAudio>(RtAudio::Api::MACOSX_CORE, errorCallback);
+        audioDevice = std::make_unique<RtAudio>(RtAudio::Api::MACOSX_CORE, errorCallback);
 #else
-    audioDevice = std::make_unique<RtAudio>(RtAudio::LINUX_ALSA);
+        audioDevice = std::make_unique<RtAudio>(RtAudio::LINUX_ALSA);
 #endif
+    }
+    else
+    {
+        // Optionally stop/close existing stream before reusing
+//        if (audioDevice->isStreamRunning())
+//            audioDevice->stopStream();
+//        if (audioDevice->isStreamOpen())
+//            audioDevice->closeStream();
+    }
     
     auto settingsFilePath = cabbage::File::getSettingsFile();
     addDevicesToSettings(settingsFilePath);
@@ -565,7 +541,6 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
                                     this); // Pass 'this' as userData
             
             audioDevice->startStream();
-            isRunning = true; // Mark the stream as running
         }
         catch (const std::runtime_error &e)
         {
@@ -581,26 +556,22 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
 void CabbageAudioApp::deinitAudioAndMidi()
 {
     // Stop and close audio stream if running
-    if (isRunning)
+    try
     {
-        try
-        {
-            lattice::logInfo << "Stopping audio stream...";
-            audioDevice->stopStream();
-        }
-        catch (const std::runtime_error &e)
-        {
-            lattice::logDebug << "Error stopping audio stream: " << e.what();
-        }
-
-        if (audioDevice->isStreamOpen())
-        {
-            lattice::logInfo << "Closing audio stream...";
-            audioDevice->closeStream();
-        }
-        
-        isRunning = false;
+        lattice::logInfo << "Stopping audio stream...";
+        audioDevice->stopStream();
     }
+    catch (const std::runtime_error &e)
+    {
+        lattice::logDebug << "Error stopping audio stream: " << e.what();
+    }
+
+    if (audioDevice->isStreamOpen())
+    {
+        lattice::logInfo << "Closing audio stream...";
+        audioDevice->closeStream();
+    }
+
 
     // Clean up MIDI devices
     if (midiInDevice)
@@ -642,10 +613,6 @@ void CabbageAudioApp::errorCallback(RtAudioErrorType type, const std::string &er
     lattice::logDebug << errorText;
 }
 
-bool CabbageAudioApp::isStreamRunning() const
-{
-    return isRunning;
-}
 
 float **CabbageAudioApp::getEmptyInputBuffer() const
 {
@@ -718,6 +685,53 @@ void CabbageAudioApp::midiCallback(double deltatime, std::vector<uint8_t> *msg, 
 
 }
 
+// The websocket thread picks up messages, some of which require action
+// on the main thread, i.e, resetting Csound. Hence the onIdle() callback
+void CabbageAudioApp::onIdle()
+{
+    CabbageAudioApp::CommandType command;
+        
+        while (messageQueue.try_dequeue(command)) {
+            switch (command) {
+                case CommandType::KillProcessor:
+                    if (processor.get())
+                    {
+                        processor.reset();
+                    }
+                    break;
+                    
+                case CommandType::InitCabbage:
+                    if(initCabbage())
+                    {
+                        sendWidgetDataToVscode();
+                    }
+                    else
+                    {
+                        nlohmann::json msg;
+                        msg["command"] = "failedToCompile";
+                        webSocket.send(msg.dump());
+                    }
+                    break;
+                    
+                case CommandType::StopAudio:
+                    canProcessAudio.store(false);
+                    while(!canDestroyProcessor.load());
+                    
+                    //ensure idle thread has stopped..
+                    if(processor)
+                        processor->stopIdleThread();
+                    
+                    if (audioDevice)
+                    {
+                        audioDevice->stopStream();
+                        audioDevice->closeStream();
+                    }
+                    break;
+            }
+            
+        }
+
+}
 
 int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
                                   double /*streamTime*/, RtAudioStreamStatus /*status*/, void *userData)
@@ -764,7 +778,11 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
 
     // Pass the deinterleaved buffers to the process method
     if(app->canProcessAudio.load())
+    {
+        app->canDestroyProcessor.store(true);
         app->processor->process(deinterleavedInput, deinterleavedOutput, nBufferFrames);
+    }
+
 
     // Interleave the processed output back into the RtAudio buffer
     for (unsigned int ch = 0; ch < numOutputChannels; ++ch)

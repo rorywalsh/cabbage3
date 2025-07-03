@@ -59,7 +59,7 @@ public:
     
     // Adds a MIDI note event to the midi event queue
     void addNoteEventFromJson(const nlohmann::json &j);
-    void suspendProcessing() { processingEnabled.store(false, std::memory_order_relaxed); }
+    void suspendProcessing() { processingEnabled.store(false); }
     void stopIdleThread();
     bool isIdleThreadRunning(){   return isIdleRunning.load(std::memory_order_acquire);   }
 

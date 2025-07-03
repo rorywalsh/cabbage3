@@ -23,9 +23,9 @@ Engine::Engine(CabbageProcessor &p, std::string file) : csdFile(file), processor
 Engine::~Engine()
 {
     if (csound)
-    {
+    {       
         csCompileResult = false;
-        csound = nullptr;
+        csound.reset();
     }
 }
 
@@ -251,13 +251,32 @@ void Engine::setStringChannel(const std::string channel, std::string data)
 //=============================================================================================
 void Engine::processCsoundMessages()
 {
-    while (getCsound()->GetMessageCnt() > 0)
+    auto* csound = getCsound();
+    if (!csound) 
+        return;
+
+    //set max number of message to prevent UI freezing..
+    const int maxMessagesPerCycle = 100;
+    int processedCount = 0;
+
+    while (csound->GetMessageCnt() > 0 && processedCount++ < maxMessagesPerCycle) 
     {
-        std::string message(getCsound()->GetFirstMessage());
-        message.erase(std::remove(message.begin(), message.end(), '\n'), message.end());
-        lattice::logInfo << message;
-        // EvaluateJavaScript(cabbage.getCsoundOutputUpdateScript(message).c_str());
-        getCsound()->PopFirstMessage();
+        const char* msg = csound->GetFirstMessage();
+        if (!msg) 
+        {
+            csound->PopFirstMessage();
+            continue;
+        }
+
+        std::string message(msg);
+
+        if (!message.empty() && message.back() == '\n') 
+        {
+            message.pop_back();
+        }
+
+        lattice::logInfo << message; // Log the message
+        csound->PopFirstMessage();   // Remove from queue
     }
 }
 

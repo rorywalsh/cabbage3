@@ -19,10 +19,16 @@
 
 #include "CabbageProcessor.h"
 #include "WebSocketTestServer.h"
-
+#include <readerwriterqueue.h>
 
 class CabbageAudioApp {
 public:
+    
+    enum class CommandType {
+        KillProcessor,
+        InitCabbage,
+        StopAudio
+    };
     
     struct AudioConfig {
         int audioDriverType;
@@ -89,9 +95,10 @@ public:
     std::unique_ptr<CabbageProcessor> processor; // Main processor
     
     bool isRunningInDebugMode() { return debugMode; };
-
+    void onIdle();
     void sendWidgetDataToVscode();
-
+    void addMessageToQueue(CabbageAudioApp::CommandType command){   messageQueue.enqueue(command);  }
+    void setCsoundFile(std::string file){   csdFileAndPath = file;  }
 private:
     void hostCallback(CabbageOpcodeData data);
     ix::WebSocket webSocket;
@@ -111,7 +118,7 @@ private:
     std::unique_ptr<WebSocketTestServer> testServer;
     void startWebSocketServerForTesting();
     void stopWebSocketServerForTesting();
-    
+    moodycamel::ReaderWriterQueue<CabbageAudioApp::CommandType> messageQueue;
     
     // Return a valid device ID for a given device name
     int getAudioDeviceId(const std::string& deviceName) const;
@@ -127,8 +134,8 @@ private:
 
     unsigned int numOutputChannels = 2; // Number of audio channels
     unsigned int numInputChannels = 1;
-    std::atomic<bool> isRunning; // Flag to track stream state
     std::atomic<bool> canProcessAudio{false}; // Flag to track stream state
+    std::atomic<bool> canDestroyProcessor{false}; // Flag to track stream state
     float** emptyInputBuffer; // Preallocated empty input buffer
     bool emptyInputBufferInitialized = false; // Flag to check if the buffer is initialized
     unsigned int bufferSize; // Size of the audio buffer (in frames)
@@ -146,7 +153,6 @@ private:
     int portNumber = 0;
     std::string csdFileAndPath = "";
     bool debugMode = false; // Debug mode flag to run the app without a file
-    
 
 };
 

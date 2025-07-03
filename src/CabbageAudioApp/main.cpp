@@ -49,6 +49,7 @@ int main(int argc, char* argv[]) {
     std::signal(SIGTERM, signalHandler);
     std::signal(SIGINT, signalHandler);
     std::signal(SIGABRT, signalHandler);
+    bool testRtAudioStartStop = false;
 
 #ifdef _WIN32
     SetConsoleCtrlHandler(consoleHandler, TRUE);
@@ -57,10 +58,26 @@ int main(int argc, char* argv[]) {
     // Create an instance of CabbageAudioApp
     appInstance = new CabbageAudioApp(argc, argv);
 
-    // Keep the program running while the stream is active
-    while (!terminateRequested && (appInstance->isStreamRunning() || appInstance->isRunningInDebugMode()))
+    //simple test for start/stop/compile/destroy
+    if(testRtAudioStartStop)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Sleep to avoid busy-waiting
+        appInstance->setCsoundFile("../../test.csd");
+        appInstance->addMessageToQueue(CabbageAudioApp::CommandType::InitCabbage);
+    }
+    
+    // Keep the program running until termination is requested
+    while (!terminateRequested)
+    {        
+        appInstance->onIdle();
+        std::this_thread::sleep_for(std::chrono::milliseconds(50)); // Sleep to avoid busy-waiting
+        
+        if(testRtAudioStartStop)
+        {
+            appInstance->addMessageToQueue(CabbageAudioApp::CommandType::StopAudio);
+            appInstance->addMessageToQueue(CabbageAudioApp::CommandType::KillProcessor);
+            appInstance->addMessageToQueue(CabbageAudioApp::CommandType::InitCabbage);
+        }
+
     }
 
     // Clean up

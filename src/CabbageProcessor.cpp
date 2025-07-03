@@ -45,6 +45,7 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
 
 CabbageProcessor::~CabbageProcessor()
 {
+    suspendProcessing();
     stopIdleThread();
 }
 
@@ -205,6 +206,9 @@ void CabbageProcessor::process(float** inputs, float** outputs, std::size_t bloc
 //========================================================================================
 void CabbageProcessor::onIdle()
 {
+    if(!isIdleThreadRunning())
+        return;
+    
 #ifndef CabbageApp
     if (uiIsOpen)
     {
@@ -294,17 +298,16 @@ void CabbageProcessor::startOnIdle()
     idleThread = std::thread(&CabbageProcessor::onIdleScheduler, this);
 }
 
-// Stop the idle background thread
-void CabbageProcessor::stopOnIdle()
+void CabbageProcessor::stopIdleThread()
 {
-    isIdleRunning = false;
-    
+    isIdleRunning.store(false);
     if (idleThread.joinable())
     {
-        idleThread.join();
+        lattice::logDebug << "Joining thread before reset...";
+        idleThread.join(); // Ensure the thread is joined before reset
+        lattice::logDebug << "Thread joined";
     }
 }
-
 //========================================================================================
 // Triggered when Cabbage is ready to start processing messages
 //========================================================================================
@@ -416,18 +419,6 @@ void CabbageProcessor::addNoteEventFromJson(const nlohmann::json& j)
 
     auto noteEvent = lattice::NoteEvent(eventType, static_cast<int16_t>(dataByte1), velocity, -1, 0);
     addNoteEvent(noteEvent);
-}
-
-void CabbageProcessor::stopIdleThread()
-{
-    isIdleRunning.store(false, std::memory_order_relaxed);
-
-    if (idleThread.joinable())
-    {        
-//        std::cout << "Joining thread before reset..." << std::endl;
-        idleThread.join(); // Ensure the thread is joined before reset
-//        std::cout << "Thread joined" << std::endl;
-    }
 }
 
 //========================================================================================
