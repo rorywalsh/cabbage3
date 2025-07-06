@@ -157,8 +157,13 @@ public:
         {
             try
             {
-                // Only add those controls that are marked as automatable
-                if (widget.contains("automatable") && widget["automatable"].get<int>() == 1)
+                // Check if widget is automatable and log the result
+                bool isAutomatable = widget.contains("automatable") && widget["automatable"].get<int>() == 1;
+                std::string widgetType = widget["type"].get<std::string>();
+                std::string widgetChannel = widget["channel"].get<std::string>();
+                lattice::logDebug << "Widget " << widgetType << " (" << widgetChannel << ") automatable: " << (isAutomatable ? "true" : "false");
+                
+                if (isAutomatable)
                 {
                     ControlInfo control;
                     control.type = widget["type"].get<std::string>();
@@ -247,7 +252,7 @@ private:
         ix::WebSocketServer server(portNumber);
         
         server.setOnClientMessageCallback(
-            [this](std::shared_ptr<ix::ConnectionState> connectionState,
+            [this, &server](std::shared_ptr<ix::ConnectionState> connectionState,
                    ix::WebSocket& webSocket,
                    const ix::WebSocketMessagePtr& msg)
             {
@@ -255,13 +260,21 @@ private:
                 {
 //                    lattice::logDebug << "Server received: " << msg->str;
                 }
+                else if (msg->type == ix::WebSocketMessageType::Open)
+                {
+                    lattice::logDebug << "Client connected to test server. Total clients: " << server.getClients().size();
+                }
+                else if (msg->type == ix::WebSocketMessageType::Close)
+                {
+                    lattice::logDebug << "Client disconnected from test server. Total clients: " << server.getClients().size();
+                }
             }
         );
 
         auto result = server.listen();
         if (result.first)
         {
-            lattice::logDebug << "WebSocket Test Server listening on port " << portNumber;
+            lattice::logDebug << "WebSocket Test Server listening on port " << portNumber << " (server instance: " << &server << ")";
             server.start();
             
             while (serverRunning)
@@ -294,24 +307,32 @@ private:
         std::lock_guard<std::mutex> lock(controlsMutex);
         auto messages = generateTestData();
         
+        // Debug: Log that we're attempting to send data
+        lattice::logDebug << "Test server attempting to send " << messages.size() << " messages to " << server.getClients().size() << " clients";
+        
         for (auto&& client : server.getClients())
         {
             for (const auto& message : messages)
             {
-                //lattice::logInfo << message.dump(4);
+                lattice::logInfo << message.dump(4);
                 client->send(message.dump());
                 
             }
             if(shouldTestMidi)
             {
                 if(testPacketCount % 2 == 0)
-                {
-                    
+                {                    
                     processor.addNoteEvent(generator.generateNoteEvent());
                 }
                 
                 testPacketCount++;
             }
+        }
+        
+        // Debug: Log if no clients are connected
+        if (server.getClients().size() == 0)
+        {
+            lattice::logDebug << "No clients connected to test server - data not sent";
         }
     }
 

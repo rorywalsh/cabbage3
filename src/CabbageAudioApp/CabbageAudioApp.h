@@ -14,8 +14,9 @@
 #undef logWarning
 #undef logError
 #include "platform/choc_DisableAllWarnings.h"
-#include <ixwebsocket/IXWebSocketServer.h>
 #include "platform/choc_ReenableAllWarnings.h"
+#include <ixwebsocket/IXWebSocketServer.h>
+
 
 #include "CabbageProcessor.h"
 #include "WebSocketTestServer.h"
@@ -31,20 +32,20 @@ public:
     };
     
     struct AudioConfig {
-        int audioDriverType;
-        std::string audioInDev;
-        std::string audioOutDev;
-        int audioInChanL;
-        int audioInChanR;
-        int audioOutChanL;
-        int audioOutChanR;
-        int bufferSize;
-        int audioSR;
-        std::string midiInDev;
-        std::string midiOutDev;
-        int midiInChan;
-        int midiOutChan;
-        std::string jsSourceDirectory;
+        int audioDriverType = 0;
+        std::string audioInDev = "";
+        std::string audioOutDev = "";
+        int audioInChanL = 1;
+        int audioInChanR = 2;
+        int audioOutChanL = 1;
+        int audioOutChanR = 2;
+        int bufferSize = 512;
+        int audioSR = 44100;
+        std::string midiInDev = "";
+        std::string midiOutDev = "";
+        int midiInChan = 0;
+        int midiOutChan = 0;
+        std::string jsSourceDirectory = "";
 
         bool loadFromJson(const std::string& settingsPath) 
         {
@@ -93,31 +94,37 @@ public:
     static void errorCallback(RtAudioErrorType type, const std::string& errorText);
 
     std::unique_ptr<CabbageProcessor> processor; // Main processor
+    AudioConfig audioConfig; // Audio configuration
     
-    bool isRunningInDebugMode() { return debugMode; };
+
     void onIdle();
     void sendWidgetDataToVscode();
     void addMessageToQueue(CabbageAudioApp::CommandType command){   messageQueue.enqueue(command);  }
     void setCsoundFile(std::string file){   csdFileAndPath = file;  }
+    void scanAudioDevices(); // Scan and populate settings with available audio/MIDI devices
+    void initialiseCabbage(); // Initialize Cabbage if CSD file exists
+    
+    // Test-related methods
+    size_t getMessageQueueSize() const { return messageQueue.size_approx(); }
+    void startWebSocketServerForTesting();
+    void stopWebSocketServerForTesting();
+    bool initialiseWebSocketConnection();
+    
+    std::unique_ptr<WebSocketTestServer> testServer;
 private:
     void hostCallback(CabbageOpcodeData data);
     ix::WebSocket webSocket;
-    AudioConfig audioConfig;
-    bool initCabbage();
+    bool createCabbageProcessor();
     void initialiseAudio(bool startStream);
     void initialiseMidi();
     void deinitAudioAndMidi();
     
     // Websocket server - for communication with vscode
     ix::WebSocketServer webSocketServer;
-    bool initialiseWebSocketConnection();
     
     
     // Functions for running test server - for tests without vscode
     bool shouldStartTestServer = false;
-    std::unique_ptr<WebSocketTestServer> testServer;
-    void startWebSocketServerForTesting();
-    void stopWebSocketServerForTesting();
     moodycamel::ReaderWriterQueue<CabbageAudioApp::CommandType> messageQueue;
     
     // Return a valid device ID for a given device name
@@ -152,7 +159,6 @@ private:
     
     int portNumber = 0;
     std::string csdFileAndPath = "";
-    bool debugMode = false; // Debug mode flag to run the app without a file
 
 };
 

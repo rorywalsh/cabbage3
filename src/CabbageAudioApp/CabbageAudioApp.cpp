@@ -15,32 +15,8 @@ CabbageAudioApp::CabbageAudioApp(int argc, char* argv[])
     // for websocket message to load a file instead. In this way we can debug
     // the app without having to pass a file from vscode on startup.
     parseComandLineArgs(argc, argv);
-    
-    //quickly init/deinit audio in order to query devices..
-    initialiseAudio(false);
-    initialiseMidi();
-    deinitAudioAndMidi();
-    
-    if (lattice::File::exists(csdFileAndPath))
-    {
-        initCabbage();
-    }
-    else
-    {
-        debugMode = true;
-    }
-    
-    // Optionally start test server for development purposes
-    if (shouldStartTestServer)
-    {
-        startWebSocketServerForTesting();
-        testServer->setUpdateInterval(500);
-        // Wait for the server to start (adjust delay if needed)
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    }
 
-    // Init websocket client connection
-    initialiseWebSocketConnection();
+
 }
 //==============================================================================
 CabbageAudioApp::~CabbageAudioApp()
@@ -54,6 +30,11 @@ CabbageAudioApp::~CabbageAudioApp()
 
 void CabbageAudioApp::closeAudioDevice()
 {
+    // Check if audioDevice exists before trying to use it
+    if (!audioDevice)
+    {
+        return;
+    }
         
     try
     {
@@ -134,6 +115,28 @@ bool CabbageAudioApp::parseComandLineArgs(int argc, char* argv[])
     shouldStartTestServer = program.get<bool>("--startTestServer");
     return true;
     
+}
+
+//==============================================================================
+// Scan available audio/MIDI devices and populate settings file
+//==============================================================================
+void CabbageAudioApp::scanAudioDevices()
+{
+    //quickly init/deinit audio in order to query devices..
+    initialiseAudio(false);
+    initialiseMidi();
+    deinitAudioAndMidi();
+}
+
+//==============================================================================
+// Initialize Cabbage if CSD file exists
+//==============================================================================
+void CabbageAudioApp::initialiseCabbage()
+{
+    if (lattice::File::exists(csdFileAndPath))
+    {
+        createCabbageProcessor();
+    }
 }
 
 //==============================================================================
@@ -221,7 +224,7 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
 {
     std::string address("ws://localhost:");
     address.append(std::to_string(portNumber).c_str());
-    lattice::logInfo << "Attempting to connect to WebSocket at " << address;
+    lattice::logInfo << "Attempting to connect to WebSocket at " << address << " (client instance: " << &webSocket << ")";
     webSocket.setUrl(address);
 
     webSocket.setOnMessageCallback(
@@ -417,7 +420,7 @@ int CabbageAudioApp::getAudioDeviceId(const std::string& deviceName) const
 //==============================================================================
 // Initialise Cabbage - create processor and set up audio and midi
 //==============================================================================
-bool CabbageAudioApp::initCabbage()
+bool CabbageAudioApp::createCabbageProcessor()
 {
     canProcessAudio.store(false);
     canDestroyProcessor.store(false);
@@ -701,7 +704,7 @@ void CabbageAudioApp::onIdle()
                     break;
                     
                 case CommandType::InitCabbage:
-                    if(initCabbage())
+                    if(createCabbageProcessor())
                     {
                         sendWidgetDataToVscode();
                     }
@@ -715,7 +718,20 @@ void CabbageAudioApp::onIdle()
                     
                 case CommandType::StopAudio:
                     canProcessAudio.store(false);
-                    while(!canDestroyProcessor.load());
+                    
+                    // If no audio device is running, set canDestroyProcessor to true immediately
+                    // This prevents deadlock in test environments where audio callback never runs
+                    if (!audioDevice || !audioDevice->isStreamRunning()) {
+                        canDestroyProcessor.store(true);
+                    } else {
+                        // Wait for canDestroyProcessor with timeout to prevent deadlock
+                        auto startWait = std::chrono::steady_clock::now();
+                        auto timeout = std::chrono::milliseconds(1000); // 1 second timeout
+                        while(!canDestroyProcessor.load() && 
+                              (std::chrono::steady_clock::now() - startWait) < timeout) {
+                            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                        }
+                    }
                     
                     //ensure idle thread has stopped..
                     if(processor)
@@ -895,5 +911,7 @@ void CabbageAudioApp::addDevicesToSettings(const std::string& settingsPath)
         lattice::logDebug << "Error processing JSON: " << e.what();
     }
 }
+
+
 
 

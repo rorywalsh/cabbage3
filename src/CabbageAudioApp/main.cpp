@@ -57,6 +57,11 @@ int main(int argc, char* argv[]) {
     
     // Create an instance of CabbageAudioApp
     appInstance = new CabbageAudioApp(argc, argv);
+    
+    // Scan audio devices and initialize Cabbage
+    appInstance->scanAudioDevices();
+    appInstance->initializeCabbage();
+    appInstance->initialiseWebSocketConnection();
 
     //simple test for start/stop/compile/destroy
     if(testRtAudioStartStop)
