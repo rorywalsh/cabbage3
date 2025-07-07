@@ -331,31 +331,36 @@ TEST_CASE("CabbageAudioApp command line parsing", "[CabbageAudioApp]") {
 
 void ensureValidSettingsFileExists() {
     std::string settingsPath = cabbage::File::getSettingsFile();
-    if (!std::filesystem::exists(settingsPath)) {
-        std::string validSettings = R"({
-            "currentConfig": {
-                "audio": {
-                    "driver": 0,
-                    "inputDevice": "Built-in Input",
-                    "outputDevice": "Built-in Output",
-                    "in1": 1,
-                    "in2": 2,
-                    "out1": 1,
-                    "out2": 2,
-                    "bufferSize": 512,
-                    "sr": 44100
-                },
-                "midi": {
-                    "inputDevice": "no input",
-                    "outputDevice": "no output",
-                    "inChan": 0,
-                    "outChan": 0
-                },
-                "jsSourceDir": "/Users/runner/work/cabbage3/cabbage3/vscabbage/src/cabbage/widgets"
-            }
-        })";
-        std::ofstream validFile(settingsPath);
-        validFile << validSettings;
-        validFile.close();
-    }
+    std::filesystem::path settingsFilePath(settingsPath);
+    std::filesystem::path parentDir = settingsFilePath.parent_path();
+
+    // Create parent directories if they don't exist
+    std::error_code ec;
+    std::filesystem::create_directories(parentDir, ec);
+
+    std::string validSettings = R"({
+        "currentConfig": {
+            "audio": {
+                "driver": 0,
+                "inputDevice": "Built-in Input",
+                "outputDevice": "Built-in Output",
+                "in1": 1,
+                "in2": 2,
+                "out1": 1,
+                "out2": 2,
+                "bufferSize": 512,
+                "sr": 44100
+            },
+            "midi": {
+                "inputDevice": "no input",
+                "outputDevice": "no output",
+                "inChan": 0,
+                "outChan": 0
+            },
+            "jsSourceDir": "/Users/runner/work/cabbage3/cabbage3/vscabbage/src/cabbage/widgets"
+        }
+    })";
+    std::ofstream validFile(settingsPath);
+    validFile << validSettings;
+    validFile.close();
 } 
