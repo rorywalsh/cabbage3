@@ -162,7 +162,7 @@ TEST_CASE("Test server functionality", "[CabbageApp]")
     //--------------------------------------------------------------------------
     // Give the server a moment to fully start and potentially send data
     // The test server sends data every 500ms, so wait for at least 8 cycles to see multiple messages
-    std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     
     // The test server should be sending data to any connected clients
     // We should see lattice::logInfo messages with the JSON data being sent
@@ -182,7 +182,7 @@ TEST_CASE("Test server functionality", "[CabbageApp]")
 //==============================================================================
 // TEST 4: Stress Test with Message Queue Processing
 //==============================================================================
-TEST_CASE("Stress test with message queue processing", "[CabbageApp]")
+TEST_CASE("Stress test start/stop/destroy", "[CabbageApp]")
 {
     //--------------------------------------------------------------------------
     // SETUP: Create app without test server
