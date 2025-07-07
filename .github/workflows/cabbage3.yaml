@@ -40,6 +40,13 @@ jobs:
 
       - name: Configure CMake (tests only)
         run: |
+          git clone https://github.com/rorywalsh/vscabbage.git
+          cd vscabbage
+          git checkout develop
+          git pull
+          pwd
+          cd ..
+
           export CC=/usr/bin/clang
           export CXX=/usr/bin/clang++
           # Get absolute paths to compilers
