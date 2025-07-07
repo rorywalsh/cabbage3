@@ -364,7 +364,7 @@ void ensureValidSettingsFileExists() {
                 "inChan": 0,
                 "outChan": 0
             },
-            "jsSourceDir": "/Users/runner/work/cabbage3/cabbage3/vscabbage/src/cabbage/widgets"
+            "jsSourceDir": "/Users/runner/work/cabbage3/cabbage3/vscabbage/src"
         }
     })";
     std::ofstream validFile(settingsPath);
