@@ -4,6 +4,16 @@ cmake_minimum_required(VERSION 3.25)
 # Set the version of the Cabbage project
 set(CABBAGE_VERSION 0.0.100)
 
+# Enforce Xcode generator on macOS
+if(APPLE)
+    if(NOT CMAKE_GENERATOR STREQUAL "Xcode")
+        message(FATAL_ERROR "Xcode generator is required on macOS. Please use: cmake -G Xcode ...")
+    endif()
+endif()
+
+# Build options
+option(CABBAGE_ENABLE_TESTS "Build tests in addition to main app" OFF)
+
 # Define common base directory for all dependency downloads and builds
 set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/_deps" CACHE PATH "Base directory for downloaded dependencies")
 
@@ -15,13 +25,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)  # Optional: use standard-compliant mode
 
 option(BUILD_TARGETS "Build targets after configuration" OFF)
+option(CABBAGE_ENABLE_TESTS "Build Cabbage unit tests" OFF)
 
 # ----------------------------
 # If no specific build target is provided, build all targets
 # ----------------------------
 if(NOT DEFINED CABBAGE_BUILD_TARGET)
 
-    set(CABBAGE_BUILD_TARGETS CabbageApp CabbagePluginEffect CabbagePluginSynth)
+    set(CABBAGE_BUILD_TARGETS CabbageApp CabbagePluginEffect CabbagePluginSynth CabbageTests)
     message(STATUS "No CABBAGE_BUILD_TARGET specified. Building all targets.")
 
     # Include shared dependencies configuration
@@ -100,6 +111,8 @@ elseif (CabbagePluginEffect STREQUAL "${CABBAGE_BUILD_TARGET}")
 elseif (CabbagePluginSynth STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbagePluginSynth LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
     set(CabbageAUInstrumentType aumi)
+elseif (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
+    project(CabbageTests LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
 endif()
 
 # ----------------------------
@@ -182,6 +195,7 @@ source_group("Lattice Source" FILES ${LATTICE_SOURCE_FILES})
 include_directories(
     ${lattice_SOURCE_DIR}/src
     ${choc_SOURCE_DIR}
+    ${catch2_SOURCE_DIR}
     ${readerwriterqueue_SOURCE_DIR}
     ${LATTICE_INCLUDE_DIRS}
     ${CSOUND_INCLUDE_DIR}
@@ -216,6 +230,7 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
     target_compile_definitions(${PROJECT_NAME} PRIVATE 
         PLUGIN_INFO_HEADER="${CMAKE_SOURCE_DIR}/src/CabbagePluginEffectInfo.h"
         PRODUCT_NAME="${PROJECT_NAME}"
+        USE_DOUBLE=1
         "${CABBAGE_BUILD_TARGET}"
     )
 
@@ -240,10 +255,69 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
         CXX_STANDARD_REQUIRED ON
     )
 
+endif()
+
+# ----------------------------
+# Build Test Target (CabbageTests)
+# ----------------------------
+if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
+    enable_testing()
+    
+    # Create test executable
+    add_executable(${PROJECT_NAME}
+        "${CMAKE_SOURCE_DIR}/tests/CabbageAppTests.cpp"
+        ${CABBAGE_SOURCES}
+        ${CABBAGE_OPCODE_SOURCES}
+        ${LATTICE_SOURCE_FILES}
+        "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioApp.cpp"
+        "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioApp.h"
+        "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/WebSocketTestServer.h"
+    )
+    
+    # Set include paths for test target
+    target_include_directories(${PROJECT_NAME} PRIVATE 
+        ${rtaudio_SOURCE_DIR}
+        ${rtmidi_SOURCE_DIR}
+        ${ixwebsocket_SOURCE_DIR}
+    )
+    
+    # Set compile definitions for test target
+    target_compile_definitions(${PROJECT_NAME} PRIVATE 
+        PLUGIN_INFO_HEADER="${CMAKE_SOURCE_DIR}/src/CabbagePluginEffectInfo.h"
+        PRODUCT_NAME="CabbageApp"
+        USE_DOUBLE=1
+        CabbageApp
+    )
+    
+    if(WIN32)
+        target_compile_definitions(${PROJECT_NAME} PRIVATE WIN32_LEAN_AND_MEAN)
+    endif()
+    
+    # Link libraries for test target
+    target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/_deps/rtaudio-build)
+    target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/_deps/rtmidi-build)
+    target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/_deps/ixwebsocket-build)
+    
+    if (APPLE)
+        target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ixwebsocket ${CSOUND_FRAMEWORK} Catch2::Catch2WithMain)
+    else()
+        target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ixwebsocket ${CSOUND_LIBRARY} Catch2::Catch2WithMain)
+    endif()
+    
+    # Set C++ standard for test target
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON
+    )
+    
+    # Add test to CTest
+    add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
+endif()
+
 # ----------------------------
 # Build Plugin Library Target
 # ----------------------------
-else()
+if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}"))
     add_library(${PROJECT_NAME}-impl STATIC ${SOURCE_FILES})
 
     target_compile_definitions(${PROJECT_NAME}-impl PRIVATE 
