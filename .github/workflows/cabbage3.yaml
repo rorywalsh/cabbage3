@@ -39,7 +39,9 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
       - name: Configure CMake (tests only)
-        run: cmake -B build -S . -DCABBAGE_BUILD_TARGET=CabbageTests -GXcode
+        run: |
+          cmake --version
+          cmake -B build -S . -DCABBAGE_BUILD_TARGET=CabbageTests -GXcode
 
       - name: Build tests
         run: cmake --build build --target CabbageTests # Replace with your test target name
