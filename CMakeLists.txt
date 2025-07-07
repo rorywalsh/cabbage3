@@ -287,6 +287,7 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
         PRODUCT_NAME="CabbageApp"
         USE_DOUBLE=1
         CabbageTests
+        CabbageApp
     )
     
     if(WIN32)
