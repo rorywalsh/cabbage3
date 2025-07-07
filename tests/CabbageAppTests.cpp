@@ -8,6 +8,9 @@
 #include <fstream>
 #include "TestCsdFiles.h"
 
+// Forward declaration of function to ensure valid settings file exists
+void ensureValidSettingsFileExists();
+
 //==============================================================================
 // TEST 1: Basic CabbageApp Construction and Core Functionality
 //==============================================================================
@@ -117,6 +120,8 @@ TEST_CASE("Test server functionality", "[CabbageApp]")
     
     REQUIRE(app != nullptr);
     
+    ensureValidSettingsFileExists();
+
     //--------------------------------------------------------------------------
     // SETUP: Create temporary CSD file for testing
     //--------------------------------------------------------------------------
@@ -187,6 +192,7 @@ TEST_CASE("Stress test start/stop/destroy", "[CabbageApp]")
     //--------------------------------------------------------------------------
     // SETUP: Create app without test server
     //--------------------------------------------------------------------------
+    ensureValidSettingsFileExists();
     const char* args[] = {"CabbageApp"};
     auto app = std::make_unique<CabbageAudioApp>(1, const_cast<char**>(args));
     
@@ -320,5 +326,36 @@ TEST_CASE("CabbageAudioApp command line parsing", "[CabbageAudioApp]") {
         auto app = std::make_unique<CabbageAudioApp>(argc, const_cast<char**>(argv));
         
         REQUIRE(app != nullptr);
+    }
+}
+
+void ensureValidSettingsFileExists() {
+    std::string settingsPath = cabbage::File::getSettingsFile();
+    if (!std::filesystem::exists(settingsPath)) {
+        std::string validSettings = R"({
+            "currentConfig": {
+                "audio": {
+                    "driver": 0,
+                    "inputDevice": "Built-in Input",
+                    "outputDevice": "Built-in Output",
+                    "in1": 1,
+                    "in2": 2,
+                    "out1": 1,
+                    "out2": 2,
+                    "bufferSize": 512,
+                    "sr": 44100
+                },
+                "midi": {
+                    "inputDevice": "no input",
+                    "outputDevice": "no output",
+                    "inChan": 0,
+                    "outChan": 0
+                },
+                "jsSourceDir": "/Users/runner/work/cabbage3/cabbage3/vscabbage/src/cabbage/widgets"
+            }
+        })";
+        std::ofstream validFile(settingsPath);
+        validFile << validSettings;
+        validFile.close();
     }
 } 

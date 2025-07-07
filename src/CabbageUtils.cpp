@@ -461,7 +461,6 @@ nlohmann::json File::extractPropsFromJS(const std::string &jsContent)
 
 std::string File::getSettingsFile()
 {
-    // if in CabbageApp mode, the widget src dir is set by the Cabbage .ini settings
     std::stringstream settingsPath;
 #if defined WIN32
     CHAR path[MAX_PATH];
