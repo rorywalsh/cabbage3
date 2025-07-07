@@ -151,7 +151,7 @@ std::string File::findCabbageJSWidgetPath()
 {
     std::string widgetPath;
 
-#ifdef CabbageApp
+#if defined(CabbageApp) || defined(CabbageTests)
     // Primary: Get path from settings
     widgetPath = cabbage::File::getSettingsProperty("currentConfig", "jsSourceDir") + "/cabbage/widgets";
 #else

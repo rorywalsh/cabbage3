@@ -286,7 +286,7 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
         PLUGIN_INFO_HEADER="${CMAKE_SOURCE_DIR}/src/CabbagePluginEffectInfo.h"
         PRODUCT_NAME="CabbageApp"
         USE_DOUBLE=1
-        CabbageApp
+        CabbageTests
     )
     
     if(WIN32)
