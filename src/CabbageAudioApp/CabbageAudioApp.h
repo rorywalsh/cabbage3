@@ -144,7 +144,7 @@ private:
     std::atomic<bool> canProcessAudio{false}; // Flag to track stream state
     std::atomic<bool> canDestroyProcessor{false}; // Flag to track stream state
     float** emptyInputBuffer; // Preallocated empty input buffer
-    bool emptyInputBufferInitialized = false; // Flag to check if the buffer is initialized
+    bool emptyInputBufferInitialised = false; // Flag to check if the buffer is initialised
     unsigned int bufferSize; // Size of the audio buffer (in frames)
 
     float** getEmptyInputBuffer() const;

@@ -52,7 +52,7 @@ void CabbageAudioApp::closeAudioDevice()
     }
 
 
-    if (emptyInputBufferInitialized)
+    if (emptyInputBufferInitialised)
     {
         // Clean up the preallocated empty input buffer
         for (unsigned int ch = 0; ch < numInputChannels; ++ch)
@@ -449,7 +449,7 @@ bool CabbageAudioApp::createCabbageProcessor()
         std::fill(emptyInputBuffer[ch], emptyInputBuffer[ch] + bufferSize, 0.0f); // Initialize with zeros
     }
 
-    emptyInputBufferInitialized = true;
+    emptyInputBufferInitialised = true;
     
     // Register callback - will be triggered from CabbageProcessor
     processor->hostCallback = [&](CabbageOpcodeData data) { hostCallback(data); };
@@ -592,8 +592,8 @@ void CabbageAudioApp::deinitAudioAndMidi()
         midiOutDevice = nullptr;
     }
 
-    // Clean up empty input buffer if it was initialized
-    if (emptyInputBufferInitialized)
+    // Clean up empty input buffer if it was initialised
+    if (emptyInputBufferInitialised)
     {
         lattice::logInfo << "Cleaning up empty input buffer...";
         for (unsigned int ch = 0; ch < numInputChannels; ++ch)
@@ -601,13 +601,13 @@ void CabbageAudioApp::deinitAudioAndMidi()
             delete[] emptyInputBuffer[ch];
         }
         delete[] emptyInputBuffer;
-        emptyInputBufferInitialized = false;
+        emptyInputBufferInitialised = false;
     }
 
     // Reset audio device
     audioDevice = nullptr;
     
-    lattice::logInfo << "Audio and MIDI devices successfully deinitialized";
+    lattice::logInfo << "Audio and MIDI devices successfully deinitialised";
 }
 
 //============================================================================

@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
     
     // Scan audio devices and initialize Cabbage
     appInstance->scanAudioDevices();
-    appInstance->initializeCabbage();
+    appInstance->initialiseCabbage();
     appInstance->initialiseWebSocketConnection();
 
     //simple test for start/stop/compile/destroy
