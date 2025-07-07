@@ -334,6 +334,13 @@ void ensureValidSettingsFileExists() {
     std::filesystem::path settingsFilePath(settingsPath);
     std::filesystem::path parentDir = settingsFilePath.parent_path();
 
+    // Path to widgets directory
+    std::string widgetsDir = "/Users/runner/work/cabbage3/cabbage3/vscabbage/src/cabbage/widgets";
+    if (!std::filesystem::exists(widgetsDir)) {
+        std::cerr << "Warning: widgets directory does not exist: " << widgetsDir << std::endl;
+        return;
+    }
+
     // Create parent directories if they don't exist
     std::error_code ec;
     std::filesystem::create_directories(parentDir, ec);
