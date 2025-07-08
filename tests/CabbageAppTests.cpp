@@ -16,6 +16,7 @@ void ensureValidSettingsFileExists();
 //==============================================================================
 TEST_CASE("Basic CabbageApp construction and functionality", "[CabbageApp]")
 {
+    std::cout << "\n==================== BEGIN TEST: Basic CabbageApp construction and functionality ====================\n";
     // Create app with minimal arguments
     const char* args[] = {"CabbageApp", "--file", "test.csd"};
     CabbageAudioApp app(3, const_cast<char**>(args));
@@ -94,6 +95,7 @@ TEST_CASE("Basic CabbageApp construction and functionality", "[CabbageApp]")
     {
         REQUIRE_NOTHROW(app.onIdle());
     }
+    std::cout << "\n==================== END TEST: Basic CabbageApp construction and functionality ====================\n";
 }
 
 //==============================================================================
@@ -101,17 +103,20 @@ TEST_CASE("Basic CabbageApp construction and functionality", "[CabbageApp]")
 //==============================================================================
 TEST_CASE("Audio device scanning", "[CabbageApp]")
 {
+    std::cout << "\n==================== BEGIN TEST: Audio device scanning ====================\n";
     const char* args[] = {"CabbageApp"};
     CabbageAudioApp app(1, const_cast<char**>(args));
     
     REQUIRE_NOTHROW(app.scanAudioDevices());
+    std::cout << "\n==================== END TEST: Audio device scanning ====================\n";
 }
 
 //==============================================================================
 // TEST 3: Test Server Functionality
 //==============================================================================
-TEST_CASE("Test server functionality", "[CabbageApp]")
+TEST_CASE("Test WebSocket Server functionality", "[CabbageApp]")
 {
+    std::cout << "\n==================== BEGIN TEST: Test WebSocket Server functionality ====================\n";
     //--------------------------------------------------------------------------
     // SETUP: Create app with test server enabled
     //--------------------------------------------------------------------------
@@ -165,14 +170,28 @@ TEST_CASE("Test server functionality", "[CabbageApp]")
     //--------------------------------------------------------------------------
     // VERIFY: Test server is running and can be stopped
     //--------------------------------------------------------------------------
-    // Give the server a moment to fully start and potentially send data
-    // The test server sends data every 500ms, so wait for at least 8 cycles to see multiple messages
-    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+
+    auto startTime = std::chrono::steady_clock::now();
+    auto endTime = startTime + std::chrono::seconds(5);
+    int iterationCount = 0;
+    const int maxIterations = 100; // Safety limit
     
-    // The test server should be sending data to any connected clients
-    // We should see lattice::logInfo messages with the JSON data being sent
-    // The logInfo message should appear if there are automatable widgets
-    // and connected clients. 
+    while (std::chrono::steady_clock::now() < endTime && iterationCount < maxIterations)
+    {
+        // Process messages with timeout protection
+        try {
+            app->onIdle();
+        } catch (...) {
+            // If onIdle throws, break out of the loop
+            break;
+        }
+        
+        iterationCount++;
+        
+        // Small delay to prevent overwhelming the system
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+        
     
     //--------------------------------------------------------------------------
     // CLEANUP: Stop test server and remove temporary files
@@ -182,6 +201,7 @@ TEST_CASE("Test server functionality", "[CabbageApp]")
     
     // Verify the app is still functional
     REQUIRE(app != nullptr);
+    std::cout << "\n==================== END TEST: Test server functionality ====================\n";
 }
 
 //==============================================================================
@@ -189,6 +209,7 @@ TEST_CASE("Test server functionality", "[CabbageApp]")
 //==============================================================================
 TEST_CASE("Stress test start/stop/destroy", "[CabbageApp]")
 {
+    std::cout << "\n==================== BEGIN TEST: Stress test start/stop/destroy ====================\n";
     //--------------------------------------------------------------------------
     // SETUP: Create app without test server
     //--------------------------------------------------------------------------
@@ -259,13 +280,14 @@ TEST_CASE("Stress test start/stop/destroy", "[CabbageApp]")
     
     // Verify the app is still functional after stress test
     REQUIRE(app != nullptr);
+    std::cout << "\n==================== END TEST: Stress test start/stop/destroy ====================\n";
 }
 
 //==============================================================================
 // TEST 5: AudioConfig Class Functionality
 //==============================================================================
 TEST_CASE("CabbageAudioApp AudioConfig functionality", "[CabbageAudioApp::AudioConfig]") {
-    
+    std::cout << "\n==================== BEGIN TEST: CabbageAudioApp AudioConfig functionality ====================\n";
     //--------------------------------------------------------------------------
     // SECTION 4.1: Default Constructor Values
     //--------------------------------------------------------------------------
@@ -306,10 +328,11 @@ TEST_CASE("CabbageAudioApp AudioConfig functionality", "[CabbageAudioApp::AudioC
         
         REQUIRE(config.loadFromJson(cabbage::File::getSettingsFile()) == true);
     }
+    std::cout << "\n==================== END TEST: CabbageAudioApp AudioConfig functionality ====================\n";
 }
 
 TEST_CASE("CabbageAudioApp command line parsing", "[CabbageAudioApp]") {
-    
+    std::cout << "\n==================== BEGIN TEST: CabbageAudioApp command line parsing ====================\n";
     SECTION("CabbageAudioApp can parse file argument") {
         const char* argv[] = {"CabbageApp", "--file", "test.csd"};
         int argc = 3;
@@ -327,6 +350,7 @@ TEST_CASE("CabbageAudioApp command line parsing", "[CabbageAudioApp]") {
         
         REQUIRE(app != nullptr);
     }
+    std::cout << "\n==================== END TEST: CabbageAudioApp command line parsing ====================\n";
 }
 
 void ensureValidSettingsFileExists() {
