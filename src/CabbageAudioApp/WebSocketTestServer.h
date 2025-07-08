@@ -1,4 +1,3 @@
-
 #pragma once
 #include "platform/choc_DisableAllWarnings.h"
 #include <ixwebsocket/IXWebSocketServer.h>
@@ -246,13 +245,19 @@ public:
     // Enable to send MIDI note during testing
     void testMidi(bool shouldTest){ shouldTestMidi = shouldTest;  }
     
+    void sendTestDataNow() {
+        std::lock_guard<std::mutex> lock(controlsMutex);
+        if (server) 
+            sendTestData(*server);
+    }
+    
 private:
     void runServer()
     {
-        ix::WebSocketServer server(portNumber);
+        server = std::make_unique<ix::WebSocketServer>(portNumber);
         
-        server.setOnClientMessageCallback(
-            [this, &server](std::shared_ptr<ix::ConnectionState> connectionState,
+        server->setOnClientMessageCallback(
+            [this](std::shared_ptr<ix::ConnectionState> connectionState,
                    ix::WebSocket& webSocket,
                    const ix::WebSocketMessagePtr& msg)
             {
@@ -262,26 +267,27 @@ private:
                 }
                 else if (msg->type == ix::WebSocketMessageType::Open)
                 {
-                    lattice::logDebug << "Client connected to test server. Total clients: " << server.getClients().size();
+                    lattice::logDebug << "Client connected to test server. Total clients: " << server->getClients().size();
                 }
                 else if (msg->type == ix::WebSocketMessageType::Close)
                 {
-                    lattice::logDebug << "Client disconnected from test server. Total clients: " << server.getClients().size();
+                    lattice::logDebug << "Client disconnected from test server. Total clients: " << server->getClients().size();
                 }
             }
         );
 
-        auto result = server.listen();
+        auto result = server->listen();
         if (result.first)
         {
             lattice::logDebug << "WebSocket Test Server listening on port " << portNumber;
-            server.start();
+            server->start();
             
             while (serverRunning)
             {
                 auto startTime = std::chrono::steady_clock::now();
                 
-                sendTestData(server);
+#ifndef CabbageTests 
+                sendTestData(*server);
                 
                 auto endTime = std::chrono::steady_clock::now();
                 auto elapsedTime = endTime - startTime;
@@ -291,9 +297,10 @@ private:
                 {
                     std::this_thread::sleep_for(sleepTime);
                 }
+#endif
             }
             
-            server.stop();
+            server->stop();
         }
         else
         {
@@ -307,14 +314,12 @@ private:
         std::lock_guard<std::mutex> lock(controlsMutex);
         auto messages = generateTestData();
         
-        // Debug: Log that we're attempting to send data
-        lattice::logDebug << "Test server attempting to send " << messages.size() << " messages to " << server.getClients().size() << " clients";
-        
+
         for (auto&& client : server.getClients())
         {
             for (const auto& message : messages)
             {
-                lattice::logInfo << message.dump(4);
+                lattice::logInfo << message.dump();
                 client->send(message.dump());
                 
             }
@@ -405,5 +410,6 @@ private:
     CabbageProcessor &processor;
     NoteGenerator generator;
     int testPacketCount = 0;
+    std::unique_ptr<ix::WebSocketServer> server;
 };
 

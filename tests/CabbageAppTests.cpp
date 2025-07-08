@@ -197,6 +197,7 @@ TEST_CASE("Test WebSocket Server functionality", "[CabbageApp]")
     auto endTime = startTime + std::chrono::seconds(5);
     int iterationCount = 0;
     const int maxIterations = 100; // Safety limit
+    float values[8];
     
     while (std::chrono::steady_clock::now() < endTime && iterationCount < maxIterations)
     {
@@ -205,7 +206,13 @@ TEST_CASE("Test WebSocket Server functionality", "[CabbageApp]")
         if (std::getenv("GITHUB_ACTIONS")) {
             if (app->processor) {
                 // Call process() to simulate Csound run in CI mode
+                app->testServer->sendTestDataNow();
                 app->processor->process(buffer, buffer, nBufferFrames);
+                for( int i = 1 ; i < 9 ; i++){
+                    const std::string channelName = "Harmonic"+std::to_string(i);
+                    values[i-1] = app->processor->getCabbageEngine().getCsound()->GetControlChannel(channelName.c_str());
+                    lattice::logDebug << "channelName:" << channelName << " Value: " << values[i-1];
+                }
             }
         }
         #endif
