@@ -134,6 +134,19 @@ TEST_CASE("Test WebSocket Server functionality", "[CabbageApp]")
     
     REQUIRE(app != nullptr);
     
+    int nInputChannels = 2;
+    int nOutputChannels = 2;
+    int nBufferFrames = 512;
+
+    // Create a dud buffer from processor to avoid segfaults in CI mode
+    float **buffer = new float *[nOutputChannels];
+    for (unsigned int ch = 0; ch < nOutputChannels; ++ch)
+    {
+        buffer[ch] = new float[nBufferFrames];
+        // Initialize to silence
+        memset(buffer[ch], 0, nBufferFrames * sizeof(float));
+    }
+
 
 
     //--------------------------------------------------------------------------
@@ -188,6 +201,15 @@ TEST_CASE("Test WebSocket Server functionality", "[CabbageApp]")
     while (std::chrono::steady_clock::now() < endTime && iterationCount < maxIterations)
     {
         // Process messages with timeout protection
+        #if defined(__APPLE__)
+        if (std::getenv("CI")) {
+            if (app->processor) {
+                // Call process() to simulate Csound run in CI mode
+                app->processor->process(buffer, buffer, nBufferFrames);
+            }
+        }
+        #endif
+
         try {
             app->onIdle();
         } catch (...) {

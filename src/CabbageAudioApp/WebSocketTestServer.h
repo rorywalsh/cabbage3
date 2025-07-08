@@ -274,7 +274,7 @@ private:
         auto result = server.listen();
         if (result.first)
         {
-            lattice::logDebug << "WebSocket Test Server listening on port " << portNumber << " (server instance: " << &server << ")";
+            lattice::logDebug << "WebSocket Test Server listening on port " << portNumber;
             server.start();
             
             while (serverRunning)
