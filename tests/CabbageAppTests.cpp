@@ -16,6 +16,7 @@ void ensureValidSettingsFileExists();
 //==============================================================================
 TEST_CASE("Basic CabbageApp construction and functionality", "[CabbageApp]")
 {
+    ensureValidSettingsFileExists();
     std::cout << "\n==================== BEGIN TEST: Basic CabbageApp construction and functionality ====================\n";
     // Create app with minimal arguments
     const char* args[] = {"CabbageApp", "--file", "test.csd"};
@@ -23,6 +24,7 @@ TEST_CASE("Basic CabbageApp construction and functionality", "[CabbageApp]")
     
     REQUIRE(&app != nullptr);
     
+
     //--------------------------------------------------------------------------
     // SECTION 1.1: Audio Device Scanning
     //--------------------------------------------------------------------------
@@ -103,8 +105,13 @@ TEST_CASE("Basic CabbageApp construction and functionality", "[CabbageApp]")
 //==============================================================================
 TEST_CASE("Audio device scanning", "[CabbageApp]")
 {
+    ensureValidSettingsFileExists();
+    
     std::cout << "\n==================== BEGIN TEST: Audio device scanning ====================\n";
     const char* args[] = {"CabbageApp"};
+    
+
+    
     CabbageAudioApp app(1, const_cast<char**>(args));
     
     REQUIRE_NOTHROW(app.scanAudioDevices());
@@ -116,6 +123,8 @@ TEST_CASE("Audio device scanning", "[CabbageApp]")
 //==============================================================================
 TEST_CASE("Test WebSocket Server functionality", "[CabbageApp]")
 {
+    ensureValidSettingsFileExists();
+    
     std::cout << "\n==================== BEGIN TEST: Test WebSocket Server functionality ====================\n";
     //--------------------------------------------------------------------------
     // SETUP: Create app with test server enabled
@@ -125,7 +134,7 @@ TEST_CASE("Test WebSocket Server functionality", "[CabbageApp]")
     
     REQUIRE(app != nullptr);
     
-    ensureValidSettingsFileExists();
+
 
     //--------------------------------------------------------------------------
     // SETUP: Create temporary CSD file for testing
@@ -209,6 +218,8 @@ TEST_CASE("Test WebSocket Server functionality", "[CabbageApp]")
 //==============================================================================
 TEST_CASE("Stress test start/stop/destroy", "[CabbageApp]")
 {
+    ensureValidSettingsFileExists();
+    
     std::cout << "\n==================== BEGIN TEST: Stress test start/stop/destroy ====================\n";
     //--------------------------------------------------------------------------
     // SETUP: Create app without test server
@@ -336,7 +347,7 @@ TEST_CASE("CabbageAudioApp command line parsing", "[CabbageAudioApp]") {
     SECTION("CabbageAudioApp can parse file argument") {
         const char* argv[] = {"CabbageApp", "--file", "test.csd"};
         int argc = 3;
-        
+        ensureValidSettingsFileExists();
         auto app = std::make_unique<CabbageAudioApp>(argc, const_cast<char**>(argv));
         
         REQUIRE(app != nullptr);
@@ -345,7 +356,7 @@ TEST_CASE("CabbageAudioApp command line parsing", "[CabbageAudioApp]") {
     SECTION("CabbageAudioApp can parse port number argument") {
         const char* argv[] = {"CabbageApp", "--portNumber", "8080"};
         int argc = 3;
-        
+        ensureValidSettingsFileExists();
         auto app = std::make_unique<CabbageAudioApp>(argc, const_cast<char**>(argv));
         
         REQUIRE(app != nullptr);
