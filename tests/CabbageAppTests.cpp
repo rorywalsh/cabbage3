@@ -202,7 +202,7 @@ TEST_CASE("Test WebSocket Server functionality", "[CabbageApp]")
     {
         // Process messages with timeout protection
         #if defined(__APPLE__)
-        if (std::getenv("CI")) {
+        if (std::getenv("GITHUB_ACTIONS")) {
             if (app->processor) {
                 // Call process() to simulate Csound run in CI mode
                 app->processor->process(buffer, buffer, nBufferFrames);
