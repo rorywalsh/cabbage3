@@ -45,7 +45,7 @@ const std::string rotarySliders = R"(
 </CsOptions>
 <CsInstruments>
 ; Initialize the global variables. 
-ksmps = 16
+ksmps = 1
 nchnls = 2
 0dbfs = 1
 
@@ -56,14 +56,14 @@ nchnls = 2
 ; even for commercial purposes, all without asking permission. 
 
 instr 1   
-    printks2 "Harmonic1 value: %f\n", cabbageGetValue:k("harmonic1")
-    printks2 "Harmonic2 value: %f\n", cabbageGetValue:k("harmonic2")
-    printks2 "Harmonic3 value: %f\n", cabbageGetValue:k("harmonic3")
-    printks2 "Harmonic4 value: %f\n", cabbageGetValue:k("harmonic4")
-    printks2 "Harmonic5 value: %f\n", cabbageGetValue:k("harmonic5")
-    printks2 "Harmonic6 value: %f\n", cabbageGetValue:k("harmonic6")
-    printks2 "Harmonic7 value: %f\n", cabbageGetValue:k("harmonic7")
-    printks2 "Harmonic8 value: %f\n", cabbageGetValue:k("harmonic8")
+    // printks2 "Harmonic1 value: %f\n", cabbageGetValue:k("harmonic1")
+    // printks2 "Harmonic2 value: %f\n", cabbageGetValue:k("harmonic2")
+    // printks2 "Harmonic3 value: %f\n", cabbageGetValue:k("harmonic3")
+    // printks2 "Harmonic4 value: %f\n", cabbageGetValue:k("harmonic4")
+    // printks2 "Harmonic5 value: %f\n", cabbageGetValue:k("harmonic5")
+    // printks2 "Harmonic6 value: %f\n", cabbageGetValue:k("harmonic6")
+    // printks2 "Harmonic7 value: %f\n", cabbageGetValue:k("harmonic7")
+    // printks2 "Harmonic8 value: %f\n", cabbageGetValue:k("harmonic8")
 endin       
 
 </CsInstruments>

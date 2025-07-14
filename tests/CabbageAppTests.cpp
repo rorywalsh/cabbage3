@@ -197,27 +197,22 @@ TEST_CASE("Test WebSocket Server functionality", "[CabbageApp]")
     auto endTime = startTime + std::chrono::seconds(5);
     int iterationCount = 0;
     const int maxIterations = 100; // Safety limit
-    float values[8];
+    app->testServer->sendTestData();
     
     while (std::chrono::steady_clock::now() < endTime && iterationCount < maxIterations)
     {
-        // Process messages with timeout protection
-        #if defined(__APPLE__)
-        if (std::getenv("GITHUB_ACTIONS")) {
-            if (app->processor) {
-                // Call process() to simulate Csound run in CI mode
-                app->testServer->sendTestDataNow();
-                app->processor->process(buffer, buffer, nBufferFrames);
-                for( int i = 1 ; i < 9 ; i++){
-                    const std::string channelName = "Harmonic"+std::to_string(i);
-                    values[i-1] = app->processor->getCabbageEngine().getCsound()->GetControlChannel(channelName.c_str());
-                    lattice::logDebug << "channelName:" << channelName << " Value: " << values[i-1];
-                }
+        if (app->processor) {
+            // Call process() to simulate Csound run in CI mode
+            app->processor->process(buffer, buffer, nBufferFrames);
+            for ( int i = 0 ; i < 8 ; i++)
+            {
+                const std::string channel = "harmonic"+std::to_string(i+1);
+                lattice::logDebug << channel << ": " << app->processor->getCabbageEngine().getCsound()->GetControlChannel(channel.c_str());
             }
         }
-        #endif
 
         try {
+            app->testServer->sendTestData();
             app->onIdle();
         } catch (...) {
             // If onIdle throws, break out of the loop
@@ -395,6 +390,9 @@ TEST_CASE("CabbageAudioApp command line parsing", "[CabbageAudioApp]") {
 
 void ensureValidSettingsFileExists() {
     std::string settingsPath = cabbage::File::getSettingsFile();
+    if(std::filesystem::exists(settingsPath))
+        return;
+        
     std::filesystem::path settingsFilePath(settingsPath);
     std::filesystem::path parentDir = settingsFilePath.parent_path();
 
