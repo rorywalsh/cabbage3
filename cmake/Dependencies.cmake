@@ -77,4 +77,4 @@ FetchContent_Declare(
 
 
 # Make all dependencies available
-FetchContent_MakeAvailable(lattice catch2 readerwriterqueue)
+FetchContent_MakeAvailable(lattice readerwriterqueue)
