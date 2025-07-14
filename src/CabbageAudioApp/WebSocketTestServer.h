@@ -316,7 +316,7 @@ private:
                 auto startTime = std::chrono::steady_clock::now();
                 
 #ifndef CabbageTests 
-                sendTestData(*server);
+                sendTestData();
                 
                 auto endTime = std::chrono::steady_clock::now();
                 auto elapsedTime = endTime - startTime;
