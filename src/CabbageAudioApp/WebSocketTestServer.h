@@ -245,11 +245,40 @@ public:
     // Enable to send MIDI note during testing
     void testMidi(bool shouldTest){ shouldTestMidi = shouldTest;  }
     
-    void sendTestDataNow() {
+    void sendTestData()
+    {
         std::lock_guard<std::mutex> lock(controlsMutex);
-        if (server) 
-            sendTestData(*server);
+        auto messages = generateTestData();
+        
+        // Debug: Log that we're attempting to send data
+        lattice::logDebug << "Test server attempting to send " << messages.size() << " messages to " << server->getClients().size() << " clients";
+        
+        for (auto&& client : server->getClients())
+        {
+            for (const auto& message : messages)
+            {
+                lattice::logInfo << message.dump(4);
+                client->send(message.dump());
+                
+            }
+            if(shouldTestMidi)
+            {
+                if(testPacketCount % 2 == 0)
+                {
+                    processor.addNoteEvent(generator.generateNoteEvent());
+                }
+                
+                testPacketCount++;
+            }
+        }
+        
+        // Debug: Log if no clients are connected
+        if (server->getClients().size() == 0)
+        {
+            lattice::logDebug << "No clients connected to test server - data not sent";
+        }
     }
+
     
 private:
     void runServer()
@@ -306,38 +335,6 @@ private:
         {
             lattice::logDebug << "Failed to start WebSocket Server on port " << portNumber;
             lattice::logDebug << "Error: " << result.second;
-        }
-    }
-
-    void sendTestData(ix::WebSocketServer& server)
-    {
-        std::lock_guard<std::mutex> lock(controlsMutex);
-        auto messages = generateTestData();
-        
-
-        for (auto&& client : server.getClients())
-        {
-            for (const auto& message : messages)
-            {
-                lattice::logInfo << message.dump();
-                client->send(message.dump());
-                
-            }
-            if(shouldTestMidi)
-            {
-                if(testPacketCount % 2 == 0)
-                {                    
-                    processor.addNoteEvent(generator.generateNoteEvent());
-                }
-                
-                testPacketCount++;
-            }
-        }
-        
-        // Debug: Log if no clients are connected
-        if (server.getClients().size() == 0)
-        {
-            lattice::logDebug << "No clients connected to test server - data not sent";
         }
     }
 
