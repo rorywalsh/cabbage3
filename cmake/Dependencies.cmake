@@ -1,21 +1,15 @@
 include(FetchContent)
 
-# Declare catch2 unconditionally
 FetchContent_Declare(
-    catch2
-    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-    GIT_TAG v3.5.2
+  catch2
+  GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+  GIT_TAG v3.5.2 
 )
-
-# Only make it available when building tests
-if(CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
-    FetchContent_MakeAvailable(catch2)
-endif()
 
 # ----------------------------
 # Only need these libraries for CabbageServiceApp and CabbageTests
 # ----------------------------
-if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
+if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}" OR CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
     message(STATUS "Including RtAudio/RtMidi/ixWebsocket for ${CABBAGE_BUILD_TARGET}")
 
     # Use FetchContent to include RtAudio first
@@ -60,6 +54,12 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
     # Make all dependencies available
     FetchContent_MakeAvailable(ixwebsocket rtaudio rtmidi)
 
+
+    # Only make catch2 available when building tests
+    if(CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
+        FetchContent_MakeAvailable(catch2)
+    endif()
+
 endif()
 
 # Lattice and ReaderWriterQueue Dependencies
@@ -75,6 +75,8 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/rorywalsh/readerwriterqueue.git
     GIT_TAG ab2082837bda45e8a1a2d6934b211212ae3e2d1b
 )
+
+
 
 # Make all dependencies available
 FetchContent_MakeAvailable(lattice readerwriterqueue)
