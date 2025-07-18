@@ -1,15 +1,22 @@
 # Minimum CMake version required
 cmake_minimum_required(VERSION 3.25)
+cmake_policy(SET CMP0091 NEW)
+cmake_policy(SET CMP0149 NEW)
 
 # Set the version of the Cabbage project
 set(CABBAGE_VERSION 0.0.100)
 
 # Enforce Xcode generator on macOS
 if(APPLE)
+    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "" FORCE)
+    if(NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS deployment target")
+    endif()
     if(NOT CMAKE_GENERATOR STREQUAL "Xcode")
         message(FATAL_ERROR "Xcode generator is required on macOS. Please use: cmake -G Xcode ...")
     endif()
 endif()
+
 
 # Build options
 option(CABBAGE_ENABLE_TESTS "Build tests in addition to main app" OFF)
