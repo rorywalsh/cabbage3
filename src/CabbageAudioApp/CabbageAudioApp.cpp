@@ -424,6 +424,9 @@ bool CabbageAudioApp::createCabbageProcessor()
 {
     canProcessAudio.store(false);
     canDestroyProcessor.store(false);
+    numInputChannels = cabbage::File::getNumberOfInputChannels(csdFileAndPath);
+    numOutputChannels = cabbage::File::getNumberOfOutputChannels(csdFileAndPath);
+    
     // Init audio and MIDI
     initialiseAudio(true);    
     initialiseMidi();
@@ -509,17 +512,22 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
     RtAudio::StreamParameters outputParameters;
     const int outputDeviceId = getAudioDeviceId(audioConfig.audioOutDev);;
     outputParameters.deviceId = outputDeviceId != -1 ? outputDeviceId : audioDevice->getDefaultOutputDevice();
-    outputParameters.nChannels = audioDevice->getDeviceInfo(outputParameters.deviceId).outputChannels; 
-    numOutputChannels = outputParameters.nChannels;
+    
+    //the outputs are set by the Csound header..
+    const int availableOutputs = audioDevice->getDeviceInfo(outputParameters.deviceId).outputChannels;
+    outputParameters.nChannels = getNumOutputChannels() > availableOutputs ? availableOutputs : getNumOutputChannels();
     outputParameters.firstChannel = 0;
-
     
     // Set up input stream parameters
     RtAudio::StreamParameters inputParameters;
     const int inputDeviceId = getAudioDeviceId(audioConfig.audioInDev);;
     inputParameters.deviceId = inputDeviceId != -1 ? inputDeviceId : audioDevice->getDefaultInputDevice();
-    inputParameters.nChannels = audioDevice->getDeviceInfo(inputParameters.deviceId).inputChannels; 
-    numInputChannels = inputParameters.nChannels;
+    
+    //the inputs are set by the Csound header..
+    const int availableInputs = audioDevice->getDeviceInfo(inputParameters.deviceId).inputChannels;
+    inputParameters.nChannels = getNumInputChannels() > availableInputs ? availableInputs : getNumInputChannels();
+    inputParameters.firstChannel = 0;
+    
     
     unsigned int sampleRate = audioConfig.audioSR;
     unsigned int bufferFrames = audioConfig.bufferSize;
