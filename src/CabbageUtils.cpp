@@ -283,8 +283,8 @@ int File::getNumberOfInputChannels(const std::string &csdFile)
         }
     }
     
-    // return 2 if nchnls_i is not found
-    return -1;
+    // return number of output channels if nchnls_i is not found
+    return getNumberOfOutputChannels(csdFile);
 }
 
 // Function to get the number of output channels (nchnls)
