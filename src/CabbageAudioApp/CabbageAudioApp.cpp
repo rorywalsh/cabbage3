@@ -433,8 +433,6 @@ bool CabbageAudioApp::createCabbageProcessor()
 
     std::stringstream config;
     config << std::to_string(getNumInputChannels()) << "-" << std::to_string(getNumOutputChannels());
-    lattice::logDebug << config.str();
-    lattice::logDebug << "csdFileAndPath:" << csdFileAndPath;
     processor = std::make_unique<CabbageProcessor>(csdFileAndPath, config.str());
     
     if(!processor->getCabbageEngine().csdCompiledWithoutError()){
@@ -445,10 +443,10 @@ bool CabbageAudioApp::createCabbageProcessor()
     lattice::logDebug << "Num widgets : " << processor->getCabbageEngine().getWidgets().size();
 
     // Preallocate the empty input buffer in case of no input device
-    emptyInputBuffer = new float *[numInputChannels];
+    emptyInputBuffer = new MYFLT*[numInputChannels];
     for (unsigned int ch = 0; ch < numInputChannels; ++ch)
     {
-        emptyInputBuffer[ch] = new float[bufferSize];
+        emptyInputBuffer[ch] = new MYFLT[bufferSize];
         std::fill(emptyInputBuffer[ch], emptyInputBuffer[ch] + bufferSize, 0.0f); // Initialize with zeros
     }
 
@@ -517,6 +515,7 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
     const int availableOutputs = audioDevice->getDeviceInfo(outputParameters.deviceId).outputChannels;
     outputParameters.nChannels = getNumOutputChannels() > availableOutputs ? availableOutputs : getNumOutputChannels();
     outputParameters.firstChannel = 0;
+    numOutputChannels = outputParameters.nChannels;
     
     // Set up input stream parameters
     RtAudio::StreamParameters inputParameters;
@@ -527,6 +526,7 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
     const int availableInputs = audioDevice->getDeviceInfo(inputParameters.deviceId).inputChannels;
     inputParameters.nChannels = getNumInputChannels() > availableInputs ? availableInputs : getNumInputChannels();
     inputParameters.firstChannel = 0;
+    numInputChannels = inputParameters.nChannels;
     
     
     unsigned int sampleRate = audioConfig.audioSR;
@@ -625,7 +625,7 @@ void CabbageAudioApp::errorCallback(RtAudioErrorType type, const std::string &er
 }
 
 
-float **CabbageAudioApp::getEmptyInputBuffer() const
+MYFLT **CabbageAudioApp::getEmptyInputBuffer() const
 {
     return emptyInputBuffer;
 }
@@ -763,22 +763,24 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
     // Cast userData to CabbageAudioApp*
     CabbageAudioApp *app = static_cast<CabbageAudioApp *>(userData);
 
+    
     // Cast buffers to float*
     MYFLT *myfltInputBuffer = static_cast<MYFLT *>(inputBuffer);
     MYFLT *myfltOutputBuffer = static_cast<MYFLT *>(outputBuffer);
 
+    
     // Get the number of input and output channels
     unsigned int numInputChannels = app->getNumInputChannels();
     unsigned int numOutputChannels = app->getNumOutputChannels();
 
     // Deinterleave the input buffer into separate channels
-    float **deinterleavedInput = nullptr;
+    MYFLT **deinterleavedInput = nullptr;
     if (myfltInputBuffer && numInputChannels > 0)
     {
-        deinterleavedInput = new float *[numInputChannels];
+        deinterleavedInput = new MYFLT*[numInputChannels];
         for (unsigned int ch = 0; ch < numInputChannels; ++ch)
         {
-            deinterleavedInput[ch] = new float[nBufferFrames];
+            deinterleavedInput[ch] = new MYFLT[nBufferFrames];
             for (unsigned int i = 0; i < nBufferFrames; ++i)
             {
                 deinterleavedInput[ch][i] = myfltInputBuffer[i * numInputChannels + ch];
@@ -792,12 +794,12 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
     }
 
     // Deinterleave the output buffer into separate channels
-    float **deinterleavedOutput = new float *[numOutputChannels];
+    MYFLT **deinterleavedOutput = new MYFLT*[numOutputChannels];
     for (unsigned int ch = 0; ch < numOutputChannels; ++ch)
     {
-        deinterleavedOutput[ch] = new float[nBufferFrames];
+        deinterleavedOutput[ch] = new MYFLT[nBufferFrames];
         // Initialize to silence
-        memset(deinterleavedOutput[ch], 0, nBufferFrames * sizeof(float));
+        memset(deinterleavedOutput[ch], 0, nBufferFrames * sizeof(MYFLT));
     }
 
     // Pass the deinterleaved buffers to the process method

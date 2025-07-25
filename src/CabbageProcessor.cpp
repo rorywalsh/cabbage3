@@ -138,7 +138,7 @@ void CabbageProcessor::addParameters()
 //========================================================================================
 // Main processing function - this is called by the CLAP process function
 //========================================================================================
-void CabbageProcessor::process(float** inputs, float** outputs, std::size_t blockSize)
+void CabbageProcessor::process(double** inputs, double** outputs, std::size_t blockSize)
 {
     if (!processingEnabled.load(std::memory_order_relaxed))
     {

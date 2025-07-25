@@ -143,11 +143,12 @@ private:
     unsigned int numInputChannels = 1;
     std::atomic<bool> canProcessAudio{false}; // Flag to track stream state
     std::atomic<bool> canDestroyProcessor{false}; // Flag to track stream state
-    float** emptyInputBuffer; // Preallocated empty input buffer
+    MYFLT** emptyInputBuffer; // Preallocated empty input buffer
+    MYFLT** getEmptyInputBuffer() const;
     bool emptyInputBufferInitialised = false; // Flag to check if the buffer is initialised
     unsigned int bufferSize; // Size of the audio buffer (in frames)
 
-    float** getEmptyInputBuffer() const;
+
     unsigned int getNumInputChannels() const;
     unsigned int getNumOutputChannels() const;
 
