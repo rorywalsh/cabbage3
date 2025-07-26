@@ -763,6 +763,10 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
     // Cast userData to CabbageAudioApp*
     CabbageAudioApp *app = static_cast<CabbageAudioApp *>(userData);
 
+    // Safety check: ensure app is still valid
+    if (!app) {
+        return 0;
+    }
     
     // Cast buffers to float*
     MYFLT *myfltInputBuffer = static_cast<MYFLT *>(inputBuffer);

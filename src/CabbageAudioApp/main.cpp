@@ -3,6 +3,8 @@
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
+#include <atomic>
+#include <mutex>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -10,22 +12,16 @@
 
 // Static pointer to the CabbageAudioApp instance
 static CabbageAudioApp* appInstance = nullptr;
-volatile sig_atomic_t terminateRequested = 0;
+static std::atomic<bool> terminateRequested = false;
+static std::atomic<bool> shutdownInProgress = false; // Prevent double shutdown
+std::mutex shutdownMutex;
 
 // Signal handler for Unix-like systems
 void signalHandler(int signal) 
 {
-    if (appInstance) {
-        try {
-            lattice::logInfo << "Received signal " << signal << ". Cleaning up...";
-            terminateRequested = 1;
-            delete appInstance;
-            appInstance = nullptr;
-        } catch (...) {
-            std::cerr << "Error during cleanup" << std::endl;
-        }
-    }
-    std::_Exit(signal); // Use _Exit to avoid re-entering destructors
+    lattice::logInfo << "Received signal " << signal << ". Cleaning up...";
+    terminateRequested = true;
+    // Do not delete appInstance or call _Exit here!
 }
 
 #ifdef _WIN32
@@ -82,12 +78,25 @@ int main(int argc, char* argv[]) {
             appInstance->addMessageToQueue(CabbageAudioApp::CommandType::KillProcessor);
             appInstance->addMessageToQueue(CabbageAudioApp::CommandType::InitCabbage);
         }
-
     }
 
-    // Clean up
-    delete appInstance;
-    appInstance = nullptr;
+    // Robust, idempotent shutdown
+    {
+        std::lock_guard<std::mutex> lock(shutdownMutex);
+        if (!shutdownInProgress && appInstance) {
+            shutdownInProgress = true;
+            
+            // CRITICAL: Stop audio stream before deleting to prevent race condition
+            // This ensures the audio callback stops running before the destructor
+            appInstance->closeAudioDevice();
+            
+            // Give the audio callback a moment to finish any pending operations
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            
+            delete appInstance;
+            appInstance = nullptr;
+        }
+    }
 
     return 0;
 }
