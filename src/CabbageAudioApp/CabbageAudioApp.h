@@ -111,6 +111,9 @@ public:
     bool initialiseWebSocketConnection();
     
     std::unique_ptr<WebSocketTestServer> testServer;
+    bool getCanDestroyProcessor() const { return canDestroyProcessor.load(); }
+    bool getAudioShutdownComplete() const { return audioShutdownComplete.load(); }
+    
 private:
     void hostCallback(CabbageOpcodeData data);
     ix::WebSocket webSocket;
@@ -143,6 +146,7 @@ private:
     unsigned int numInputChannels = 1;
     std::atomic<bool> canProcessAudio{false}; // Flag to track stream state
     std::atomic<bool> canDestroyProcessor{false}; // Flag to track stream state
+    std::atomic<bool> audioShutdownComplete{false};
     MYFLT** emptyInputBuffer; // Preallocated empty input buffer
     MYFLT** getEmptyInputBuffer() const;
     bool emptyInputBufferInitialised = false; // Flag to check if the buffer is initialised
