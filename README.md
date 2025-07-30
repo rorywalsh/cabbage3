@@ -7,7 +7,7 @@ This repository contains the **Cabbage3** project.
 
 ### Build Instructions
 
-The github repo has a CI build that will produce binaries from teh most up to date source. If you need to build yourself you can do so by running the following cmake command
+The github repo has a CI build that will produce binaries from the most up-to-date source. If you need to build yourself you can do so by running the following cmake command
 
 ```bash
 cmake -S . -B build -DCABBAGE_BUILD_TARGET=CabbageApp
@@ -21,4 +21,4 @@ Valid targets are:
 
 ### Getting started with Cabbage3
 
-Temporary docs for Cabbage 3 are available [here](https://rorywalsh.github.io/cabbage3website/docs/intro). These docs will be merged to the main Cabbage website when the first release is made public. 
+Temporary docs for Cabbage 3 are available [here](https://rorywalsh.github.io/cabbage3docs/docs/intro). These docs will be merged with the main Cabbage website when the first release is made public. 
