@@ -443,10 +443,10 @@ bool CabbageAudioApp::createCabbageProcessor()
     lattice::logDebug << "Num widgets : " << processor->getCabbageEngine().getWidgets().size();
 
     // Preallocate the empty input buffer in case of no input device
-    emptyInputBuffer = new MYFLT*[numInputChannels];
+    emptyInputBuffer = new float*[numInputChannels];
     for (unsigned int ch = 0; ch < numInputChannels; ++ch)
     {
-        emptyInputBuffer[ch] = new MYFLT[bufferSize];
+        emptyInputBuffer[ch] = new float[bufferSize];
         std::fill(emptyInputBuffer[ch], emptyInputBuffer[ch] + bufferSize, 0.0f); // Initialize with zeros
     }
 
@@ -545,7 +545,7 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
             // channels, i.e., it's not valid, pass nullptr for input stream
             audioDevice->openStream(&outputParameters,
                                     inputParameters.nChannels == 0 ? nullptr : &inputParameters,
-                                    RTAUDIO_FLOAT64,
+                                    RTAUDIO_FLOAT32,
                                     sampleRate,
                                     &bufferFrames,
                                     &CabbageAudioApp::audioCallback,
@@ -625,7 +625,7 @@ void CabbageAudioApp::errorCallback(RtAudioErrorType type, const std::string &er
 }
 
 
-MYFLT **CabbageAudioApp::getEmptyInputBuffer() const
+float **CabbageAudioApp::getEmptyInputBuffer() const
 {
     return emptyInputBuffer;
 }
@@ -765,8 +765,8 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
 
     
     // Cast buffers to float*
-    MYFLT *myfltInputBuffer = static_cast<MYFLT *>(inputBuffer);
-    MYFLT *myfltOutputBuffer = static_cast<MYFLT *>(outputBuffer);
+    float *myfltInputBuffer = static_cast<float *>(inputBuffer);
+    float *myfltOutputBuffer = static_cast<float *>(outputBuffer);
 
     
     // Get the number of input and output channels
@@ -774,13 +774,13 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
     unsigned int numOutputChannels = app->getNumOutputChannels();
 
     // Deinterleave the input buffer into separate channels
-    MYFLT **deinterleavedInput = nullptr;
+    float **deinterleavedInput = nullptr;
     if (myfltInputBuffer && numInputChannels > 0)
     {
-        deinterleavedInput = new MYFLT*[numInputChannels];
+        deinterleavedInput = new float*[numInputChannels];
         for (unsigned int ch = 0; ch < numInputChannels; ++ch)
         {
-            deinterleavedInput[ch] = new MYFLT[nBufferFrames];
+            deinterleavedInput[ch] = new float[nBufferFrames];
             for (unsigned int i = 0; i < nBufferFrames; ++i)
             {
                 deinterleavedInput[ch][i] = myfltInputBuffer[i * numInputChannels + ch];
@@ -794,12 +794,12 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
     }
 
     // Deinterleave the output buffer into separate channels
-    MYFLT **deinterleavedOutput = new MYFLT*[numOutputChannels];
+    float **deinterleavedOutput = new float*[numOutputChannels];
     for (unsigned int ch = 0; ch < numOutputChannels; ++ch)
     {
-        deinterleavedOutput[ch] = new MYFLT[nBufferFrames];
+        deinterleavedOutput[ch] = new float[nBufferFrames];
         // Initialize to silence
-        memset(deinterleavedOutput[ch], 0, nBufferFrames * sizeof(MYFLT));
+        memset(deinterleavedOutput[ch], 0, nBufferFrames * sizeof(float));
     }
 
     // Pass the deinterleaved buffers to the process method

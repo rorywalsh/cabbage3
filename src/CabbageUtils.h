@@ -9,12 +9,12 @@
 #include <lattice/LatticeProcessor.h>
 #include <lattice/LatticeUtils.h>
 // choc classes for reading audio files
-#include <audio/choc_AudioFileFormat.h>
-#include <audio/choc_AudioFileFormat_Ogg.h>
-#include <audio/choc_AudioFileFormat_WAV.h>
-#include <audio/choc_AudioFileFormat_FLAC.h>
-#include <audio/choc_AudioFileFormat_MP3.h>
-#include <audio/choc_SampleBuffers.h>
+#include <choc/audio/choc_AudioFileFormat.h>
+#include <choc/audio/choc_AudioFileFormat_Ogg.h>
+#include <choc/audio/choc_AudioFileFormat_WAV.h>
+#include <choc/audio/choc_AudioFileFormat_FLAC.h>
+#include <choc/audio/choc_AudioFileFormat_MP3.h>
+#include <choc/audio/choc_SampleBuffers.h>
 
 #ifdef LATTICE_WINDOWS
 #include <shlobj.h>

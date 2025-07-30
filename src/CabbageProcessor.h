@@ -24,7 +24,7 @@ public:
     void addChannels(const std::string& config = "");
 
     // Process method to handle audio processing
-    void process(double** inputs, double** outputs, std::size_t blockSize) override;
+    void process(float** inputs, float** outputs, std::size_t blockSize) override;
 
     // Set a parameter value
     void setParameter(int paramId, double value) override;

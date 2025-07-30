@@ -13,8 +13,8 @@
 #undef logDebug
 #undef logWarning
 #undef logError
-#include "platform/choc_DisableAllWarnings.h"
-#include "platform/choc_ReenableAllWarnings.h"
+#include "choc/platform/choc_DisableAllWarnings.h"
+#include "choc/platform/choc_ReenableAllWarnings.h"
 #include <ixwebsocket/IXWebSocketServer.h>
 
 
@@ -147,8 +147,8 @@ private:
     std::atomic<bool> canProcessAudio{false}; // Flag to track stream state
     std::atomic<bool> canDestroyProcessor{false}; // Flag to track stream state
     std::atomic<bool> audioShutdownComplete{false};
-    MYFLT** emptyInputBuffer; // Preallocated empty input buffer
-    MYFLT** getEmptyInputBuffer() const;
+    float** emptyInputBuffer; // Preallocated empty input buffer
+    float** getEmptyInputBuffer() const;
     bool emptyInputBufferInitialised = false; // Flag to check if the buffer is initialised
     unsigned int bufferSize; // Size of the audio buffer (in frames)
 

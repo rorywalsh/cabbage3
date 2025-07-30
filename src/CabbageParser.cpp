@@ -9,7 +9,7 @@
 #include <numeric>
 
 // choc string utility class
-#include <text/choc_StringUtilities.h>
+#include <choc/text/choc_StringUtilities.h>
 
 namespace cabbage
 {

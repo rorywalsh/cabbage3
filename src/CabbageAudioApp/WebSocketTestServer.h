@@ -1,10 +1,10 @@
 #pragma once
-#include "platform/choc_DisableAllWarnings.h"
+#include "choc/platform/choc_DisableAllWarnings.h"
 #include <ixwebsocket/IXWebSocketServer.h>
-#include "platform/choc_ReenableAllWarnings.h"
+#include "choc/platform/choc_ReenableAllWarnings.h"
 #include <random>
 #include "../CabbageProcessor.h"
-#include <text/choc_StringUtilities.h>
+#include <choc/text/choc_StringUtilities.h>
 //==============================================================================
 // WebSocket Test Server with configurable test data generation
 //

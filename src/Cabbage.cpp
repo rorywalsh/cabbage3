@@ -10,7 +10,7 @@
 #include "CabbageProcessor.h"
 
 
-#include <text/choc_StringUtilities.h>
+#include <choc/text/choc_StringUtilities.h>
 
 namespace cabbage
 {
