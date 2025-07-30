@@ -21,4 +21,4 @@ Valid targets are:
 
 ### Getting started with Cabbage3
 
-Temporary docs for Cabbage 3 are available [here](https://rorywalsh.github.io/cabbage3website/docs/intro). These docs will be merged to the main Cabbage website when the first release is made public. 
+Temporary docs for Cabbage 3 are available [here](https://rorywalsh.github.io/cabbage3docs/docs/intro). These docs will be merged to the main Cabbage website when the first release is made public. 
