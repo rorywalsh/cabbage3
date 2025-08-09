@@ -139,10 +139,10 @@ TEST_CASE("Test WebSocket Server functionality", "[CabbageApp]")
     int nBufferFrames = 512;
 
     // Create a dud buffer from processor to avoid segfaults in CI mode
-    double **buffer = new double*[nOutputChannels];
+    float **buffer = new float*[nOutputChannels];
     for (unsigned int ch = 0; ch < nOutputChannels; ++ch)
     {
-        buffer[ch] = new double[nBufferFrames];
+        buffer[ch] = new float[nBufferFrames];
         // Initialize to silence
         memset(buffer[ch], 0, nBufferFrames * sizeof(double));
     }
