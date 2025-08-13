@@ -32,7 +32,6 @@ namespace {
         {}
     };
 
-    // 2. Global strings with static storage duration
     static const PluginInfo pluginInfo;
 }
 
@@ -54,8 +53,8 @@ namespace {
 
 static const clap_plugin_descriptor descriptor = {
     .clap_version = CLAP_VERSION,
-    .id = pluginInfo.id.c_str(),       // Safe (static storage)
-    .name = pluginInfo.name.c_str(), // Safe (static storage)
+    .id = pluginInfo.id.c_str(),       
+    .name = pluginInfo.name.c_str(), 
     .vendor = "CabbageAudio",
     .url = "https://cabbageaudio.com",
     .manual_url = "https://docs.cabbageaudio.com",
