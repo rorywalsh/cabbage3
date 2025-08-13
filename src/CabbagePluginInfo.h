@@ -85,8 +85,13 @@ namespace {
 inline const clap_plugin_descriptor* getDescriptor() {
     static const clap_plugin_descriptor descriptor = {
         .clap_version = CLAP_VERSION,
+    #if VST3_SDK
         .id = pluginInfo.id.c_str(),
         .name = pluginInfo.name.c_str(),
+    #else
+        .id = "com.cabbageaudio.1d47",
+        .name = "Cabbage1d47Plugin",
+    #endif
         .vendor = "CabbageAudio",
         .url = "https://cabbageaudio.com",
         .manual_url = "https://docs.cabbageaudio.com",
