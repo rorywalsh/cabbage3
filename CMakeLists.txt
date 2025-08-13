@@ -361,10 +361,7 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
         COPY_AFTER_BUILD ${COPY_AFTER_BUILD}
         PLUGIN_FORMATS CLAP VST3 AUV2
         ASSET_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_assets
-        AUV2_MANUFACTURER_CODE "CaBB"
-        AUV2_SUBTYPE_CODE "Cabf"
         AUV2_INSTRUMENT_TYPE "${CabbageAUInstrumentType}"
-        AUV2_MANUFACTURER_NAME CabbageAudio
         # STANDALONE_CONFIGURATIONS
         #     standalone "${PROJECT_NAME}" "your.reversed.domain.name.${PROJECT_NAME}"
     )
