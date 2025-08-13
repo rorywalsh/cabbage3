@@ -2,7 +2,6 @@
 #include <clap/clap.h>
 #include "CabbageProcessor.h"
 
-
 namespace {
     struct PluginInfo {
         std::string name;
@@ -12,26 +11,57 @@ namespace {
 #ifdef CabbageApp
             : name(""), id("")
 #else
-            :name(cabbage::File::getBinaryWithoutExtension()),
-            id([this](){
+            : name(getPluginName()), id(getPluginId())
+#endif
+        {}
+        
+    private:
+        std::string getPluginName() {
+            try {
+                auto binaryName = cabbage::File::getBinaryWithoutExtension();
+                return binaryName.empty() ? "CabbagePluginEffect" : binaryName;
+            } catch (...) {
+                return "CabbagePluginEffect";
+            }
+        }
+        
+        std::string getPluginId() {
+            try {
                 const std::string cabbageJson(cabbage::File::getCabbageSection(cabbage::File::getCsdFileAndPath()));
                 if (nlohmann::json::accept(cabbageJson))
                 {
                     auto jsonArray = nlohmann::json::parse(cabbageJson);
-                    for (const auto& obj : jsonArray) 
+                    for (const auto& obj : jsonArray)
                     {
                         if (obj.contains("type") && obj["type"] == "form")
                         {
-                            return obj.value("pluginId", "com.cabbageaudio." + name);
+                            std::string pluginId = obj.value("pluginId", "");
+                            if (!pluginId.empty())
+                            {
+                                // If pluginId is only 4 chars, assume it's a short code and prepend domain
+                                if (pluginId.length() == 4)
+                                {
+                                    return "com.cabbageaudio." + pluginId;
+                                }
+                                // If more than 4 chars, assume it's already a valid reversed domain
+                                else if (pluginId.length() > 4)
+                                {
+                                    return pluginId;
+                                }
+                            }
+                            // Fallback to default
+                            return "com.cabbageaudio." + name;
                         }
                     }
                 }
                 return "com.cabbageaudio." + name;
-            }())
-#endif
-        {}
+            } catch (...) {
+                return "com.cabbageaudio." + name;
+            }
+        }
     };
 
+    // Global PluginInfo with static storage duration
     static const PluginInfo pluginInfo;
 }
 
@@ -51,17 +81,19 @@ namespace {
     };
 #endif
 
-static const clap_plugin_descriptor descriptor = {
-    .clap_version = CLAP_VERSION,
-    .id = pluginInfo.id.c_str(),       
-    .name = pluginInfo.name.c_str(), 
-    .vendor = "CabbageAudio",
-    .url = "https://cabbageaudio.com",
-    .manual_url = "https://docs.cabbageaudio.com",
-    .support_url = "https://support.cabbageaudio.com",
-    .version = "1.0.0",
-    .description = "CabbagePluginEffect Plugin",
-    .features = features
-};
-
-
+// Function to safely access the descriptor (ensures initialization order)
+inline const clap_plugin_descriptor* getDescriptor() {
+    static const clap_plugin_descriptor descriptor = {
+        .clap_version = CLAP_VERSION,
+        .id = pluginInfo.id.c_str(),
+        .name = pluginInfo.name.c_str(),
+        .vendor = "CabbageAudio",
+        .url = "https://cabbageaudio.com",
+        .manual_url = "https://docs.cabbageaudio.com",
+        .support_url = "https://support.cabbageaudio.com",
+        .version = "1.0.0",
+        .description = "CabbagePlugin",
+        .features = features
+    };
+    return &descriptor;
+}
