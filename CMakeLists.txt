@@ -177,7 +177,7 @@ set(CABBAGE_SOURCES
     "${CMAKE_SOURCE_DIR}/src/CabbageParser.h"
     "${CMAKE_SOURCE_DIR}/src/CabbageUtils.cpp"
     "${CMAKE_SOURCE_DIR}/src/CabbageUtils.h"
-    "${CMAKE_SOURCE_DIR}/src/CabbagePluginEffectInfo.h"
+    "${CMAKE_SOURCE_DIR}/src/CabbagePluginInfo.h"
 )
 
 # ----------------------------
@@ -235,7 +235,7 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
 
 
     target_compile_definitions(${PROJECT_NAME} PRIVATE 
-        PLUGIN_INFO_HEADER="${CMAKE_SOURCE_DIR}/src/CabbagePluginEffectInfo.h"
+        PLUGIN_INFO_HEADER="${CMAKE_SOURCE_DIR}/src/CabbagePluginInfo.h"
         PRODUCT_NAME="${PROJECT_NAME}"
         USE_DOUBLE=1
         "${CABBAGE_BUILD_TARGET}"
@@ -291,7 +291,7 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
     
     # Set compile definitions for test target
     target_compile_definitions(${PROJECT_NAME} PRIVATE 
-        PLUGIN_INFO_HEADER="${CMAKE_SOURCE_DIR}/src/CabbagePluginEffectInfo.h"
+        PLUGIN_INFO_HEADER="${CMAKE_SOURCE_DIR}/src/CabbagePluginInfo.h"
         PRODUCT_NAME="CabbageApp"
         USE_DOUBLE=1
         CabbageTests
@@ -330,7 +330,7 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
     add_library(${PROJECT_NAME}-impl STATIC ${SOURCE_FILES})
 
     target_compile_definitions(${PROJECT_NAME}-impl PRIVATE 
-        PLUGIN_INFO_HEADER="${CMAKE_SOURCE_DIR}/src/CabbagePluginEffectInfo.h"
+        PLUGIN_INFO_HEADER="${CMAKE_SOURCE_DIR}/src/CabbagePluginInfo.h"
         PRODUCT_NAME="${PROJECT_NAME}"
         "${CABBAGE_BUILD_TARGET}"
     )
