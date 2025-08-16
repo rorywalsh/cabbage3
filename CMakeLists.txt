@@ -20,6 +20,7 @@ endif()
 
 # Build options
 option(CABBAGE_ENABLE_TESTS "Build tests in addition to main app" OFF)
+option(USER_LIB "Output AU plugins directly to ~/Library/Audio/Plug-Ins/Components without Debug subdirectory" OFF)
 
 # Define common base directory for all dependency downloads and builds
 set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/_deps" CACHE PATH "Base directory for downloaded dependencies")
@@ -178,6 +179,8 @@ set(CABBAGE_SOURCES
     "${CMAKE_SOURCE_DIR}/src/CabbageUtils.cpp"
     "${CMAKE_SOURCE_DIR}/src/CabbageUtils.h"
     "${CMAKE_SOURCE_DIR}/src/CabbagePluginInfo.h"
+    "${CMAKE_SOURCE_DIR}/src/CabbageLogger.h"
+    "${CMAKE_SOURCE_DIR}/src/CabbageLogger.cpp"
 )
 
 # ----------------------------
@@ -345,7 +348,12 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
 
     # Link required libraries
     if (APPLE)
-        target_link_libraries(${PROJECT_NAME}-impl PUBLIC clap clap-helpers ${COCOA_LIBRARY} ${CSOUND_FRAMEWORK})
+        # Add WebKit framework for choc::ui::WebView support
+        find_library(WEBKIT_FRAMEWORK WebKit)
+        if(NOT WEBKIT_FRAMEWORK)
+            message(FATAL_ERROR "WebKit framework not found")
+        endif()
+        target_link_libraries(${PROJECT_NAME}-impl PUBLIC clap clap-helpers ${COCOA_LIBRARY} ${CSOUND_FRAMEWORK} ${WEBKIT_FRAMEWORK})
     else()
         target_link_libraries(${PROJECT_NAME}-impl PUBLIC ${CSOUND_LIBRARY})
     endif()
@@ -365,5 +373,16 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
         # STANDALONE_CONFIGURATIONS
         #     standalone "${PROJECT_NAME}" "your.reversed.domain.name.${PROJECT_NAME}"
     )
+
+    # If USER_LIB flag is set, override output directories to place plugins directly 
+    # in ~/Library/Audio/Plug-Ins/Components without Debug/Release subdirectories
+    if(USER_LIB AND TARGET ${PROJECT_NAME}_auv2)
+        set_target_properties(${PROJECT_NAME}_auv2 PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY_DEBUG /Users/rwalsh/Library/Audio/Plug-Ins/Components
+            LIBRARY_OUTPUT_DIRECTORY_RELEASE /Users/rwalsh/Library/Audio/Plug-Ins/Components
+            LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO /Users/rwalsh/Library/Audio/Plug-Ins/Components
+            LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL /Users/rwalsh/Library/Audio/Plug-Ins/Components
+        )
+    endif()
 
 endif()

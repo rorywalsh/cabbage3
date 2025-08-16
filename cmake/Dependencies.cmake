@@ -78,5 +78,11 @@ FetchContent_Declare(
 
 
 
+# Include choc patches functionality
+include(${CMAKE_SOURCE_DIR}/cmake/ChocPatches.cmake)
+
 # Make all dependencies available
 FetchContent_MakeAvailable(lattice readerwriterqueue)
+
+# Apply choc patches after lattice (which includes choc) is downloaded
+apply_choc_patches()
