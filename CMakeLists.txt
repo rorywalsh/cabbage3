@@ -8,6 +8,7 @@ set(CABBAGE_VERSION 0.0.100)
 
 # Enforce Xcode generator on macOS
 if(APPLE)
+    set(FORMATS CLAP VST3 AUV2)
     set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "" FORCE)
     if(NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
         set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS deployment target")
@@ -15,6 +16,8 @@ if(APPLE)
     if(NOT CMAKE_GENERATOR STREQUAL "Xcode")
         message(FATAL_ERROR "Xcode generator is required on macOS. Please use: cmake -G Xcode ...")
     endif()
+else()
+    set(FORMATS CLAP VST3)
 endif()
 
 
@@ -365,7 +368,7 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
         BUNDLE_IDENTIFER "org.yourproject.${PROJECT_NAME}"
         BUNDLE_VERSION ${PROJECT_VERSION}
         COPY_AFTER_BUILD ${COPY_AFTER_BUILD}
-        PLUGIN_FORMATS CLAP VST3 AUV2
+        PLUGIN_FORMATS ${FORMATS}
         ASSET_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_assets
         AUV2_INSTRUMENT_TYPE "${CabbageAUInstrumentType}"
         # STANDALONE_CONFIGURATIONS
