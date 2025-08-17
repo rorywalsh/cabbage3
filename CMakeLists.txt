@@ -179,8 +179,6 @@ set(CABBAGE_SOURCES
     "${CMAKE_SOURCE_DIR}/src/CabbageUtils.cpp"
     "${CMAKE_SOURCE_DIR}/src/CabbageUtils.h"
     "${CMAKE_SOURCE_DIR}/src/CabbagePluginInfo.h"
-    "${CMAKE_SOURCE_DIR}/src/CabbageLogger.h"
-    "${CMAKE_SOURCE_DIR}/src/CabbageLogger.cpp"
 )
 
 # ----------------------------
@@ -374,15 +372,19 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
         #     standalone "${PROJECT_NAME}" "your.reversed.domain.name.${PROJECT_NAME}"
     )
 
-    # If USER_LIB flag is set, override output directories to place plugins directly 
-    # in ~/Library/Audio/Plug-Ins/Components without Debug/Release subdirectories
-    if(USER_LIB AND TARGET ${PROJECT_NAME}_auv2)
-        set_target_properties(${PROJECT_NAME}_auv2 PROPERTIES
-            LIBRARY_OUTPUT_DIRECTORY_DEBUG /Users/rwalsh/Library/Audio/Plug-Ins/Components
-            LIBRARY_OUTPUT_DIRECTORY_RELEASE /Users/rwalsh/Library/Audio/Plug-Ins/Components
-            LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO /Users/rwalsh/Library/Audio/Plug-Ins/Components
-            LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL /Users/rwalsh/Library/Audio/Plug-Ins/Components
-        )
+    # Always set CABBAGE_AU_BUILD for the auv2 target
+    if(TARGET ${PROJECT_NAME}_auv2)
+        target_compile_definitions(${PROJECT_NAME}_auv2 PRIVATE CABBAGE_AU_BUILD=1)
+        # If USER_LIB flag is set, override output directories to place plugins directly 
+        # in ~/Library/Audio/Plug-Ins/Components without Debug/Release subdirectories
+        if(USER_LIB)
+            set_target_properties(${PROJECT_NAME}_auv2 PROPERTIES
+                LIBRARY_OUTPUT_DIRECTORY_DEBUG /Users/rwalsh/Library/Audio/Plug-Ins/Components
+                LIBRARY_OUTPUT_DIRECTORY_RELEASE /Users/rwalsh/Library/Audio/Plug-Ins/Components
+                LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO /Users/rwalsh/Library/Audio/Plug-Ins/Components
+                LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL /Users/rwalsh/Library/Audio/Plug-Ins/Components
+            )
+        endif()
     endif()
 
 endif()
