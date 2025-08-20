@@ -144,7 +144,7 @@ TEST_CASE("Test WebSocket Server functionality", "[CabbageApp]")
     {
         buffer[ch] = new float[nBufferFrames];
         // Initialize to silence
-        memset(buffer[ch], 0, nBufferFrames * sizeof(double));
+        memset(buffer[ch], 0, nBufferFrames * sizeof(float));
     }
 
 
