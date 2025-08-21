@@ -98,10 +98,10 @@ jobs:
         run: |
           cd build
           zip -r CabbageBundle.zip \
-            CabbagePluginSynth/CabbagePluginSynth_assets/Release/CabbagePluginSynth.vst3 \
-            CabbagePluginSynth/CabbagePluginSynth_assets/Release/CabbagePluginSynth.component \
-            CabbagePluginEffect/CabbagePluginEffect_assets/Release/CabbagePluginEffect.vst3 \
-            CabbagePluginEffect/CabbagePluginEffect_assets/Release/CabbagePluginEffect.component \
+            CabbagePluginSynthVST3/CabbagePluginSynthVST3_assets/Release/CabbagePluginSynthVST.vst3 \
+            CabbagePluginEffectVST3/CabbagePluginEffectVST3_assets/Release/CabbagePluginEffectVST3.vst3 \
+            CabbagePluginSynthAUv2/CabbagePluginSynthAUv2_assets/Release/CabbagePluginSynthAUv2.component \
+            CabbagePluginEffectAUv2/CabbagePluginEffectAUv2_assets/Release/CabbagePluginEffectAUv2.component \
             CabbageApp/Release/CabbageApp
 
 
@@ -140,8 +140,6 @@ jobs:
           Compress-Archive -Path @(
             "CabbagePluginEffect/CabbagePluginEffect_assets/VST3/Release/CabbagePluginEffect.vst3",
             "CabbagePluginSynth/CabbagePluginSynth_assets/VST3/Release/CabbagePluginSynth.vst3",
-            "CabbagePluginSynth/CabbagePluginSynth_assets/Release/CabbagePluginSynth.component",
-            "CabbagePluginEffect/CabbagePluginEffect_assets/Release/CabbagePluginEffect.component",
             "CabbageApp/Release/CabbageApp.exe"
           ) -DestinationPath CabbageBundle.zip
 

@@ -2,6 +2,8 @@
 #include <clap/clap.h>
 #include "CabbageProcessor.h"
 
+#if !defined(CabbagePluginSynthAUv2) || defined(CabbagePluginEffectAUv2)
+
 namespace {
     struct PluginInfo {
         std::string name;
@@ -64,8 +66,10 @@ namespace {
     // Global PluginInfo with static storage duration
     static const PluginInfo pluginInfo;
 }
+#endif
 
-#if defined(CabbagePluginSynth)
+
+#if defined(CabbagePluginSynthVST3) || defined(CabbagePluginSynthAUv2)
     static constexpr const char* features[] = {
         CLAP_PLUGIN_FEATURE_INSTRUMENT,
         CLAP_PLUGIN_FEATURE_SYNTHESIZER,
@@ -81,11 +85,21 @@ namespace {
     };
 #endif
 
+#define LATTICE_AU_SUBTYPE "Cabb"
+#if defined(CabbagePluginSynthAUv2) || defined(CabbagePluginEffectAUv2)
+#define LATTICE_AU_TYPE "aufx"
+#else
+#define LATTICE_AU_TYPE "aumi"
+#endif
+#define LATTICE_MANUFACTURER_NAME "CabbageAudio"
+#define LATTICE_MANUFACTURER_CODE "Cabb"
+
+
 // Function to safely access the descriptor (ensures initialization order)
 inline const clap_plugin_descriptor* getDescriptor() {
     static const clap_plugin_descriptor descriptor = {
         .clap_version = CLAP_VERSION,
-    #if CABBAGE_AU_BUILD == 1
+    #if defined(CabbagePluginSynthAUv2) || defined(CabbagePluginEffectAUv2)
         .id = "com.cabbageaudio.1d47",
         .name = "Cabbage1d47Plugin",
     #else
