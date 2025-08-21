@@ -8,7 +8,8 @@ set(CABBAGE_VERSION 0.0.100)
 
 # Enforce Xcode generator on macOS
 if(APPLE)
-    set(FORMATS CLAP VST3 AUV2)
+    set(VST3_FORMATS CLAP VST3)
+    set(AU_FORMATS CLAP AUV2)
     set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "" FORCE)
     if(NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
         set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS deployment target")
@@ -17,7 +18,8 @@ if(APPLE)
         message(FATAL_ERROR "Xcode generator is required on macOS. Please use: cmake -G Xcode ...")
     endif()
 else()
-    set(FORMATS CLAP VST3)
+    set(VST3_FORMATS CLAP VST3)
+    set(AU_FORMATS)  # Empty for non-Apple platforms
 endif()
 
 
@@ -43,7 +45,7 @@ option(CABBAGE_ENABLE_TESTS "Build Cabbage unit tests" OFF)
 # ----------------------------
 if(NOT DEFINED CABBAGE_BUILD_TARGET)
 
-    set(CABBAGE_BUILD_TARGETS CabbageApp CabbagePluginEffect CabbagePluginSynth CabbageTests)
+    set(CABBAGE_BUILD_TARGETS CabbageApp CabbagePluginEffectVST3 CabbagePluginSynthVST3 CabbagePluginEffectAUv2 CabbagePluginSynthAUv2 CabbageTests)
     message(STATUS "No CABBAGE_BUILD_TARGET specified. Building all targets.")
 
     # Include shared dependencies configuration
@@ -51,6 +53,12 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
 
     # Configure and build each target separately
     foreach(target IN LISTS CABBAGE_BUILD_TARGETS)
+        # Skip AU targets on non-Apple platforms
+        if((target STREQUAL "CabbagePluginEffectAUv2" OR target STREQUAL "CabbagePluginSynthAUv2") AND NOT APPLE)
+            message(STATUS "Skipping ${target} on non-Apple platform")
+            continue()
+        endif()
+
         message(STATUS "Configuring build for target: ${target}")
 
         file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/${target})
@@ -116,12 +124,22 @@ endif()
 message(STATUS "Setting build target to ${CABBAGE_BUILD_TARGET}")
 if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbageApp LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
-elseif (CabbagePluginEffect STREQUAL "${CABBAGE_BUILD_TARGET}")
-    project(CabbagePluginEffect LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
+elseif (CabbagePluginEffectVST3 STREQUAL "${CABBAGE_BUILD_TARGET}")
+    project(CabbagePluginEffectVST3 LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
     set(CabbageAUInstrumentType aufx)
-elseif (CabbagePluginSynth STREQUAL "${CABBAGE_BUILD_TARGET}")
-    project(CabbagePluginSynth LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
+    set(FORMATS ${VST3_FORMATS})
+elseif (CabbagePluginSynthVST3 STREQUAL "${CABBAGE_BUILD_TARGET}")
+    project(CabbagePluginSynthVST3 LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
     set(CabbageAUInstrumentType aumi)
+    set(FORMATS ${VST3_FORMATS})
+elseif (CabbagePluginEffectAUv2 STREQUAL "${CABBAGE_BUILD_TARGET}")
+    project(CabbagePluginEffectAUv2 LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
+    set(CabbageAUInstrumentType aufx)
+    set(FORMATS ${AU_FORMATS})
+elseif (CabbagePluginSynthAUv2 STREQUAL "${CABBAGE_BUILD_TARGET}")
+    project(CabbagePluginSynthAUv2 LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
+    set(CabbageAUInstrumentType aumi)
+    set(FORMATS ${AU_FORMATS})
 elseif (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbageTests LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
 endif()
@@ -375,9 +393,7 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
         #     standalone "${PROJECT_NAME}" "your.reversed.domain.name.${PROJECT_NAME}"
     )
 
-    # Always set CABBAGE_AU_BUILD for the auv2 target
     if(TARGET ${PROJECT_NAME}_auv2)
-        target_compile_definitions(${PROJECT_NAME}_auv2 PRIVATE CABBAGE_AU_BUILD=1)
         # If USER_LIB flag is set, override output directories to place plugins directly 
         # in ~/Library/Audio/Plug-Ins/Components without Debug/Release subdirectories
         if(USER_LIB)
