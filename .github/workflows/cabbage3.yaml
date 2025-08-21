@@ -102,7 +102,7 @@ jobs:
           cd build
           ls 
           zip -r CabbageBundle.zip \
-            CabbagePluginSynthVST3/CabbagePluginSynthVST3_assets/Release/CabbagePluginSynthVST.vst3 \
+            CabbagePluginSynthVST3/CabbagePluginSynthVST3_assets/Release/CabbagePluginSynthVST3.vst3 \
             CabbagePluginEffectVST3/CabbagePluginEffectVST3_assets/Release/CabbagePluginEffectVST3.vst3 \
             CabbagePluginSynthAUv2/CabbagePluginSynthAUv2_assets/Release/CabbagePluginSynthAUv2.component \
             CabbagePluginEffectAUv2/CabbagePluginEffectAUv2_assets/Release/CabbagePluginEffectAUv2.component \
