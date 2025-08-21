@@ -94,9 +94,13 @@ jobs:
           -DBUILD_ALL_TARGETS=True \
           -DCMAKE_BUILD_TYPE=Release
 
+      - name: List build directory
+        run: ls -l build
+
       - name: Zip the macOS app bundle
         run: |
           cd build
+          ls 
           zip -r CabbageBundle.zip \
             CabbagePluginSynthVST3/CabbagePluginSynthVST3_assets/Release/CabbagePluginSynthVST.vst3 \
             CabbagePluginEffectVST3/CabbagePluginEffectVST3_assets/Release/CabbagePluginEffectVST3.vst3 \
