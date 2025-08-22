@@ -85,7 +85,7 @@ namespace {
     };
 #endif
 
-#define LATTICE_AU_SUBTYPE "Cabb"
+#define LATTICE_AU_SUBTYPE "Cp47"
 #if defined(CabbagePluginSynthAUv2) || defined(CabbagePluginEffectAUv2)
 #define LATTICE_AU_TYPE "aufx"
 #else
