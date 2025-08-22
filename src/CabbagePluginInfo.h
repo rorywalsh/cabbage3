@@ -86,10 +86,10 @@ namespace {
 #endif
 
 #define LATTICE_AU_SUBTYPE "Cp47"
-#if defined(CabbagePluginSynthAUv2) || defined(CabbagePluginEffectAUv2)
-#define LATTICE_AU_TYPE "aufx"
+#if defined(CabbagePluginEffectAUv2)
+    #define LATTICE_AU_TYPE "aufx"
 #else
-#define LATTICE_AU_TYPE "aumi"
+    #define LATTICE_AU_TYPE "aumu" //aumi is a midi processor...
 #endif
 #define LATTICE_MANUFACTURER_NAME "CabbageAudio"
 #define LATTICE_MANUFACTURER_CODE "Cabb"
