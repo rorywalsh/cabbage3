@@ -14,7 +14,9 @@ pluginType* LatticeProcessorPluginFactory::createPlugin(const clap_host* host)
 CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
     : Processor(), cabbage(*this, csdFile)
 {
-
+    auto rootPath = cabbage::File::getParentDirectory(cabbage::File::getCsdFileAndPath(cabbage.getCsdFile()));
+    
+    setMountPoint(rootPath);
     
     if (!cabbage.setupCsound())
     {
@@ -28,9 +30,7 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
     addParameters();
     addChannels(config);
 
-    auto rootPath = cabbage::File::getParentDirectory(cabbage::File::getCsdFileAndPath(cabbage.getCsdFile()));
-    
-    setMountPoint(rootPath);
+
 
     if (auto json = cabbage::File::parseCabbageSection(cabbage::File::getCsdFileAndPath(cabbage.getCsdFile())))
     {
@@ -313,11 +313,12 @@ void CabbageProcessor::stopIdleThread()
 //========================================================================================
 void CabbageProcessor::onWebViewIsReady()
 {
-
+    
 }
 
 void CabbageProcessor::setCabbageIsReady()
 {
+    
     uiIsOpen = true;
     allowDequeuing = true;
 
