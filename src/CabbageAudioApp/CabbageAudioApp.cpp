@@ -222,6 +222,7 @@ void CabbageAudioApp::stopWebSocketServerForTesting()
 //==============================================================================
 bool CabbageAudioApp::initialiseWebSocketConnection()
 {
+    ix::initNetSystem();
     std::string address("ws://localhost:");
     address.append(std::to_string(portNumber).c_str());
     lattice::logInfo << "Attempting to connect to WebSocket at " << address << " (client instance: " << &webSocket << ")";
