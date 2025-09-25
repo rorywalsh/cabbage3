@@ -161,22 +161,6 @@ void Engine::setReservedChannels()
     csound->SetStringChannel("CSD_PATH", (char *)path.c_str());
 }
 
-//==========================================================================================
-std::vector<std::string> Engine::getRangeWidgetTypes(const std::vector<nlohmann::json> widgets)
-{
-    std::vector<std::string> typesWithRange;
-    for (const auto &obj : widgets)
-    {
-        if (obj.contains("range") && obj["type"] != "genTable")
-        {
-            if (obj.contains("type"))
-            {
-                typesWithRange.push_back(obj["type"].get<std::string>());
-            }
-        }
-    }
-    return typesWithRange;
-}
 //===========================================================================================
 int Engine::getNumberOfParameters(const std::string &csdFile)
 {

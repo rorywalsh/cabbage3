@@ -104,7 +104,7 @@ void Parser::parseContent(const std::string &content, std::vector<nlohmann::json
                     if (!j.is_null())
                     {
                         updateJson(j, item, widgets.size());
-                        widgets.push_back(j);
+                        widgets.push_back(j);                        
                     }
                     else
                     {
@@ -134,23 +134,21 @@ void Parser::parseJsonFile(const std::string &filename, std::vector<nlohmann::js
     parseContent(buffer.str(), widgets);
 }
 
+
 void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJson, size_t numWidgets)
 {
+    // nlohmann::json does have a merge_path() function, but it doesn't seem to handle
+    // nested objects that well - so we manually iterate over each various objects
     try
     {
         if (jsonObj["type"].get<std::string>() != "form")
         {
-            lattice::logDebug << incomingJson.dump(4);
-            
+           
             if (incomingJson.contains("channel") && incomingJson["channel"].is_string() &&
                 incomingJson["channel"].get<std::string>().empty())
             {
                 jsonObj["channel"] = jsonObj["type"].get<std::string>() + std::to_string(static_cast<int>(numWidgets));
                 lattice::logInfo << "A " << jsonObj["type"].get<std::string>() << " widget is missing a channel property. One will be automatically assigned: \"" << jsonObj["channel"].get<std::string>() << ". Assign your own channel property to avoid unexpected behaviour.";
-            }
-            else
-            {
-                lattice::logInfo << "Channel set as" << jsonObj["channel"].get<std::string>();
             }
         }
 

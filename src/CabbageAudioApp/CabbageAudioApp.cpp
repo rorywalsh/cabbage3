@@ -367,6 +367,7 @@ void CabbageAudioApp::sendWidgetDataToVscode()
         msg["command"] = "widgetUpdate";
         msg["channel"] = w["channel"];
         msg["data"] = w.dump();
+        lattice::logDebug << w.dump(4);
         webSocket.send(msg.dump());
     }
 

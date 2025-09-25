@@ -147,9 +147,6 @@ class Engine
     // Returns a script that will update a csoundoutput widget
     const std::string getCsoundOutputUpdateScript(const std::string& output);
 
-    // Return a vector of all widget types that have a range object
-    static std::vector<std::string> getRangeWidgetTypes(const std::vector<nlohmann::json> widgets);
-
     // Setup reserved channel
     void setReservedChannels();
 

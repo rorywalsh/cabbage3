@@ -2,6 +2,7 @@
 #include "CabbageProcessor.h"
 #include <iostream>
 
+
 //========================================================================================
 pluginType* LatticeProcessorPluginFactory::createPlugin(const clap_host* host)
 {
@@ -94,44 +95,63 @@ void CabbageProcessor::addChannels(const std::string& config)
 //========================================================================================
 void CabbageProcessor::addParameters()
 {
-    std::vector<std::string> rangeTypes = cabbage.getRangeWidgetTypes(cabbage.getWidgets());
     for (auto &w : cabbage.getWidgets())
     {
-        if (w.contains("automatable") && w["automatable"] == 1 &&
-            (!w.contains("channelType") || w["channelType"] == "number"))
+        addParameterForWidget(w);
+        
+        // Check for child widgets and add parameters for them
+        if (w.contains("children") && w["children"].is_array())
         {
-            const std::string widgetType = w["type"].get<std::string>();
+            for (auto &child : w["children"])
+            {
+                auto j = cabbage::WidgetDescriptors::get(child["type"].get<std::string>());
+                cabbage::Parser::updateJson(j, child, cabbage.getWidgets().size());
+                addParameterForWidget(j);
+            }
+        }
+    }
+}
 
-            try
+//========================================================================================
+// Add parameter for a single widget if it meets the criteria
+//========================================================================================
+void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
+{
+    
+    if (w.contains("automatable") && w["automatable"] == 1 &&
+        (!w.contains("channelType") || w["channelType"] == "number"))
+    {
+        const std::string widgetType = w["type"].get<std::string>();
+
+        try
+        {
+            // check if widget has a range - range widget parameters are initialised differently to other
+            // widgets
+            if (w.contains("range"))
             {
-                // check if widget has a range - range widget parameters are initialised differently to other
-                // widgets
-                if (std::any_of(rangeTypes.begin(), rangeTypes.end(),
-                                [&](const std::string &type) { return widgetType == type; }))
-                {
-                    addParameter({w["channel"].get<std::string>(), 
-                        w["range"]["min"].get<float>(),
-                        w["range"]["max"].get<float>(), 
-                        w["range"]["defaultValue"].get<float>(),
-                        w["range"]["increment"].get<float>(),
-                        w["range"]["skew"].get<float>()});
-                }
-                else
-                {
-                    addParameter({w["channel"].get<std::string>(), 
-                        w["min"].get<float>(),
-                        w["max"].get<float>(), 
-                        w["defaultValue"].get<float>()});
-                }
-                
-                w["parameterIndex"] = cabbage.getCurrentParameterCount();
-                cabbage.initParameter(w);
+                addParameter({w["channel"].get<std::string>(), 
+                    w["range"]["min"].get<float>(),
+                    w["range"]["max"].get<float>(), 
+                    w["range"]["defaultValue"].get<float>(),
+                    w["range"]["increment"].get<float>(),
+                    w["range"]["skew"].get<float>()});
             }
-            catch (nlohmann::json::exception &e)
+            else
             {
-                lattice::logInfo << "JSON error: " << e.what() << "\n" << w.dump(4);
-                cabbage::Utils::check(false, "");
+                addParameter({w["channel"].get<std::string>(), 
+                    w["min"].get<float>(),
+                    w["max"].get<float>(), 
+                    w["defaultValue"].get<float>()});
             }
+            
+            w["parameterIndex"] = cabbage.getCurrentParameterCount();
+            lattice::logDebug << "\n====================================\n" << w.dump(4);
+            cabbage.initParameter(w);
+        }
+        catch (nlohmann::json::exception &e)
+        {
+            lattice::logInfo << "JSON error: " << e.what() << "\n" << w.dump(4);
+            cabbage::Utils::check(false, "");
         }
     }
 }
@@ -236,6 +256,8 @@ void CabbageProcessor::onIdle()
         {
             for (auto &widget : cabbage.getWidgets())
             {
+                // when sending a widget value update, or any attribute, nested widgets will be an issue
+                // we need to test the nested object's channel name, and update that too
                 if (data.channel == cabbage::Parser::removeQuotes(widget["channel"]))
                 {
                     cabbage::Parser::updateJson(widget, data.cabbageJson, widget.size());

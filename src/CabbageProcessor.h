@@ -70,6 +70,7 @@ public:
     void startOnIdle();
     void stopOnIdle();
     void updateWidgetData(const CabbageOpcodeData &data);
+    void addParameterForWidget(nlohmann::json& w);
     std::atomic<bool> processingEnabled{true};
     bool uiIsOpen = false;
     bool allowDequeuing = false;
