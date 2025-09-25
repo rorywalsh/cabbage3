@@ -36,7 +36,8 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
     {
         auto w = cabbage::Utils::findPropertyInForm<int>(*json, "size.width");
         auto h = cabbage::Utils::findPropertyInForm<int>(*json, "size.height");
-        setEditorSize(w.value(), h.value());
+        if (w.has_value() && h.has_value())
+            setEditorSize(w.value(), h.value());
     }
       
     startOnIdle();

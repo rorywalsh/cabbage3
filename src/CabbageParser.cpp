@@ -140,8 +140,10 @@ void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJ
     {
         if (jsonObj["type"].get<std::string>() != "form")
         {
-            if (jsonObj.contains("channel") && jsonObj["channel"].is_string() &&
-                jsonObj["channel"].get<std::string>().empty())
+            lattice::logDebug << incomingJson.dump(4);
+            
+            if (incomingJson.contains("channel") && incomingJson["channel"].is_string() &&
+                incomingJson["channel"].get<std::string>().empty())
             {
                 jsonObj["channel"] = jsonObj["type"].get<std::string>() + std::to_string(static_cast<int>(numWidgets));
                 lattice::logInfo << "A " << jsonObj["type"].get<std::string>() << " widget is missing a channel property. One will be automatically assigned: \"" << jsonObj["channel"].get<std::string>() << ". Assign your own channel property to avoid unexpected behaviour.";
