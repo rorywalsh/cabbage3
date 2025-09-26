@@ -147,7 +147,8 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
 {
     auto &cabbage = processor->getCabbageEngine();
     auto widgetOpt = cabbage.getWidget(data.channel);
-    
+    // if the channel is part of a subgroup we need to find it
+    // auto widget = cabbage.findWidgetByChannel(cabbage.getWidgets(), data.channel);
     if (widgetOpt.has_value())
     {
         auto &j = widgetOpt.value().get();
@@ -254,6 +255,8 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                     {
                         for (int i = 0; i < cabbage.getNumberOfParameters(); i++)
                         {
+                            /* this need to check */
+                            //auto widget = cabbage.findWidgetByChannel(cabbage.getWidgets(), jsonObj["channel"]);
                             if (cabbage.getParameterChannel(i).name == jsonObj["channel"].get<std::string>())
                             {
                                 // update underlying JSON object if the value has changed

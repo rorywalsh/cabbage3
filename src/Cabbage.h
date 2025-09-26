@@ -102,6 +102,14 @@ class Engine
     // Get the widgets
     std::vector<nlohmann::json> &getWidgets() { return widgets; }
 
+    // Helper function that handles the actual searching
+    std::optional<std::reference_wrapper<nlohmann::json>> findWidgetInArray(nlohmann::json& jsonArray, const std::string& channel);
+
+    // Overload for std::vector<nlohmann::json>
+    std::optional<std::reference_wrapper<nlohmann::json>> getWidgetByChannel(std::vector<nlohmann::json>& widgets, const std::string& channel);
+
+    // Overload for nlohmann::json (assuming it's an array)
+    std::optional<std::reference_wrapper<nlohmann::json>> getWidgetByChannel(nlohmann::json& widgets, const std::string& channel);
     // Update widget with JSON object
     const std::string updateWidgetState(nlohmann::json j);
     // Get the index for a parameter channel by name

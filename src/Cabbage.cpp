@@ -292,6 +292,41 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidget(const st
     return std::nullopt;
 }
 
+// Helper function that handles searching of widgets
+std::optional<std::reference_wrapper<nlohmann::json>> Engine::findWidgetInArray(nlohmann::json& jsonArray, const std::string& channel)
+{
+    for (auto& w : jsonArray)
+    {
+        if (w.contains("channel") && cabbage::Parser::removeQuotes(w["channel"]) == channel)
+        {
+            return std::ref(w);
+        }
+        if (w.contains("children") && w["children"].is_array())
+        {
+            auto child = findWidgetInArray(w["children"], channel);
+            if (child) return child;
+        }
+    }
+    return std::nullopt;
+}
+
+// Overload for std::vector<nlohmann::json>
+std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetByChannel(std::vector<nlohmann::json>& widgets, const std::string& channel)
+{
+    // Convert vector to JSON array for the helper function
+    nlohmann::json tempArray = nlohmann::json::array();
+    for (auto& w : widgets) {
+        tempArray.push_back(std::ref(w));
+    }
+    return findWidgetInArray(tempArray, channel);
+}
+
+// Overload for nlohmann::json (assuming it's an array)
+std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetByChannel(nlohmann::json& widgets, const std::string& channel)
+{
+    return findWidgetInArray(widgets, channel);
+}
+
 const std::string Engine::updateWidgetState(nlohmann::json j)
 {
     auto const channel = j["channel"].get<std::string>();

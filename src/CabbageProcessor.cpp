@@ -254,15 +254,15 @@ void CabbageProcessor::onIdle()
     {
         while (cabbage.opcodeData.try_dequeue(data))
         {
-            for (auto &widget : cabbage.getWidgets())
+            // when sending a widget value update, or any attribute, nested widgets will be an issue
+            // we need to test the nested object's channel name, and update that too
+            auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), data.channel);
+            if (widgetOpt.has_value())
             {
-                // when sending a widget value update, or any attribute, nested widgets will be an issue
-                // we need to test the nested object's channel name, and update that too
-                if (data.channel == cabbage::Parser::removeQuotes(widget["channel"]))
-                {
-                    cabbage::Parser::updateJson(widget, data.cabbageJson, widget.size());
-                }
+                auto &j = widgetOpt.value().get();
+                cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
             }
+
             
 #ifdef CabbageApp
             hostCallback(data);
@@ -287,7 +287,7 @@ void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
     }
     else
     {
-        auto widgetOpt = cabbage.getWidget(data.channel);
+        auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), data.channel);
         if (widgetOpt.has_value())
         {
             auto &j = widgetOpt.value().get();
@@ -391,7 +391,7 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
                 addParameterChange({paramIdx, getParameter(paramIdx).toNormalised(value), lattice::ParamChangeType::Complete});
             }
             
-            auto widgetOpt = cabbage.getWidget(obj.value("channel", ""));
+            auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), obj.value("channel", ""));
             if (widgetOpt.has_value())
             {
                 auto &j = widgetOpt.value().get();
@@ -463,7 +463,7 @@ void CabbageProcessor::updateUI()
     // Check if editor has any pending messages when loaded..
     for (const auto &param : webviewMessageQueue)
     {
-        auto widgetOpt = cabbage.getWidget(param.name);
+        auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), param.name);
         if (widgetOpt.has_value())
         {
             auto &j = widgetOpt.value().get();
