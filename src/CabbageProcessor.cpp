@@ -530,7 +530,7 @@ void CabbageProcessor::setParameter(int paramId, double value)
 
     const auto channel = getParameters()[paramId].name;
     
-    //to handle comboboxes from cabbage2 -> cabbage3 conversions
+    // cabbage2 -> cabbage3 combobox quirk 
     auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), channel);
     if (widgetOpt)
     {
@@ -538,7 +538,6 @@ void CabbageProcessor::setParameter(int paramId, double value)
         if (j.contains("type") && j.contains("indexOffset") &&
                 j["type"] == "comboBox" && j["indexOffset"] == true)
         {
-            lattice::logDebug << "Dealing with combobox with indexOffset";
             cabbage.setControlChannel(getParameters()[paramId].name, denormalValue+1);
             return;
         }
