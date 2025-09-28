@@ -33,15 +33,15 @@ int CabbageSetValue::setValue(int /*pass*/)
         // this needs to be throttled as sending some many messages
         // to the UI will choke it. Only update the widget's value
         // every 32 k-cycles.
-        if (kCycles == 32)
-        {
+//        if (kCycles == 8)
+//        {
             CabbageOpcodeData data = getValueIdentData(args, true, 0, 1);
             data.cabbageJson["value"] = *value;
             data.type = CabbageOpcodeData::MessageType::Value;
             hostData->opcodeData.enqueue(data);
             kCycles = 0;
-        }
-        kCycles++;
+//        }
+//        kCycles++;
     }
 
     return IS_OK;

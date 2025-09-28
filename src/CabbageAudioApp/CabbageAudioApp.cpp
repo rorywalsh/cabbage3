@@ -439,11 +439,6 @@ bool CabbageAudioApp::createCabbageProcessor()
     config << std::to_string(getNumInputChannels()) << "-" << std::to_string(getNumOutputChannels());
 
     processor = std::make_unique<CabbageProcessor>(csdFileAndPath, config.str());
-
-    if(!processor->getCabbageEngine().csdCompiledWithoutError()){
-        lattice::logDebug << "Coudn't compile Csound...";
-        return false;
-    }
     
     lattice::logDebug << "Num widgets : " << processor->getCabbageEngine().getWidgets().size();
 
@@ -460,7 +455,14 @@ bool CabbageAudioApp::createCabbageProcessor()
     // Register callback - will be triggered from CabbageProcessor
     processor->hostCallback = [&](CabbageOpcodeData data) { hostCallback(data); };
     
-    canProcessAudio.store(true);
+    if(!processor->getCabbageEngine().csdCompiledWithoutError()){
+        lattice::logDebug << "Coudn't compile Csound...";
+    }
+    else
+    {
+        canProcessAudio.store(true);
+    }
+    
     return true;
 }
 

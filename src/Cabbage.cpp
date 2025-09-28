@@ -101,9 +101,11 @@ bool Engine::setupCsound()
     bool exists = std::filesystem::exists(csdFile);
     if (exists)
     {
+        // Check for compile time errors
         csCompileResult = csound->Compile(csdFile.c_str());
-        csound->Start();
-        if (csdCompiledWithoutError())
+        
+        // No check for i-time errors and instr0 issues
+        if (csound->Start() == CSOUND_SUCCESS && csdCompiledWithoutError())
         {
             csdKsmps = csound->GetKsmps();
             csSpin = csound->GetSpin();
@@ -143,12 +145,14 @@ void Engine::initParameter(const nlohmann::json& w)
         parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()),
                                     w["range"]["defaultValue"].get<float>()});
         csound->SetControlChannel(w["channel"].get<std::string>().c_str(), w["range"]["defaultValue"].get<float>());
+//       lattice::logDebug << "Settting channe; '" << w["channel"].get<std::string>() << "' to " << w["range"]["defaultValue"].get<float>();
     }
     else
     {
         parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()),
                                     w["defaultValue"].get<float>()});
         csound->SetControlChannel(w["channel"].get<std::string>().c_str(), w["defaultValue"].get<float>());
+//        lattice::logDebug << "Settting channel; '" << w["channel"].get<std::string>() << "' to " << w["defaultValue"].get<float>();
     }
     
     numberOfParameters++;

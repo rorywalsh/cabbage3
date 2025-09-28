@@ -66,7 +66,7 @@ class Engine
     void compileCsdFile(std::string csoundFile) { csCompileResult = csound->Compile(csoundFile.c_str()); }
 
     // Perform KSMPS (control periods)
-    void performKsmps() { csCompileResult = csound->PerformKsmps(); }
+    int performKsmps() { csCompileResult = csound->PerformKsmps();  return csCompileResult; }
 
     // Set input value for a specific index in csSpin array
     void setSpIn(int index, MYFLT value) { csSpin[index] = value * csScale; }

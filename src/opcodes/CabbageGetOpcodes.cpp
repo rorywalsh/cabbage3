@@ -108,7 +108,6 @@ int CabbageGetValueWithTrigger::getValue(int /*mode*/)
 }
 
 //=====================================================================================
-// Not yet implemented...
 // SOut cabbageGetValue "channel"
 //=====================================================================================
 int CabbageGetValueString::getValue(int rate)
@@ -148,7 +147,6 @@ int CabbageGetValueString::getValue(int rate)
 }
 
 //=====================================================================================
-// Not yet implemented..
 // SOut, kTrig cabbageGetValue "channel"
 //=====================================================================================
 int CabbageGetValueStringWithTrigger::getValue(int rate)

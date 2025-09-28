@@ -255,9 +255,9 @@ void CabbageProcessor::onIdle()
             // when sending a widget value update, or any attribute, nested widgets will be an issue
             // we need to test the nested object's channel name, and update that too
             auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), data.channel);
-            if (widgetOpt.has_value())
+            if (widgetOpt)
             {
-                auto &j = widgetOpt.value().get();
+                auto &j = widgetOpt->get();
                 if(j.is_null())
                     break;
                 
@@ -289,9 +289,9 @@ void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
     else
     {
         auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), data.channel);
-        if (widgetOpt.has_value())
+        if (widgetOpt)
         {
-            auto &j = widgetOpt.value().get();
+            auto &j = widgetOpt->get();
             if (j["type"].get<std::string>() == "genTable")
             {
                 cabbage.updateFunctionTable(data, j);
@@ -391,9 +391,9 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
             }
             
             auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), obj.value("channel", ""));
-            if (widgetOpt.has_value())
+            if (widgetOpt)
             {
-                auto &j = widgetOpt.value().get();
+                auto &j = widgetOpt->get();
                 j["value"] = value;
             }
         }
@@ -463,9 +463,9 @@ void CabbageProcessor::updateUI()
     for (const auto &param : webviewMessageQueue)
     {
         auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), param.name);
-        if (widgetOpt.has_value())
+        if (widgetOpt)
         {
-            auto &j = widgetOpt.value().get();
+            auto &j = widgetOpt->get();
             j["value"] = param.value;
             auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(param.name, param.value);
             cabbage.setControlChannel(param.name, param.value);
@@ -527,6 +527,23 @@ void CabbageProcessor::setParameter(int paramId, double value)
 {
     const float denormalValue = getParameter(paramId).fromNormalised(value);
     getParameters()[paramId].value = denormalValue;
+
+    const auto channel = getParameters()[paramId].name;
+    
+    //to handle comboboxes from cabbage2 -> cabbage3 conversions
+    auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), channel);
+    if (widgetOpt)
+    {
+        auto &j = widgetOpt->get();
+        if (j.contains("type") && j.contains("indexOffset") &&
+                j["type"] == "comboBox" && j["indexOffset"] == true)
+        {
+            lattice::logDebug << "Dealing with combobox with indexOffset";
+            cabbage.setControlChannel(getParameters()[paramId].name, denormalValue+1);
+            return;
+        }
+    }
+    
     cabbage.setControlChannel(getParameters()[paramId].name, denormalValue);
     
     // This method is called from the host, therefore we need to update out UI
