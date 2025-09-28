@@ -80,6 +80,7 @@ bool Engine::setupCsound()
     csound->SetHostData(this);
 
     addOpcodes();
+    
 
     csound->CreateMessageBuffer(0);
     csound->SetExternalMidiInOpenCallback(CabbageProcessor::OpenMidiInputDevice);
@@ -93,7 +94,6 @@ bool Engine::setupCsound()
     csound->SetOption(std::string("--sample-rate=" + std::to_string(processor.getSampleRate())).c_str());
     csound->SetOption(std::string("--nchnls=" + std::to_string(processor.getChannelConfig().getTotalNumOutputChannels())).c_str());
     csound->SetOption(std::string("--nchnls_i=" + std::to_string(processor.getChannelConfig().getTotalNumInputChannels())).c_str());
-
     //    csdFile = "/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/CabbagePluginEffect.csd";
     std::filesystem::path file = csdFile.empty() ? cabbage::File::getCsdFileAndPath() : csdFile;
     csdFile = file.string();
@@ -313,12 +313,19 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::findWidgetInArray(
 // Overload for std::vector<nlohmann::json>
 std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetByChannel(std::vector<nlohmann::json>& widgets, const std::string& channel)
 {
-    // Convert vector to JSON array for the helper function
-    nlohmann::json tempArray = nlohmann::json::array();
-    for (auto& w : widgets) {
-        tempArray.push_back(std::ref(w));
+    for (auto& w : widgets)
+    {
+        if (w.contains("channel") && cabbage::Parser::removeQuotes(w["channel"]) == channel)
+        {
+            return std::ref(w);
+        }
+        if (w.contains("children") && w["children"].is_array())
+        {
+            auto child = findWidgetInArray(w["children"], channel);
+            if (child) return child;
+        }
     }
-    return findWidgetInArray(tempArray, channel);
+    return std::nullopt;
 }
 
 // Overload for nlohmann::json (assuming it's an array)
@@ -326,6 +333,7 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetByChannel
 {
     return findWidgetInArray(widgets, channel);
 }
+
 
 const std::string Engine::updateWidgetState(nlohmann::json j)
 {

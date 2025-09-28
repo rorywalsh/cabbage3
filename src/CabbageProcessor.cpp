@@ -143,9 +143,7 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
                     w["max"].get<float>(), 
                     w["defaultValue"].get<float>()});
             }
-            
             w["parameterIndex"] = cabbage.getCurrentParameterCount();
-            lattice::logDebug << "\n====================================\n" << w.dump(4);
             cabbage.initParameter(w);
         }
         catch (nlohmann::json::exception &e)
@@ -260,6 +258,9 @@ void CabbageProcessor::onIdle()
             if (widgetOpt.has_value())
             {
                 auto &j = widgetOpt.value().get();
+                if(j.is_null())
+                    break;
+                
                 cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
             }
 
@@ -326,9 +327,7 @@ void CabbageProcessor::stopIdleThread()
     isIdleRunning.store(false);
     if (idleThread.joinable())
     {
-        lattice::logDebug << "Joining thread before reset...";
         idleThread.join(); // Ensure the thread is joined before reset
-        lattice::logDebug << "Thread joined";
     }
 }
 //========================================================================================

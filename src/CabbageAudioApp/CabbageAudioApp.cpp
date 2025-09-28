@@ -370,7 +370,6 @@ void CabbageAudioApp::sendWidgetDataToVscode()
         msg["command"] = "widgetUpdate";
         msg["channel"] = w["channel"];
         msg["data"] = w.dump();
-        lattice::logDebug << w.dump(4);
         webSocket.send(msg.dump());
     }
 
@@ -438,8 +437,9 @@ bool CabbageAudioApp::createCabbageProcessor()
 
     std::stringstream config;
     config << std::to_string(getNumInputChannels()) << "-" << std::to_string(getNumOutputChannels());
+
     processor = std::make_unique<CabbageProcessor>(csdFileAndPath, config.str());
-    
+
     if(!processor->getCabbageEngine().csdCompiledWithoutError()){
         lattice::logDebug << "Coudn't compile Csound...";
         return false;

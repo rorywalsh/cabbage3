@@ -37,6 +37,13 @@ struct CabbageOpcodeData
         Perf
     };
 
+    enum ArgType
+    {
+        Scalar,
+        String,
+        Array
+    };
+    
     nlohmann::json cabbageJson = {};
     std::string channel = {};
     std::string identifier = {};
@@ -158,7 +165,6 @@ struct CabbageOpcodes
     {
         std::vector<std::string> keys = split(dotNotation, '.');
         nlohmann::json *current = &jsonObj;
-
         for (size_t i = 0; i < keys.size(); ++i)
         {
             const std::string &key = keys[i];
@@ -210,22 +216,22 @@ struct CabbageOpcodes
         return current;
     }
 
-    template <typename T>
-    void updateWidgetJson(nlohmann::json &jsonObj, csnd::Param<NumInputParams> &args, int argIndex, std::string identifier)
+    void updateWidgetJson(nlohmann::json &jsonObj, csnd::Param<NumInputParams> &args, int argIndex, std::string identifier, CabbageOpcodeData::ArgType argType)
     {
         // check if the identifier is already a JSON object, i.e, as in the case below
         // cabbageSet metro(1), "infoText", sprintf({{"text":"%s"}}, SText)
         std::vector<MYFLT> array;
-
         auto j = parseAndFormatJson(identifier);
         auto it = j.begin();
         if (it.value().is_null())
         {
             if (identifier.find(".") == std::string::npos)
             {
-                if constexpr (std::is_same_v<T, std::string>)
+                if(argType == CabbageOpcodeData::ArgType::String)
+                {
                     jsonObj[identifier] = args.str_data(argIndex).data;
-                else
+                }
+                else if(argType == CabbageOpcodeData::ArgType::Array)
                 {
                     if (args.myfltvec_data(argIndex).len() > 0)
                     {
@@ -233,19 +239,24 @@ struct CabbageOpcodes
                         std::vector<MYFLT> array(arrayArgs.begin(), arrayArgs.end());
                         jsonObj[identifier] = array;
                     }
-                    else
-                    {
-                        jsonObj[identifier] = args[argIndex];
-                    }
+                }
+                else
+                {
+                    jsonObj[identifier] = args[argIndex];
                 }
             }
             else
             {
-                // dot notation
-                if constexpr (std::is_same_v<T, std::string>)
+                // dot notation - needs updating for array
+                if(argType == CabbageOpcodeData::ArgType::String)
+                {
                     setJsonValue(jsonObj, args.str_data(argIndex - 1).data, args.str_data(argIndex).data);
-                else
+                    lattice::logDebug << jsonObj.dump(4);
+                }
+                else if(argType == CabbageOpcodeData::ArgType::Scalar)
+                {
                     setJsonValue(jsonObj, args.str_data(argIndex - 1).data, args[argIndex]);
+                }
             }
         }
         else
