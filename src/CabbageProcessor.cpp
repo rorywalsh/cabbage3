@@ -125,8 +125,20 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
 
         try
         {
-            // check if widget has a range - range widget parameters are initialised differently to other
-            // widgets
+            // Check if widget has multi-channel (like xypad) - these need special handling
+            if (w.contains("channel") && w["channel"].is_object())
+            {
+                lattice::logDebug << "Multi-channel widget found: " << widgetType << ", skipping parameter addition";
+                return;
+            }
+            
+            // Ensure channel is a string before proceeding
+            if (!w.contains("channel") || !w["channel"].is_string())
+            {
+                lattice::logWarning << "Widget " << widgetType << " missing valid channel string, skipping parameter addition";
+                return;
+            }
+            
             if (w.contains("range"))
             {
                 addParameter({w["channel"].get<std::string>(), 
@@ -148,7 +160,7 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
         }
         catch (nlohmann::json::exception &e)
         {
-            lattice::logInfo << "JSON error: " << e.what() << "\n" << w.dump(4);
+            lattice::logDebug << "JSON error: " << e.what() << "\n" << w.dump(4);
             cabbage::Utils::check(false, "");
         }
     }

@@ -301,9 +301,24 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::findWidgetInArray(
 {
     for (auto& w : jsonArray)
     {
-        if (w.contains("channel") && cabbage::Parser::removeQuotes(w["channel"]) == channel)
+        if (w.contains("channel"))
         {
-            return std::ref(w);
+            // Handle single-channel widgets (channel is a string)
+            if (w["channel"].is_string() && cabbage::Parser::removeQuotes(w["channel"]) == channel)
+            {
+                return std::ref(w);
+            }
+            // Handle multi-channel widgets (channel is an object with x/y properties)
+            else if (w["channel"].is_object())
+            {
+                for (auto& [key, value] : w["channel"].items())
+                {
+                    if (value.is_string() && cabbage::Parser::removeQuotes(value) == channel)
+                    {
+                        return std::ref(w);
+                    }
+                }
+            }
         }
         if (w.contains("children") && w["children"].is_array())
         {
@@ -319,9 +334,24 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetByChannel
 {
     for (auto& w : widgets)
     {
-        if (w.contains("channel") && cabbage::Parser::removeQuotes(w["channel"]) == channel)
+        if (w.contains("channel"))
         {
-            return std::ref(w);
+            // Handle single-channel widgets (channel is a string)
+            if (w["channel"].is_string() && cabbage::Parser::removeQuotes(w["channel"]) == channel)
+            {
+                return std::ref(w);
+            }
+            // Handle multi-channel widgets (channel is an object with x/y properties)
+            else if (w["channel"].is_object())
+            {
+                for (auto& [key, value] : w["channel"].items())
+                {
+                    if (value.is_string() && cabbage::Parser::removeQuotes(value) == channel)
+                    {
+                        return std::ref(w);
+                    }
+                }
+            }
         }
         if (w.contains("children") && w["children"].is_array())
         {

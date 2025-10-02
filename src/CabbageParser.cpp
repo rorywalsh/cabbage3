@@ -188,7 +188,6 @@ void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJ
                         {
                             jsonObj[key][propKey] = val;
                         }
-//                        lattice::logDebug << "Updated " << key << " properties for widget type: " << widgetType;
                     }
                     else
                     {
@@ -330,6 +329,31 @@ void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJ
                     {
                         lattice::logDebug << "file property must be a string for widget type: " << widgetType;
                     }
+                }
+                else if (key == "channel")
+                {
+                    if (value.is_string())
+                    {
+                        std::string escapedText = escapeJSON(value.get<std::string>());
+                        jsonObj["channel"] = escapedText;
+                    }
+                    else if (value.is_object())
+                    {
+                        lattice::logDebug << "multi-channel support detected";
+                        for (auto &[innerKey, val] : value.items())
+                        {
+                            if (val.is_string())
+                            {
+                                jsonObj["channel"][innerKey] = escapeJSON(val.get<std::string>());
+                            }
+                            else
+                            {
+                                lattice::logDebug << "channel object property '" << innerKey
+                                                  << "' must be an object for widget type: " << widgetType;
+                            }
+                        }
+                    }
+
                 }
                 else if (key == "text")
                 {
