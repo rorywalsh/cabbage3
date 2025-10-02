@@ -141,18 +141,19 @@ void CabbageAudioApp::initialiseCabbage()
 
 //==============================================================================
 // This method gets call via the processor - whenever Csound updates some widgets
-// through calls to cabbageSet opcodes....
+// through calls to cabbageSet opcodes it will send the data to the vscode frontend
 //==============================================================================
 void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
 {
     auto &cabbage = processor->getCabbageEngine();
-    auto widgetOpt = cabbage.getWidget(data.channel);
+    auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), data.channel);
+
     // if the channel is part of a subgroup we need to find it
     // auto widget = cabbage.findWidgetByChannel(cabbage.getWidgets(), data.channel);
     if (widgetOpt.has_value())
     {
         auto &j = widgetOpt.value().get();
-
+        
         // this will update a genTable
         if (j["type"].get<std::string>() == "genTable")
         {
@@ -219,7 +220,7 @@ void CabbageAudioApp::stopWebSocketServerForTesting()
     }
 }
 //==============================================================================
-// Sets upo websocket client and waits for connection from vscode - or test server
+// Sets up websocket client and waits for connection from vscode - or test server
 //==============================================================================
 bool CabbageAudioApp::initialiseWebSocketConnection()
 {
