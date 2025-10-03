@@ -541,7 +541,7 @@ void CabbageProcessor::setParameter(int paramId, double value)
     getParameters()[paramId].value = denormalValue;
 
     const auto channel = getParameters()[paramId].name;
-    
+    lattice::logDebug << channel;
     // cabbage2 -> cabbage3 combobox quirk 
     auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), channel);
     if (widgetOpt)

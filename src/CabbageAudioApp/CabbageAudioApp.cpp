@@ -233,9 +233,12 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
     webSocket.setOnMessageCallback(
         [this](const ix::WebSocketMessagePtr &msg)
         {
-            auto &cabbage = processor->getCabbageEngine();
+            //lattice::logInfo << "=== WebSocket callback fired! Message type: " << (int)msg->type << " ===";
+            
             if (msg->type == ix::WebSocketMessageType::Message)
             {
+                //lattice::logInfo << "Message type is MESSAGE. Content: " << msg->str;
+                
                 try
                 {
                     auto json = nlohmann::json::parse(msg->str, nullptr, false);
@@ -254,6 +257,13 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
 
                     if (command == "parameterChange")
                     {
+                        if (!processor)
+                        {
+                            lattice::logInfo << "Processor is null! Cannot process parameterChange.";
+                            return true;
+                        }
+                        
+                        auto &cabbage = processor->getCabbageEngine();
                         for (int i = 0; i < cabbage.getNumberOfParameters(); i++)
                         {
                             /* this need to check */
@@ -264,6 +274,7 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                                 auto widgetOpt = cabbage.getWidget(jsonObj["channel"]);
                                 if (widgetOpt.has_value())
                                 {
+                            
                                     auto &widgetObj = widgetOpt.value().get();
                                     widgetObj["value"] = jsonObj["value"].get<double>();
                                 }
@@ -275,6 +286,13 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
 
                     else if (command == "fileOpenFromVSCode")
                     {
+                        if (!processor)
+                        {
+                            lattice::logInfo << "Processor is null! Cannot process fileOpenFromVSCode.";
+                            return true;
+                        }
+                        
+                        auto &cabbage = processor->getCabbageEngine();
                         if (jsonObj.contains("fileName"))
                         {
                             cabbage.setStringChannel(jsonObj["channel"].get<std::string>(),
@@ -294,11 +312,24 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
 
                     else if (command == "widgetStateUpdate")
                     {
+                        if (!processor)
+                        {
+                            lattice::logInfo << "Processor is null! Cannot process widgetStateUpdate.";
+                            return true;
+                        }
+                        
+                        auto &cabbage = processor->getCabbageEngine();
                         cabbage.updateWidgetState(jsonObj);
                     }
 
                     else if (command == "midiMessage")
                     {
+                        if (!processor)
+                        {
+                            lattice::logInfo << "Processor is null! Cannot process midiMessage.";
+                            return true;
+                        }
+                        
                         processor->addNoteEventFromJson(jsonObj);
                     }
                                     
