@@ -140,22 +140,52 @@ bool Engine::setupCsound()
 //===========================================================================================
 void Engine::initParameter(const nlohmann::json& w)
 {
-    if(w.contains("range"))
+  
+    // Handle multi-channel widgets (e.g., xyPad with x and y)
+    if (w.contains("channel") && w["channel"].is_object())
     {
-        parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()),
-                                    w["range"]["defaultValue"].get<float>()});
-        csound->SetControlChannel(w["channel"].get<std::string>().c_str(), w["range"]["defaultValue"].get<float>());
-//       lattice::logDebug << "Settting channe; '" << w["channel"].get<std::string>() << "' to " << w["range"]["defaultValue"].get<float>();
+        if (!w.contains("range") || !w["range"].is_object())
+            return;
+        
+        for (auto& [channelKey, channelName] : w["channel"].items())
+        {
+            if (!channelName.is_string())
+                continue;
+                
+            std::string channel = cabbage::Parser::removeQuotes(channelName.get<std::string>());
+            
+            if (w["range"].contains(channelKey))
+            {
+                auto& channelRange = w["range"][channelKey];
+                float defaultValue = channelRange.contains("defaultValue") 
+                    ? channelRange["defaultValue"].get<float>()
+                    : 0.5f;
+                
+                parameterChannels.push_back({channel, defaultValue});
+                csound->SetControlChannel(channel.c_str(), defaultValue);
+                numberOfParameters++;
+            }
+        }
     }
-    else
+    // Handle single-channel widgets
+    else if (w.contains("channel") && w["channel"].is_string())
     {
-        parameterChannels.push_back({cabbage::Parser::removeQuotes(w["channel"].get<std::string>()),
-                                    w["defaultValue"].get<float>()});
-        csound->SetControlChannel(w["channel"].get<std::string>().c_str(), w["defaultValue"].get<float>());
-//        lattice::logDebug << "Settting channel; '" << w["channel"].get<std::string>() << "' to " << w["defaultValue"].get<float>();
+        std::string channel = cabbage::Parser::removeQuotes(w["channel"].get<std::string>());
+        float defaultValue = 0.5f;
+        
+        if (w.contains("range"))
+        {
+            defaultValue = w["range"]["defaultValue"].get<float>();
+        }
+        else if (w.contains("defaultValue"))
+        {
+            defaultValue = w["defaultValue"].get<float>();
+        }
+        
+        parameterChannels.push_back({channel, defaultValue});
+        csound->SetControlChannel(channel.c_str(), defaultValue);
+        numberOfParameters++;
     }
-    
-    numberOfParameters++;
 }
 
 //===========================================================================================

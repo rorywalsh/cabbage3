@@ -264,18 +264,22 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                         }
                         
                         auto &cabbage = processor->getCabbageEngine();
+                        //lattice::logDebug << "Updating parameter " << jsonObj["channel"]
+                        //                  << " to value: " << jsonObj["value"].get<double>();
                         for (int i = 0; i < cabbage.getNumberOfParameters(); i++)
                         {
+                            //lattice::logDebug << cabbage.getParameterChannel(i).name;
                             /* this need to check */
                             //auto widget = cabbage.findWidgetByChannel(cabbage.getWidgets(), jsonObj["channel"]);
                             if (cabbage.getParameterChannel(i).name == jsonObj["channel"].get<std::string>())
                             {
+
                                 // update underlying JSON object if the value has changed
-                                auto widgetOpt = cabbage.getWidget(jsonObj["channel"]);
-                                if (widgetOpt.has_value())
-                                {
-                            
-                                    auto &widgetObj = widgetOpt.value().get();
+                                auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), jsonObj["channel"]);
+                                if (widgetOpt)
+                                {                            
+                                    
+                                    auto &widgetObj = widgetOpt->get();
                                     widgetObj["value"] = jsonObj["value"].get<double>();
                                 }
                                 processor->setParameter(i, jsonObj["value"].get<double>());

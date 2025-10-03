@@ -125,14 +125,52 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
 
         try
         {
-            // Check if widget has multi-channel (like xypad) - these need special handling
+            // Check if widget has multi-channel (like xypad)
             if (w.contains("channel") && w["channel"].is_object())
             {
-                lattice::logDebug << "Multi-channel widget found: " << widgetType << ", skipping parameter addition";
+                lattice::logDebug << "Multi-channel widget found: " << widgetType;
+                
+                if (!w.contains("range") || !w["range"].is_object())
+                {
+                    lattice::logError << "Multi-channel widget " << widgetType << " must have a 'range' object";
+                    return;
+                }
+                
+                // Add a parameter for each channel
+                for (auto& [channelKey, channelName] : w["channel"].items())
+                {
+                    if (!channelName.is_string())
+                        continue;
+                    
+                    std::string channel = channelName.get<std::string>();
+                    
+                    // Each channel key (x, y, etc.) should have its own range
+                    if (w["range"].contains(channelKey))
+                    {
+                        auto& channelRange = w["range"][channelKey];
+                        addParameter({channel, 
+                            channelRange["min"].get<float>(),
+                            channelRange["max"].get<float>(), 
+                            channelRange["defaultValue"].get<float>(),
+                            channelRange.contains("increment") ? channelRange["increment"].get<float>() : 0.001f,
+                            channelRange.contains("skew") ? channelRange["skew"].get<float>() : 1.0f});
+                        
+                        lattice::logDebug << "Added parameter for channel '" << channel << "' (" << channelKey << ")";
+                    }
+                    else
+                    {
+                        lattice::logError << "Missing range definition for channel key: " << channelKey 
+                                         << " in widget " << widgetType;
+                    }
+                }
+                
+                // Store the starting parameter index for this multi-channel widget
+                w["parameterIndex"] = cabbage.getCurrentParameterCount();
+                cabbage.initParameter(w);
                 return;
             }
             
-            // Ensure channel is a string before proceeding
+            // Ensure channel is a string before proceeding (single-channel widget)
             if (!w.contains("channel") || !w["channel"].is_string())
             {
                 lattice::logWarning << "Widget " << widgetType << " missing valid channel string, skipping parameter addition";
@@ -147,6 +185,8 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
                     w["range"]["defaultValue"].get<float>(),
                     w["range"]["increment"].get<float>(),
                     w["range"]["skew"].get<float>()});
+                    
+                lattice::logDebug << "Added parameter for channel '" << w["channel"].get<std::string>() << "'";
             }
             else
             {
@@ -154,6 +194,8 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
                     w["min"].get<float>(),
                     w["max"].get<float>(), 
                     w["defaultValue"].get<float>()});
+                    
+                lattice::logDebug << "Added parameter for channel '" << w["channel"].get<std::string>() << "' (using min/max/defaultValue)";
             }
             w["parameterIndex"] = cabbage.getCurrentParameterCount();
             cabbage.initParameter(w);
@@ -541,7 +583,7 @@ void CabbageProcessor::setParameter(int paramId, double value)
     getParameters()[paramId].value = denormalValue;
 
     const auto channel = getParameters()[paramId].name;
-    lattice::logDebug << channel;
+
     // cabbage2 -> cabbage3 combobox quirk 
     auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), channel);
     if (widgetOpt)
@@ -556,18 +598,7 @@ void CabbageProcessor::setParameter(int paramId, double value)
     }
     
     cabbage.setControlChannel(getParameters()[paramId].name, denormalValue);
-    
-    // This method is called from the host, therefore we need to update out UI
-    // and the widgets vector which contains all the widget json objects
-//    const auto channel = getParameters()[paramId].name;
-//    auto widgetOpt = cabbage.getWidget(channel);
-//    if (widgetOpt.has_value())
-//    {
-//        auto &j = widgetOpt.value().get();
-//        j["value"] = denormalValue;
-//        auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(channel, denormalValue);
-//        sendWebViewMessage(updatedWidget);
-//    }
+
 }
 
 void CabbageProcessor::prepareToPlay(double sr, uint32_t /*minFrameCount*/, uint32_t /*maxFrameCount*/)
