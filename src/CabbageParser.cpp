@@ -108,7 +108,9 @@ void Parser::parseContent(const std::string &content, std::vector<nlohmann::json
                     }
                     else
                     {
-                        lattice::logError << "Widget type is not valid: " << item["type"].get<std::string>();
+                        lattice::logError << "Widget type is not valid: " << item["type"].get<std::string>() 
+                                         << " - Skipping this widget and continuing...";
+                        // Continue processing other widgets instead of crashing
                     }
                 }
             }

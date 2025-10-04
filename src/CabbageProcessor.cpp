@@ -202,8 +202,9 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
         }
         catch (nlohmann::json::exception &e)
         {
-            lattice::logDebug << "JSON error: " << e.what() << "\n" << w.dump(4);
-            cabbage::Utils::check(false, "");
+            lattice::logError << "JSON error while adding parameter for widget: " << e.what() << "\n" << w.dump(4);
+            // Don't crash - just skip this widget and continue
+            // cabbage::Utils::check(false, "");
         }
     }
 }
