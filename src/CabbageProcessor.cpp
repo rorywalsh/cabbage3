@@ -511,13 +511,28 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
             // Parse the JSON string contained in "obj"
             auto obj = nlohmann::json::parse(incomingMessage["obj"].get<std::string>());
             
-            // Extract channel and string data
+            // Extract channel
             std::string channel = obj.value("channel", "");
-            std::string stringData = obj.value("stringData", "");
             
-            // Set the Csound string channel
-            cabbage.getCsound()->SetChannel(channel.c_str(), stringData.c_str());
-            lattice::logDebug << "Set channel " << channel << " to string: " << stringData;
+            // Check if we have string data or float data
+            if (obj.contains("stringData"))
+            {
+                std::string stringData = obj.value("stringData", "");
+                // Set the Csound string channel
+                cabbage.getCsound()->SetChannel(channel.c_str(), stringData.c_str());
+                lattice::logDebug << "Set channel " << channel << " to string: " << stringData;
+            }
+            else if (obj.contains("floatData"))
+            {
+                double floatData = obj.value("floatData", 0.0);
+                // Set the Csound control channel
+                cabbage.setControlChannel(channel, floatData);
+                lattice::logDebug << "Set channel " << channel << " to float: " << floatData;
+            }
+            else
+            {
+                lattice::logError << "channelStringData message missing both stringData and floatData fields";
+            }
         }
         catch (const nlohmann::json::exception& e)
         {

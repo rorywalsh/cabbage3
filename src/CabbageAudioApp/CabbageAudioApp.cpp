@@ -347,19 +347,39 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                         
                         try
                         {
-                            // jsonObj already contains the parsed channel and stringData
+                            // jsonObj already contains the parsed channel and data (string or float)
                             auto &cabbage = processor->getCabbageEngine();
                             const std::string channel = jsonObj.value("channel", "");
-                            const std::string stringData = jsonObj.value("stringData", "");
                             
-                            if (!channel.empty() && !stringData.empty())
+                            if (channel.empty())
                             {
-                                cabbage.getCsound()->SetChannel(channel.c_str(), stringData.c_str());
-                                lattice::logDebug << "Set channel " << channel << " to string: " << stringData;
+                                lattice::logError << "channelStringData: empty channel";
+                                return true;
+                            }
+                            
+                            // Check if we have string data or float data
+                            if (jsonObj.contains("stringData"))
+                            {
+                                const std::string stringData = jsonObj.value("stringData", "");
+                                if (!stringData.empty())
+                                {
+                                    cabbage.getCsound()->SetChannel(channel.c_str(), stringData.c_str());
+                                    lattice::logDebug << "Set channel " << channel << " to string: " << stringData;
+                                }
+                                else
+                                {
+                                    lattice::logError << "channelStringData: empty stringData";
+                                }
+                            }
+                            else if (jsonObj.contains("floatData"))
+                            {
+                                const double floatData = jsonObj.value("floatData", 0.0);
+                                cabbage.setControlChannel(channel, floatData);
+                                lattice::logDebug << "Set channel " << channel << " to float: " << floatData;
                             }
                             else
                             {
-                                lattice::logError << "channelStringData: empty channel or stringData";
+                                lattice::logError << "channelStringData message missing both stringData and floatData fields";
                             }
                         }
                         catch (const nlohmann::json::exception& e)

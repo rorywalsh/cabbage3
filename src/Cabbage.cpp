@@ -500,39 +500,15 @@ void Engine::setTableJSON(std::string /*channel*/, std::vector<double> samples, 
     {
         widgetSampleData.push_back(samples[int(i)]);
     }
-    lattice::logDebug << "Table size" << widgetSampleData.size();
-    //
-    //    while(widgetSampleData.size() < jsonObj["bounds"]["width"].get<int>()))
-    //    {
-    //        widgetSampleData.push_back(widgetSampleData[widgetSampleData.size()-1]);
-    //    }
 
     jsonObj["samples"] = widgetSampleData;
+    jsonObj["totalSamples"] = static_cast<int>(samples.size());
 }
 
 void Engine::initialiseGenTableWidgets()
 {
-    lattice::logDebug << "=== Starting genTable initialisation ===";
-    lattice::logDebug << "Total widgets: " << widgets.size();
-    
     for (auto& widget : widgets)
     {
-        if (widget["type"].get<std::string>() == "genTable")
-        {
-            lattice::logDebug << "Found genTable widget";
-            lattice::logDebug << "Has file property: " << widget.contains("file");
-            
-            if (widget.contains("file"))
-            {
-                lattice::logDebug << "File is string: " << widget["file"].is_string();
-                if (widget["file"].is_string())
-                {
-                    lattice::logDebug << "File path: " << widget["file"].get<std::string>();
-                    lattice::logDebug << "File empty: " << widget["file"].get<std::string>().empty();
-                }
-            }
-        }
-        
         if (widget["type"].get<std::string>() == "genTable" && 
             widget.contains("file") && 
             widget["file"].is_string() &&
@@ -541,50 +517,31 @@ void Engine::initialiseGenTableWidgets()
             try
             {
                 const int tableNumber = widget["tableNumber"].get<int>();
-                lattice::logDebug << "Processing genTable with tableNumber: " << tableNumber;
-                
                 auto soundfile = cabbage::File::readAudioFile<double>(widget["file"].get<std::string>(), sampleRate);
                 auto samples = soundfile.audioData;
-
-                lattice::logDebug << "Loaded samples count: " << samples.size();
                 
                 if (samples.size() > 0)
                 {
                     std::stringstream ss;
                     ss << "giTable" << tableNumber << " ftgen " << tableNumber << ", 0, " << samples.size() << ", -7, 0, 0";
-                    lattice::logDebug << "Creating Csound table with: " << ss.str();
                     getCsound()->CompileOrc(ss.str().c_str());
                     const int tableSize = getCsound()->TableLength(tableNumber);
-                    lattice::logDebug << "Csound table size: " << tableSize;
                     
                     if (tableSize != -1)
                     {
                         MYFLT *tablePtr = nullptr;
                         getCsound()->GetTable(&tablePtr, tableNumber);
                         std::memcpy(tablePtr, samples.data(), std::min(tableSize, static_cast<int>(samples.size())) * sizeof(MYFLT));
-                        
-                        lattice::logDebug << "Calling setTableJSON with samples count: " << samples.size();
                         setTableJSON("", samples, widget);
-                        
-                        if (widget.contains("samples") && widget["samples"].is_array())
-                        {
-                            lattice::logDebug << "Widget now has samples array with size: " << widget["samples"].size();
-                        }
-                        else
-                        {
-                            lattice::logDebug << "WARNING: Widget does not have samples array after setTableJSON!";
-                        }
-                        
-                        lattice::logDebug << "Successfully loaded audio file for genTable: " << widget["file"].get<std::string>();
                     }
                     else
                     {
-                        lattice::logDebug << "ERROR: Failed to create Csound table";
+                        lattice::logError << "Failed to create/update Csound table for genTable: " << widget["file"].get<std::string>();
                     }
                 }
                 else
                 {
-                    lattice::logDebug << "ERROR: No samples loaded from file";
+                    lattice::logError << "No samples loaded from file: " << widget["file"].get<std::string>();
                 }
             }
             catch (const std::exception& e)
@@ -593,8 +550,6 @@ void Engine::initialiseGenTableWidgets()
             }
         }
     }
-    
-    lattice::logDebug << "=== Finished genTable initialisation ===";
 }
 
 const std::string Engine::getCsoundOutputUpdateScript(const std::string &output)
