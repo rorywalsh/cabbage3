@@ -469,7 +469,8 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
                 return;
 
             std::stringstream ss;
-            ss << "giTable" << tableNumber << " ftgen " << samples.size() << " 0, -7, 0, 0";
+            ss << "giTable ftgen " << tableNumber << ", 0, " << samples.size() << ", -7, 0, 0";
+            lattice::logDebug << "ftgen statement:" << ss.str();
             getCsound()->CompileOrc(ss.str().c_str());
             const int tableSize = getCsound()->TableLength(tableNumber);
             

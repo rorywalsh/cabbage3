@@ -504,6 +504,26 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
         addNoteEventFromJson(nlohmann::json::parse(incomingMessage["obj"].get<std::string>()));
         //"{\"statusByte\":144,\"dataByte1\":77,\"dataByte2\":127}"
     }
+    else if (incomingMessage["command"] == "channelStringData")
+    {
+        try
+        {
+            // Parse the JSON string contained in "obj"
+            auto obj = nlohmann::json::parse(incomingMessage["obj"].get<std::string>());
+            
+            // Extract channel and string data
+            std::string channel = obj.value("channel", "");
+            std::string stringData = obj.value("stringData", "");
+            
+            // Set the Csound string channel
+            cabbage.getCsound()->SetChannel(channel.c_str(), stringData.c_str());
+            lattice::logDebug << "Set channel " << channel << " to string: " << stringData;
+        }
+        catch (const nlohmann::json::exception& e)
+        {
+            lattice::logError << "Failed to parse channelStringData 'obj': " << e.what();
+        }
+    }
 }
 
 //========================================================================================

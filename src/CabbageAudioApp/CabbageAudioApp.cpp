@@ -336,6 +336,37 @@ bool CabbageAudioApp::initialiseWebSocketConnection()
                         
                         processor->addNoteEventFromJson(jsonObj);
                     }
+
+                    else if (command == "channelStringData")
+                    {
+                        if (!processor)
+                        {
+                            lattice::logInfo << "Processor is null! Cannot process channelStringData.";
+                            return true;
+                        }
+                        
+                        try
+                        {
+                            // jsonObj already contains the parsed channel and stringData
+                            auto &cabbage = processor->getCabbageEngine();
+                            const std::string channel = jsonObj.value("channel", "");
+                            const std::string stringData = jsonObj.value("stringData", "");
+                            
+                            if (!channel.empty() && !stringData.empty())
+                            {
+                                cabbage.getCsound()->SetChannel(channel.c_str(), stringData.c_str());
+                                lattice::logDebug << "Set channel " << channel << " to string: " << stringData;
+                            }
+                            else
+                            {
+                                lattice::logError << "channelStringData: empty channel or stringData";
+                            }
+                        }
+                        catch (const nlohmann::json::exception& e)
+                        {
+                            lattice::logError << "Failed to parse channelStringData: " << e.what();
+                        }
+                    }
                                     
                     else if (command == "initialiseWidgets")
                     {

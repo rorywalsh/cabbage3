@@ -112,9 +112,6 @@ int CabbageGetValueWithTrigger::getValue(int /*mode*/)
 //=====================================================================================
 int CabbageGetValueString::getValue(int rate)
 {
-    csound->init_error("Not yet implemented as none of the current widgets support \"channelType\":\"string\" \n");
-    return NOTOK;
-
     if (in_count() == 0)
         return NOTOK;
 
@@ -151,9 +148,6 @@ int CabbageGetValueString::getValue(int rate)
 //=====================================================================================
 int CabbageGetValueStringWithTrigger::getValue(int rate)
 {
-    csound->init_error("Not yet implemented as none of the current widgets support \"channelType\":\"string\" \n");
-    return NOTOK;
-
     if (in_count() == 0)
         return NOTOK;
 
