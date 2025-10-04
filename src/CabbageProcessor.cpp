@@ -95,21 +95,57 @@ void CabbageProcessor::addChannels(const std::string& config)
 //========================================================================================
 void CabbageProcessor::addParameters()
 {
+    lattice::logDebug << "=== Starting addParameters() ===";
+    lattice::logDebug << "Total widgets: " << cabbage.getWidgets().size();
+    
     for (auto &w : cabbage.getWidgets())
     {
+        std::string widgetType = w.contains("type") ? w["type"].get<std::string>() : "unknown";
+        bool hasChildren = w.contains("children");
+        bool childrenIsArray = hasChildren && w["children"].is_array();
+        int childCount = childrenIsArray ? w["children"].size() : 0;
+        
+        lattice::logDebug << "Widget: " << widgetType 
+                         << ", hasChildren: " << (hasChildren ? "yes" : "no")
+                         << ", isArray: " << (childrenIsArray ? "yes" : "no")
+                         << ", count: " << childCount;
+        
+        if (hasChildren && !childrenIsArray) {
+            lattice::logError << "Widget '" << widgetType << "' has a 'children' property but it's not an array. "
+                             << "Children must be defined as an array, e.g., \"children\": [{...}]. "
+                             << "Found type: " << w["children"].type_name();
+        }
+        
         addParameterForWidget(w);
         
-        // Check for child widgets and add parameters for them
+        // ALWAYS check for child widgets, even if parent is not automatable
+        // (containers like image, groupbox are not automatable but their children might be)
         if (w.contains("children") && w["children"].is_array())
         {
+            lattice::logDebug << "Processing " << w["children"].size() << " children of widget " << widgetType;
             for (auto &child : w["children"])
             {
-                auto j = cabbage::WidgetDescriptors::get(child["type"].get<std::string>());
-                cabbage::Parser::updateJson(j, child, cabbage.getWidgets().size());
-                addParameterForWidget(j);
+                // Work directly with the child widget, not a temporary copy
+                std::string childType = child.contains("type") ? child["type"].get<std::string>() : "unknown";
+                lattice::logDebug << "  Processing child widget: " << childType;
+                addParameterForWidget(child);
+                
+                // Recursively process grandchildren
+                if (child.contains("children") && child["children"].is_array())
+                {
+                    lattice::logDebug << "    Child " << childType << " has " << child["children"].size() << " grandchildren";
+                    for (auto &grandchild : child["children"])
+                    {
+                        std::string grandchildType = grandchild.contains("type") ? grandchild["type"].get<std::string>() : "unknown";
+                        lattice::logDebug << "      Processing grandchild widget: " << grandchildType;
+                        addParameterForWidget(grandchild);
+                    }
+                }
             }
         }
     }
+    
+    lattice::logDebug << "=== Finished addParameters() ===";
 }
 
 //========================================================================================
@@ -117,11 +153,21 @@ void CabbageProcessor::addParameters()
 //========================================================================================
 void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
 {
+    std::string widgetType = w.contains("type") ? w["type"].get<std::string>() : "unknown";
+    std::string widgetChannel = "none";
+    if (w.contains("channel")) {
+        if (w["channel"].is_string()) {
+            widgetChannel = w["channel"].get<std::string>();
+        } else if (w["channel"].is_object()) {
+            widgetChannel = w["channel"].dump();
+        }
+    }
+    lattice::logDebug << "addParameterForWidget called for: " << widgetType << " with channel: " << widgetChannel;
     
     if (w.contains("automatable") && w["automatable"] == 1 &&
         (!w.contains("channelType") || w["channelType"] == "number"))
     {
-        const std::string widgetType = w["type"].get<std::string>();
+        lattice::logDebug << "  Widget is automatable, processing...";
 
         try
         {
@@ -139,7 +185,8 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
                 // Add a parameter for each channel
                 for (auto& [channelKey, channelName] : w["channel"].items())
                 {
-                    if (!channelName.is_string())
+                    // Skip non-channel keys like "id" - these don't need parameters
+                    if (channelKey == "id" || !channelName.is_string())
                         continue;
                     
                     std::string channel = channelName.get<std::string>();
@@ -165,8 +212,11 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
                 }
                 
                 // Store the starting parameter index for this multi-channel widget
-                w["parameterIndex"] = cabbage.getCurrentParameterCount();
+                int startIndex = cabbage.getCurrentParameterCount();
+                w["parameterIndex"] = startIndex;
+                lattice::logDebug << "Setting parameterIndex=" << startIndex << " for multi-channel widget " << widgetType;
                 cabbage.initParameter(w);
+                lattice::logDebug << "After initParameter, count is now: " << cabbage.getCurrentParameterCount();
                 return;
             }
             
@@ -198,6 +248,7 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
                 lattice::logDebug << "Added parameter for channel '" << w["channel"].get<std::string>() << "' (using min/max/defaultValue)";
             }
             w["parameterIndex"] = cabbage.getCurrentParameterCount();
+            lattice::logDebug << "Setting parameterIndex=" << w["parameterIndex"] << " for single-channel widget " << widgetType;
             cabbage.initParameter(w);
         }
         catch (nlohmann::json::exception &e)
@@ -206,6 +257,11 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
             // Don't crash - just skip this widget and continue
             // cabbage::Utils::check(false, "");
         }
+    }
+    else
+    {
+        lattice::logDebug << "  Widget skipped - automatable=" << (w.contains("automatable") ? std::to_string(w["automatable"].get<int>()) : "missing")
+                         << ", channelType=" << (w.contains("channelType") ? w["channelType"].get<std::string>() : "missing");
     }
 }
 

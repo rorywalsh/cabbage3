@@ -121,9 +121,6 @@ class Engine
     // Set string channel data
     void setStringChannel(const std::string channel, std::string data);
 
-    // Returns a JSON widget references from the lists of widget
-    std::optional<std::reference_wrapper<nlohmann::json>> getWidget(const std::string &channel);
-
     // Returns number of plugin paremters - even though lots of widgets have channels, only a select few can be plugin
     // parameters
     static int getNumberOfParameters(const std::string &csdFile);

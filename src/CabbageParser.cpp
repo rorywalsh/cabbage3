@@ -100,7 +100,16 @@ void Parser::parseContent(const std::string &content, std::vector<nlohmann::json
             {
                 if (item.is_object())
                 {
-                    auto j = WidgetDescriptors::get(item["type"].get<std::string>());
+                    // Check if "type" field exists and is a string
+                    if (!item.contains("type") || !item["type"].is_string())
+                    {
+                        lattice::logError << "Widget is missing valid 'type' field - Skipping this widget and continuing...";
+                        lattice::logDebug << "Invalid widget JSON: " << item.dump();
+                        continue;
+                    }
+                    
+                    std::string widgetType = item["type"].get<std::string>();
+                    auto j = WidgetDescriptors::get(widgetType);
                     if (!j.is_null())
                     {
                         updateJson(j, item, widgets.size());
@@ -108,7 +117,7 @@ void Parser::parseContent(const std::string &content, std::vector<nlohmann::json
                     }
                     else
                     {
-                        lattice::logError << "Widget type is not valid: " << item["type"].get<std::string>() 
+                        lattice::logError << "Widget type is not valid: " << widgetType 
                                          << " - Skipping this widget and continuing...";
                         // Continue processing other widgets instead of crashing
                     }
@@ -389,6 +398,50 @@ void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJ
                     else
                     {
                         lattice::logDebug << "text property must be a string or object for widget type: " << widgetType;
+                    }
+                }
+                else if (key == "children")
+                {
+                    // Handle children array - recursively process each child widget
+                    // This is needed to ensure each child gets default properties from their widget descriptors
+                    // (same as top-level widgets)
+                    if (value.is_array())
+                    {
+                        nlohmann::json processedChildren = nlohmann::json::array();
+                        
+                        for (const auto &childJson : value)
+                        {
+                            if (childJson.is_object() && childJson.contains("type") && childJson["type"].is_string())
+                            {
+                                std::string childType = childJson["type"].get<std::string>();
+                                
+                                // Get the default descriptor for this child widget type (just like top-level widgets)
+                                auto childDescriptor = WidgetDescriptors::get(childType);
+                                
+                                if (!childDescriptor.is_null())
+                                {
+                                    // Recursively merge the child JSON with its descriptor defaults
+                                    updateJson(childDescriptor, childJson, numWidgets);
+                                    processedChildren.push_back(childDescriptor);
+                                    lattice::logDebug << "Processed child widget of type: " << childType << " for parent: " << widgetType;
+                                }
+                                else
+                                {
+                                    lattice::logError << "Invalid child widget type: " << childType << " in parent: " << widgetType;
+                                }
+                            }
+                            else
+                            {
+                                lattice::logError << "Child widget in " << widgetType << " is missing 'type' field or is not an object";
+                            }
+                        }
+                        
+                        jsonObj["children"] = processedChildren;
+                        lattice::logDebug << "Processed " << processedChildren.size() << " children for widget: " << widgetType;
+                    }
+                    else
+                    {
+                        lattice::logWarning << "children property must be an array for widget type: " << widgetType;
                     }
                 }
                 else

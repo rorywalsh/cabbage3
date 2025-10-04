@@ -314,18 +314,6 @@ size_t Engine::getIndexForParamChannel(std::string name)
 }
 //===========================================================================================
 
-std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidget(const std::string &channel)
-{
-    for (auto &w : widgets)
-    {
-        if (cabbage::Parser::removeQuotes(w["channel"].get<std::string>()) == channel)
-        {
-            return std::ref(w); // Use std::ref to wrap the reference
-        }
-    }
-    return std::nullopt;
-}
-
 // Helper function that handles searching of widgets
 std::optional<std::reference_wrapper<nlohmann::json>> Engine::findWidgetInArray(nlohmann::json& jsonArray, const std::string& channel)
 {
@@ -402,7 +390,7 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetByChannel
 const std::string Engine::updateWidgetState(nlohmann::json j)
 {
     auto const channel = j["channel"].get<std::string>();
-    auto widgetOpt = getWidget(channel);
+    auto widgetOpt = getWidgetByChannel(widgets, channel);
     if (widgetOpt.has_value())
     {
         auto &w = widgetOpt.value().get();
