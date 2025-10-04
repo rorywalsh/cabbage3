@@ -444,6 +444,33 @@ void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJ
                         lattice::logWarning << "children property must be an array for widget type: " << widgetType;
                     }
                 }
+                else if (key == "font")
+                {
+                    // Handle font object - merge nested properties instead of replacing
+                    if (value.is_object())
+                    {
+                        for (auto &[fontKey, fontVal] : value.items())
+                        {
+                            if (fontKey == "colour" && fontVal.is_object())
+                            {
+                                // Deep merge font.colour object
+                                for (auto &[colourKey, colourVal] : fontVal.items())
+                                {
+                                    jsonObj["font"]["colour"][colourKey] = colourVal;
+                                }
+                            }
+                            else
+                            {
+                                jsonObj["font"][fontKey] = fontVal;
+                            }
+                        }
+                        lattice::logDebug << "Merged font properties for widget type: " << widgetType;
+                    }
+                    else
+                    {
+                        lattice::logWarning << "font property must be an object for widget type: " << widgetType;
+                    }
+                }
                 else
                 {
                     jsonObj[key] = value;

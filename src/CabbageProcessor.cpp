@@ -105,11 +105,6 @@ void CabbageProcessor::addParameters()
         bool childrenIsArray = hasChildren && w["children"].is_array();
         int childCount = childrenIsArray ? w["children"].size() : 0;
         
-        lattice::logDebug << "Widget: " << widgetType 
-                         << ", hasChildren: " << (hasChildren ? "yes" : "no")
-                         << ", isArray: " << (childrenIsArray ? "yes" : "no")
-                         << ", count: " << childCount;
-        
         if (hasChildren && !childrenIsArray) {
             lattice::logError << "Widget '" << widgetType << "' has a 'children' property but it's not an array. "
                              << "Children must be defined as an array, e.g., \"children\": [{...}]. "
@@ -122,22 +117,18 @@ void CabbageProcessor::addParameters()
         // (containers like image, groupbox are not automatable but their children might be)
         if (w.contains("children") && w["children"].is_array())
         {
-            lattice::logDebug << "Processing " << w["children"].size() << " children of widget " << widgetType;
             for (auto &child : w["children"])
             {
                 // Work directly with the child widget, not a temporary copy
                 std::string childType = child.contains("type") ? child["type"].get<std::string>() : "unknown";
-                lattice::logDebug << "  Processing child widget: " << childType;
                 addParameterForWidget(child);
                 
                 // Recursively process grandchildren
                 if (child.contains("children") && child["children"].is_array())
                 {
-                    lattice::logDebug << "    Child " << childType << " has " << child["children"].size() << " grandchildren";
                     for (auto &grandchild : child["children"])
                     {
                         std::string grandchildType = grandchild.contains("type") ? grandchild["type"].get<std::string>() : "unknown";
-                        lattice::logDebug << "      Processing grandchild widget: " << grandchildType;
                         addParameterForWidget(grandchild);
                     }
                 }
@@ -162,12 +153,10 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
             widgetChannel = w["channel"].dump();
         }
     }
-    lattice::logDebug << "addParameterForWidget called for: " << widgetType << " with channel: " << widgetChannel;
     
     if (w.contains("automatable") && w["automatable"] == 1 &&
         (!w.contains("channelType") || w["channelType"] == "number"))
     {
-        lattice::logDebug << "  Widget is automatable, processing...";
 
         try
         {
@@ -214,9 +203,7 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
                 // Store the starting parameter index for this multi-channel widget
                 int startIndex = cabbage.getCurrentParameterCount();
                 w["parameterIndex"] = startIndex;
-                lattice::logDebug << "Setting parameterIndex=" << startIndex << " for multi-channel widget " << widgetType;
                 cabbage.initParameter(w);
-                lattice::logDebug << "After initParameter, count is now: " << cabbage.getCurrentParameterCount();
                 return;
             }
             
@@ -248,7 +235,6 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
                 lattice::logDebug << "Added parameter for channel '" << w["channel"].get<std::string>() << "' (using min/max/defaultValue)";
             }
             w["parameterIndex"] = cabbage.getCurrentParameterCount();
-            lattice::logDebug << "Setting parameterIndex=" << w["parameterIndex"] << " for single-channel widget " << widgetType;
             cabbage.initParameter(w);
         }
         catch (nlohmann::json::exception &e)

@@ -148,6 +148,9 @@ class Engine
     // that packs samples for a given table
     void updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj);
     static void setTableJSON(std::string channel, std::vector<double> samples, nlohmann::json &jsonObj);
+    
+    // Initialise genTable widgets by loading audio files specified in their file property
+    void initialiseGenTableWidgets();
 
     // Returns a script that will update a csoundoutput widget
     const std::string getCsoundOutputUpdateScript(const std::string& output);
