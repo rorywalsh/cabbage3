@@ -7,19 +7,13 @@
 #include <atomic>
 #include <memory>
 #include <vector>
+#include <thread>
+#include <mutex>
 
-// Undefined these in ixWebsocket
-#undef logInfo
-#undef logDebug
-#undef logWarning
-#undef logError
 #include "choc/platform/choc_DisableAllWarnings.h"
 #include "choc/platform/choc_ReenableAllWarnings.h"
-#include <ixwebsocket/IXWebSocketServer.h>
-
 
 #include "CabbageProcessor.h"
-#include "WebSocketTestServer.h"
 #include <readerwriterqueue.h>
 
 class CabbageAudioApp {
@@ -106,25 +100,24 @@ public:
     
     // Test-related methods
     size_t getMessageQueueSize() const { return messageQueue.size_approx(); }
-    void startWebSocketServerForTesting();
-    void stopWebSocketServerForTesting();
-    bool initialiseWebSocketConnection();
+    bool initialiseStdioConnection();
     
-    std::unique_ptr<WebSocketTestServer> testServer;
     bool getCanDestroyProcessor() const { return canDestroyProcessor.load(); }
     bool getAudioShutdownComplete() const { return audioShutdownComplete.load(); }
     
 private:
     void hostCallback(CabbageOpcodeData data);
-    ix::WebSocket webSocket;
+    void sendJsonMessage(const nlohmann::json& msg);
+    void processIncomingMessage(const std::string& message);
     bool createCabbageProcessor();
     void initialiseAudio(bool startStream);
     void initialiseMidi();
     void deinitAudioAndMidi();
     
-    // Websocket server - for communication with vscode
-    ix::WebSocketServer webSocketServer;
-    
+    // stdin/stdout communication thread
+    std::thread stdinThread;
+    std::atomic<bool> shouldStopStdinThread{false};
+    std::mutex stdoutMutex;  // Protect stdout writes
     
     // Functions for running test server - for tests without vscode
     bool shouldStartTestServer = false;

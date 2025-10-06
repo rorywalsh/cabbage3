@@ -6,13 +6,13 @@
   
 //==============================================================================
 // Constructor - responsible for creating processor and initialising audio/midi
-// and websocket connection to vscode
+// and stdin/stdout connection to vscode
 //==============================================================================
 CabbageAudioApp::CabbageAudioApp(int argc, char* argv[])
     : bufferSize(512)
 {
     // Parse command line flags. If not valid file is passed, we wait 
-    // for websocket message to load a file instead. In this way we can debug
+    // for stdin message to load a file instead. In this way we can debug
     // the app without having to pass a file from vscode on startup.
     parseComandLineArgs(argc, argv);
 
@@ -23,9 +23,15 @@ CabbageAudioApp::~CabbageAudioApp()
 {    
     closeAudioDevice();
     
+    // Stop stdin thread
+    shouldStopStdinThread = true;
+    if (stdinThread.joinable()) {
+        stdinThread.join();
+    }
+    
     // Stop test server if its running
-    if(testServer)
-        testServer->stop();
+    // if(testServer)  // Temporarily disabled for pipes branch
+    //     testServer->stop();
 }
 
 void CabbageAudioApp::closeAudioDevice()
@@ -105,8 +111,8 @@ bool CabbageAudioApp::parseComandLineArgs(int argc, char* argv[])
         lattice::logDebug << err.what();
     }
 
-    // Retrieve the parsed arguments. If not file is given launch anyway, and listen for a file
-    // to be sent over websocket connection
+    // Retrieve the parsed arguments. If no file is given, launch anyway and listen for a file
+    // to be sent via stdin from VS Code extension
     if(program.get<std::string>("--file") != "null")
         csdFileAndPath = std::filesystem::absolute(program.get<std::string>("--file")).string();
 
@@ -162,7 +168,7 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
             msg["command"] = "widgetUpdate";
             msg["channel"] = data.channel;
             msg["data"] = j.dump();
-            webSocket.send(msg.dump());
+            sendJsonMessage(msg);
         }
         else
         {
@@ -174,7 +180,7 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
                 msg["command"] = "widgetUpdate";
                 msg["channel"] = data.channel;
                 msg["value"] = j["value"].get<float>();
-                webSocket.send(msg.dump());
+                sendJsonMessage(msg);
             }
             else
             {
@@ -184,265 +190,217 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
                 msg["command"] = "widgetUpdate";
                 msg["channel"] = data.channel;
                 msg["data"] = j.dump();
-                webSocket.send(msg.dump());
+                sendJsonMessage(msg);
             }
         }
     }
 }
 
 //==============================================================================
-// Simple test server for development and testing
+// Send JSON message to stdout (to be read by VS Code extension)
 //==============================================================================
-void CabbageAudioApp::startWebSocketServerForTesting()
+void CabbageAudioApp::sendJsonMessage(const nlohmann::json& msg)
 {
-    auto csOptionsText = cabbage::File::getCsOptions(csdFileAndPath);
-    
-    std::regex rtMidiPattern(R"(-\+rtmidi\s*=\s*NULL)");
-    bool testMidi = std::regex_search(csOptionsText, rtMidiPattern);
-    
-    if (!testServer)
-    {
-        // Setting repeatable to true - this ensure each test is the same
-        testServer = std::make_unique<WebSocketTestServer>(*processor, portNumber, true);
-        testServer->testMidi(testMidi);
-    }
-    
-    testServer->initialise();
-    testServer->start();
-
+    std::lock_guard<std::mutex> lock(stdoutMutex);
+    std::cout << "CABBAGE_JSON:" << msg.dump() << std::endl;  // Prepend identifier and flush
 }
 
-void CabbageAudioApp::stopWebSocketServerForTesting()
+//==============================================================================
+// Sets up stdin/stdout communication with VS Code extension
+//==============================================================================
+bool CabbageAudioApp::initialiseStdioConnection()
 {
-    if (testServer)
-    {
-        testServer->stop();
+    lattice::logInfo << "Initializing stdin/stdout communication with VS Code";
+    
+    // Start a thread to read from stdin
+    stdinThread = std::thread([this]() {
+        std::string line;
+        while (!shouldStopStdinThread && std::getline(std::cin, line)) {
+            if (!line.empty()) {
+                processIncomingMessage(line);
+            }
+        }
+    });
+    
+    // If we have a CSD file at startup, send widget data
+    if (!csdFileAndPath.empty()) {
+        sendWidgetDataToVscode();
     }
-}
-//==============================================================================
-// Sets up websocket client and waits for connection from vscode - or test server
-//==============================================================================
-bool CabbageAudioApp::initialiseWebSocketConnection()
-{
-    ix::initNetSystem();
-    std::string address("ws://localhost:");
-    address.append(std::to_string(portNumber).c_str());
-    lattice::logInfo << "Attempting to connect to WebSocket at " << address << " (client instance: " << &webSocket << ")";
-    webSocket.setUrl(address);
-
-    webSocket.setOnMessageCallback(
-        [this](const ix::WebSocketMessagePtr &msg)
-        {
-            //lattice::logInfo << "=== WebSocket callback fired! Message type: " << (int)msg->type << " ===";
-            
-            if (msg->type == ix::WebSocketMessageType::Message)
-            {
-                //lattice::logInfo << "Message type is MESSAGE. Content: " << msg->str;
-                
-                try
-                {
-                    auto json = nlohmann::json::parse(msg->str, nullptr, false);
-                    const std::string command = json["command"];
-                    nlohmann::json jsonObj;
-
-                    if (json.contains("obj"))
-                    {
-                        //"obj" can be a string when coming from vscode - but will always be
-                        // and object when testing outside vscode
-                        if(json["obj"].is_string())
-                            jsonObj = nlohmann::json::parse(json["obj"].get<std::string>());
-                        else
-                            jsonObj = json["obj"];
-                    }
-
-                    if (command == "parameterChange")
-                    {
-                        if (!processor)
-                        {
-                            lattice::logInfo << "Processor is null! Cannot process parameterChange.";
-                            return true;
-                        }
-                        
-                        auto &cabbage = processor->getCabbageEngine();
-                        //lattice::logDebug << "Updating parameter " << jsonObj["channel"]
-                        //                  << " to value: " << jsonObj["value"].get<double>();
-                        for (int i = 0; i < cabbage.getNumberOfParameters(); i++)
-                        {
-                            //lattice::logDebug << cabbage.getParameterChannel(i).name;
-                            /* this need to check */
-                            //auto widget = cabbage.findWidgetByChannel(cabbage.getWidgets(), jsonObj["channel"]);
-                            if (cabbage.getParameterChannel(i).name == jsonObj["channel"].get<std::string>())
-                            {
-
-                                // update underlying JSON object if the value has changed
-                                auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), jsonObj["channel"]);
-                                if (widgetOpt)
-                                {                            
-                                    
-                                    auto &widgetObj = widgetOpt->get();
-                                    widgetObj["value"] = jsonObj["value"].get<double>();
-                                }
-                                processor->setParameter(i, jsonObj["value"].get<double>());
-                            }
-                        }
-                        //                            SendParameterValueFromUI(message["paramIdx"], message["value"]);
-                    }
-
-                    else if (command == "fileOpenFromVSCode")
-                    {
-                        if (!processor)
-                        {
-                            lattice::logInfo << "Processor is null! Cannot process fileOpenFromVSCode.";
-                            return true;
-                        }
-                        
-                        auto &cabbage = processor->getCabbageEngine();
-                        if (jsonObj.contains("fileName"))
-                        {
-                            cabbage.setStringChannel(jsonObj["channel"].get<std::string>(),
-                                                     jsonObj["fileName"].get<std::string>());
-                        }
-                    }
-
-                    else if (command == "onFileChanged")
-                    {
-                        csdFileAndPath = json["lastSavedFileName"].get<std::string>();
-                        if (lattice::File::exists(csdFileAndPath))
-                        {
-                            //push this to FIFO queue on main thread..
-                            addMessageToQueue(CabbageAudioApp::CommandType::InitCabbage);
-                        }
-                    }
-
-                    else if (command == "widgetStateUpdate")
-                    {
-                        if (!processor)
-                        {
-                            lattice::logInfo << "Processor is null! Cannot process widgetStateUpdate.";
-                            return true;
-                        }
-                        
-                        auto &cabbage = processor->getCabbageEngine();
-                        cabbage.updateWidgetState(jsonObj);
-                    }
-
-                    else if (command == "midiMessage")
-                    {
-                        if (!processor)
-                        {
-                            lattice::logInfo << "Processor is null! Cannot process midiMessage.";
-                            return true;
-                        }
-                        
-                        processor->addNoteEventFromJson(jsonObj);
-                    }
-
-                    else if (command == "channelStringData")
-                    {
-                        if (!processor)
-                        {
-                            lattice::logInfo << "Processor is null! Cannot process channelStringData.";
-                            return true;
-                        }
-                        
-                        try
-                        {
-                            // jsonObj already contains the parsed channel and data (string or float)
-                            auto &cabbage = processor->getCabbageEngine();
-                            const std::string channel = jsonObj.value("channel", "");
-                            
-                            if (channel.empty())
-                            {
-                                lattice::logError << "channelStringData: empty channel";
-                                return true;
-                            }
-                            
-                            // Check if we have string data or float data
-                            if (jsonObj.contains("stringData"))
-                            {
-                                const std::string stringData = jsonObj.value("stringData", "");
-                                if (!stringData.empty())
-                                {
-                                    cabbage.getCsound()->SetChannel(channel.c_str(), stringData.c_str());
-                                    lattice::logDebug << "Set channel " << channel << " to string: " << stringData;
-                                }
-                                else
-                                {
-                                    lattice::logError << "channelStringData: empty stringData";
-                                }
-                            }
-                            else if (jsonObj.contains("floatData"))
-                            {
-                                const double floatData = jsonObj.value("floatData", 0.0);
-                                cabbage.setControlChannel(channel, floatData);
-                                lattice::logDebug << "Set channel " << channel << " to float: " << floatData;
-                            }
-                            else
-                            {
-                                lattice::logError << "channelStringData message missing both stringData and floatData fields";
-                            }
-                        }
-                        catch (const nlohmann::json::exception& e)
-                        {
-                            lattice::logError << "Failed to parse channelStringData: " << e.what();
-                        }
-                    }
-                                    
-                    else if (command == "initialiseWidgets")
-                    {
-                        // vscode will notify when it's ready to receive the Cabbage widget data
-                        sendWidgetDataToVscode();
-                    }
-
-                    else if (command == "stopAudio")
-                    {
-                        //when VS Code tries to end the process, it first send a stopAudio message..
-                        //push this to FIFO queue on main thread..
-                        addMessageToQueue(CabbageAudioApp::CommandType::StopAudio);
-                        addMessageToQueue(CabbageAudioApp::CommandType::KillProcessor);
-                    }
-
-                    else
-                    {
-                        //lattice::logDebug << "received message: " << msg->str;
-                    }
-                }
-                catch (nlohmann::json::exception &e)
-                {
-                    lattice::logDebug << "Error:" << e.what() << " - ";
-                    lattice::logDebug << msg->str;
-                    return false;
-                }
-            }
-            else if (msg->type == ix::WebSocketMessageType::Open)
-            {
-                lattice::logInfo << "Websocket connection established. " << (csdFileAndPath.empty() ? "Waiting for file to be sent from VS-Code." : "");
-                
-                                                                             
-                if(!csdFileAndPath.empty())
-                {
-                    sendWidgetDataToVscode();
-                }                
-                
-            }
-            else if (msg->type == ix::WebSocketMessageType::Close)
-            {
-                lattice::logDebug << "websocket connection closed..";
-            }
-            else if (msg->type == ix::WebSocketMessageType::Error)
-            {
-                //Silencing this debug statement..
-                lattice::logDebug << "Connection error: " << msg->errorInfo.reason;
-            }
-
-            return true;
-        });
-
-    // Now that our callback is setup, we can start our background thread and receive messages
-    webSocket.start();
-
+    
     return true;
 }
+
+//==============================================================================
+// Process incoming JSON message from stdin
+//==============================================================================
+void CabbageAudioApp::processIncomingMessage(const std::string& message)
+{
+    try
+    {
+        auto json = nlohmann::json::parse(message, nullptr, false);
+        const std::string command = json["command"];
+        nlohmann::json jsonObj;
+
+        if (json.contains("obj"))
+        {
+            //"obj" can be a string when coming from vscode - but will always be
+            // an object when testing outside vscode
+            if(json["obj"].is_string())
+                jsonObj = nlohmann::json::parse(json["obj"].get<std::string>());
+            else
+                jsonObj = json["obj"];
+        }
+
+        if (command == "parameterChange")
+        {
+            if (!processor)
+            {
+                lattice::logInfo << "Processor is null! Cannot process parameterChange.";
+                return;
+            }
+            
+            auto &cabbage = processor->getCabbageEngine();
+            for (int i = 0; i < cabbage.getNumberOfParameters(); i++)
+            {
+                if (cabbage.getParameterChannel(i).name == jsonObj["channel"].get<std::string>())
+                {
+                    // update underlying JSON object if the value has changed
+                    auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), jsonObj["channel"]);
+                    if (widgetOpt)
+                    {                            
+                        auto &widgetObj = widgetOpt->get();
+                        widgetObj["value"] = jsonObj["value"].get<double>();
+                    }
+                    processor->setParameter(i, jsonObj["value"].get<double>());
+                }
+            }
+        }
+
+        else if (command == "fileOpenFromVSCode")
+        {
+            if (!processor)
+            {
+                lattice::logInfo << "Processor is null! Cannot process fileOpenFromVSCode.";
+                return;
+            }
+            
+            auto &cabbage = processor->getCabbageEngine();
+            if (jsonObj.contains("fileName"))
+            {
+                cabbage.setStringChannel(jsonObj["channel"].get<std::string>(),
+                                         jsonObj["fileName"].get<std::string>());
+            }
+        }
+
+        else if (command == "onFileChanged")
+        {
+            csdFileAndPath = json["lastSavedFileName"].get<std::string>();
+            if (lattice::File::exists(csdFileAndPath))
+            {
+                //push this to FIFO queue on main thread..
+                addMessageToQueue(CabbageAudioApp::CommandType::InitCabbage);
+            }
+        }
+
+        else if (command == "widgetStateUpdate")
+        {
+            if (!processor)
+            {
+                lattice::logInfo << "Processor is null! Cannot process widgetStateUpdate.";
+                return;
+            }
+            
+            auto &cabbage = processor->getCabbageEngine();
+            cabbage.updateWidgetState(jsonObj);
+        }
+
+        else if (command == "midiMessage")
+        {
+            if (!processor)
+            {
+                lattice::logInfo << "Processor is null! Cannot process midiMessage.";
+                return;
+            }
+            
+            processor->addNoteEventFromJson(jsonObj);
+        }
+
+        else if (command == "channelStringData")
+        {
+            if (!processor)
+            {
+                lattice::logInfo << "Processor is null! Cannot process channelStringData.";
+                return;
+            }
+            
+            try
+            {
+                auto &cabbage = processor->getCabbageEngine();
+                const std::string channel = jsonObj.value("channel", "");
+                
+                if (channel.empty())
+                {
+                    lattice::logError << "channelStringData: empty channel";
+                    return;
+                }
+                
+                // Check if we have string data or float data
+                if (jsonObj.contains("stringData"))
+                {
+                    const std::string stringData = jsonObj.value("stringData", "");
+                    if (!stringData.empty())
+                    {
+                        cabbage.getCsound()->SetChannel(channel.c_str(), stringData.c_str());
+                        lattice::logDebug << "Set channel " << channel << " to string: " << stringData;
+                    }
+                    else
+                    {
+                        lattice::logError << "channelStringData: empty stringData";
+                    }
+                }
+                else if (jsonObj.contains("floatData"))
+                {
+                    const double floatData = jsonObj.value("floatData", 0.0);
+                    cabbage.setControlChannel(channel, floatData);
+                    lattice::logDebug << "Set channel " << channel << " to float: " << floatData;
+                }
+                else
+                {
+                    lattice::logError << "channelStringData message missing both stringData and floatData fields";
+                }
+            }
+            catch (const nlohmann::json::exception& e)
+            {
+                lattice::logError << "Failed to parse channelStringData: " << e.what();
+            }
+        }
+                        
+        else if (command == "initialiseWidgets")
+        {
+            // vscode will notify when it's ready to receive the Cabbage widget data
+            sendWidgetDataToVscode();
+        }
+
+        else if (command == "stopAudio")
+        {
+            //when VS Code tries to end the process, it first send a stopAudio message..
+            //push this to FIFO queue on main thread..
+            addMessageToQueue(CabbageAudioApp::CommandType::StopAudio);
+            addMessageToQueue(CabbageAudioApp::CommandType::KillProcessor);
+        }
+
+        else
+        {
+            //lattice::logDebug << "received message: " << message;
+        }
+    }
+    catch (nlohmann::json::exception &e)
+    {
+        lattice::logDebug << "Error:" << e.what() << " - ";
+        lattice::logDebug << message;
+    }
+}
+
 //==============================================================================
 void CabbageAudioApp::sendWidgetDataToVscode()
 {
@@ -457,7 +415,7 @@ void CabbageAudioApp::sendWidgetDataToVscode()
         msg["command"] = "widgetUpdate";
         msg["channel"] = w["channel"];
         msg["data"] = w.dump();
-        webSocket.send(msg.dump());
+        sendJsonMessage(msg);
     }
 
     processor->setCabbageIsReady();
@@ -790,7 +748,7 @@ void CabbageAudioApp::midiCallback(double deltatime, std::vector<uint8_t> *msg, 
 
 }
 
-// The websocket thread picks up messages, some of which require action
+// The stdin thread picks up messages, some of which require action
 // on the main thread, i.e, resetting Csound. Hence the onIdle() callback
 void CabbageAudioApp::onIdle()
 {
@@ -814,7 +772,7 @@ void CabbageAudioApp::onIdle()
                     {
                         nlohmann::json msg;
                         msg["command"] = "failedToCompile";
-                        webSocket.send(msg.dump());
+                        sendJsonMessage(msg);
                     }
                     break;
                     

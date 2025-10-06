@@ -1,4 +1,10 @@
 #pragma once
+
+// This test server requires ixwebsocket library
+// It's kept for development/testing purposes but is not used in production
+// To use it, uncomment the ixwebsocket dependency in cmake/Dependencies.cmake and CMakeLists.txt
+#ifdef ENABLE_WEBSOCKET_TEST_SERVER
+
 #include "choc/platform/choc_DisableAllWarnings.h"
 #include <ixwebsocket/IXWebSocketServer.h>
 #include "choc/platform/choc_ReenableAllWarnings.h"
@@ -410,3 +416,4 @@ private:
     std::unique_ptr<ix::WebSocketServer> server;
 };
 
+#endif // ENABLE_WEBSOCKET_TEST_SERVER

@@ -241,7 +241,6 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/main.cpp"
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioApp.cpp"
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioApp.h"
-        "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/WebSocketTestServer.h"
     )
     list(APPEND SOURCE_FILES ${CABBAGE_SERVICE_APP_SOURCES})
     source_group("Cabbage Service App" FILES ${CABBAGE_SERVICE_APP_SOURCES})
@@ -252,7 +251,6 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
     target_include_directories(${PROJECT_NAME} PRIVATE 
         ${rtaudio_SOURCE_DIR}
         ${rtmidi_SOURCE_DIR}
-        ${ixwebsocket_SOURCE_DIR}
     )
 
 
@@ -270,12 +268,11 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
     # Link libraries
     target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/_deps/rtaudio-build)
     target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/_deps/rtmidi-build)
-    target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/_deps/ixwebsocket-build)
 
     if (APPLE)
-        target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ixwebsocket ${CSOUND_FRAMEWORK})
+        target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ${CSOUND_FRAMEWORK})
     else()
-        target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ixwebsocket ${CSOUND_LIBRARY})
+        target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ${CSOUND_LIBRARY})
     endif()
 
     # Use C++17 for the executable

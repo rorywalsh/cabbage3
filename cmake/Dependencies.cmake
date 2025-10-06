@@ -10,7 +10,7 @@ FetchContent_Declare(
 # Only need these libraries for CabbageServiceApp and CabbageTests
 # ----------------------------
 if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}" OR CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
-    message(STATUS "Including RtAudio/RtMidi/ixWebsocket for ${CABBAGE_BUILD_TARGET}")
+    message(STATUS "Including RtAudio/RtMidi for ${CABBAGE_BUILD_TARGET}")
 
     # Use FetchContent to include RtAudio first
     FetchContent_Declare(
@@ -37,23 +37,8 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}" OR CabbageTests STREQUAL "${CA
         GIT_TAG master
     )
 
-    
-    # Fetch the IXWebSocket repository
-    FetchContent_Declare(
-        ixwebsocket
-        GIT_REPOSITORY https://github.com/machinezone/IXWebSocket.git
-        GIT_TAG master  # You can specify a branch, tag, or commit hash here
-    )
-
-    # Set the BUILD_SHARED_LIBS option for IXWebSocket to OFF to build static library
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static library for IXWebSocket" FORCE)
-    # Set the USE_SSL option for IXWebSocket to OFF to disable SSL support
-    set(USE_SSL OFF CACHE BOOL "Disabling SSL for ixwebsocket" FORCE)
-    set(USE_ZLIB  OFF CACHE BOOL "Disabling zlib for ixwebsocket" FORCE)
-
     # Make all dependencies available
-    FetchContent_MakeAvailable(ixwebsocket rtaudio rtmidi)
-
+    FetchContent_MakeAvailable(rtaudio rtmidi)
 
     # Only make catch2 available when building tests
     if(CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
