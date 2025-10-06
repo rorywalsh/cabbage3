@@ -521,9 +521,19 @@ void Parser::parseColourProperties(const nlohmann::json &value, nlohmann::json &
         {
             parseStroke(val, target[key]);
         }
+        else if (key == "width" && val.is_number())
+        {
+            // Width is a numeric property, not a color - assign directly
+            target[key] = val;
+        }
         else if (val.is_object())
         {
             parseColourProperties(val, target[key]);
+        }
+        else if (val.is_number())
+        {
+            // Other numeric properties in color objects (like opacity) - assign directly
+            target[key] = val;
         }
         else
         {
