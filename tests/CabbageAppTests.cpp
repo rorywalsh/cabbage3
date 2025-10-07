@@ -119,18 +119,18 @@ TEST_CASE("Audio device scanning", "[CabbageApp]")
 }
 
 //==============================================================================
-// TEST 3: Test Server Functionality
+// TEST 3: Stdin/Stdout Communication Test
 //==============================================================================
-TEST_CASE("Test WebSocket Server functionality", "[CabbageApp]")
+TEST_CASE("Test stdin/stdout pipe communication", "[CabbageApp]")
 {
     ensureValidSettingsFileExists();
     
-    std::cout << "\n==================== BEGIN TEST: Test WebSocket Server functionality ====================\n";
+    std::cout << "\n==================== BEGIN TEST: stdin/stdout pipe communication ====================\n";
     //--------------------------------------------------------------------------
-    // SETUP: Create app with test server enabled
+    // SETUP: Create app
     //--------------------------------------------------------------------------
-    const char* args[] = {"CabbageApp", "--startTestServer", "true"};
-    auto app = std::make_unique<CabbageAudioApp>(3, const_cast<char**>(args));
+    const char* args[] = {"CabbageApp"};
+    auto app = std::make_unique<CabbageAudioApp>(1, const_cast<char**>(args));
     
     REQUIRE(app != nullptr);
     
@@ -146,8 +146,6 @@ TEST_CASE("Test WebSocket Server functionality", "[CabbageApp]")
         // Initialize to silence
         memset(buffer[ch], 0, nBufferFrames * sizeof(float));
     }
-
-
 
     //--------------------------------------------------------------------------
     // SETUP: Create temporary CSD file for testing
@@ -171,48 +169,37 @@ TEST_CASE("Test WebSocket Server functionality", "[CabbageApp]")
     // Initialize Cabbage with the test file (this creates the processor)
     REQUIRE_NOTHROW(app->initialiseCabbage());
     
-    // Now start test server (after processor is created)
-    REQUIRE_NOTHROW(app->startWebSocketServerForTesting());
-    REQUIRE(app->testServer != nullptr);
-    app->testServer->setUpdateInterval(500);
+    // Initialize stdin/stdout connection (this would normally connect to VS Code)
+    REQUIRE_NOTHROW(app->initialiseStdioConnection());
     
-    // Wait for the server to start
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    
-    // Verify test server is running
-    REQUIRE(app->testServer != nullptr);
-    REQUIRE(app->testServer->isRunning());
-    
-    // Set up WebSocket client connection to receive data from test server
-    REQUIRE_NOTHROW(app->initialiseWebSocketConnection());
-    
-    // Give the WebSocket connection time to fully establish and register with the server
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    // Wait for the connection to be established
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
     
     //--------------------------------------------------------------------------
-    // VERIFY: Test server is running and can be stopped
+    // VERIFY: Processor is running and can process audio
     //--------------------------------------------------------------------------
-
     auto startTime = std::chrono::steady_clock::now();
     auto endTime = startTime + std::chrono::seconds(5);
     int iterationCount = 0;
     const int maxIterations = 100; // Safety limit
-    app->testServer->sendTestData();
     
     while (std::chrono::steady_clock::now() < endTime && iterationCount < maxIterations)
     {
         if (app->processor) {
             // Call process() to simulate Csound run in CI mode
             app->processor->process(buffer, buffer, nBufferFrames);
-            for ( int i = 0 ; i < 8 ; i++)
+            
+            // Verify we can read control channel values
+            for (int i = 0; i < 8; i++)
             {
-                const std::string channel = "harmonic"+std::to_string(i+1);
-                lattice::logDebug << channel << ": " << app->processor->getCabbageEngine().getCsound()->GetControlChannel(channel.c_str());
+                const std::string channel = "harmonic" + std::to_string(i+1);
+                double value = app->processor->getCabbageEngine().getCsound()->GetControlChannel(channel.c_str());
+                REQUIRE(value >= 0.0); // Basic sanity check
             }
         }
 
         try {
-            app->testServer->sendTestData();
+            // Process any pending messages (similar to what would happen with stdin input)
             app->onIdle();
         } catch (...) {
             // If onIdle throws, break out of the loop
@@ -224,21 +211,186 @@ TEST_CASE("Test WebSocket Server functionality", "[CabbageApp]")
         // Small delay to prevent overwhelming the system
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
-        
+    
+    // Verify we completed some iterations
+    REQUIRE(iterationCount > 0);
     
     //--------------------------------------------------------------------------
-    // CLEANUP: Stop test server and remove temporary files
+    // CLEANUP: Stop audio and remove temporary files
     //--------------------------------------------------------------------------
-    app->stopWebSocketServerForTesting();
+    app->addMessageToQueue(CabbageAudioApp::CommandType::StopAudio);
+    app->onIdle();
+    
+    // Clean up buffer
+    for (unsigned int ch = 0; ch < nOutputChannels; ++ch) {
+        delete[] buffer[ch];
+    }
+    delete[] buffer;
+    
     std::filesystem::remove(tempPath);
     
     // Verify the app is still functional
     REQUIRE(app != nullptr);
-    std::cout << "\n==================== END TEST: Test server functionality ====================\n";
+    std::cout << "\n==================== END TEST: stdin/stdout pipe communication ====================\n";
 }
 
 //==============================================================================
-// TEST 4: Stress Test with Message Queue Processing
+// TEST 4: Test cabbageSet with JSON message capture
+//==============================================================================
+TEST_CASE("Test cabbageSet.csd with JSON message capture", "[CabbageApp]")
+{
+    ensureValidSettingsFileExists();
+    
+    std::cout << "\n==================== BEGIN TEST: cabbageSet.csd with JSON messages ====================\n";
+    
+    //--------------------------------------------------------------------------
+    // SETUP: Create app and redirect stdout to capture JSON messages
+    //--------------------------------------------------------------------------
+    const char* args[] = {"CabbageApp"};
+    auto app = std::make_unique<CabbageAudioApp>(1, const_cast<char**>(args));
+    
+    REQUIRE(app != nullptr);
+    
+    int nInputChannels = 2;
+    int nOutputChannels = 2;
+    int nBufferFrames = 512;
+
+    // Create a dud buffer from processor to avoid segfaults in CI mode
+    float **buffer = new float*[nOutputChannels];
+    for (unsigned int ch = 0; ch < nOutputChannels; ++ch)
+    {
+        buffer[ch] = new float[nBufferFrames];
+        memset(buffer[ch], 0, nBufferFrames * sizeof(float));
+    }
+
+    //--------------------------------------------------------------------------
+    // SETUP: Create temporary CSD file from TestCsdFiles::cabbageSet
+    //--------------------------------------------------------------------------
+    std::string csdContent = TestCsdFiles::cabbageSet;
+    
+    // Create a temporary file using std::filesystem
+    std::filesystem::path tempPath = std::filesystem::temp_directory_path() / ("test_cabbageSet_" + std::to_string(std::time(nullptr)) + ".csd");
+    std::ofstream tempFile(tempPath);
+    tempFile << csdContent;
+    tempFile.close();
+    
+    // Set up the temporary CSD file
+    std::string filePath = tempPath.string();
+    app->setCsoundFile(filePath);
+    
+    // Verify the file was created and is readable
+    REQUIRE(std::filesystem::exists(filePath));
+    REQUIRE(std::filesystem::file_size(filePath) > 0);
+    
+    std::cout << "Loading CSD from TestCsdFiles::cabbageSet: " << filePath << std::endl;
+    
+    // Capture hostCallback data in test
+    struct CallbackData {
+        std::string channel;
+        std::string type;
+        std::string json;
+    };
+    std::vector<CallbackData> callbackMessages;
+    
+    // Initialize Cabbage with the test file
+    app->initialiseCabbage();
+    
+    // Override the hostCallback to capture data for testing
+    if (app->processor) {
+        // Enable message dequeuing (normally done when UI is ready)
+        app->processor->setCabbageIsReady();
+        
+        app->processor->hostCallback = [&callbackMessages, &app](CabbageOpcodeData data) {
+            // Capture the data for testing
+            CallbackData captured;
+            captured.channel = data.channel;
+            captured.type = (data.type == CabbageOpcodeData::MessageType::Value) ? "Value" : "Json";
+            captured.json = data.cabbageJson.dump(); // Serialize JSON to string
+            callbackMessages.push_back(captured);
+            
+            // Still call the normal hostCallback to process the data
+            app->hostCallback(data);
+        };
+    }
+    
+    //--------------------------------------------------------------------------
+    // PROCESS AUDIO: Run for a few seconds to trigger cabbageSet opcodes
+    //--------------------------------------------------------------------------
+    std::cout << "\n--- Processing audio to trigger cabbageSet opcodes ---\n" << std::endl;
+    
+    auto startTime = std::chrono::steady_clock::now();
+    auto endTime = startTime + std::chrono::seconds(3); // Run for 3 seconds (instrument runs for 2 seconds)
+    int iterationCount = 0;
+    const int maxIterations = 100; // Safety limit
+    
+    while (std::chrono::steady_clock::now() < endTime && iterationCount < maxIterations)
+    {
+        if (app->processor) {
+            // Process audio to drive Csound
+            app->processor->process(buffer, buffer, nBufferFrames);
+        }
+
+        try {
+            // Process any pending messages
+            app->onIdle();
+        } catch (...) {
+            break;
+        }
+        
+        iterationCount++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    }
+    
+    //--------------------------------------------------------------------------
+    // DISPLAY: Show captured hostCallback messages
+    //--------------------------------------------------------------------------
+    std::cout << "\n--- Captured hostCallback Messages ---\n" << std::endl;
+    
+    // Show first 20 messages
+    size_t showFirst = std::min<size_t>(20, callbackMessages.size());
+    for (size_t i = 0; i < showFirst; i++) {
+        std::cout << "Message " << (i+1) << ":" << std::endl;
+        std::cout << "  Channel: " << callbackMessages[i].channel << std::endl;
+        std::cout << "  Type: " << callbackMessages[i].type << std::endl;
+        std::cout << "  JSON: " << callbackMessages[i].json << std::endl;
+        std::cout << std::endl;
+    }
+    
+    if (callbackMessages.size() > 20) {
+        std::cout << "... (" << (callbackMessages.size() - 20) << " more messages)" << std::endl;
+    }
+    
+    std::cout << "\nTotal hostCallback messages: " << callbackMessages.size() << std::endl;
+    std::cout << "Total iterations completed: " << iterationCount << std::endl;
+    
+    // Verify we completed some iterations at least
+    REQUIRE(iterationCount > 0);
+    
+    //--------------------------------------------------------------------------
+    // CLEANUP: Stop audio and clean up (no stdin thread to worry about)
+    //--------------------------------------------------------------------------
+    std::cout << "\n--- Cleaning up ---\n" << std::endl;
+    
+    app->addMessageToQueue(CabbageAudioApp::CommandType::StopAudio);
+    app->onIdle();
+    
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Give it time to clean up
+    
+    // Clean up buffer
+    for (unsigned int ch = 0; ch < nOutputChannels; ++ch) {
+        delete[] buffer[ch];
+    }
+    delete[] buffer;
+    
+    // Remove temporary file
+    std::filesystem::remove(tempPath);
+    
+    REQUIRE(app != nullptr);
+    std::cout << "\n==================== END TEST: cabbageSet.csd with JSON messages ====================\n";
+}
+
+//==============================================================================
+// TEST 5: Stress Test with Message Queue Processing
 //==============================================================================
 TEST_CASE("Stress test start/stop/destroy", "[CabbageApp]")
 {
@@ -319,7 +471,7 @@ TEST_CASE("Stress test start/stop/destroy", "[CabbageApp]")
 }
 
 //==============================================================================
-// TEST 5: AudioConfig Class Functionality
+// TEST 6: AudioConfig Class Functionality
 //==============================================================================
 TEST_CASE("CabbageAudioApp AudioConfig functionality", "[CabbageAudioApp::AudioConfig]") {
     std::cout << "\n==================== BEGIN TEST: CabbageAudioApp AudioConfig functionality ====================\n";
@@ -366,6 +518,9 @@ TEST_CASE("CabbageAudioApp AudioConfig functionality", "[CabbageAudioApp::AudioC
     std::cout << "\n==================== END TEST: CabbageAudioApp AudioConfig functionality ====================\n";
 }
 
+//==============================================================================
+// TEST 7: Command Line Argument Parsing
+//==============================================================================
 TEST_CASE("CabbageAudioApp command line parsing", "[CabbageAudioApp]") {
     std::cout << "\n==================== BEGIN TEST: CabbageAudioApp command line parsing ====================\n";
     SECTION("CabbageAudioApp can parse file argument") {

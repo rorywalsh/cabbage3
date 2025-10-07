@@ -56,14 +56,14 @@ nchnls = 2
 ; even for commercial purposes, all without asking permission. 
 
 instr 1   
-    // printks2 "Harmonic1 value: %f\n", cabbageGetValue:k("harmonic1")
-    // printks2 "Harmonic2 value: %f\n", cabbageGetValue:k("harmonic2")
-    // printks2 "Harmonic3 value: %f\n", cabbageGetValue:k("harmonic3")
-    // printks2 "Harmonic4 value: %f\n", cabbageGetValue:k("harmonic4")
-    // printks2 "Harmonic5 value: %f\n", cabbageGetValue:k("harmonic5")
-    // printks2 "Harmonic6 value: %f\n", cabbageGetValue:k("harmonic6")
-    // printks2 "Harmonic7 value: %f\n", cabbageGetValue:k("harmonic7")
-    // printks2 "Harmonic8 value: %f\n", cabbageGetValue:k("harmonic8")
+    printf("Harmonic1 value: %f\n", cabbageGetValue:k("harmonic1"), cabbageGetValue:k("harmonic1"))
+    printf("Harmonic2 value: %f\n", cabbageGetValue:k("harmonic2"), cabbageGetValue:k("harmonic2"))
+    printf("Harmonic3 value: %f\n", cabbageGetValue:k("harmonic3"), cabbageGetValue:k("harmonic3"))
+    printf("Harmonic4 value: %f\n", cabbageGetValue:k("harmonic4"), cabbageGetValue:k("harmonic4"))
+    printf("Harmonic5 value: %f\n", cabbageGetValue:k("harmonic5"), cabbageGetValue:k("harmonic5"))
+    printf("Harmonic6 value: %f\n", cabbageGetValue:k("harmonic6"), cabbageGetValue:k("harmonic6"))
+    printf("Harmonic7 value: %f\n", cabbageGetValue:k("harmonic7"), cabbageGetValue:k("harmonic7"))
+    printf("Harmonic8 value: %f\n", cabbageGetValue:k("harmonic8"), cabbageGetValue:k("harmonic8"))
 endin       
 
 </CsInstruments>
@@ -72,6 +72,42 @@ endin
 f0 z
 ;starts instrument 1 and runs it for a week
 i1 0 z
+</CsScore>
+</CsoundSynthesizer>
+
+)";
+
+const std::string cabbageSet = R"(
+<Cabbage>[
+{"type": "form", "caption": "Slider Example", "size": {"width": 360.0, "height": 460.0}, "guiMode": "queue", "pluginId": "def1"}
+]</Cabbage>
+<CsoundSynthesizer>
+<CsOptions>
+-n -d
+</CsOptions>
+<CsInstruments>
+; Initialize the global variables. 
+ksmps = 1
+nchnls = 2
+0dbfs = 1
+
+; Rory Walsh 2021 
+;
+; License: CC0 1.0 Universal
+; You can copy, modify, and distribute this file, 
+; even for commercial purposes, all without asking permission. 
+
+instr 1   
+    cabbageSet "dummy", "colour.fill", "222222"
+    cabbageSet "dummy", "text", "Hello from Csound!"
+    cabbageSetValue "dummy", oscili:k(1, 10)
+endin           
+
+</CsInstruments>
+<CsScore>
+;causes Csound to run for about 7000 years...
+;starts instrument 1 and runs it for a week
+i1 0 .1
 </CsScore>
 </CsoundSynthesizer>
 
