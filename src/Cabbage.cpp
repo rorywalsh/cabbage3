@@ -442,52 +442,73 @@ std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, float va
 
 void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj)
 {
-    if (data.cabbageJson.contains("tableNumber") || data.cabbageJson.contains("range"))
+    if (data.cabbageJson.contains("tableNumber"))
     {
         try
         {
             cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size());
-            const int tableNumber = int(jsonObj["tableNumber"]);
-            const int tableSize = getCsound()->TableLength(tableNumber);
-
-            if (tableSize != -1)
+            
+            // Get tableNumber from data.cabbageJson since updateJson may not set it reliably
+            int tableNumber = -1;
+            if (data.cabbageJson.contains("tableNumber") && data.cabbageJson["tableNumber"].is_number())
             {
-                MYFLT *tablePtr = nullptr;
-                auto length = csound->GetTable(&tablePtr, tableNumber);
-                std::vector<MYFLT> temp(tablePtr, tablePtr + length);
-                setTableJSON(data.channel, temp, jsonObj);
+                tableNumber = data.cabbageJson["tableNumber"].get<int>();
+            }
+            else if (jsonObj.contains("tableNumber") && jsonObj["tableNumber"].is_number())
+            {
+                tableNumber = jsonObj["tableNumber"].get<int>();
+            }
+            
+            if (tableNumber != -1)
+            {
+                const int tableSize = getCsound()->TableLength(tableNumber);
+
+                if (tableSize != -1)
+                {
+                    MYFLT *tablePtr = nullptr;
+                    auto length = csound->GetTable(&tablePtr, tableNumber);
+                    std::vector<MYFLT> temp(tablePtr, tablePtr + length);
+                    setTableJSON(data.channel, temp, jsonObj);
+                }
             }
         }
         catch (nlohmann::json::exception &e)
         {
-            lattice::logDebug << e.what();
+            lattice::logDebug << "JSON Error:" << e.what();
         }
     }
     else if (data.cabbageJson.contains("file"))
     {
-        if (jsonObj["type"].get<std::string>() == "genTable")
+        try
         {
-            cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size());
-            const int tableNumber = jsonObj["tableNumber"];
-            auto soundfile = cabbage::File::readAudioFile<double>(jsonObj["file"].get<std::string>(), sampleRate);
-            auto samples = soundfile.audioData;
-
-            if (samples.size() == 0)
-                return;
-
-            std::stringstream ss;
-            ss << "giTable ftgen " << tableNumber << ", 0, " << samples.size() << ", -7, 0, 0";
-            lattice::logDebug << "ftgen statement:" << ss.str();
-            getCsound()->CompileOrc(ss.str().c_str());
-            const int tableSize = getCsound()->TableLength(tableNumber);
-            
-            if (tableSize != -1)
+            if (jsonObj["type"].get<std::string>() == "genTable")
             {
-                MYFLT *tablePtr = nullptr;
-                getCsound()->GetTable(&tablePtr, tableNumber);
-                std::memcpy(tablePtr, samples.data(), tableSize * sizeof(MYFLT));
-                setTableJSON(data.channel, samples, jsonObj);
+                cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size());
+                const int tableNumber = jsonObj["tableNumber"];
+                auto soundfile = cabbage::File::readAudioFile<double>(jsonObj["file"].get<std::string>(), sampleRate);
+                auto samples = soundfile.audioData;
+
+                if (samples.size() == 0)
+                    return;
+
+                std::stringstream ss;
+                ss << "giTable ftgen " << tableNumber << ", 0, " << samples.size() << ", -7, 0, 0";
+                lattice::logDebug << "ftgen statement:" << ss.str();
+                getCsound()->CompileOrc(ss.str().c_str());
+                const int tableSize = getCsound()->TableLength(tableNumber);
+                
+                if (tableSize != -1)
+                {
+                    MYFLT *tablePtr = nullptr;
+                    getCsound()->GetTable(&tablePtr, tableNumber);
+                    std::memcpy(tablePtr, samples.data(), tableSize * sizeof(MYFLT));
+                    setTableJSON(data.channel, samples, jsonObj);
+                }
             }
+        }
+        catch (nlohmann::json::exception &e)
+        {
+            lattice::logDebug << "JSON Error:" << e.what();
         }
     }
 }
@@ -496,9 +517,30 @@ void Engine::setTableJSON(std::string /*channel*/, std::vector<double> samples, 
 {
     // this is a condensed version of the sample data that is passed around between C++ and JS.
     std::vector<double> widgetSampleData;
-    const int startSample = jsonObj["range"]["start"].get<int>() == 0 ? 0 : jsonObj["range"]["start"].get<int>();
-    const int endSample = jsonObj["range"]["end"].get<int>() == -1 ? static_cast<int>(samples.size())
-                                                                   : jsonObj["range"]["end"].get<int>();
+    
+    // Handle nested range structure for genTable (range.x for sample selection)
+    int startSample = 0;
+    int endSample = static_cast<int>(samples.size());
+    
+    if (jsonObj.contains("range") && jsonObj["range"].is_object())
+    {
+        if (jsonObj["range"].contains("x") && jsonObj["range"]["x"].is_object())
+        {
+            // New nested structure: range.x.start/end for sample range
+            if (jsonObj["range"]["x"].contains("start"))
+                startSample = jsonObj["range"]["x"]["start"].get<int>();
+            if (jsonObj["range"]["x"].contains("end"))
+                endSample = jsonObj["range"]["x"]["end"].get<int>() == -1 ? static_cast<int>(samples.size()) 
+                                                                         : jsonObj["range"]["x"]["end"].get<int>();
+        }
+        else if (jsonObj["range"].contains("start"))
+        {
+            // Legacy flat structure: range.start/end
+            startSample = jsonObj["range"]["start"].get<int>() == 0 ? 0 : jsonObj["range"]["start"].get<int>();
+            endSample = jsonObj["range"]["end"].get<int>() == -1 ? static_cast<int>(samples.size())
+                                                                 : jsonObj["range"]["end"].get<int>();
+        }
+    }
 
     // no point in sending more samples that can be displayed per pixel...
     const float incr = float(endSample - startSample) / ((jsonObj["bounds"]["width"].get<float>()));
@@ -555,6 +597,26 @@ void Engine::initialiseGenTableWidgets()
             {
                 lattice::logError << "Failed to load genTable file: " << e.what();
             }
+        }
+        else if(widget["type"].get<std::string>() == "genTable" && 
+            widget.contains("tableNumber") && 
+            widget["tableNumber"].is_number() &&
+            widget["tableNumber"] != -9999)
+        {
+            std::string channelName;
+            if (widget["channel"].is_string()) {
+                channelName = cabbage::Parser::removeQuotes(widget["channel"].get<std::string>());
+            } else if (widget["channel"].is_object() && widget["channel"].contains("id")) {
+                channelName = cabbage::Parser::removeQuotes(widget["channel"]["id"].get<std::string>());
+            } else {
+                // Skip if no valid channel
+                continue;
+            }
+            CabbageOpcodeData data;
+            data.channel = channelName;
+            data.type = CabbageOpcodeData::MessageType::Identifier;
+            data.cabbageJson = {{"tableNumber", widget["tableNumber"].get<int>()}};
+            opcodeData.enqueue(data);
         }
     }
 }

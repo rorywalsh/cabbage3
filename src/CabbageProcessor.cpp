@@ -246,7 +246,7 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
     }
     else
     {
-        lattice::logDebug << "  Widget skipped - automatable=" << (w.contains("automatable") ? std::to_string(w["automatable"].get<int>()) : "missing")
+        lattice::logDebug << w["type"].get<std::string>() <<" widget skipped - automatable=" << (w.contains("automatable") ? std::to_string(w["automatable"].get<int>()) : "missing")
                          << ", channelType=" << (w.contains("channelType") ? w["channelType"].get<std::string>() : "missing");
     }
 }

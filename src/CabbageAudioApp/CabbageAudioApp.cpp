@@ -210,7 +210,7 @@ void CabbageAudioApp::sendJsonMessage(const nlohmann::json& msg)
 //==============================================================================
 bool CabbageAudioApp::initialiseStdioConnection()
 {
-    lattice::logInfo << "Initializing stdin/stdout communication with VS Code";
+    lattice::logDebug << "Initializing stdin/stdout communication with VS Code";
     
     // Start a thread to read from stdin
     stdinThread = std::thread([this]() {
@@ -639,7 +639,6 @@ void CabbageAudioApp::deinitAudioAndMidi()
     // Clean up MIDI devices
     if (midiInDevice)
     {
-        lattice::logInfo << "Closing MIDI input device...";
         midiInDevice->cancelCallback();
         midiInDevice->closePort();
         midiInDevice = nullptr;
@@ -647,7 +646,6 @@ void CabbageAudioApp::deinitAudioAndMidi()
 
     if (midiOutDevice)
     {
-        lattice::logInfo << "Closing MIDI output device...";
         midiOutDevice->closePort();
         midiOutDevice = nullptr;
     }
@@ -667,7 +665,7 @@ void CabbageAudioApp::deinitAudioAndMidi()
     // Reset audio device
     audioDevice = nullptr;
     
-    lattice::logInfo << "Audio and MIDI devices successfully deinitialised";
+    lattice::logDebug << "Audio and MIDI devices successfully deinitialised";
 }
 
 //============================================================================
