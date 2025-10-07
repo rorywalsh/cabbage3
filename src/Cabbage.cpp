@@ -296,6 +296,13 @@ void Engine::processCsoundMessages()
             message.pop_back();
         }
 
+        // Skip repetitive "end of Performance" messages
+        if (message.find("end of Performance") != std::string::npos) 
+        {
+            csound->PopFirstMessage();
+            continue;
+        }
+
         lattice::logInfo << message; // Log the message
         csound->PopFirstMessage();   // Remove from queue
     }

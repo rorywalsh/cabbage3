@@ -105,8 +105,9 @@ public:
     bool getCanDestroyProcessor() const { return canDestroyProcessor.load(); }
     bool getAudioShutdownComplete() const { return audioShutdownComplete.load(); }
     
-private:
     void hostCallback(CabbageOpcodeData data);
+    
+private:
     void sendJsonMessage(const nlohmann::json& msg);
     void processIncomingMessage(const std::string& message);
     bool createCabbageProcessor();
