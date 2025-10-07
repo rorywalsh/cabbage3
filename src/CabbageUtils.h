@@ -265,8 +265,7 @@ public:
             return cabbage::File::extractPropsFromJS(jsFileContents);
         }
         
-        lattice::logDebug << "Invalid widget type:" << widgetType;
-        cabbage::Utils::check(false, "Invalid widget type:");
+        lattice::logInfo << "Unknown widget type: " << widgetType << " - skipping widget";
         return {};
     }
 };
