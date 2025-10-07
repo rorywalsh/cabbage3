@@ -298,14 +298,12 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
         ${LATTICE_SOURCE_FILES}
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioApp.cpp"
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioApp.h"
-        "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/WebSocketTestServer.h"
     )
     
     # Set include paths for test target
     target_include_directories(${PROJECT_NAME} PRIVATE 
         ${rtaudio_SOURCE_DIR}
         ${rtmidi_SOURCE_DIR}
-        ${ixwebsocket_SOURCE_DIR}
     )
     
     # Set compile definitions for test target
@@ -324,12 +322,11 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
     # Link libraries for test target
     target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/_deps/rtaudio-build)
     target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/_deps/rtmidi-build)
-    target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/_deps/ixwebsocket-build)
     
     if (APPLE)
-        target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ixwebsocket ${CSOUND_FRAMEWORK} Catch2::Catch2WithMain)
+        target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ${CSOUND_FRAMEWORK} Catch2::Catch2WithMain)
     else()
-        target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ixwebsocket ${CSOUND_LIBRARY} Catch2::Catch2WithMain)
+        target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ${CSOUND_LIBRARY} Catch2::Catch2WithMain)
     endif()
     
     # Set C++ standard for test target
