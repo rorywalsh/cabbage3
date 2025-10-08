@@ -151,6 +151,9 @@ class Engine
     
     // Initialise genTable widgets by loading audio files specified in their file property
     void initialiseGenTableWidgets();
+    
+    // Queue automatic updates for genTable widgets with tableNumber > 0 after Csound starts
+    void queueGenTableUpdates();
 
     // Returns a script that will update a csoundoutput widget
     const std::string getCsoundOutputUpdateScript(const std::string& output);

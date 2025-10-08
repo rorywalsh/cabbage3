@@ -30,6 +30,11 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}" OR CabbageTests STREQUAL "${CA
     # Disable testing to avoid conflict with RtAudio
     set(RTMIDI_BUILD_TESTING OFF CACHE BOOL "Disable RtMidi tests" FORCE)
 
+    # Build static libraries for rtaudio and rtmidi
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Force static libraries" FORCE)
+    set(RTAUDIO_BUILD_SHARED_LIBRARY OFF CACHE BOOL "Build static library for RtAudio" FORCE)
+    set(RTMIDI_BUILD_SHARED_LIBRARY OFF CACHE BOOL "Build static library for RtMidi" FORCE)
+
     # Use FetchContent to include RtMidi
     FetchContent_Declare(
         rtmidi

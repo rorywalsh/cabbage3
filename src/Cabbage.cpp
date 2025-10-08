@@ -132,7 +132,9 @@ bool Engine::setupCsound()
         
         // Initialise genTable widgets that have file properties
         initialiseGenTableWidgets();
-   
+        
+        // Queue automatic updates for genTable widgets with tableNumber > 0
+        queueGenTableUpdates();
 
         return true;
     }
@@ -617,6 +619,69 @@ void Engine::initialiseGenTableWidgets()
             data.type = CabbageOpcodeData::MessageType::Identifier;
             data.cabbageJson = {{"tableNumber", widget["tableNumber"].get<int>()}};
             opcodeData.enqueue(data);
+        }
+    }
+}
+
+void Engine::queueGenTableUpdates()
+{
+    // Automatically queue table data updates for genTable widgets with tableNumber > 0.
+    // This handles function tables defined in the Csound score (e.g., f 1 0 8 -2 ...)
+    // which don't exist until after Csound's init pass. Without this, users would need
+    // to manually call cabbageSet "tableId", "tableNumber", N to trigger the update.
+    // Iterate through all widgets looking for genTable widgets with tableNumber > 0
+    for (auto& widget : widgets)
+    {
+        if (widget["type"].get<std::string>() == "genTable" && 
+            widget.contains("tableNumber") && 
+            widget["tableNumber"].is_number_integer())
+        {
+            const int tableNumber = widget["tableNumber"].get<int>();
+            
+            // Only process if tableNumber is valid (> 0)
+            if (tableNumber > 0)
+            {
+                // Check if this table exists in Csound
+                const int tableSize = getCsound()->TableLength(tableNumber);
+                
+                if (tableSize > 0)
+                {
+                    // Get the channel name
+                    std::string channelId;
+                    if (widget.contains("channel"))
+                    {
+                        if (widget["channel"].is_string())
+                        {
+                            channelId = widget["channel"].get<std::string>();
+                        }
+                        else if (widget["channel"].is_object() && widget["channel"].contains("id"))
+                        {
+                            channelId = widget["channel"]["id"].get<std::string>();
+                        }
+                    }
+                    
+                    if (!channelId.empty())
+                    {
+                        // Create an opcode data message to trigger table update
+                        CabbageOpcodeData data;
+                        data.channel = channelId;
+                        data.type = CabbageOpcodeData::MessageType::Identifier;
+                        data.cabbageJson["tableNumber"] = tableNumber;
+                        
+                        // Queue the update - this will be processed in onIdle()
+                        opcodeData.enqueue(data);
+                        
+                        lattice::logDebug << "Queued automatic table update for genTable '" << channelId 
+                                         << "' with tableNumber " << tableNumber 
+                                         << " (size: " << tableSize << ")";
+                    }
+                }
+                else if (tableSize == -1)
+                {
+                    lattice::logWarning << "genTable widget has tableNumber " << tableNumber 
+                                       << " but no corresponding function table exists in Csound";
+                }
+            }
         }
     }
 }

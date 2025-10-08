@@ -621,7 +621,6 @@ void CabbageAudioApp::deinitAudioAndMidi()
     // Stop and close audio stream if running
     try
     {
-        lattice::logInfo << "Stopping audio stream...";
         audioDevice->stopStream();
     }
     catch (const std::runtime_error &e)
