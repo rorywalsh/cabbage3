@@ -71,6 +71,7 @@ public:
     void stopOnIdle();
     void updateWidgetData(const CabbageOpcodeData &data);
     void addParameterForWidget(nlohmann::json& w);
+    void openFileDialog(const std::string& channel, const std::string& directory, const std::string& filters, bool openAtLastKnownLocation);
     std::atomic<bool> processingEnabled{true};
     bool uiIsOpen = false;
     bool allowDequeuing = false;

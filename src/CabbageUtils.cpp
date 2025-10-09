@@ -1,5 +1,7 @@
 #include "CabbageUtils.h"
 #include <choc/text/choc_Files.h>
+#include <sstream>
+#include <cstdio>
 
 namespace cabbage {
 

@@ -106,6 +106,8 @@ public:
     static std::string getBinaryWithoutExtension();
     // Find path to Cabbage widgets JS source dir
     static std::string findCabbageJSWidgetPath();
+    // Browse for a file using native dialog
+    static std::string browseForFile(const std::string& title = "Choose a file", const std::string& initialDir = "", const std::string& filters = "*");
       
 #if defined(_WIN32)
     static std::string getWindowsProgramDataDir()

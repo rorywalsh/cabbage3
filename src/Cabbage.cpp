@@ -444,73 +444,63 @@ std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, float va
 
 void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj)
 {
-    if (data.cabbageJson.contains("tableNumber"))
+    if (jsonObj["type"].get<std::string>() == "genTable")
     {
-        try
+        if (data.cabbageJson.contains("tableNumber") && data.cabbageJson["tableNumber"].get<int>() != -9999)
         {
-            cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size());
-            
-            // Get tableNumber from data.cabbageJson since updateJson may not set it reliably
-            int tableNumber = -1;
-            if (data.cabbageJson.contains("tableNumber") && data.cabbageJson["tableNumber"].is_number())
-            {
-                tableNumber = data.cabbageJson["tableNumber"].get<int>();
-            }
-            else if (jsonObj.contains("tableNumber") && jsonObj["tableNumber"].is_number())
-            {
-                tableNumber = jsonObj["tableNumber"].get<int>();
-            }
-            
-            if (tableNumber != -1)
-            {
-                const int tableSize = getCsound()->TableLength(tableNumber);
-
-                if (tableSize != -1)
-                {
-                    MYFLT *tablePtr = nullptr;
-                    auto length = csound->GetTable(&tablePtr, tableNumber);
-                    std::vector<MYFLT> temp(tablePtr, tablePtr + length);
-                    setTableJSON(data.channel, temp, jsonObj);
-                }
-            }
-        }
-        catch (nlohmann::json::exception &e)
-        {
-            lattice::logDebug << "JSON Error:" << e.what();
-        }
-    }
-    else if (data.cabbageJson.contains("file"))
-    {
-        try
-        {
-            if (jsonObj["type"].get<std::string>() == "genTable")
+            try
             {
                 cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size());
-                const int tableNumber = jsonObj["tableNumber"];
-                auto soundfile = cabbage::File::readAudioFile<double>(jsonObj["file"].get<std::string>(), sampleRate);
-                auto samples = soundfile.audioData;
-
-                if (samples.size() == 0)
-                    return;
-
-                std::stringstream ss;
-                ss << "giTable ftgen " << tableNumber << ", 0, " << samples.size() << ", -7, 0, 0";
-                lattice::logDebug << "ftgen statement:" << ss.str();
-                getCsound()->CompileOrc(ss.str().c_str());
-                const int tableSize = getCsound()->TableLength(tableNumber);
                 
-                if (tableSize != -1)
+                // Get tableNumber from data.cabbageJson since updateJson may not set it reliably
+                int tableNumber = -1;
+                if (data.cabbageJson.contains("tableNumber") && data.cabbageJson["tableNumber"].is_number())
                 {
-                    MYFLT *tablePtr = nullptr;
-                    getCsound()->GetTable(&tablePtr, tableNumber);
-                    std::memcpy(tablePtr, samples.data(), tableSize * sizeof(MYFLT));
-                    setTableJSON(data.channel, samples, jsonObj);
+                    tableNumber = data.cabbageJson["tableNumber"].get<int>();
+                }
+                else if (jsonObj.contains("tableNumber") && jsonObj["tableNumber"].is_number())
+                {
+                    tableNumber = jsonObj["tableNumber"].get<int>();
+                }
+                
+                if (tableNumber != -1)
+                {
+                    const int tableSize = getCsound()->TableLength(tableNumber);
+                    
+                    if (tableSize != -1)
+                    {
+                        MYFLT *tablePtr = nullptr;
+                        auto length = csound->GetTable(&tablePtr, tableNumber);
+                        std::vector<MYFLT> temp(tablePtr, tablePtr + length);
+                        setTableJSON(data.channel, temp, jsonObj);
+                    }
                 }
             }
+            catch (nlohmann::json::exception &e)
+            {
+                lattice::logDebug << "JSON Error:" << e.what();
+            }
         }
-        catch (nlohmann::json::exception &e)
+        else if (data.cabbageJson.contains("file"))
         {
-            lattice::logDebug << "JSON Error:" << e.what();
+            try
+            {
+                
+                cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size());
+                
+                auto soundfile = cabbage::File::readAudioFile<double>(jsonObj["file"].get<std::string>(), sampleRate);
+                auto samples = soundfile.audioData;
+                
+                if (samples.size() == 0)
+                    return;
+                
+                setTableJSON(data.channel, samples, jsonObj);
+                        
+            }
+            catch (nlohmann::json::exception &e)
+            {
+                lattice::logDebug << "JSON Error:" << e.what();
+            }
         }
     }
 }

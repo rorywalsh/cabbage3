@@ -1,6 +1,7 @@
 
 #include "CabbageProcessor.h"
 #include <iostream>
+#include "CabbageUtils.h"
 
 
 //========================================================================================
@@ -472,8 +473,19 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
             auto paramIdx = obj.value("paramIdx", -1);
             auto gesture = obj.value("gesture", "complete");
 
+            // Extract channel - can be a string or an object with 'id'
+            std::string channel;
+            if (obj["channel"].is_string()) {
+                channel = obj["channel"].get<std::string>();
+            } else if (obj["channel"].is_object() && obj["channel"].contains("id")) {
+                channel = obj["channel"]["id"].get<std::string>();
+            } else {
+                lattice::logError << "Invalid channel format in parameterChange message";
+                return;
+            }
+
             // Update Csound channel
-            cabbage.setControlChannel(obj.value("channel", ""), value);
+            cabbage.setControlChannel(channel, value);
             getParameters()[paramIdx].value = value;
 
             if (gesture == "begin") {
@@ -487,7 +499,7 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
                 addParameterChange({paramIdx, getParameter(paramIdx).toNormalised(value), lattice::ParamChangeType::Complete});
             }
             
-            auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), obj.value("channel", ""));
+            auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), channel);
             if (widgetOpt)
             {
                 auto &j = widgetOpt->get();
@@ -511,8 +523,24 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
             // Parse the JSON string contained in "obj"
             auto obj = nlohmann::json::parse(incomingMessage["obj"].get<std::string>());
             
-            // Extract channel
-            std::string channel = obj.value("channel", "");
+            // Extract channel - can be a string or an object
+            std::string channel;
+            if (obj["channel"].is_string()) {
+                channel = obj["channel"].get<std::string>();
+            } else if (obj["channel"].is_object() && obj["channel"].contains("id")) {
+                channel = obj["channel"]["id"].get<std::string>();
+            } else if (obj["channel"].is_object()) {
+                // For multi-channel, find the first string value
+                for (auto& [key, value] : obj["channel"].items()) {
+                    if (value.is_string()) {
+                        channel = value.get<std::string>();
+                        break;
+                    }
+                }
+            } else {
+                lattice::logError << "Invalid channel format in channelStringData message";
+                return;
+            }
             
             // Check if we have string data or float data
             if (obj.contains("stringData"))
@@ -537,6 +565,34 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
         catch (const nlohmann::json::exception& e)
         {
             lattice::logError << "Failed to parse channelStringData 'obj': " << e.what();
+        }
+    }
+    else if (incomingMessage["command"] == "fileOpen")
+    {
+        try
+        {
+            // Parse the JSON string contained in "obj"
+            auto obj = nlohmann::json::parse(incomingMessage["obj"].get<std::string>());
+            
+            // Extract channel
+            std::string channel = obj.value("channel", "");
+            if (channel.empty())
+            {
+                lattice::logError << "fileOpen message missing channel";
+                return;
+            }
+            
+            // Extract options
+            std::string directory = obj.value("directory", "");
+            std::string filters = obj.value("filters", "*");
+            bool openAtLastKnownLocation = obj.value("openAtLastKnownLocation", true);
+            
+            // Open native file dialog
+            openFileDialog(channel, directory, filters, openAtLastKnownLocation);
+        }
+        catch (const nlohmann::json::exception& e)
+        {
+            lattice::logError << "Failed to parse fileOpen 'obj': " << e.what();
         }
     }
 }
@@ -584,9 +640,19 @@ void CabbageProcessor::updateUI()
     // iterate over all widget objects and send to webview
     for (auto &w : cabbage.getWidgets())
     {
-        if (w.contains("channel")) // only let valid objects through.
+        if (w.contains("channel") && (w["channel"].is_string() || w["channel"].is_object())) // let valid string or object channels through.
         {
-            auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(w["channel"].get<std::string>(), w.dump());
+            std::string channelStr;
+            if (w["channel"].is_string()) {
+                channelStr = w["channel"].get<std::string>();
+            } else if (w["channel"].is_object() && w["channel"].contains("id")) {
+                channelStr = w["channel"]["id"].get<std::string>();
+            } else {
+                // For multi-channel without id, maybe use the first channel or something
+                // For now, skip if no id
+                continue;
+            }
+            auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(channelStr, w.dump());
             sendWebViewMessage(updatedWidget);
         }
     }
@@ -663,7 +729,27 @@ void CabbageProcessor::setParameter(int paramId, double value)
     const auto channel = getParameters()[paramId].name;
 
     // cabbage2 -> cabbage3 combobox quirk 
-    auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), channel);
+    auto widgetOpt = std::optional<std::reference_wrapper<nlohmann::json>>();
+    for (auto& w : cabbage.getWidgets()) {
+        if (w.contains("channel")) {
+            if (w["channel"].is_string() && w["channel"].get<std::string>() == channel) {
+                widgetOpt = w;
+                break;
+            } else if (w["channel"].is_object()) {
+                bool found = false;
+                for (auto& [key, value] : w["channel"].items()) {
+                    if (value.is_string() && value.get<std::string>() == channel) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    widgetOpt = w;
+                    break;
+                }
+            }
+        }
+    }
     if (widgetOpt)
     {
         auto &j = widgetOpt->get();
@@ -762,4 +848,22 @@ int CabbageProcessor::WriteMidiData(CSOUND * /*csound*/, void *_userData, const 
     }
 
     return nbytes;
+}
+
+//========================================================================================
+// Open native file dialog for fileButton
+//========================================================================================
+void CabbageProcessor::openFileDialog(const std::string& channel, const std::string& directory, const std::string& filters, bool openAtLastKnownLocation)
+{
+    std::string initialDir = directory;
+    if (initialDir.empty() && openAtLastKnownLocation) {
+        initialDir = cabbage::File::getCsdPath(); // Use CSD directory as initial if no directory specified and openAtLastKnownLocation is true
+    }
+    
+    std::string path = cabbage::File::browseForFile("Choose a file", initialDir, filters);
+    if (!path.empty()) {
+        // Send the path to Csound via the channel
+        cabbage.setStringChannel(channel, path.c_str());
+        lattice::logDebug << "File selected for channel " << channel << ": " << path;
+    }
 }

@@ -202,6 +202,15 @@ set(CABBAGE_SOURCES
     "${CMAKE_SOURCE_DIR}/src/CabbagePluginInfo.h"
 )
 
+# Add platform-specific file for browseForFile
+if(APPLE)
+    list(APPEND CABBAGE_SOURCES "${CMAKE_SOURCE_DIR}/src/CabbageUtils_mac.mm")
+elseif(WIN32)
+    list(APPEND CABBAGE_SOURCES "${CMAKE_SOURCE_DIR}/src/CabbageUtils_win.cpp")
+else()
+    list(APPEND CABBAGE_SOURCES "${CMAKE_SOURCE_DIR}/src/CabbageUtils_linux.cpp")
+endif()
+
 # ----------------------------
 # Combine all source files
 # ----------------------------
