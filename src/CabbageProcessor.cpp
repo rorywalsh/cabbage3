@@ -384,7 +384,7 @@ void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
     {
         updatedWidgetJson = cabbage.getUpdatedWidgetJsonStr(data.channel, data.cabbageJson["value"].get<float>());
     }
-    else
+    else if (data.type == CabbageOpcodeData::MessageType::Identifier)
     {
         auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), data.channel);
         if (widgetOpt)
@@ -397,6 +397,48 @@ void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
             cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
             updatedWidgetJson = cabbage.getUpdatedWidgetJsonStr(data.channel, j.dump());
         }
+    }
+    else if (data.type == CabbageOpcodeData::MessageType::Widget)
+    {
+        auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), data.channel);
+        if (widgetOpt)
+        {
+            lattice::logDebug << "A widget with channel: " << data.channel << " already exists and cannot be overwritten.";
+        }
+        else
+        {
+            lattice::logDebug << "Creating widget: " << data.channel;
+            
+            // Get the widget type
+            std::string widgetType = data.cabbageJson["type"].get<std::string>();
+            
+            // Get the default widget descriptor
+            nlohmann::json newWidget = cabbage::WidgetDescriptors::get(widgetType);
+            if (newWidget.is_null())
+            {
+                lattice::logError << "Unknown widget type: " << widgetType << " - cannot create widget";
+                return;
+            }
+            
+            // Update the widget with properties from the opcode
+            cabbage::Parser::updateJson(newWidget, data.cabbageJson, cabbage.getWidgets().size());
+            
+            // Ensure the channel is set
+            newWidget["channel"] = data.channel;
+            
+            // Add the new widget to the widgets array
+            cabbage.getWidgets().push_back(newWidget);
+            
+            // Debug: Check if widget can now be found
+            auto testWidgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), data.channel);
+            if (testWidgetOpt) {
+                lattice::logDebug << "Widget successfully registered and found: " << data.channel;
+            } else {
+                lattice::logError << "Widget was added but cannot be found: " << data.channel;
+            }
+            
+            updatedWidgetJson = cabbage.getUpdatedWidgetJsonStr(data.channel, newWidget.dump(4));
+        }        
     }
 
     if (!updatedWidgetJson.empty())

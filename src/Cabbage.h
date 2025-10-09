@@ -19,6 +19,7 @@
 #include <readerwriterqueue.h>
 #include "opcodes/CabbageSetOpcodes.h"
 #include "opcodes/CabbageGetOpcodes.h"
+#include "opcodes/CabbageCreateOpcode.h"
 
 class CabbageProcessor;
 struct CabbageOpcodeData;

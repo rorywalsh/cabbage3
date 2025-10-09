@@ -183,6 +183,8 @@ set(CABBAGE_OPCODE_SOURCES
     "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageSetOpcodes.cpp"
     "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageProfilerOpcodes.h"
     "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageProfilerOpcodes.cpp"
+    "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageCreateOpcode.h"
+    "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageCreateOpcode.cpp"
     "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageOpcodes.h"
 )
 
@@ -203,7 +205,10 @@ set(CABBAGE_SOURCES
 )
 
 # Add platform-specific file for browseForFile
-if(APPLE)
+if(CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
+    # For test builds, use stub implementation instead of platform-specific code
+    list(APPEND CABBAGE_SOURCES "${CMAKE_SOURCE_DIR}/tests/FileBrowseStub.cpp")
+elseif(APPLE)
     list(APPEND CABBAGE_SOURCES "${CMAKE_SOURCE_DIR}/src/CabbageUtils_mac.mm")
 elseif(WIN32)
     list(APPEND CABBAGE_SOURCES "${CMAKE_SOURCE_DIR}/src/CabbageUtils_win.cpp")
@@ -297,12 +302,26 @@ endif()
 # ----------------------------
 if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
     enable_testing()
-    
+
+    # Create test-specific source list (exclude platform-specific files)
+    set(CABBAGE_TEST_SOURCES
+        "${CMAKE_SOURCE_DIR}/src/CabbageProcessor.cpp"
+        "${CMAKE_SOURCE_DIR}/src/CabbageProcessor.h"
+        "${CMAKE_SOURCE_DIR}/src/Cabbage.cpp"
+        "${CMAKE_SOURCE_DIR}/src/Cabbage.h"
+        "${CMAKE_SOURCE_DIR}/src/CabbageColours.h"
+        "${CMAKE_SOURCE_DIR}/src/CabbageParser.cpp"
+        "${CMAKE_SOURCE_DIR}/src/CabbageParser.h"
+        "${CMAKE_SOURCE_DIR}/src/CabbageUtils.cpp"
+        "${CMAKE_SOURCE_DIR}/src/CabbageUtils.h"
+        "${CMAKE_SOURCE_DIR}/src/CabbagePluginInfo.h"
+    )
+
     # Create test executable
     add_executable(${PROJECT_NAME}
         "${CMAKE_SOURCE_DIR}/tests/CabbageAppTests.cpp"
         "${CMAKE_SOURCE_DIR}/tests/TestCsdFiles.h"
-        ${CABBAGE_SOURCES}
+        ${CABBAGE_TEST_SOURCES}
         ${CABBAGE_OPCODE_SOURCES}
         ${LATTICE_SOURCE_FILES}
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioApp.cpp"

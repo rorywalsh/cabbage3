@@ -5,7 +5,7 @@
  * This software is provided "as-is", without any express or implied warranty.
  * See the LICENSE file for more details.
  */
-
+#pragma once
 #undef _CR
 /**
  * There is a conflict between the preprocessor definition "_CR" in the
@@ -28,7 +28,8 @@ struct CabbageOpcodeData
     enum MessageType
     {
         Value,
-        Identifier
+        Identifier,
+        Widget
     };
 
     enum PassType
