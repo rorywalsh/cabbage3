@@ -151,48 +151,23 @@ void CabbageAudioApp::initialiseCabbage()
 //==============================================================================
 void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
 {
-    auto &cabbage = processor->getCabbageEngine();
-    auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), data.channel);
-
-    // if the channel is part of a subgroup we need to find it
-    // auto widget = cabbage.findWidgetByChannel(cabbage.getWidgets(), data.channel);
-    if (widgetOpt.has_value())
+    auto updatedOpt = processor->processOpcodeData(data);
+    if (updatedOpt.has_value())
     {
-        auto &j = widgetOpt.value().get();
+        auto &j = updatedOpt.value();
+        nlohmann::json msg;
+        msg["command"] = "widgetUpdate";
+        msg["channel"] = data.channel;
         
-        // this will update a genTable
-        if (j["type"].get<std::string>() == "genTable")
+        if (data.type == CabbageOpcodeData::MessageType::Value)
         {
-            cabbage.updateFunctionTable(data, j);
-            nlohmann::json msg;
-            msg["command"] = "widgetUpdate";
-            msg["channel"] = data.channel;
-            msg["data"] = j.dump();
-            sendJsonMessage(msg);
+            msg["value"] = j["value"].get<float>();
         }
         else
         {
-            if (data.type == CabbageOpcodeData::MessageType::Value)
-            {
-                nlohmann::json json;
-                cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
-                nlohmann::json msg;
-                msg["command"] = "widgetUpdate";
-                msg["channel"] = data.channel;
-                msg["value"] = j["value"].get<float>();
-                sendJsonMessage(msg);
-            }
-            else
-            {
-                nlohmann::json json;
-                cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
-                nlohmann::json msg;
-                msg["command"] = "widgetUpdate";
-                msg["channel"] = data.channel;
-                msg["data"] = j.dump();
-                sendJsonMessage(msg);
-            }
+            msg["data"] = j.dump();
         }
+        sendJsonMessage(msg);
     }
 }
 

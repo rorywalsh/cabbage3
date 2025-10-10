@@ -57,6 +57,9 @@ public:
     std::function<void(CabbageOpcodeData)> hostCallback = nullptr;
 #endif
     
+    // Process opcode data and return the updated widget JSON if applicable
+    std::optional<nlohmann::json> processOpcodeData(const CabbageOpcodeData &data);
+    
     // Adds a MIDI note event to the midi event queue
     void addNoteEventFromJson(const nlohmann::json &j);
     void suspendProcessing() { processingEnabled.store(false); }
@@ -69,7 +72,7 @@ public:
     void onIdleScheduler();
     void startOnIdle();
     void stopOnIdle();
-    void updateWidgetData(const CabbageOpcodeData &data);
+    void updateWidgetDataFromCsound(const CabbageOpcodeData &data);
     void addParameterForWidget(nlohmann::json& w);
     void openFileDialog(const std::string& channel, const std::string& directory, const std::string& filters, bool openAtLastKnownLocation);
     std::atomic<bool> processingEnabled{true};

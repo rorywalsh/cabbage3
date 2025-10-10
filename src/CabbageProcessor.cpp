@@ -1,4 +1,3 @@
-
 #include "CabbageProcessor.h"
 #include <iostream>
 #include "CabbageUtils.h"
@@ -367,7 +366,7 @@ void CabbageProcessor::onIdle()
             hostCallback(data);
 #else
             cabbage.processCsoundMessages();
-            updateWidgetData(data);
+            updateWidgetDataFromCsound(data);
 #endif
         }
     }
@@ -376,13 +375,30 @@ void CabbageProcessor::onIdle()
 //========================================================================================
 // this function will be called from the onIdle function if Csound has sent update messages
 //========================================================================================
-void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
+void CabbageProcessor::updateWidgetDataFromCsound(const CabbageOpcodeData &data)
 {
-    std::string updatedWidgetJson;
+    auto updatedWidgetJsonOpt = processOpcodeData(data);
+    if (updatedWidgetJsonOpt.has_value())
+    {
+        std::string updatedWidgetJson = cabbage.getUpdatedWidgetJsonStr(data.channel, updatedWidgetJsonOpt.value().dump());
+        sendWebViewMessage(updatedWidgetJson);
+    }
+}
 
+//========================================================================================
+// Process opcode data and return the updated widget JSON if applicable
+//========================================================================================
+std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageOpcodeData &data)
+{
     if (data.type == CabbageOpcodeData::MessageType::Value)
     {
-        updatedWidgetJson = cabbage.getUpdatedWidgetJsonStr(data.channel, data.cabbageJson["value"].get<float>());
+        auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), data.channel);
+        if (widgetOpt)
+        {
+            auto &j = widgetOpt->get();
+            cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+            return j;
+        }
     }
     else if (data.type == CabbageOpcodeData::MessageType::Identifier)
     {
@@ -395,7 +411,7 @@ void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
                 cabbage.updateFunctionTable(data, j);
             }
             cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
-            updatedWidgetJson = cabbage.getUpdatedWidgetJsonStr(data.channel, j.dump());
+            return j;
         }
     }
     else if (data.type == CabbageOpcodeData::MessageType::Widget)
@@ -404,6 +420,7 @@ void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
         if (widgetOpt)
         {
             lattice::logDebug << "A widget with channel: " << data.channel << " already exists and cannot be overwritten.";
+            return std::nullopt;
         }
         else
         {
@@ -417,7 +434,7 @@ void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
             if (newWidget.is_null())
             {
                 lattice::logError << "Unknown widget type: " << widgetType << " - cannot create widget";
-                return;
+                return std::nullopt;
             }
             
             // Update the widget with properties from the opcode
@@ -437,14 +454,12 @@ void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
                 lattice::logError << "Widget was added but cannot be found: " << data.channel;
             }
             
-            updatedWidgetJson = cabbage.getUpdatedWidgetJsonStr(data.channel, newWidget.dump(4));
+            return newWidget;
         }        
     }
 
-    if (!updatedWidgetJson.empty())
-        sendWebViewMessage(updatedWidgetJson);
+    return std::nullopt;
 }
-
 
 void CabbageProcessor::onIdleScheduler()
 {
