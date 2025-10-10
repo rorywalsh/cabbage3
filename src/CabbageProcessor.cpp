@@ -38,7 +38,13 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
         auto w = cabbage::Utils::findPropertyInForm<int>(*json, "size.width");
         auto h = cabbage::Utils::findPropertyInForm<int>(*json, "size.height");
         if (w.has_value() && h.has_value())
+        {
             setEditorSize(w.value(), h.value());
+            cabbage.setControlChannel("SCREEN_WIDTH", w.value());
+            cabbage.setControlChannel("WINDOW_WIDTH", w.value());
+            cabbage.setControlChannel("WINDOW_HEIGHT", h.value());
+            cabbage.setControlChannel("SCREEN_HEIGHT", h.value());
+        }
     }
       
     startOnIdle();
@@ -366,7 +372,7 @@ void CabbageProcessor::onIdle()
             hostCallback(data);
 #else
             cabbage.processCsoundMessages();
-            updateWidgetDataFromCsound(data);
+            updateWidgetData(data);
 #endif
         }
     }
@@ -375,7 +381,7 @@ void CabbageProcessor::onIdle()
 //========================================================================================
 // this function will be called from the onIdle function if Csound has sent update messages
 //========================================================================================
-void CabbageProcessor::updateWidgetDataFromCsound(const CabbageOpcodeData &data)
+void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
 {
     auto updatedWidgetJsonOpt = processOpcodeData(data);
     if (updatedWidgetJsonOpt.has_value())

@@ -17,12 +17,12 @@
 int CabbageCreate::init()
 {
     auto *hostData = static_cast<cabbage::Engine *>(csound->host_data());
-    const int argIndex = 1;
+    const int argIndex = 0;
     auto data = getIdentData(csound, args, true, 0, argIndex);
     data.type = CabbageOpcodeData::MessageType::Widget;
     
         
-    if (!testForValidNumberOfInputs(in_count(), 2))
+    if (!testForValidNumberOfInputs(in_count(), 1))
     {
         csound->init_error("Not enough input arguments\n");
         return NOTOK;

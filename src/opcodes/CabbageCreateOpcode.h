@@ -28,7 +28,7 @@
 #include <plugin.h>
 #include "CabbageOpcodes.h"
 
-struct CabbageCreate : csnd::InPlug<2>, CabbageOpcodes<2>
+struct CabbageCreate : csnd::InPlug<1>, CabbageOpcodes<1>
 {
     int init();
 };
