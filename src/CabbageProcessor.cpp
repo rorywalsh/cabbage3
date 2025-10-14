@@ -151,6 +151,11 @@ void CabbageProcessor::addParameters()
 void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
 {
     std::string widgetType = w.contains("type") ? w["type"].get<std::string>() : "unknown";
+    
+    // Skip form widgets as they don't have automatable parameters
+    if (widgetType == "form")
+        return;
+    
     std::string widgetChannel = "none";
     if (w.contains("channel")) {
         if (w["channel"].is_string()) {
@@ -163,51 +168,26 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
     if (w.contains("automatable") && w["automatable"] == 1 &&
         (!w.contains("channelType") || w["channelType"] == "number"))
     {
-
         try
         {
-            // Check if widget has multi-channel (like xypad)
-            if (w.contains("channel") && w["channel"].is_object())
+            // New schema: channels array
+            if (w.contains("channels") && w["channels"].is_array())
             {
-                lattice::logDebug << "Multi-channel widget found: " << widgetType;
-                
-                if (!w.contains("range") || !w["range"].is_object())
-                {
-                    lattice::logError << "Multi-channel widget " << widgetType << " must have a 'range' object";
-                    return;
+                lattice::logDebug << "Channels array found on widget: " << widgetType;
+                const int startIndex = cabbage.getCurrentParameterCount();
+                for (const auto &ch : w["channels"]) {
+                    if (!ch.contains("id") || !ch["id"].is_string()) continue;
+                    const std::string channel = ch["id"].get<std::string>();
+                    const std::string event = ch.contains("event") && ch["event"].is_string() ? ch["event"].get<std::string>() : std::string("valueChanged");
+                    const bool isClickEvent = (event.find("mousePress") == 0) || (event.find("mouseRelease") == 0) || (event.find("mouseClick") == 0);
+                    const float minVal = ch.contains("range") && ch["range"].contains("min") ? ch["range"]["min"].get<float>() : 0.0f;
+                    const float maxVal = ch.contains("range") && ch["range"].contains("max") ? ch["range"]["max"].get<float>() : 1.0f;
+                    const float defVal = ch.contains("range") && ch["range"].contains("defaultValue") ? ch["range"]["defaultValue"].get<float>() : 0.0f;
+                    const float incVal = ch.contains("range") && ch["range"].contains("increment") ? ch["range"]["increment"].get<float>() : (isClickEvent ? 1.0f : 0.001f);
+                    const float skewVal = ch.contains("range") && ch["range"].contains("skew") ? ch["range"]["skew"].get<float>() : 1.0f;
+                    addParameter({channel, minVal, maxVal, defVal, incVal, skewVal});
+                    lattice::logDebug << "Added parameter for channel '" << channel << "' (event: " << event << ")" << " with parameterIndex:" << startIndex;;
                 }
-                
-                // Add a parameter for each channel
-                for (auto& [channelKey, channelName] : w["channel"].items())
-                {
-                    // Skip non-channel keys like "id" - these don't need parameters
-                    if (channelKey == "id" || !channelName.is_string())
-                        continue;
-                    
-                    std::string channel = channelName.get<std::string>();
-                    
-                    // Each channel key (x, y, etc.) should have its own range
-                    if (w["range"].contains(channelKey))
-                    {
-                        auto& channelRange = w["range"][channelKey];
-                        addParameter({channel, 
-                            channelRange["min"].get<float>(),
-                            channelRange["max"].get<float>(), 
-                            channelRange["defaultValue"].get<float>(),
-                            channelRange.contains("increment") ? channelRange["increment"].get<float>() : 0.001f,
-                            channelRange.contains("skew") ? channelRange["skew"].get<float>() : 1.0f});
-                        
-                        lattice::logDebug << "Added parameter for channel '" << channel << "' (" << channelKey << ")";
-                    }
-                    else
-                    {
-                        lattice::logError << "Missing range definition for channel key: " << channelKey 
-                                         << " in widget " << widgetType;
-                    }
-                }
-                
-                // Store the starting parameter index for this multi-channel widget
-                int startIndex = cabbage.getCurrentParameterCount();
                 w["parameterIndex"] = startIndex;
                 cabbage.initParameter(w);
                 return;
@@ -220,6 +200,7 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
                 return;
             }
             
+            int paramIndex = cabbage.getCurrentParameterCount();
             if (w.contains("range"))
             {
                 addParameter({w["channel"].get<std::string>(), 
@@ -240,7 +221,7 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
                     
                 lattice::logDebug << "Added parameter for channel '" << w["channel"].get<std::string>() << "' (using min/max/defaultValue)";
             }
-            w["parameterIndex"] = cabbage.getCurrentParameterCount();
+            w["parameterIndex"] = paramIndex;
             cabbage.initParameter(w);
         }
         catch (nlohmann::json::exception &e)
@@ -530,10 +511,11 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
         {
             // Parse the JSON string contained in "obj"
             auto obj = nlohmann::json::parse(incomingMessage["obj"].get<std::string>());
-            
+            lattice::logDebug << obj.dump(4);
             // Extract values
             float value = obj.value("value", 0.f);
             auto paramIdx = obj.value("paramIdx", -1);
+            if (paramIdx < 0) return;
             auto gesture = obj.value("gesture", "complete");
 
             // Extract channel - can be a string or an object with 'id'
@@ -549,6 +531,10 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
 
             // Update Csound channel
             cabbage.setControlChannel(channel, value);
+            auto num = getParameters().size();
+            if(paramIdx >= static_cast<int>(num))
+                return;
+            
             getParameters()[paramIdx].value = value;
 
             if (gesture == "begin") {
@@ -703,21 +689,25 @@ void CabbageProcessor::updateUI()
     // iterate over all widget objects and send to webview
     for (auto &w : cabbage.getWidgets())
     {
-        if (w.contains("channel") && (w["channel"].is_string() || w["channel"].is_object())) // let valid string or object channels through.
+        std::string channelStr;
+        if (w.contains("id") && w["id"].is_string())
         {
-            std::string channelStr;
-            if (w["channel"].is_string()) {
-                channelStr = w["channel"].get<std::string>();
-            } else if (w["channel"].is_object() && w["channel"].contains("id")) {
-                channelStr = w["channel"]["id"].get<std::string>();
-            } else {
-                // For multi-channel without id, maybe use the first channel or something
-                // For now, skip if no id
-                continue;
-            }
-            auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(channelStr, w.dump());
-            sendWebViewMessage(updatedWidget);
+            channelStr = w["id"].get<std::string>();
         }
+        else if (w.contains("channel") && w["channel"].is_string())
+        {
+            channelStr = w["channel"].get<std::string>();
+        }
+        else if (w.contains("channel") && w["channel"].is_object() && w["channel"].contains("id"))
+        {
+            channelStr = w["channel"]["id"].get<std::string>();
+        }
+        else
+        {
+            continue;
+        }
+        auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(channelStr, w.dump());
+        sendWebViewMessage(updatedWidget);
     }
     
     // Check if editor has any pending messages when loaded..
@@ -794,6 +784,20 @@ void CabbageProcessor::setParameter(int paramId, double value)
     // cabbage2 -> cabbage3 combobox quirk 
     auto widgetOpt = std::optional<std::reference_wrapper<nlohmann::json>>();
     for (auto& w : cabbage.getWidgets()) {
+        // New schema: channels array
+        if (w.contains("channels") && w["channels"].is_array())
+        {
+            for (const auto& ch : w["channels"])
+            {
+                if (ch.contains("id") && ch["id"].is_string() && ch["id"].get<std::string>() == channel)
+                {
+                    widgetOpt = w;
+                    break;
+                }
+            }
+            if (widgetOpt) break;
+        }
+        // Old schema
         if (w.contains("channel")) {
             if (w["channel"].is_string() && w["channel"].get<std::string>() == channel) {
                 widgetOpt = w;

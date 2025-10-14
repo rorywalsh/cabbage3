@@ -366,6 +366,46 @@ void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJ
                     }
 
                 }
+                else if (key == "id")
+                {
+                    if (value.is_string())
+                    {
+                        std::string escapedText = escapeJSON(value.get<std::string>());
+                        jsonObj["id"] = escapedText;
+                    }
+                    else
+                    {
+                        lattice::logDebug << "id property must be a string for widget type: " << widgetType;
+                    }
+                }
+                else if (key == "channels")
+                {
+                    if (value.is_array())
+                    {
+                        nlohmann::json processedChannels = nlohmann::json::array();
+                        for (auto& ch : value)
+                        {
+                            if (ch.is_object())
+                            {
+                                nlohmann::json processedCh = ch;
+                                if (ch.contains("id") && ch["id"].is_string())
+                                {
+                                    processedCh["id"] = escapeJSON(ch["id"].get<std::string>());
+                                }
+                                processedChannels.push_back(processedCh);
+                            }
+                            else
+                            {
+                                lattice::logDebug << "channels array element must be an object for widget type: " << widgetType;
+                            }
+                        }
+                        jsonObj["channels"] = processedChannels;
+                    }
+                    else
+                    {
+                        lattice::logDebug << "channels property must be an array for widget type: " << widgetType;
+                    }
+                }
                 else if (key == "text")
                 {
                     if (value.is_string())
@@ -494,6 +534,16 @@ void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJ
     catch (const std::exception &e)
     {
         lattice::logError << "Unexpected exception in updateJson: " << e.what();
+    }
+
+    // Assign widget id from first channel if not provided
+    if (!jsonObj.contains("id") && jsonObj.contains("channels") && jsonObj["channels"].is_array() && !jsonObj["channels"].empty())
+    {
+        auto& firstChannel = jsonObj["channels"][0];
+        if (firstChannel.contains("id") && firstChannel["id"].is_string())
+        {
+            jsonObj["id"] = firstChannel["id"];
+        }
     }
 }
 

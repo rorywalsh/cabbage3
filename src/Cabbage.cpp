@@ -133,9 +133,29 @@ bool Engine::setupCsound()
 //===========================================================================================
 void Engine::initParameter(const nlohmann::json& w)
 {
-  
-    // Handle multi-channel widgets (e.g., xyPad with x and y)
-    if (w.contains("channel") && w["channel"].is_object())
+    // Handle new schema: channels array
+    if (w.contains("channels") && w["channels"].is_array())
+    {
+        for (const auto& ch : w["channels"])
+        {
+            if (!ch.contains("id") || !ch["id"].is_string()) continue;
+            std::string channel = cabbage::Parser::removeQuotes(ch["id"].get<std::string>());
+            
+            if (ch.contains("range"))
+            {
+                auto& channelRange = ch["range"];
+                float defaultValue = channelRange.contains("value") 
+                    ? channelRange["value"].get<float>()
+                    : (channelRange.contains("defaultValue") ? channelRange["defaultValue"].get<float>() : 0.5f);
+                
+                parameterChannels.push_back({channel, defaultValue});
+                csound->SetControlChannel(channel.c_str(), defaultValue);
+                numberOfParameters++;
+            }
+        }
+    }
+    // Handle old schema: multi-channel widgets (e.g., xyPad with x and y)
+    else if (w.contains("channel") && w["channel"].is_object())
     {
         if (!w.contains("range") || !w["range"].is_object())
             return;
@@ -160,7 +180,7 @@ void Engine::initParameter(const nlohmann::json& w)
             }
         }
     }
-    // Handle single-channel widgets
+    // Handle old schema: single-channel widgets
     else if (w.contains("channel") && w["channel"].is_string())
     {
         std::string channel = cabbage::Parser::removeQuotes(w["channel"].get<std::string>());
@@ -319,6 +339,18 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::findWidgetInArray(
 {
     for (auto& w : jsonArray)
     {
+        // New schema: channels array
+        if (w.contains("channels") && w["channels"].is_array())
+        {
+            for (const auto& ch : w["channels"])
+            {
+                if (ch.contains("id") && ch["id"].is_string() && cabbage::Parser::removeQuotes(ch["id"]) == channel)
+                {
+                    return std::ref(w);
+                }
+            }
+        }
+        // Old schema: channel as string or object
         if (w.contains("channel"))
         {
             // Handle single-channel widgets (channel is a string)
@@ -352,6 +384,18 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetByChannel
 {
     for (auto& w : widgets)
     {
+        // New schema: channels array
+        if (w.contains("channels") && w["channels"].is_array())
+        {
+            for (const auto& ch : w["channels"])
+            {
+                if (ch.contains("id") && ch["id"].is_string() && cabbage::Parser::removeQuotes(ch["id"]) == channel)
+                {
+                    return std::ref(w);
+                }
+            }
+        }
+        // Old schema: channel as string or object
         if (w.contains("channel"))
         {
             // Handle single-channel widgets (channel is a string)
@@ -370,6 +414,11 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetByChannel
                     }
                 }
             }
+        }
+        // Check widget id (new schema)
+        if (w.contains("id") && w["id"].is_string() && cabbage::Parser::removeQuotes(w["id"]) == channel)
+        {
+            return std::ref(w);
         }
         if (w.contains("children") && w["children"].is_array())
         {
@@ -395,7 +444,7 @@ const std::string Engine::updateWidgetState(nlohmann::json j)
     {
         auto &w = widgetOpt.value().get();
         w.merge_patch(j);
-        auto result = getUpdatedWidgetJsonStr(w["channel"], w.dump());
+        auto result = getUpdatedWidgetJsonStr(channel, w.dump());
         return result;
     }
 
