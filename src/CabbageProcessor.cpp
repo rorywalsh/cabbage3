@@ -152,19 +152,6 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
 {
     std::string widgetType = w.contains("type") ? w["type"].get<std::string>() : "unknown";
     
-    // Skip form widgets as they don't have automatable parameters
-    if (widgetType == "form")
-        return;
-    
-    std::string widgetChannel = "none";
-    if (w.contains("channel")) {
-        if (w["channel"].is_string()) {
-            widgetChannel = w["channel"].get<std::string>();
-        } else if (w["channel"].is_object()) {
-            widgetChannel = w["channel"].dump();
-        }
-    }
-    
     if (w.contains("automatable") && w["automatable"] == 1 &&
         (!w.contains("channelType") || w["channelType"] == "number"))
     {
@@ -186,7 +173,7 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
                     const float incVal = ch.contains("range") && ch["range"].contains("increment") ? ch["range"]["increment"].get<float>() : (isClickEvent ? 1.0f : 0.001f);
                     const float skewVal = ch.contains("range") && ch["range"].contains("skew") ? ch["range"]["skew"].get<float>() : 1.0f;
                     addParameter({channel, minVal, maxVal, defVal, incVal, skewVal});
-                    lattice::logDebug << "Added parameter for channel '" << channel << "' (event: " << event << ")" << " with parameterIndex:" << startIndex;;
+                    lattice::logDebug << "Added parameter for channel '" << channel << "' (event: " << event << ")";
                 }
                 w["parameterIndex"] = startIndex;
                 cabbage.initParameter(w);
