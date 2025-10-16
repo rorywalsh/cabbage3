@@ -22,7 +22,16 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
     if (!cabbage.setupCsound())
     {
         suspendProcessing();
+        
+        // Delay showing error page to allow host to finish opening editor
+        lattice::setTimeout([this]() {
+            setWebViewHtml(errorPageHtml);
+        }, 500);
+        setEditorSize(350, 350);
         return;
+    }
+    else{
+        
     }
 
     // All message to webview will be wrapped in window.postMessage()
@@ -464,7 +473,7 @@ void CabbageProcessor::stopIdleThread()
 //========================================================================================
 void CabbageProcessor::onWebViewIsReady()
 {
-    
+    setWebViewHtml(errorPageHtml);
 }
 
 void CabbageProcessor::setCabbageIsReady()
