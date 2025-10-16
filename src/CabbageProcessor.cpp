@@ -169,21 +169,36 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
             // New schema: channels array
             if (w.contains("channels") && w["channels"].is_array())
             {
-                lattice::logDebug << "Channels array found on widget: " << widgetType;
                 const int startIndex = cabbage.getCurrentParameterCount();
-                for (const auto &ch : w["channels"]) {
-                    if (!ch.contains("id") || !ch["id"].is_string()) continue;
+                for (const auto &ch : w["channels"])
+                {
+                    if (!ch.contains("id") || !ch["id"].is_string())
+                        continue;
+                    
                     const std::string channel = ch["id"].get<std::string>();
                     const std::string event = ch.contains("event") && ch["event"].is_string() ? ch["event"].get<std::string>() : std::string("valueChanged");
                     const bool isClickEvent = (event.find("mousePress") == 0) || (event.find("mouseRelease") == 0) || (event.find("mouseClick") == 0);
                     const float minVal = ch.contains("range") && ch["range"].contains("min") ? ch["range"]["min"].get<float>() : 0.0f;
-                    const float maxVal = ch.contains("range") && ch["range"].contains("max") ? ch["range"]["max"].get<float>() : 1.0f;
+                    
+                    // Determine max value - widgets send normalized values (0-1) for comboBox/optionButton
+                    float maxVal = 1.0f;
+                    if (ch.contains("range") && ch["range"].contains("max")) {
+                        maxVal = ch["range"]["max"].get<float>();
+                    } else {
+                        std::string widgetType = w["type"].get<std::string>();
+                        // comboBox and optionButton now send normalized values 0-1
+                        if (widgetType == "comboBox" || widgetType == "optionButton") {
+                            maxVal = (ch.contains("items") && ch["items"].is_array()) ?  ch["items"].size() -1 : 2;
+                        }
+                    }
+                    
                     const float defVal = ch.contains("range") && ch["range"].contains("defaultValue") ? ch["range"]["defaultValue"].get<float>() : 0.0f;
                     const float incVal = ch.contains("range") && ch["range"].contains("increment") ? ch["range"]["increment"].get<float>() : (isClickEvent ? 1.0f : 0.001f);
                     const float skewVal = ch.contains("range") && ch["range"].contains("skew") ? ch["range"]["skew"].get<float>() : 1.0f;
                     addParameter({channel, minVal, maxVal, defVal, incVal, skewVal});
-                    lattice::logDebug << "Added parameter for channel '" << channel << "' (event: " << event << ")";
+                    lattice::logDebug << "Added parameter for channel '" << channel << "' (event: " << event << ") min: " << minVal << "max: " << maxVal;
                 }
+                
                 w["parameterIndex"] = startIndex;
                 cabbage.initParameter(w);
                 return;
@@ -489,7 +504,8 @@ void CabbageProcessor::setCabbageIsReady()
 }
 
 //========================================================================================
-// Callback function - triggered when a message is sent from the webview
+// Callback function - triggered when a message is sent from the webview. Values should
+// be normalised in the range of 0 to 1
 //========================================================================================
 void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
 {
@@ -525,8 +541,7 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
                 return;
             }
 
-            // Update Csound channel
-            cabbage.setControlChannel(channel, value);
+
             auto num = getParameters().size();
             if(paramIdx >= static_cast<int>(num))
                 return;
@@ -534,15 +549,18 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
             getParameters()[paramIdx].value = value;
 
             if (gesture == "begin") {
-                addParameterChange({paramIdx, getParameter(paramIdx).toNormalised(value), lattice::ParamChangeType::GestureBegin});
+                addParameterChange({paramIdx, value, lattice::ParamChangeType::GestureBegin});
             } else if (gesture == "value") {
-                addParameterChange({paramIdx, getParameter(paramIdx).toNormalised(value), lattice::ParamChangeType::Value});
+                addParameterChange({paramIdx, value, lattice::ParamChangeType::Value});
             } else if (gesture == "end") {
-                addParameterChange({paramIdx, getParameter(paramIdx).toNormalised(value), lattice::ParamChangeType::GestureEnd});
+                addParameterChange({paramIdx, value, lattice::ParamChangeType::GestureEnd});
             }
             else{
-                addParameterChange({paramIdx, getParameter(paramIdx).toNormalised(value), lattice::ParamChangeType::Complete});
+                addParameterChange({paramIdx, value, lattice::ParamChangeType::Complete});
             }
+            
+            // Update Csound channel
+            cabbage.setControlChannel(channel, getParameter(paramIdx).fromNormalised(value));
             
             auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), channel);
             if (widgetOpt)
@@ -816,7 +834,14 @@ void CabbageProcessor::setParameter(int paramId, double value)
     if (widgetOpt)
     {
         auto &j = widgetOpt->get();
-        if (j.contains("type") && j.contains("indexOffset") &&
+        std::string widgetType = j["type"].get<std::string>();
+        
+        // For comboBox and optionButton, send normalized value since widget sends normalized
+        if (widgetType == "comboBox" || widgetType == "optionButton") {
+            cabbage.setControlChannel(getParameters()[paramId].name, value); // value is already normalized (0-1)
+            return;
+        }
+        else if (j.contains("type") && j.contains("indexOffset") &&
                 j["type"] == "comboBox" && j["indexOffset"] == true)
         {
             cabbage.setControlChannel(getParameters()[paramId].name, denormalValue+1);

@@ -251,15 +251,17 @@ void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJ
                         jsonObj[key]["directory"] = directory;
                         jsonObj[key]["fileType"] = fileType;
                         jsonObj["channelType"] = "string";
-
+                        
+                        
                         if (!files.empty()) {
                             const std::string items =
                                 std::accumulate(std::next(files.begin()), files.end(), files[0],
                                                 [](std::string a, const std::string &b) { return std::move(a) + ", " + b; });
-                            jsonObj["items"] = items;
+                            jsonObj["items"] = files;
                             lattice::logDebug << "Found " << files.size() << " files for populate operation";
                         } else {
-                            jsonObj["items"] = "";
+                            std::vector<std::string> tmp;
+                            jsonObj["items"] = tmp;
                         }
                     }
                     else
@@ -276,10 +278,10 @@ void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJ
                                                     [](const nlohmann::json& item) { return item.is_string(); });
                         
                         if (allStrings) {
-                            const std::string items =
-                                std::accumulate(std::next(value.begin()), value.end(), value[0].get<std::string>(),
-                                                [](std::string a, const std::string &b) { return std::move(a) + ", " + b; });
-                            jsonObj["items"] = items;
+//                            const std::string items =
+//                                std::accumulate(std::next(value.begin()), value.end(), value[0].get<std::string>(),
+//                                                [](std::string a, const std::string &b) { return std::move(a) + ", " + b; });
+                            jsonObj["items"] = value;
                             jsonObj["min"] = 0;
                             jsonObj["max"] = value.size() - 1;
 //                            lattice::logDebug << "Set items array with " << value.size() << " elements for widget type: " << widgetType;
