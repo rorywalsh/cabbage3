@@ -332,9 +332,36 @@ size_t Engine::getIndexForParamChannel(std::string name)
 
     return -1;
 }
-//===========================================================================================
 
-// Helper function that handles searching of widgets
+//===========================================================================================
+std::string Engine::extractChannelName(const nlohmann::json& widget)
+{
+    // First priority: explicit widget id
+    if (widget.contains("id") && widget["id"].is_string()) {
+        return cabbage::Parser::removeQuotes(widget["id"].get<std::string>());
+    }
+    
+    // Second priority: new channels array format
+    if (widget.contains("channels") && widget["channels"].is_array() && !widget["channels"].empty()) {
+        auto& firstChannel = widget["channels"][0];
+        if (firstChannel.contains("id") && firstChannel["id"].is_string()) {
+            return cabbage::Parser::removeQuotes(firstChannel["id"].get<std::string>());
+        }
+    }
+    
+    // Third priority: legacy channel formats for backward compatibility
+    if (widget.contains("channel")) {
+        if (widget["channel"].is_string()) {
+            return cabbage::Parser::removeQuotes(widget["channel"].get<std::string>());
+        } else if (widget["channel"].is_object() && widget["channel"].contains("id")) {
+            return cabbage::Parser::removeQuotes(widget["channel"]["id"].get<std::string>());
+        }
+    }
+    
+    return "";
+}
+
+//===========================================================================================
 std::optional<std::reference_wrapper<nlohmann::json>> Engine::findWidgetInArray(nlohmann::json& jsonArray, const std::string& channel)
 {
     for (auto& w : jsonArray)
@@ -547,7 +574,15 @@ void Engine::setTableJSON(std::string /*channel*/, std::vector<double> samples, 
     // this is a condensed version of the sample data that is passed around between C++ and JS.
     std::vector<double> widgetSampleData;
     
-    // Handle nested range structure for genTable (range.x for sample selection)
+    // Ensure range object exists and set default y-axis range for waveform display
+    if (!jsonObj.contains("range")) {
+        jsonObj["range"] = nlohmann::json::object();
+    }
+    if (!jsonObj["range"].contains("y")) {
+        jsonObj["range"]["y"] = {{"min", -1.0}, {"max", 1.0}};
+    }
+    
+    // Handle nested range structure for genTable (sampleRange for sample selection)
     int startSample = 0;
     int endSample = static_cast<int>(samples.size());
     
@@ -555,7 +590,7 @@ void Engine::setTableJSON(std::string /*channel*/, std::vector<double> samples, 
     {
         if (jsonObj["range"].contains("x") && jsonObj["range"]["x"].is_object())
         {
-            // New nested structure: range.x.start/end for sample range
+            // Legacy nested structure: range.x.start/end for sample range
             if (jsonObj["range"]["x"].contains("start"))
                 startSample = jsonObj["range"]["x"]["start"].get<int>();
             if (jsonObj["range"]["x"].contains("end"))
@@ -674,18 +709,7 @@ void Engine::queueGenTableUpdates()
                 if (tableSize > 0)
                 {
                     // Get the channel name
-                    std::string channelId;
-                    if (widget.contains("channel"))
-                    {
-                        if (widget["channel"].is_string())
-                        {
-                            channelId = widget["channel"].get<std::string>();
-                        }
-                        else if (widget["channel"].is_object() && widget["channel"].contains("id"))
-                        {
-                            channelId = widget["channel"]["id"].get<std::string>();
-                        }
-                    }
+                    std::string channelId = extractChannelName(widget);
                     
                     if (!channelId.empty())
                     {
