@@ -153,6 +153,9 @@ class Engine
     // Initialise genTable widgets by loading audio files specified in their file property
     void initialiseGenTableWidgets();
     
+    // Extracts the primary channel name from a widget, handling both new and legacy schemas.
+    std::string extractChannelName(const nlohmann::json &widget);
+
     // Queue automatic updates for genTable widgets with tableNumber > 0 after Csound starts
     void queueGenTableUpdates();
 
