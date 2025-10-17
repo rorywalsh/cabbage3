@@ -352,7 +352,7 @@ std::string Engine::extractChannelName(const nlohmann::json& widget)
     // Third priority: legacy channel formats for backward compatibility
     if (widget.contains("channel")) {
         if (widget["channel"].is_string()) {
-            return cabbage::Parser::removeQuotes(widget["channel"].get<std::string>());
+            lattAssert(widget["channel"].is_string(), "Channel should be a string");
         } else if (widget["channel"].is_object() && widget["channel"].contains("id")) {
             return cabbage::Parser::removeQuotes(widget["channel"]["id"].get<std::string>());
         }

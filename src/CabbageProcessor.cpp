@@ -423,7 +423,7 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
         else
         {
             lattice::logDebug << "Creating widget: " << data.channel;
-            
+            lattAssert(false, "Double check cabbageCreate still works as expected");
             // Get the widget type
             std::string widgetType = data.cabbageJson["type"].get<std::string>();
             
@@ -437,9 +437,6 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
             
             // Update the widget with properties from the opcode
             cabbage::Parser::updateJson(newWidget, data.cabbageJson, cabbage.getWidgets().size());
-            
-            // Ensure the channel is set
-            newWidget["channel"] = data.channel;
             
             // Add the new widget to the widgets array
             cabbage.getWidgets().push_back(newWidget);
