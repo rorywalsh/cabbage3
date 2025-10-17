@@ -488,7 +488,7 @@ void CabbageProcessor::stopIdleThread()
 //========================================================================================
 void CabbageProcessor::onWebViewIsReady()
 {
-    setWebViewHtml(errorPageHtml);
+    updateUI();
 }
 
 void CabbageProcessor::setCabbageIsReady()

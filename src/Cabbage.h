@@ -166,6 +166,9 @@ class Engine
     static float remap(double n, double start1, double stop1, double start2, double stop2);
     float getFullRangeValue(std::string channel, float normalValue);
 
+    // Check if a widget has a specific channel (searches id then channels array)
+    static bool hasChannel(const nlohmann::json& widget, const std::string& channel);
+
     moodycamel::ReaderWriterQueue<CabbageOpcodeData> opcodeData;
 
     std::string getCompileErrors() { return compileErrors; }

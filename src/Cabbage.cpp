@@ -634,7 +634,7 @@ void Engine::initialiseGenTableWidgets()
         {
             std::string channelName;
             if (widget["channel"].is_string()) {
-                channelName = cabbage::Parser::removeQuotes(widget["channel"].get<std::string>());
+                lattice::logDebug << "Error widget[\"channel\"] " << widget["channel"] << "should not be string ";
             } else if (widget["channel"].is_object() && widget["channel"].contains("id")) {
                 channelName = cabbage::Parser::removeQuotes(widget["channel"]["id"].get<std::string>());
             } else {
@@ -759,6 +759,38 @@ std::string Engine::removeControlCharacters(const std::string &input)
         }
     }
     return result;
+}
+
+// Check if a widget has a specific channel (searches id then channels array)
+bool Engine::hasChannel(const nlohmann::json& widget, const std::string& channel)
+{
+    // First check widget["id"]
+    if (widget.contains("id") && widget["id"].is_string())
+    {
+        std::string widgetId = cabbage::Parser::removeQuotes(widget["id"].get<std::string>());
+        if (widgetId == channel)
+        {
+            return true;
+        }
+    }
+
+    // Then check widget["channels"] array
+    if (widget.contains("channels") && widget["channels"].is_array())
+    {
+        for (const auto& ch : widget["channels"])
+        {
+            if (ch.contains("id") && ch["id"].is_string())
+            {
+                std::string chId = cabbage::Parser::removeQuotes(ch["id"].get<std::string>());
+                if (chId == channel)
+                {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
 }
 
 } // namespace cabbage

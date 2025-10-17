@@ -21,8 +21,7 @@ int CabbageDump::dump(int)
     int indents = in_count() == 2 ? args[1] : 4;
     for (auto &widget : hostData->getWidgets())
     {
-        auto channel = cabbage::Parser::removeQuotes(widget["channel"].get<std::string>());
-        if (channel == widgetChannel)
+        if (cabbage::Engine::hasChannel(widget, widgetChannel))
         {
             csound->message(widget.dump(indents));
         }
@@ -42,8 +41,7 @@ int CabbageDumpWithTrigger::dump(int)
     {
         for (auto &widget : hostData->getWidgets())
         {
-            auto channel = cabbage::Parser::removeQuotes(widget["channel"].get<std::string>());
-            if (channel == widgetChannel)
+            if (cabbage::Engine::hasChannel(widget, widgetChannel))
             {
                 csound->message(widget.dump(indents));
             }
@@ -199,8 +197,7 @@ int CabbageGetMYFLT::getIdentifier(int /*init*/)
         CabbageOpcodeData data = getIdentData(csound, inargs, true, 0, 1);
         for (auto &widget : hostData->getWidgets())
         {
-            auto channel = cabbage::Parser::removeQuotes(widget["channel"].get<std::string>());
-            if (channel == data.channel)
+            if (cabbage::Engine::hasChannel(widget, data.channel))
             {
                 // EvaluateJavaScript << data.identifierText << ":" << widget[data.identifierText].get<float>();
                 outargs[0] = getJsonValue(widget, data.identifier).get<MYFLT>();
@@ -214,8 +211,7 @@ int CabbageGetMYFLT::getIdentifier(int /*init*/)
         CabbageOpcodeData data = getIdentData(csound, inargs, true, 0, 0);
         for (auto &widget : hostData->getWidgets())
         {
-            auto channel = cabbage::Parser::removeQuotes(widget["channel"].get<std::string>());
-            if (channel == data.channel)
+            if (cabbage::Engine::hasChannel(widget, data.channel))
             {
                 if (csound->get_csound()->GetChannelPtr(csound->get_csound(), (void **)&value, inargs.str_data(0).data,
                                                         CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) ==
@@ -243,8 +239,7 @@ int CabbageGetString::getIdentifier(int /*init*/)
         CabbageOpcodeData data = getIdentData(csound, inargs, true, 0, 1);
         for (auto &widget : hostData->getWidgets())
         {
-            auto channel = cabbage::Parser::removeQuotes(widget["channel"].get<std::string>());
-            if (channel == data.channel)
+            if (cabbage::Engine::hasChannel(widget, data.channel))
             {
                 auto output = getJsonValue(widget, data.identifier).get<std::string>();
                 outargs.str_data(0).size = int(strlen(output.c_str()) + 1);
@@ -268,8 +263,7 @@ int CabbageGetStringWithTrigger::getIdentifier(int /*init*/)
         CabbageOpcodeData data = getIdentData(csound, inargs, true, 0, 1);
         for (auto &widget : hostData->getWidgets())
         {
-            auto channel = widget["channel"].get<std::string>();
-            if (channel == data.channel)
+            if (cabbage::Engine::hasChannel(widget, data.channel))
             {
                 auto str = getJsonValue(widget, data.identifier).get<std::string>();
 
