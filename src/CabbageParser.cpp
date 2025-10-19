@@ -510,30 +510,96 @@ std::string Parser::parseColorValue(const nlohmann::json &value)
     {
         std::string colorStr = value.get<std::string>();
         
-        // Check for CSS rgb() and rgba() syntax
-        std::regex rgbRegex(R"(^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$)");
-        std::regex rgbaRegex(R"(^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*([0-1]?\.?\d+)\s*\)$)");
-        
+        // Improved CSS rgb()/rgba() parsing:
+        // Accepts integer (0-255), decimal (0-1) and percentage (0% - 100%) values.
+        std::regex rgbaRegex(R"(^rgba\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^\)]+)\s*\)$)", std::regex::icase);
+        std::regex rgbRegex(R"(^rgb\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^\)]+)\s*\)$)", std::regex::icase);
+
         std::smatch match;
+        auto parseComponent = [](const std::string &s) -> int {
+            std::string str = s;
+            // trim
+            str.erase(0, str.find_first_not_of(" \t\n\r"));
+            str.erase(str.find_last_not_of(" \t\n\r") + 1);
+
+            bool isPercent = false;
+            if (!str.empty() && str.back() == '%')
+            {
+                isPercent = true;
+                str = str.substr(0, str.size() - 1);
+            }
+
+            double val = 0.0;
+            try
+            {
+                val = std::stod(str);
+            }
+            catch (...) { val = 0.0; }
+
+            int out;
+            if (isPercent)
+            {
+                // percentage -> 0..255
+                out = static_cast<int>(std::round(std::clamp(val, 0.0, 100.0) * 255.0 / 100.0));
+            }
+            else
+            {
+                // if value looks like 0..1 use that scale, otherwise assume 0..255
+                if (val >= 0.0 && val <= 1.0)
+                    out = static_cast<int>(std::round(val * 255.0));
+                else
+                    out = static_cast<int>(std::round(std::clamp(val, 0.0, 255.0)));
+            }
+
+            return std::clamp(out, 0, 255);
+        };
+
+        auto parseAlpha = [](const std::string &s) -> double {
+            std::string str = s;
+            // trim
+            str.erase(0, str.find_first_not_of(" \t\n\r"));
+            str.erase(str.find_last_not_of(" \t\n\r") + 1);
+
+            bool isPercent = false;
+            if (!str.empty() && str.back() == '%')
+            {
+                isPercent = true;
+                str = str.substr(0, str.size() - 1);
+            }
+
+            double val = 1.0;
+            try { val = std::stod(str); } catch (...) { val = 1.0; }
+
+            if (isPercent)
+            {
+                val = std::clamp(val / 100.0, 0.0, 1.0);
+            }
+            else
+            {
+                // If given as 0..255 (unlikely for alpha) treat >1 as 1
+                if (val > 1.0)
+                    val = 1.0;
+                val = std::clamp(val, 0.0, 1.0);
+            }
+            return val;
+        };
+
         if (std::regex_match(colorStr, match, rgbaRegex))
         {
-            // Parse rgba(r, g, b, a)
-            int r = std::stoi(match[1].str());
-            int g = std::stoi(match[2].str());
-            int b = std::stoi(match[3].str());
-            double a = std::stod(match[4].str());
-            
-            // Convert alpha to 0-255 range and create RGBA hex
-            int alpha = static_cast<int>(a * 255);
+            int r = parseComponent(match[1].str());
+            int g = parseComponent(match[2].str());
+            int b = parseComponent(match[3].str());
+            double a = parseAlpha(match[4].str());
+
+            int alpha = static_cast<int>(std::round(a * 255.0));
             return rgbaToHex(r, g, b, alpha);
         }
         else if (std::regex_match(colorStr, match, rgbRegex))
         {
-            // Parse rgb(r, g, b)
-            int r = std::stoi(match[1].str());
-            int g = std::stoi(match[2].str());
-            int b = std::stoi(match[3].str());
-            
+            int r = parseComponent(match[1].str());
+            int g = parseComponent(match[2].str());
+            int b = parseComponent(match[3].str());
+
             std::vector<double> rgb = {static_cast<double>(r), static_cast<double>(g), static_cast<double>(b)};
             return rgbToHex(rgb);
         }
@@ -548,20 +614,63 @@ std::string Parser::parseColorValue(const nlohmann::json &value)
 
 std::string Parser::rgbToHex(const std::vector<double> &rgb)
 {
+    auto clampByte = [](int v) { return std::clamp(v, 0, 255); };
+    int r = clampByte(static_cast<int>(std::round(rgb.size() > 0 ? rgb[0] : 0.0)));
+    int g = clampByte(static_cast<int>(std::round(rgb.size() > 1 ? rgb[1] : 0.0)));
+    int b = clampByte(static_cast<int>(std::round(rgb.size() > 2 ? rgb[2] : 0.0)));
+
     std::ostringstream hex;
-    hex << "#" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(rgb[0]) << std::setw(2)
-        << std::setfill('0') << static_cast<int>(rgb[1]) << std::setw(2) << std::setfill('0')
-        << static_cast<int>(rgb[2]);
-    return hex.str();
+    hex << "#" << std::hex << std::setw(2) << std::setfill('0') << std::nouppercase
+        << (r >> 4 & 0xF) << (r & 0xF); // placeholder - we'll format properly below
+    // Proper formatting using stringstream with manipulators for each byte
+    std::ostringstream out;
+    out << "#";
+    out << std::hex << std::setw(2) << std::setfill('0') << std::nouppercase << std::uppercase;
+    // we need to ensure two hex digits per byte, so cast to unsigned and mask
+    {
+        std::ostringstream tmp; tmp << std::hex << std::setw(2) << std::setfill('0') << (unsigned)(r & 0xFF);
+        out << tmp.str();
+    }
+    {
+        std::ostringstream tmp; tmp << std::hex << std::setw(2) << std::setfill('0') << (unsigned)(g & 0xFF);
+        out << tmp.str();
+    }
+    {
+        std::ostringstream tmp; tmp << std::hex << std::setw(2) << std::setfill('0') << (unsigned)(b & 0xFF);
+        out << tmp.str();
+    }
+    std::string result = out.str();
+    // make lowercase to match existing style
+    std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) { return std::tolower(c); });
+    return result;
 }
 
 std::string Parser::rgbaToHex(int r, int g, int b, int a)
 {
-    std::ostringstream hex;
-    hex << "#" << std::hex << std::setw(2) << std::setfill('0') << r << std::setw(2)
-        << std::setfill('0') << g << std::setw(2) << std::setfill('0') << b << std::setw(2)
-        << std::setfill('0') << a;
-    return hex.str();
+    auto clampByte = [](int v) { return std::clamp(v, 0, 255); };
+    unsigned rr = static_cast<unsigned>(clampByte(r)) & 0xFF;
+    unsigned gg = static_cast<unsigned>(clampByte(g)) & 0xFF;
+    unsigned bb = static_cast<unsigned>(clampByte(b)) & 0xFF;
+    unsigned aa = static_cast<unsigned>(clampByte(a)) & 0xFF;
+
+    std::ostringstream out;
+    out << "#";
+    {
+        std::ostringstream tmp; tmp << std::hex << std::setw(2) << std::setfill('0') << (unsigned)rr; out << tmp.str();
+    }
+    {
+        std::ostringstream tmp; tmp << std::hex << std::setw(2) << std::setfill('0') << (unsigned)gg; out << tmp.str();
+    }
+    {
+        std::ostringstream tmp; tmp << std::hex << std::setw(2) << std::setfill('0') << (unsigned)bb; out << tmp.str();
+    }
+    {
+        std::ostringstream tmp; tmp << std::hex << std::setw(2) << std::setfill('0') << (unsigned)aa; out << tmp.str();
+    }
+
+    std::string result = out.str();
+    std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) { return std::tolower(c); });
+    return result;
 }
 
 std::string Parser::validateHexString(const std::string &str)
