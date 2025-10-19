@@ -146,7 +146,7 @@ void Parser::parseJsonFile(const std::string &filename, std::vector<nlohmann::js
 }
 
 
-void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJson, size_t numWidgets)
+void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJson, size_t numWidgets, bool assignIdIfMissing)
 {
     try
     {
@@ -170,16 +170,43 @@ void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJ
         
         const std::string widgetType = jsonObj["type"].get<std::string>();
         
-        if (widgetType != "form")
+        // Assign widget id from first channel if not provided in incoming JSON, otherwise auto-assign
+        // Form is a special case with a fixed "MainForm" id
+        if (assignIdIfMissing)
         {
-            if (incomingJson.contains("channel") && incomingJson["channel"].is_string() &&
-                incomingJson["channel"].get<std::string>().empty())
+            if (widgetType != "form")
             {
-                std::string autoChannel = widgetType + std::to_string(static_cast<int>(numWidgets));
-                jsonObj["channel"] = autoChannel;
-                lattice::logWarning << "Widget type '" << widgetType << "' is missing a channel property. "
-                                  << "Automatically assigned: \"" << autoChannel
-                                  << "\". Assign your own channel property to avoid unexpected behavior.";
+                if (!incomingJson.contains("id"))
+                {
+                    bool assigned = false;
+                    if (incomingJson.contains("channels") && incomingJson["channels"].is_array() && !incomingJson["channels"].empty())
+                    {
+                        auto& firstChannel = incomingJson["channels"][0];
+                        if (firstChannel.contains("id") && firstChannel["id"].is_string())
+                        {
+                            jsonObj["id"] = escapeJSON(firstChannel["id"].get<std::string>());
+                            assigned = true;
+                        }
+                    }
+                    if (!assigned)
+                    {
+                        std::string autoId = widgetType + std::to_string(static_cast<int>(numWidgets));
+                        jsonObj["id"] = autoId;
+                        // Also set the first channel's id if channels exist
+                        if (incomingJson.contains("channels") && incomingJson["channels"].is_array() && !incomingJson["channels"].empty())
+                        {
+                            jsonObj["channels"][0]["id"] = autoId;
+                        }
+                        lattice::logDebug << incomingJson.dump(4);
+                        lattice::logWarning << "Widget type '" << widgetType << "' is missing an id property. "
+                                          << "Automatically assigned: \"" << autoId
+                                          << "\". Assign your own id property to avoid unexpected behavior.";
+                    }
+                }
+            }
+            else
+            {
+                jsonObj["id"] = "MainForm";
             }
         }
 
@@ -538,15 +565,6 @@ void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJ
         lattice::logError << "Unexpected exception in updateJson: " << e.what();
     }
 
-    // Assign widget id from first channel if not provided
-    if (!jsonObj.contains("id") && jsonObj.contains("channels") && jsonObj["channels"].is_array() && !jsonObj["channels"].empty())
-    {
-        auto& firstChannel = jsonObj["channels"][0];
-        if (firstChannel.contains("id") && firstChannel["id"].is_string())
-        {
-            jsonObj["id"] = firstChannel["id"];
-        }
-    }
 }
 
 void Parser::parseStroke(const nlohmann::json &strokeValue, nlohmann::json &target)

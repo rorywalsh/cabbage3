@@ -485,7 +485,7 @@ std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, std::str
     result = choc::text::replace(R"(
         {
             command: "widgetUpdate",
-            channel: "$CHANNEL",
+            id: "$CHANNEL",
             data: `$DATA`
         }
     )", "$CHANNEL", channel, "$DATA", data);
@@ -498,7 +498,7 @@ std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, float va
     result = choc::text::replace(R"(
         {
             command: "widgetUpdate",
-            channel: "$CHANNEL",
+            id: "$CHANNEL",
             value: $VALUE
         }
     )", "$CHANNEL", channel, "$VALUE", std::to_string(value));
@@ -514,7 +514,7 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
         {
             try
             {
-                cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size());
+                cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size(), false);
                 
                 // Get tableNumber from data.cabbageJson since updateJson may not set it reliably
                 int tableNumber = -1;
@@ -550,7 +550,7 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
             try
             {
                 
-                cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size());
+                cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size(), false);
                 
                 auto soundfile = cabbage::File::readAudioFile<double>(jsonObj["file"].get<std::string>(), sampleRate);
                 auto samples = soundfile.audioData;

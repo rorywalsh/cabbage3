@@ -356,7 +356,7 @@ void CabbageProcessor::onIdle()
                 if(j.is_null())
                     break;
                 
-                cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+                cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size(), false);
             }
 
             
@@ -394,7 +394,7 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
         if (widgetOpt)
         {
             auto &j = widgetOpt->get();
-            cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+            cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size(), false);
             return j;
         }
     }
@@ -408,7 +408,7 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
             {
                 cabbage.updateFunctionTable(data, j);
             }
-            cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size());
+            cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size(), false);
             return j;
         }
     }
@@ -707,6 +707,7 @@ void CabbageProcessor::updateUI()
         }
         else if (w.contains("channel") && w["channel"].is_string())
         {
+            lattice::logDebug << "Channel string property is deprecated";
             channelStr = w["channel"].get<std::string>();
         }
         else if (w.contains("channel") && w["channel"].is_object() && w["channel"].contains("id"))
