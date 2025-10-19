@@ -24,7 +24,8 @@ class Parser
     static void parseContent(const std::string &content, std::vector<nlohmann::json> &widgets);
     static void parseJsonFile(const std::string &filename, std::vector<nlohmann::json> &widgets);
 
-    static void updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJson, size_t numWidgets, bool assignIdIfMissing = true);
+    static void initialiseWidgetJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJson, size_t numWidgets);
+    static void mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &incomingJson);
     static void parseStroke(const nlohmann::json &strokeValue, nlohmann::json &target);
     static void parseColourProperties(const nlohmann::json &value, nlohmann::json &target);
 

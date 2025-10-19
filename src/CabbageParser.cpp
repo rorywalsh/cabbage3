@@ -112,7 +112,7 @@ void Parser::parseContent(const std::string &content, std::vector<nlohmann::json
                     auto j = WidgetDescriptors::get(widgetType);
                     if (!j.is_null())
                     {
-                        updateJson(j, item, widgets.size());
+                        initialiseWidgetJson(j, item, widgets.size());
                         widgets.push_back(j);                        
                     }
                     else
@@ -146,7 +146,7 @@ void Parser::parseJsonFile(const std::string &filename, std::vector<nlohmann::js
 }
 
 
-void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJson, size_t numWidgets, bool assignIdIfMissing)
+void Parser::initialiseWidgetJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJson, size_t numWidgets)
 {
     try
     {
@@ -172,399 +172,287 @@ void Parser::updateJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJ
         
         // Assign widget id from first channel if not provided in incoming JSON, otherwise auto-assign
         // Form is a special case with a fixed "MainForm" id
-        if (assignIdIfMissing)
+        if (widgetType != "form")
         {
-            if (widgetType != "form")
+            if (!incomingJson.contains("id"))
             {
-                if (!incomingJson.contains("id"))
+                bool assigned = false;
+                if (incomingJson.contains("channels") && incomingJson["channels"].is_array() && !incomingJson["channels"].empty())
                 {
-                    bool assigned = false;
+                    auto& firstChannel = incomingJson["channels"][0];
+                    if (firstChannel.contains("id") && firstChannel["id"].is_string())
+                    {
+                        jsonObj["id"] = escapeJSON(firstChannel["id"].get<std::string>());
+                        assigned = true;
+                    }
+                }
+                if (!assigned)
+                {
+                    std::string autoId = widgetType + std::to_string(static_cast<int>(numWidgets));
+                    jsonObj["id"] = autoId;
+                    // Also set the first channel's id if channels exist
                     if (incomingJson.contains("channels") && incomingJson["channels"].is_array() && !incomingJson["channels"].empty())
                     {
-                        auto& firstChannel = incomingJson["channels"][0];
-                        if (firstChannel.contains("id") && firstChannel["id"].is_string())
-                        {
-                            jsonObj["id"] = escapeJSON(firstChannel["id"].get<std::string>());
-                            assigned = true;
-                        }
+                        jsonObj["channels"][0]["id"] = autoId;
                     }
-                    if (!assigned)
-                    {
-                        std::string autoId = widgetType + std::to_string(static_cast<int>(numWidgets));
-                        jsonObj["id"] = autoId;
-                        // Also set the first channel's id if channels exist
-                        if (incomingJson.contains("channels") && incomingJson["channels"].is_array() && !incomingJson["channels"].empty())
-                        {
-                            jsonObj["channels"][0]["id"] = autoId;
-                        }
-                        lattice::logDebug << incomingJson.dump(4);
-                        lattice::logWarning << "Widget type '" << widgetType << "' is missing an id property. "
-                                          << "Automatically assigned: \"" << autoId
-                                          << "\". Assign your own id property to avoid unexpected behavior.";
-                    }
+                    lattice::logDebug << incomingJson.dump(4);
+                    lattice::logWarning << "Widget type '" << widgetType << "' is missing an id property. "
+                                      << "Automatically assigned: \"" << autoId
+                                      << "\". Assign your own id property to avoid unexpected behavior.";
                 }
-            }
-            else
-            {
-                jsonObj["id"] = "MainForm";
             }
         }
-
-        // Iterate through incoming JSON properties
-        for (auto it = incomingJson.begin(); it != incomingJson.end(); ++it)
+        else
         {
-            const std::string &key = it.key();
-            const auto &value = it.value();
+            jsonObj["id"] = "MainForm";
+        }
 
-            try
+        mergeJsonProperties(jsonObj, incomingJson);
+    }
+    catch (const nlohmann::json::exception &e)
+    {
+        lattice::logError << "JSON exception in initialiseWidgetJson: " << e.what();
+    }
+    catch (const std::exception &e)
+    {
+        lattice::logError << "Unexpected exception in initialiseWidgetJson: " << e.what();
+    }
+
+}
+
+void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &incomingJson)
+{
+    // Check for required 'type' field in target JSON
+    if (!jsonObj.contains("type") || !jsonObj["type"].is_string()) {
+        lattice::logError << "Target JSON object is missing required 'type' field or it's not a string";
+        return;
+    }
+    
+    const std::string widgetType = jsonObj["type"].get<std::string>();
+    
+    // Iterate through incoming JSON properties
+    for (auto it = incomingJson.begin(); it != incomingJson.end(); ++it)
+    {
+        const std::string &key = it.key();
+        const auto &value = it.value();
+
+        try
+        {
+            if (key == "bounds" || key == "range" || key == "size")
             {
-                if (key == "bounds" || key == "range" || key == "size")
+                if (value.is_object())
                 {
-                    if (value.is_object())
+                    for (auto &[propKey, val] : value.items())
                     {
-                        for (auto &[propKey, val] : value.items())
-                        {
-                            jsonObj[key][propKey] = val;
-                        }
-                    }
-                    else
-                    {
-                        lattice::logWarning << "Property '" << key << "' should be an object for widget type: " << widgetType;
-                    }
-                }
-                else if (key == "sampleRange")
-                {
-                    if (value.is_array() && value.size() == 2)
-                    {
-                        if (value[0].is_number() && value[1].is_number()) {
-                            jsonObj["startSample"] = value[0].get<int>();
-                            jsonObj["endSample"] = value[1].get<int>();
-//                            lattice::logDebug << "Set sample range for widget type: " << widgetType;
-                        } else {
-                            lattice::logWarning << "sampleRange array elements must be numbers for widget type: " << widgetType;
-                        }
-                    }
-                    else
-                    {
-                        lattice::logWarning << "sampleRange must be an array with exactly 2 elements for widget type: " << widgetType;
-                    }
-                }
-                else if (key == "populate")
-                {
-                    if (value.is_object())
-                    {
-                        // Validate required fields in populate object
-                        if (!value.contains("directory") || !value["directory"].is_string()) {
-                            lattice::logError << "populate object missing required 'directory' string field for widget type: " << widgetType;
-                            continue;
-                        }
-                        
-                        if (!value.contains("fileType") || !value["fileType"].is_string()) {
-                            lattice::logError << "populate object missing required 'fileType' string field for widget type: " << widgetType;
-                            continue;
-                        }
-                        
-                        std::string directory = value["directory"].get<std::string>();
-                        std::string fileType = cabbage::Utils::sanitisePath(value["fileType"].get<std::string>());
-                        
-                        lattice::logInfo << "Populating widget from directory: " << directory << " with file type: " << fileType;
-                        
-                        std::vector<std::string> files = File::getFilesOfType(directory, fileType);
-                        
-                        if (files.empty()) {
-                            lattice::logWarning << "No files found in directory '" << directory << "' with type '" << fileType << "'";
-                        }
-                        
-                        jsonObj[key]["directory"] = directory;
-                        jsonObj[key]["fileType"] = fileType;
-                        jsonObj["channelType"] = "string";
-                        
-                        
-                        if (!files.empty()) {
-                            const std::string items =
-                                std::accumulate(std::next(files.begin()), files.end(), files[0],
-                                                [](std::string a, const std::string &b) { return std::move(a) + ", " + b; });
-                            jsonObj["items"] = files;
-                            lattice::logDebug << "Found " << files.size() << " files for populate operation";
-                        } else {
-                            std::vector<std::string> tmp;
-                            jsonObj["items"] = tmp;
-                        }
-                    }
-                    else
-                    {
-                        lattice::logDebug << "populate property must be an object for widget type: " << widgetType;
-                    }
-                }
-                else if (key == "items")
-                {
-                    if (value.is_array())
-                    {
-                        // Validate array contains strings
-                        bool allStrings = std::all_of(value.begin(), value.end(),
-                                                    [](const nlohmann::json& item) { return item.is_string(); });
-                        
-                        if (allStrings) {
-//                            const std::string items =
-//                                std::accumulate(std::next(value.begin()), value.end(), value[0].get<std::string>(),
-//                                                [](std::string a, const std::string &b) { return std::move(a) + ", " + b; });
-                            jsonObj["items"] = value;
-                            jsonObj["min"] = 0;
-                            jsonObj["max"] = value.size() - 1;
-//                            lattice::logDebug << "Set items array with " << value.size() << " elements for widget type: " << widgetType;
-                        } else {
-                            lattice::logDebug << "items array must contain only string values for widget type: " << widgetType;
-                        }
-                    }
-                    else
-                    {
-                        lattice::logDebug << "items property must be an array for widget type: " << widgetType;
-                    }
-                }
-                else if (key == "samples")
-                {
-                    if (value.is_array())
-                    {
-                        bool allNumbers = std::all_of(value.begin(), value.end(),
-                                                    [](const nlohmann::json& item) { return item.is_number(); });
-                        
-                        if (allNumbers) {
-                            jsonObj["samples"] = value.get<std::vector<double>>();
-//                            lattice::logDebug << "Set samples array with " << value.size() << " numeric values";
-                        } else {
-                            lattice::logDebug << "samples array must contain only numeric values for widget type: " << widgetType;
-                        }
-                    }
-                    else
-                    {
-                        lattice::logDebug << "samples property must be an array for widget type: " << widgetType;
-                    }
-                }
-                else if (key == "colour")
-                {
-                    if (value.is_object())
-                    {
-                        parseColourProperties(value, jsonObj[key]);
-//                        lattice::logDebug << "Parsed colour object for widget type: " << widgetType;
-                    }
-                    else if (value.is_string() || value.is_number())
-                    {
-                        jsonObj[key] = parseColorValue(value);
-//                        lattice::logDebug << "Parsed colour value for widget type: " << widgetType;
-                    }
-                    else
-                    {
-                        lattice::logDebug << "colour property must be an object, string, or number for widget type: " << widgetType;
-                    }
-                }
-                else if (key == "file")
-                {
-                    if (value.is_string())
-                    {
-                        std::string filePath = cabbage::Utils::sanitisePath(value.get<std::string>());
-                        jsonObj["file"] = filePath;
-//                        lattice::logDebug << "Set file path: " << filePath << " for widget type: " << widgetType;
-                    }
-                    else
-                    {
-                        lattice::logDebug << "file property must be a string for widget type: " << widgetType;
-                    }
-                }
-                else if (key == "channel")
-                {
-                    if (value.is_string())
-                    {
-                        std::string escapedText = escapeJSON(value.get<std::string>());
-                        jsonObj["channel"] = escapedText;
-                    }
-                    else if (value.is_object())
-                    {
-                        lattice::logDebug << "multi-channel support detected";
-                        for (auto &[innerKey, val] : value.items())
-                        {
-                            if (val.is_string())
-                            {
-                                jsonObj["channel"][innerKey] = escapeJSON(val.get<std::string>());
-                            }
-                            else
-                            {
-                                lattice::logDebug << "channel object property '" << innerKey
-                                                  << "' must be an object for widget type: " << widgetType;
-                            }
-                        }
-                    }
-
-                }
-                else if (key == "id")
-                {
-                    if (value.is_string())
-                    {
-                        std::string escapedText = escapeJSON(value.get<std::string>());
-                        jsonObj["id"] = escapedText;
-                    }
-                    else
-                    {
-                        lattice::logDebug << "id property must be a string for widget type: " << widgetType;
-                    }
-                }
-                else if (key == "channels")
-                {
-                    if (value.is_array())
-                    {
-                        nlohmann::json processedChannels = nlohmann::json::array();
-                        for (auto& ch : value)
-                        {
-                            if (ch.is_object())
-                            {
-                                nlohmann::json processedCh = ch;
-                                if (ch.contains("id") && ch["id"].is_string())
-                                {
-                                    processedCh["id"] = escapeJSON(ch["id"].get<std::string>());
-                                }
-                                processedChannels.push_back(processedCh);
-                            }
-                            else
-                            {
-                                lattice::logDebug << "channels array element must be an object for widget type: " << widgetType;
-                            }
-                        }
-                        jsonObj["channels"] = processedChannels;
-                    }
-                    else
-                    {
-                        lattice::logDebug << "channels property must be an array for widget type: " << widgetType;
-                    }
-                }
-                else if (key == "text")
-                {
-                    if (value.is_string())
-                    {
-                        std::string escapedText = escapeJSON(value.get<std::string>());
-                        if (choc::text::toLowerCase(widgetType).find("button") != std::string::npos)
-                        {
-                            jsonObj["text"]["on"] = escapedText;
-                            jsonObj["text"]["off"] = escapedText;
-//                            lattice::logDebug << "Set button text (on/off): " << escapedText;
-                        }
-                        else
-                        {
-                            jsonObj["text"] = escapedText;
-//                            lattice::logDebug << "Set text: " << escapedText << " for widget type: " << widgetType;
-                        }
-                    }
-                    else if (value.is_object())
-                    {
-                        for (auto &[innerKey, val] : value.items())
-                        {
-                            if (val.is_string()) {
-                                jsonObj["text"][innerKey] = escapeJSON(val.get<std::string>());
-                            } else {
-                                lattice::logDebug << "text object property '" << innerKey << "' must be a string for widget type: " << widgetType;
-                            }
-                        }
-                        lattice::logDebug << "Processed text object for widget type: " << widgetType;
-                    }
-                    else
-                    {
-                        lattice::logDebug << "text property must be a string or object for widget type: " << widgetType;
-                    }
-                }
-                else if (key == "children")
-                {
-                    // Handle children array - recursively process each child widget
-                    // This is needed to ensure each child gets default properties from their widget descriptors
-                    // (same as top-level widgets)
-                    if (value.is_array())
-                    {
-                        nlohmann::json processedChildren = nlohmann::json::array();
-                        
-                        for (const auto &childJson : value)
-                        {
-                            if (childJson.is_object() && childJson.contains("type") && childJson["type"].is_string())
-                            {
-                                std::string childType = childJson["type"].get<std::string>();
-                                
-                                // Get the default descriptor for this child widget type (just like top-level widgets)
-                                auto childDescriptor = WidgetDescriptors::get(childType);
-                                
-                                if (!childDescriptor.is_null())
-                                {
-                                    // Recursively merge the child JSON with its descriptor defaults
-                                    updateJson(childDescriptor, childJson, numWidgets);
-                                    processedChildren.push_back(childDescriptor);
-                                    lattice::logDebug << "Processed child widget of type: " << childType << " for parent: " << widgetType;
-                                }
-                                else
-                                {
-                                    lattice::logError << "Invalid child widget type: " << childType << " in parent: " << widgetType;
-                                }
-                            }
-                            else
-                            {
-                                lattice::logError << "Child widget in " << widgetType << " is missing 'type' field or is not an object";
-                            }
-                        }
-                        
-                        jsonObj["children"] = processedChildren;
-                        lattice::logDebug << "Processed " << processedChildren.size() << " children for widget: " << widgetType;
-                    }
-                    else
-                    {
-                        lattice::logWarning << "children property must be an array for widget type: " << widgetType;
-                    }
-                }
-                else if (key == "font")
-                {
-                    // Handle font object - merge nested properties instead of replacing
-                    if (value.is_object())
-                    {
-                        for (auto &[fontKey, fontVal] : value.items())
-                        {
-                            if (fontKey == "colour" && fontVal.is_object())
-                            {
-                                // Deep merge font.colour object
-                                for (auto &[colourKey, colourVal] : fontVal.items())
-                                {
-                                    jsonObj["font"]["colour"][colourKey] = colourVal;
-                                }
-                            }
-                            else
-                            {
-                                jsonObj["font"][fontKey] = fontVal;
-                            }
-                        }
-                        lattice::logDebug << "Merged font properties for widget type: " << widgetType;
-                    }
-                    else
-                    {
-                        lattice::logWarning << "font property must be an object for widget type: " << widgetType;
+                        jsonObj[key][propKey] = val;
                     }
                 }
                 else
                 {
-                    jsonObj[key] = value;
-//                    lattice::logDebug << "Set property '" << key << "' for widget type: " << widgetType;
+                    lattice::logWarning << "Property '" << key << "' should be an object for widget type: " << widgetType;
                 }
             }
-            catch (const nlohmann::json::exception &e)
+            else if (key == "sampleRange")
             {
-                lattice::logDebug << "JSON processing error for key '" << key << "' in widget type '" << widgetType << "': " << e.what();
+                if (value.is_array() && value.size() == 2)
+                {
+                    if (value[0].is_number() && value[1].is_number()) {
+                        jsonObj["startSample"] = value[0].get<int>();
+                        jsonObj["endSample"] = value[1].get<int>();
+//                            lattice::logDebug << "Set sample range for widget type: " << widgetType;
+                    } else {
+                        lattice::logWarning << "sampleRange array elements must be numbers for widget type: " << widgetType;
+                    }
+                }
+                else
+                {
+                    lattice::logWarning << "sampleRange must be an array with exactly 2 elements for widget type: " << widgetType;
+                }
             }
-            catch (const std::exception &e)
+            else if (key == "populate")
             {
-                lattice::logDebug << "Unexpected error processing key '" << key << "' in widget type '" << widgetType << "': " << e.what();
+                if (value.is_object())
+                {
+                    // Validate required fields in populate object
+                    if (!value.contains("directory") || !value["directory"].is_string()) {
+                        lattice::logError << "populate object missing required 'directory' string field for widget type: " << widgetType;
+                        continue;
+                    }
+                    
+                    if (!value.contains("fileType") || !value["fileType"].is_string()) {
+                        lattice::logError << "populate object missing required 'fileType' string field for widget type: " << widgetType;
+                        continue;
+                    }
+                    
+                    std::string directory = value["directory"].get<std::string>();
+                    std::string fileType = cabbage::Utils::sanitisePath(value["fileType"].get<std::string>());
+                    
+                    lattice::logInfo << "Populating widget from directory: " << directory << " with file type: " << fileType;
+                    
+                    std::vector<std::string> files = File::getFilesOfType(directory, fileType);
+                    
+                    if (files.empty()) {
+                        lattice::logWarning << "No files found in directory '" << directory << "' with type '" << fileType << "'";
+                    }
+                    
+                    jsonObj[key]["directory"] = directory;
+                    jsonObj[key]["fileType"] = fileType;
+                    jsonObj["channelType"] = "string";
+                    
+                    
+                    if (!files.empty()) {
+                        const std::string items =
+                            std::accumulate(std::next(files.begin()), files.end(), files[0],
+                                            [](std::string a, const std::string &b) { return std::move(a) + ", " + b; });
+                        jsonObj["items"] = files;
+                        lattice::logDebug << "Found " << files.size() << " files for populate operation";
+                    } else {
+                        std::vector<std::string> tmp;
+                        jsonObj["items"] = tmp;
+                    }
+                }
+                else
+                {
+                    lattice::logDebug << "populate property must be an object for widget type: " << widgetType;
+                }
+            }
+            else if (key == "items")
+            {
+                if (value.is_array())
+                {
+                    // Validate array contains strings
+                    bool allStrings = std::all_of(value.begin(), value.end(),
+                                                [](const nlohmann::json& item) { return item.is_string(); });
+                    
+                    if (allStrings) {
+//                            const std::string items =
+//                                std::accumulate(std::next(value.begin()), value.end(), value[0].get<std::string>(),
+//                                                [](std::string a, const std::string &b) { return std::move(a) + ", " + b; });
+                        jsonObj["items"] = value;
+                        jsonObj["min"] = 0;
+                        jsonObj["max"] = value.size() - 1;
+//                            lattice::logDebug << "Set items array with " << value.size() << " elements for widget type: " << widgetType;
+                    } else {
+                        lattice::logDebug << "items array must contain only string values for widget type: " << widgetType;
+                    }
+                }
+                else
+                {
+                    lattice::logDebug << "items property must be an array for widget type: " << widgetType;
+                }
+            }
+            else if (key == "samples")
+            {
+                if (value.is_array())
+                {
+                    bool allNumbers = std::all_of(value.begin(), value.end(),
+                                                [](const nlohmann::json& item) { return item.is_number(); });
+                    
+                    if (allNumbers) {
+                        jsonObj["samples"] = value.get<std::vector<double>>();
+//                            lattice::logDebug << "Set samples array with " << value.size() << " numeric values";
+                    } else {
+                        lattice::logDebug << "samples array must contain only numeric values for widget type: " << widgetType;
+                    }
+                }
+                else
+                {
+                    lattice::logDebug << "samples property must be an array for widget type: " << widgetType;
+                }
+            }
+            else if (key == "colour")
+            {
+                if (value.is_object())
+                {
+                    parseColourProperties(value, jsonObj[key]);
+//                        lattice::logDebug << "Parsed colour object for widget type: " << widgetType;
+                }
+                else if (value.is_string() || value.is_number())
+                {
+                    jsonObj[key] = parseColorValue(value);
+//                        lattice::logDebug << "Parsed colour value for widget type: " << widgetType;
+                }
+                else
+                {
+                    lattice::logDebug << "colour property must be an object, string, or number for widget type: " << widgetType;
+                }
+            }
+            else if (key == "file")
+            {
+                if (value.is_string())
+                {
+                    std::string filePath = cabbage::Utils::sanitisePath(value.get<std::string>());
+                    jsonObj["file"] = filePath;
+//                        lattice::logDebug << "Set file path: " << filePath << " for widget type: " << widgetType;
+                }
+                else
+                {
+                    lattice::logDebug << "file property must be a string for widget type: " << widgetType;
+                }
+            }
+            else if (key == "channel")
+            {
+                if (value.is_string())
+                {
+                    jsonObj["channel"] = value.get<std::string>();
+//                        lattice::logDebug << "Set channel: " << value.get<std::string>() << " for widget type: " << widgetType;
+                }
+                else if (value.is_object())
+                {
+                    // Handle channel object with id and possibly other properties
+                    for (auto &[chKey, chVal] : value.items())
+                    {
+                        jsonObj["channel"][chKey] = chVal;
+                    }
+//                        lattice::logDebug << "Set channel object for widget type: " << widgetType;
+                }
+                else
+                {
+                    lattice::logDebug << "channel property must be a string or object for widget type: " << widgetType;
+                }
+            }
+            else if (key == "channels")
+            {
+                if (value.is_array())
+                {
+                    // Handle channels array
+                    for (size_t i = 0; i < value.size(); ++i)
+                    {
+                        if (value[i].is_object())
+                        {
+                            for (auto &[chKey, chVal] : value[i].items())
+                            {
+                                jsonObj["channels"][i][chKey] = chVal;
+                            }
+                        }
+                        else
+                        {
+                            lattice::logDebug << "channels array elements must be objects for widget type: " << widgetType;
+                        }
+                    }
+//                        lattice::logDebug << "Set channels array with " << value.size() << " elements for widget type: " << widgetType;
+                }
+                else
+                {
+                    lattice::logDebug << "channels property must be an array for widget type: " << widgetType;
+                }
+            }
+            else
+            {
+                // For all other properties, just assign the value directly
+                jsonObj[key] = value;
+//                    lattice::logDebug << "Set property '" << key << "' for widget type: " << widgetType;
             }
         }
+        catch (const nlohmann::json::exception &e)
+        {
+            lattice::logDebug << "JSON processing error for key '" << key << "' in widget type '" << widgetType << "': " << e.what();
+        }
+        catch (const std::exception &e)
+        {
+            lattice::logDebug << "Unexpected error processing key '" << key << "' in widget type '" << widgetType << "': " << e.what();
+        }
     }
-    catch (const nlohmann::json::exception &e)
-    {
-        lattice::logError << "JSON exception in updateJson: " << e.what();
-    }
-    catch (const std::exception &e)
-    {
-        lattice::logError << "Unexpected exception in updateJson: " << e.what();
-    }
-
 }
 
 void Parser::parseStroke(const nlohmann::json &strokeValue, nlohmann::json &target)

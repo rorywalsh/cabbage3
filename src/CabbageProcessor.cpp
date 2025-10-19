@@ -356,7 +356,7 @@ void CabbageProcessor::onIdle()
                 if(j.is_null())
                     break;
                 
-                cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size(), false);
+                cabbage::Parser::mergeJsonProperties(j, data.cabbageJson);
             }
 
             
@@ -394,7 +394,7 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
         if (widgetOpt)
         {
             auto &j = widgetOpt->get();
-            cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size(), false);
+            cabbage::Parser::mergeJsonProperties(j, data.cabbageJson);
             return j;
         }
     }
@@ -408,7 +408,7 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
             {
                 cabbage.updateFunctionTable(data, j);
             }
-            cabbage::Parser::updateJson(j, data.cabbageJson, cabbage.getWidgets().size(), false);
+            cabbage::Parser::mergeJsonProperties(j, data.cabbageJson);
             return j;
         }
     }
@@ -436,7 +436,7 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
             }
             
             // Update the widget with properties from the opcode
-            cabbage::Parser::updateJson(newWidget, data.cabbageJson, cabbage.getWidgets().size());
+            cabbage::Parser::initialiseWidgetJson(newWidget, data.cabbageJson, cabbage.getWidgets().size());
             
             // Add the new widget to the widgets array
             cabbage.getWidgets().push_back(newWidget);

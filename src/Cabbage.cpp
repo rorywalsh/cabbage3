@@ -514,9 +514,9 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
         {
             try
             {
-                cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size(), false);
+                cabbage::Parser::mergeJsonProperties(jsonObj, data.cabbageJson);
                 
-                // Get tableNumber from data.cabbageJson since updateJson may not set it reliably
+                // Get tableNumber from data.cabbageJson since initialiseWidgetJson may not set it reliably
                 int tableNumber = -1;
                 if (data.cabbageJson.contains("tableNumber") && data.cabbageJson["tableNumber"].is_number())
                 {
@@ -550,7 +550,7 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
             try
             {
                 
-                cabbage::Parser::updateJson(jsonObj, data.cabbageJson, widgets.size(), false);
+                cabbage::Parser::mergeJsonProperties(jsonObj, data.cabbageJson);
                 
                 auto soundfile = cabbage::File::readAudioFile<double>(jsonObj["file"].get<std::string>(), sampleRate);
                 auto samples = soundfile.audioData;
