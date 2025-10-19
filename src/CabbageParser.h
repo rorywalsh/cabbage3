@@ -32,6 +32,7 @@ class Parser
   private:
     static std::string parseColorValue(const nlohmann::json &value);
     static std::string rgbToHex(const std::vector<double> &rgb);
+    static std::string rgbaToHex(int r, int g, int b, int a);
     static std::string validateHexString(const std::string &str);
     static std::string escapeJSON(const std::string &str);
 };

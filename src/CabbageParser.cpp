@@ -508,7 +508,40 @@ std::string Parser::parseColorValue(const nlohmann::json &value)
     }
     else if (value.is_string())
     {
-        return validateHexString(value.get<std::string>());
+        std::string colorStr = value.get<std::string>();
+        
+        // Check for CSS rgb() and rgba() syntax
+        std::regex rgbRegex(R"(^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$)");
+        std::regex rgbaRegex(R"(^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*([0-1]?\.?\d+)\s*\)$)");
+        
+        std::smatch match;
+        if (std::regex_match(colorStr, match, rgbaRegex))
+        {
+            // Parse rgba(r, g, b, a)
+            int r = std::stoi(match[1].str());
+            int g = std::stoi(match[2].str());
+            int b = std::stoi(match[3].str());
+            double a = std::stod(match[4].str());
+            
+            // Convert alpha to 0-255 range and create RGBA hex
+            int alpha = static_cast<int>(a * 255);
+            return rgbaToHex(r, g, b, alpha);
+        }
+        else if (std::regex_match(colorStr, match, rgbRegex))
+        {
+            // Parse rgb(r, g, b)
+            int r = std::stoi(match[1].str());
+            int g = std::stoi(match[2].str());
+            int b = std::stoi(match[3].str());
+            
+            std::vector<double> rgb = {static_cast<double>(r), static_cast<double>(g), static_cast<double>(b)};
+            return rgbToHex(rgb);
+        }
+        else
+        {
+            // Fall back to existing hex/named color validation
+            return validateHexString(colorStr);
+        }
     }
     return "#000000";
 }
@@ -519,6 +552,15 @@ std::string Parser::rgbToHex(const std::vector<double> &rgb)
     hex << "#" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(rgb[0]) << std::setw(2)
         << std::setfill('0') << static_cast<int>(rgb[1]) << std::setw(2) << std::setfill('0')
         << static_cast<int>(rgb[2]);
+    return hex.str();
+}
+
+std::string Parser::rgbaToHex(int r, int g, int b, int a)
+{
+    std::ostringstream hex;
+    hex << "#" << std::hex << std::setw(2) << std::setfill('0') << r << std::setw(2)
+        << std::setfill('0') << g << std::setw(2) << std::setfill('0') << b << std::setw(2)
+        << std::setfill('0') << a;
     return hex.str();
 }
 

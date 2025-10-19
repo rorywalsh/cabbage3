@@ -155,7 +155,9 @@ void CabbageProcessor::addParameters()
 }
 
 //========================================================================================
-// Add parameter for a single widget if it meets the criteria
+// Add parameter for a single widget if it meets the criteria. Parameters must be set
+// up to comminucate on an id provided by the widget.channels array object. The top level
+// widget.id property is used for UI updating only.
 //========================================================================================
 void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
 {
