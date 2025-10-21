@@ -11,7 +11,6 @@ pluginType* LatticeProcessorPluginFactory::createPlugin(const clap_host* host)
     return new pluginType(host, *processor);
 }
 //========================================================================================
-
 CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
     : Processor(), cabbage(*this, csdFile)
 {
@@ -25,14 +24,15 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
         
         // Delay showing error page to allow host to finish opening editor
         lattice::setTimeout([this]() {
-            setWebViewHtml(errorPageHtml);
+            auto errors = cabbage.getCompileErrors();
+            lattice::logInfo << errors;
+            setWebViewHtml(generateErrorPageHtml(errors));
         }, 500);
-        setEditorSize(350, 350);
+        setEditorSize(550, 350);
+        
         return;
     }
-    else{
-        
-    }
+
 
     // All message to webview will be wrapped in window.postMessage()
     setWebViewSendFunctionName("window.postMessage");
@@ -180,23 +180,17 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
                     const std::string channel = ch["id"].get<std::string>();
                     const std::string event = ch.contains("event") && ch["event"].is_string() ? ch["event"].get<std::string>() : std::string("valueChanged");
                     const bool isClickEvent = (event.find("mousePress") == 0) || (event.find("mouseRelease") == 0) || (event.find("mouseClick") == 0);
-                    const float minVal = ch.contains("range") && ch["range"].contains("min") ? ch["range"]["min"].get<float>() : 0.0f;
+                    const float minVal = ch["range"]["min"].get<float>();
                     
                     // Determine max value - widgets send normalized values (0-1) for comboBox/optionButton
-                    float maxVal = 1.0f;
-                    if (ch.contains("range") && ch["range"].contains("max")) {
-                        maxVal = ch["range"]["max"].get<float>();
-                    } else {
-                        std::string widgetType = w["type"].get<std::string>();
-                        // comboBox and optionButton now send normalized values 0-1
-                        if (widgetType == "comboBox" || widgetType == "optionButton") {
-                            maxVal = (ch.contains("items") && ch["items"].is_array()) ?  ch["items"].size() -1 : 2;
-                        }
+                    float maxVal = ch["range"]["max"].get<float>();
+                    if (w["type"].get<std::string>() == "comboBox" || w["type"].get<std::string>() == "optionButton") {
+                        maxVal = (ch.contains("items") && ch["items"].is_array()) ?  ch["items"].size() -1 : 2;
                     }
                     
-                    const float defVal = ch.contains("range") && ch["range"].contains("defaultValue") ? ch["range"]["defaultValue"].get<float>() : 0.0f;
-                    const float incVal = ch.contains("range") && ch["range"].contains("increment") ? ch["range"]["increment"].get<float>() : (isClickEvent ? 1.0f : 0.001f);
-                    const float skewVal = ch.contains("range") && ch["range"].contains("skew") ? ch["range"]["skew"].get<float>() : 1.0f;
+                    const float defVal = ch["range"]["defaultValue"].get<float>();
+                    const float incVal = ch["range"]["increment"].get<float>();
+                    const float skewVal = ch["range"]["skew"].get<float>();
                     addParameter({channel, minVal, maxVal, defVal, incVal, skewVal});
                     lattice::logDebug << "Added parameter for channel '" << channel << "' (event: " << event << ") min: " << minVal << "max: " << maxVal;
                 }
@@ -308,7 +302,7 @@ void CabbageProcessor::process(float** inputs, float** outputs, std::size_t bloc
     else
     {
         // calling this once here in case errors are missed in vscode logger
-        cabbage.displayAndClearCompileErrors();
+//        cabbage.displayAndClearCompileErrors();
 
         // zero outputs so we don't get unwanted signal when csound fails
         for (int i = 0; i < static_cast<int>(blockSize); i++)
@@ -955,3 +949,51 @@ void CabbageProcessor::openFileDialog(const std::string& channel, const std::str
         lattice::logDebug << "File selected for channel " << channel << ": " << path;
     }
 }
+
+//========================================================================================
+// Generate error page HTML with compile errors overlaid
+//========================================================================================
+std::string CabbageProcessor::generateErrorPageHtml(const std::string& errors) {
+    std::string html = errorPageHtml;
+    // Find the closing </style> tag to add overlay styles
+    size_t styleEnd = html.find("</style>");
+    if (styleEnd != std::string::npos) {
+        std::string overlayStyles = "\n    .error-overlay {\n"
+                                   "      position: absolute;\n"
+                                   "      inset: 20px;\n" // equal spacing on all sides
+                                   "      background-color: rgba(255, 255, 255, 0.9);\n"
+                                   "      border: 2px solid #ff0000;\n"
+                                   "      border-radius: 8px;\n"
+                                   "      padding: 15px;\n"
+                                   "      font-family: monospace;\n"
+                                   "      font-size: 12px;\n"
+                                   "      color: #000;\n"
+                                   "      max-height: calc(100% - 40px);\n"
+                                   "      overflow-y: auto;\n"
+                                   "      z-index: 1000;\n"
+                                   "      box-shadow: 0 4px 8px rgba(0,0,0,0.3);\n"
+                                   "    }\n"
+                                   "    body {\n"
+                                   "      position: relative;\n"
+                                   "    }\n";
+        html.insert(styleEnd, overlayStyles);
+    }
+
+    // Find the closing </body> tag to add the error overlay div
+    size_t bodyEnd = html.find("</body>");
+    if (bodyEnd != std::string::npos) {
+        std::string errorOverlay = "\n  <div class=\"error-overlay\">\n"
+                                  "    <h3 style=\"color: #ff0000; margin-top: 0;\">Csound Compile Errors:</h3>\n"
+                                  "    <pre style=\"margin: 0; white-space: pre-wrap; font-size: 11px;\">" + errors + "</pre>\n"
+                                  "  </div>\n";
+        html.insert(bodyEnd, errorOverlay);
+    } else {
+        // Fallback: append to end if no </body> found
+        html += "\n  <div style=\"position: absolute; inset: 20px; background-color: rgba(255, 255, 255, 0.95); border: 2px solid #ff0000; border-radius: 8px; padding: 15px; font-family: monospace; font-size: 12px; color: #000; max-height: calc(100% - 40px); overflow-y: auto; z-index: 1000; box-shadow: 0 4px 8px rgba(0,0,0,0.3);\">\n"
+                "    <h3 style=\"color: #ff0000; margin-top: 0;\">Csound Compile Errors:</h3>\n"
+                "    <pre style=\"margin: 0; white-space: pre-wrap; font-size: 11px;\">" + errors + "</pre>\n"
+                "  </div>\n";
+    }
+    return html;
+}
+

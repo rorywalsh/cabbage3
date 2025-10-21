@@ -92,7 +92,7 @@ class Engine
     void stopProcessing() { csCompileResult = -1; }
 
     // init and set up parameter
-    void initParameter(const nlohmann::json &w);
+    void initParameter(nlohmann::json &w);
 
     // Get a parameter channel by index
     ParameterChannel &getParameterChannel(int index) { return parameterChannels[index]; }

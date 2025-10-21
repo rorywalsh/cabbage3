@@ -26,6 +26,7 @@ class Parser
 
     static void initialiseWidgetJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJson, size_t numWidgets);
     static void mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &incomingJson);
+    static void assignDefaultRangesToChannels(nlohmann::json &jsonObj);
     static void parseStroke(const nlohmann::json &strokeValue, nlohmann::json &target);
     static void parseColourProperties(const nlohmann::json &value, nlohmann::json &target);
 

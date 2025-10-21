@@ -107,7 +107,6 @@ bool Engine::setupCsound()
             // Csound could not compile your file?
             while (csound->GetMessageCnt() > 0)
             {
-                lattice::logInfo << csound->GetFirstMessage();
                 compileErrors += csound->GetFirstMessage();
                 csound->PopFirstMessage();
             }
@@ -131,8 +130,11 @@ bool Engine::setupCsound()
 }
 
 //===========================================================================================
-void Engine::initParameter(const nlohmann::json& w)
+void Engine::initParameter(nlohmann::json &w)
 {
+    // Ensure default ranges are set if missing
+    cabbage::Parser::assignDefaultRangesToChannels(w);
+
     // Handle new schema: channels array
     if (w.contains("channels") && w["channels"].is_array())
     {
@@ -157,28 +159,29 @@ void Engine::initParameter(const nlohmann::json& w)
     // Handle old schema: multi-channel widgets (e.g., xyPad with x and y)
     else if (w.contains("channel") && w["channel"].is_object())
     {
-        if (!w.contains("range") || !w["range"].is_object())
-            return;
-        
-        for (auto& [channelKey, channelName] : w["channel"].items())
-        {
-            if (!channelName.is_string())
-                continue;
-                
-            std::string channel = cabbage::Parser::removeQuotes(channelName.get<std::string>());
-            
-            if (w["range"].contains(channelKey))
-            {
-                auto& channelRange = w["range"][channelKey];
-                float defaultValue = channelRange.contains("defaultValue") 
-                    ? channelRange["defaultValue"].get<float>()
-                    : 0.5f;
-                
-                parameterChannels.push_back({channel, defaultValue});
-                csound->SetControlChannel(channel.c_str(), defaultValue);
-                numberOfParameters++;
-            }
-        }
+        lattice::logError << "Old schema is no longer supported";
+//        if (!w.contains("range") || !w["range"].is_object())
+//            return;
+//        
+//        for (auto& [channelKey, channelName] : w["channel"].items())
+//        {
+//            if (!channelName.is_string())
+//                continue;
+//                
+//            std::string channel = cabbage::Parser::removeQuotes(channelName.get<std::string>());
+//            
+//            if (w["range"].contains(channelKey))
+//            {
+//                auto& channelRange = w["range"][channelKey];
+//                float defaultValue = channelRange.contains("defaultValue") 
+//                    ? channelRange["defaultValue"].get<float>()
+//                    : 0.5f;
+//                
+//                parameterChannels.push_back({channel, defaultValue});
+//                csound->SetControlChannel(channel.c_str(), defaultValue);
+//                numberOfParameters++;
+//            }
+//        }
     }
     // Handle old schema: single-channel widgets
     else if (w.contains("channel") && w["channel"].is_string())

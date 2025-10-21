@@ -135,7 +135,7 @@ void CabbageAudioApp::scanAudioDevices()
 }
 
 //==============================================================================
-// Initialize Cabbage if CSD file exists
+// Initialize Cabbage if CSD file exists - for debug purposes
 //==============================================================================
 void CabbageAudioApp::initialiseCabbage()
 {
@@ -269,11 +269,15 @@ void CabbageAudioApp::processIncomingMessage(const std::string& message)
 
         else if (command == "onFileChanged")
         {
+            lattice::logDebug << "Received onFileChanged message for file: " << json["lastSavedFileName"].get<std::string>();
             csdFileAndPath = json["lastSavedFileName"].get<std::string>();
             if (lattice::File::exists(csdFileAndPath))
             {
+                lattice::logDebug << "File exists, adding InitCabbage to queue";
                 //push this to FIFO queue on main thread..
                 addMessageToQueue(CabbageAudioApp::CommandType::InitCabbage);
+            } else {
+                lattice::logDebug << "File does not exist";
             }
         }
 
@@ -298,56 +302,6 @@ void CabbageAudioApp::processIncomingMessage(const std::string& message)
             }
             
             processor->addNoteEventFromJson(jsonObj);
-        }
-
-        else if (command == "channelStringData")
-        {
-            if (!processor)
-            {
-                lattice::logInfo << "Processor is null! Cannot process channelStringData.";
-                return;
-            }
-            
-            try
-            {
-                auto &cabbage = processor->getCabbageEngine();
-                const std::string channel = jsonObj.value("channel", "");
-                
-                if (channel.empty())
-                {
-                    lattice::logError << "channelStringData: empty channel";
-                    return;
-                }
-                
-                // Check if we have string data or float data
-                if (jsonObj.contains("stringData"))
-                {
-                    const std::string stringData = jsonObj.value("stringData", "");
-                    if (!stringData.empty())
-                    {
-                        cabbage.getCsound()->SetChannel(channel.c_str(), stringData.c_str());
-                        lattice::logDebug << "Set channel " << channel << " to string: " << stringData;
-                    }
-                    else
-                    {
-                        lattice::logError << "channelStringData: empty stringData";
-                    }
-                }
-                else if (jsonObj.contains("floatData"))
-                {
-                    const double floatData = jsonObj.value("floatData", 0.0);
-                    cabbage.setControlChannel(channel, floatData);
-                    lattice::logDebug << "Set channel " << channel << " to float: " << floatData;
-                }
-                else
-                {
-                    lattice::logError << "channelStringData message missing both stringData and floatData fields";
-                }
-            }
-            catch (const nlohmann::json::exception& e)
-            {
-                lattice::logError << "Failed to parse channelStringData: " << e.what();
-            }
         }
                         
         else if (command == "initialiseWidgets")
@@ -388,7 +342,14 @@ void CabbageAudioApp::sendWidgetDataToVscode()
     {
         nlohmann::json msg;
         msg["command"] = "widgetUpdate";
-        msg["channel"] = w["channel"];
+        // Use id if available, otherwise fallback to channel
+        if (w.contains("id") && w["id"].is_string()) {
+            msg["channel"] = w["id"];
+        } else if (w.contains("channels") && w["channels"].is_array() && !w["channels"].empty() && w["channels"][0].contains("id")) {
+            msg["channel"] = w["channels"][0]["id"];
+        } else {
+            msg["channel"] = w["channel"];
+        }
         msg["data"] = w.dump();
         sendJsonMessage(msg);
     }
@@ -460,6 +421,11 @@ bool CabbageAudioApp::createCabbageProcessor()
 
     processor = std::make_unique<CabbageProcessor>(csdFileAndPath, config.str());
     
+    if(!processor->getCabbageEngine().csdCompiledWithoutError()){
+        lattice::logDebug << "Coudn't compile Csound...";
+        return false;
+    }
+
     lattice::logDebug << "Num widgets : " << processor->getCabbageEngine().getWidgets().size();
 
     // Preallocate the empty input buffer in case of no input device
@@ -475,15 +441,9 @@ bool CabbageAudioApp::createCabbageProcessor()
     // Register callback - will be triggered from CabbageProcessor
     processor->hostCallback = [&](CabbageOpcodeData data) { hostCallback(data); };
     
-    if(!processor->getCabbageEngine().csdCompiledWithoutError()){
-        lattice::logDebug << "Coudn't compile Csound...";
-    }
-    else
-    {
-        canProcessAudio.store(true);
-    }
+    canProcessAudio.store(true);
     
-    return true;
+    return processor->getCabbageEngine().csdCompiledWithoutError();
 }
 
 
@@ -736,12 +696,15 @@ void CabbageAudioApp::onIdle()
                     break;
                     
                 case CommandType::InitCabbage:
+                    lattice::logDebug << "Processing InitCabbage command";
                     if(createCabbageProcessor())
                     {
+                        lattice::logDebug << "Cabbage processor created successfully";
                         sendWidgetDataToVscode();
                     }
                     else
                     {
+                        lattice::logDebug << "Failed to create Cabbage processor";
                         nlohmann::json msg;
                         msg["command"] = "failedToCompile";
                         sendJsonMessage(msg);

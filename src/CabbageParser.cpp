@@ -208,6 +208,9 @@ void Parser::initialiseWidgetJson(nlohmann::json &jsonObj, const nlohmann::json 
         }
 
         mergeJsonProperties(jsonObj, incomingJson);
+        
+        // Assign default ranges to channels that don't have them
+        assignDefaultRangesToChannels(jsonObj);
     }
     catch (const nlohmann::json::exception &e)
     {
@@ -723,6 +726,111 @@ std::string Parser::escapeJSON(const std::string &str)
     }
 
     return escaped;
+}
+
+void Parser::assignDefaultRangesToChannels(nlohmann::json &jsonObj)
+{
+    try
+    {
+        // Handle channels array case
+        if (jsonObj.contains("channels") && jsonObj["channels"].is_array())
+        {
+            // Iterate through channels and ensure each has a complete range object
+            for (auto& channel : jsonObj["channels"])
+            {
+                if (channel.is_object())
+                {
+                    // Determine interaction type based on widget type
+                    std::string widgetType = jsonObj.contains("type") && jsonObj["type"].is_string() 
+                        ? jsonObj["type"].get<std::string>() : "";
+                    
+                    // Default to 'drag' interaction, but use 'click' for certain widget types
+                    std::string interaction = "drag";
+                    if (widgetType == "button" || widgetType == "checkbox" || widgetType == "optionButton" || 
+                        widgetType == "radioGroup" || widgetType == "checkBox")
+                    {
+                        interaction = "click";
+                    }
+                    
+                    // Create default range with all required properties
+                    nlohmann::json defaultRange = {
+                        {"min", 0.0},
+                        {"max", 1.0},
+                        {"value", widgetType == "checkBox" ? 1.0 : 0.0},
+                        {"defaultValue", widgetType == "checkBox" ? 1.0 : 0.0},
+                        {"skew", 1.0},
+                        {"increment", interaction == "click" ? 1.0 : 0.001}
+                    };
+                    
+                    // If channel doesn't have a range object at all, assign the default
+                    if (!channel.contains("range") || !channel["range"].is_object())
+                    {
+                        channel["range"] = defaultRange;
+                        lattice::logDebug << "Assigned default range to channel in widget type: " << widgetType;
+                    }
+                    else
+                    {
+                        // Ensure all required properties exist in the existing range object
+                        auto& range = channel["range"];
+                        if (!range.contains("min") || !range["min"].is_number()) range["min"] = defaultRange["min"];
+                        if (!range.contains("max") || !range["max"].is_number()) range["max"] = defaultRange["max"];
+                        if (!range.contains("value") || !range["value"].is_number()) range["value"] = defaultRange["value"];
+                        if (!range.contains("defaultValue") || !range["defaultValue"].is_number()) range["defaultValue"] = defaultRange["defaultValue"];
+                        if (!range.contains("skew") || !range["skew"].is_number()) range["skew"] = defaultRange["skew"];
+                        if (!range.contains("increment") || !range["increment"].is_number()) range["increment"] = defaultRange["increment"];
+                        
+                        lattice::logDebug << "Completed partial range object for channel in widget type: " << widgetType;
+                    }
+                }
+            }
+        }
+        // Handle single-channel case (legacy widgets with "channel" string property)
+        else if (jsonObj.contains("channel") && jsonObj["channel"].is_string())
+        {
+            std::string widgetType = jsonObj.contains("type") && jsonObj["type"].is_string() 
+                ? jsonObj["type"].get<std::string>() : "";
+            
+            // If widget doesn't have a range object but has min/max/defaultValue, create range object
+            if ((!jsonObj.contains("range") || !jsonObj["range"].is_object()) &&
+                jsonObj.contains("min") && jsonObj.contains("max") && jsonObj.contains("defaultValue"))
+            {
+                nlohmann::json rangeObj = {
+                    {"min", jsonObj["min"].get<double>()},
+                    {"max", jsonObj["max"].get<double>()},
+                    {"value", jsonObj["defaultValue"].get<double>()},
+                    {"defaultValue", jsonObj["defaultValue"].get<double>()},
+                    {"skew", 1.0},
+                    {"increment", 0.001}
+                };
+                
+                jsonObj["range"] = rangeObj;
+                lattice::logDebug << "Created range object from min/max/defaultValue for single-channel widget type: " << widgetType;
+            }
+            // If widget has no range object and no min/max/defaultValue, create default range
+            else if (!jsonObj.contains("range") || !jsonObj["range"].is_object())
+            {
+                nlohmann::json defaultRange = {
+                    {"min", 0.0},
+                    {"max", 1.0},
+                    {"value", widgetType == "checkBox" ? 1.0 : 0.0},
+                    {"defaultValue", widgetType == "checkBox" ? 1.0 : 0.0},
+                    {"skew", 1.0},
+                    {"increment", 0.001}
+                };
+                
+                jsonObj["range"] = defaultRange;
+                lattice::logDebug << "Assigned default range to single-channel widget type: " << widgetType;
+            }
+        }
+    }
+    catch (const nlohmann::json::exception &e)
+    {
+        lattice::logError << "JSON exception in assignDefaultRangesToChannels: " << e.what();
+    }
+    catch (const std::exception &e)
+    {
+        lattice::logError << "Unexpected exception in assignDefaultRangesToChannels: " << e.what();
+    }
 }
 
 } // namespace cabbage
