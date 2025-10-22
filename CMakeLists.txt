@@ -58,6 +58,11 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
             message(STATUS "Skipping ${target} on non-Apple platform")
             continue()
         endif()
+        # Skip tests unless explicitly enabled
+        if(target STREQUAL "CabbageTests" AND NOT CABBAGE_ENABLE_TESTS)
+            message(STATUS "Skipping ${target} (tests not enabled)")
+            continue()
+        endif()
 
         message(STATUS "Configuring build for target: ${target}")
 
