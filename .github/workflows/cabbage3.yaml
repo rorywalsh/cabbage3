@@ -17,18 +17,19 @@ jobs:
           fetch-depth: 1
           submodules: true
 
-      - name: Debug SDK Cocoa
-        run: |
-          SDK_PATH=$(xcrun --show-sdk-path)
-          echo "SDK path: $SDK_PATH"
-          find "$SDK_PATH/System/Library/Frameworks" -maxdepth 1 -name "Cocoa.framework" || echo "Cocoa.framework not found"
-
-
       - name: Download and install CsoundLib64
         run: |
           curl -L -o csound-7.zip "https://www.dropbox.com/scl/fi/d5hnkcecizlwgvnaw1yjy/csound-7.zip?rlkey=pf9v3ucfo8hecyl5ahbacr0a0&dl=1"
           unzip csound-7.zip -d csound-7
           sudo installer -pkg csound-7/CsoundLib64-7.0-vanilla-universal.pkg -target /
+
+      - name: Debug SDK Cocoa presence
+        run: |
+          SDK_PATH=$(xcrun --show-sdk-path)
+          echo "SDK path: $SDK_PATH"
+          echo "Listing Cocoa.framework:"
+          find "$SDK_PATH/System/Library/Frameworks" -maxdepth 1 -name "Cocoa.framework" || echo "Cocoa.framework NOT FOUND"
+
 
       - name: Configure CMake (tests only)
         run: |
@@ -37,9 +38,7 @@ jobs:
           git checkout develop
           cd ..
 
-          # Get SDK path
           SDK_PATH=$(xcrun --show-sdk-path)
-
           cmake -GXcode -B build \
             -DCMAKE_OSX_SYSROOT=$SDK_PATH \
             -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
