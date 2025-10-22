@@ -8,91 +8,53 @@ on:
 
 jobs:
   macos_build:
-    name: MacOS build
+    name: macOS Build
     runs-on: macos-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           submodules: true
 
-      - name: Download CsoundLib64 Package
+      - name: Download and install CsoundLib64
         run: |
-          # Download the package using curl
           curl -L -o csound-7.zip "https://www.dropbox.com/scl/fi/d5hnkcecizlwgvnaw1yjy/csound-7.zip?rlkey=pf9v3ucfo8hecyl5ahbacr0a0&dl=1"
-          
-          # Extract the zip file
           unzip csound-7.zip -d csound-7
-
-          # Verify the file exists
-          ls -l csound-7/CsoundLib64-7.0-vanilla-universal.pkg
-
-          # Make the downloaded file executable
-          chmod +x csound-7/CsoundLib64-7.0-vanilla-universal.pkg
-
-          # Install the package
           sudo installer -pkg csound-7/CsoundLib64-7.0-vanilla-universal.pkg -target /
-
-
-      # - name: Set up Xcode path
-      #   run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
       - name: Configure CMake (tests only)
         run: |
           git clone https://github.com/rorywalsh/vscabbage.git
           cd vscabbage
           git checkout develop
-          git pull
-          pwd
           cd ..
 
-          export CC=/usr/bin/clang
-          export CXX=/usr/bin/clang++
-          # Get absolute paths to compilers
-          CC_PATH=$(which clang)
-          CXX_PATH=$(which clang++)
+          # Get SDK path
+          SDK_PATH=$(xcrun --show-sdk-path)
 
           cmake -GXcode -B build \
-          -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
-          -DCMAKE_C_COMPILER=$CC_PATH \
-          -DCMAKE_CXX_COMPILER=$CXX_PATH \
-          -DCMAKE_OBJC_COMPILER=$CC_PATH \
-          -DCMAKE_OBJCXX_COMPILER=$CXX_PATH \
-          -DCABBAGE_BUILD_TARGET=CabbageTests
+            -DCMAKE_OSX_SYSROOT=$SDK_PATH \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
+            -DCABBAGE_BUILD_TARGET=CabbageTests
 
       - name: Build tests
-        run: cmake --build build
-  
+        run: cmake --build build --config Debug
+
       - name: Run unit tests
-        run: ./build/Debug/CabbageTests --reporter compact # Adjust path/target as needed
+        run: ./build/Debug/CabbageTests --reporter compact
 
       - name: Clean build folder
         run: rm -rf build
 
-      - name: Configure and build
+      - name: Configure and build release
         run: |
-          export CC=/usr/bin/clang
-          export CXX=/usr/bin/clang++
-          # Get absolute paths to compilers
-          CC_PATH=$(which clang)
-
-      - name: Configure and build
-        run: |
-          export CC=/usr/bin/clang
-          export CXX=/usr/bin/clang++
-          # Get absolute paths to compilers
-          CC_PATH=$(which clang)
-          CXX_PATH=$(which clang++)
-
+          SDK_PATH=$(xcrun --show-sdk-path)
           cmake -GXcode -B build \
-          -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
-          -DCMAKE_C_COMPILER=$CC_PATH \
-          -DCMAKE_CXX_COMPILER=$CXX_PATH \
-          -DCMAKE_OBJC_COMPILER=$CC_PATH \
-          -DCMAKE_OBJCXX_COMPILER=$CXX_PATH \
-          -DBUILD_ALL_TARGETS=True \
-          -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_OSX_SYSROOT=$SDK_PATH \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
+            -DBUILD_ALL_TARGETS=True \
+            -DCMAKE_BUILD_TYPE=Release
 
       - name: List build directory
         run: ls -l build
