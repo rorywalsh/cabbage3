@@ -17,11 +17,11 @@ jobs:
           fetch-depth: 1
           submodules: true
 
-    - name: Debug SDK Cocoa
-      run: |
-        SDK_PATH=$(xcrun --show-sdk-path)
-        echo "SDK path: $SDK_PATH"
-        find "$SDK_PATH/System/Library/Frameworks" -maxdepth 1 -name "Cocoa.framework" || echo "Cocoa.framework not found"
+      - name: Debug SDK Cocoa
+        run: |
+          SDK_PATH=$(xcrun --show-sdk-path)
+          echo "SDK path: $SDK_PATH"
+          find "$SDK_PATH/System/Library/Frameworks" -maxdepth 1 -name "Cocoa.framework" || echo "Cocoa.framework not found"
 
 
       - name: Download and install CsoundLib64
