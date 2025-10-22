@@ -205,10 +205,7 @@ set(CABBAGE_SOURCES
 )
 
 # Add platform-specific file for browseForFile
-if(CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
-    # For test builds, use stub implementation instead of platform-specific code
-    list(APPEND CABBAGE_SOURCES "${CMAKE_SOURCE_DIR}/tests/FileBrowseStub.cpp")
-elseif(APPLE)
+if(APPLE)
     list(APPEND CABBAGE_SOURCES "${CMAKE_SOURCE_DIR}/src/CabbageUtils_mac.mm")
 elseif(WIN32)
     list(APPEND CABBAGE_SOURCES "${CMAKE_SOURCE_DIR}/src/CabbageUtils_win.cpp")
@@ -326,6 +323,7 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
         ${LATTICE_SOURCE_FILES}
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioApp.cpp"
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioApp.h"
+        "${CMAKE_SOURCE_DIR}/tests/FileBrowseStub.cpp"
     )
     
     # Set include paths for test target
