@@ -474,7 +474,7 @@ const std::string Engine::updateWidgetState(nlohmann::json j)
     {
         auto &w = widgetOpt.value().get();
         w.merge_patch(j);
-        auto result = getUpdatedWidgetJsonStr(channel, w.dump());
+        auto result = getUpdatedWidgetJsonStr(channel, w.dump(), false);
         return result;
     }
 
@@ -482,17 +482,44 @@ const std::string Engine::updateWidgetState(nlohmann::json j)
 }
 //===========================================================================================
 
-std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, std::string data)
+std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, std::string data, bool includeValue)
 {
     std::string result;
-    result = choc::text::replace(R"(
+    if (includeValue) {
+        // Parse the data to extract the value
+        nlohmann::json widgetJson = nlohmann::json::parse(data);
+        float value = 0.0f;
+        
+        if (widgetJson.contains("value") && !widgetJson["value"].is_null()) 
+        {
+            value = widgetJson["value"].get<float>();
+        }
+        else if (widgetJson.contains("range") && widgetJson["range"].contains("defaultValue")) 
+        {
+            value = widgetJson["range"]["defaultValue"].get<float>();
+        }
+        else
+        {
+            value = 0.0f; // Default fallback value
+        }
+        result = choc::text::replace(R"(
+        {
+            command: "widgetUpdate",
+            id: "$CHANNEL",
+            widgetJson: `$DATA`,
+            value: $VALUE
+        }
+    )", "$CHANNEL", channel, "$DATA", data, "$VALUE", std::to_string(value));
+    } else {
+        result = choc::text::replace(R"(
         {
             command: "widgetUpdate",
             id: "$CHANNEL",
             widgetJson: `$DATA`
         }
     )", "$CHANNEL", channel, "$DATA", data);
-    return result.c_str();
+    }
+    return result;
 }
 
 std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, float value)

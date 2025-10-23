@@ -142,7 +142,7 @@ class Engine
     void processCsoundMessages();
 
     // Return a JS script that will trigger a widget's properties to be updated
-    static std::string getUpdatedWidgetJsonStr(const std::string& channel, std::string data);
+    static std::string getUpdatedWidgetJsonStr(const std::string& channel, std::string data, bool includeValue = false);
     static std::string getUpdatedWidgetJsonStr(const std::string& channel, float value);
 
     // These two methods return combine with getWidgetIdentifierUpdateScript() to return a JS method

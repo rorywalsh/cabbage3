@@ -319,11 +319,12 @@ void CabbageProcessor::onIdle()
     if(!isIdleThreadRunning())
         return;
     
+    cabbage.processCsoundMessages();
+    
 #ifndef CabbageApp
     if (uiIsOpen)
     {
 #endif
-        cabbage.processCsoundMessages();
 
 #if defined(LINUX) && !defined(CabbageApp)
         nlohmann::json message;
@@ -514,8 +515,17 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
     {
         try
         {
-            // Parse the JSON string contained in "obj"
-            auto obj = nlohmann::json::parse(incomingMessage["obj"].get<std::string>());
+            nlohmann::json obj;
+            
+            // Handle both old format (wrapped in "obj") and new format (direct properties)
+            if (incomingMessage.contains("obj")) {
+                // Old format: parse the JSON string in "obj"
+                obj = nlohmann::json::parse(incomingMessage["obj"].get<std::string>());
+            } else {
+                // New format: use the message directly
+                obj = incomingMessage;
+            }
+            
             lattice::logDebug << obj.dump(4);
             // Extract values
             float value = obj.value("value", 0.f);
@@ -714,7 +724,7 @@ void CabbageProcessor::updateUI()
         {
             continue;
         }
-        auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(channelStr, w.dump());
+        auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(channelStr, w.dump(), true);
         sendWebViewMessage(updatedWidget);
     }
     
