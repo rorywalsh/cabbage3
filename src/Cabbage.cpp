@@ -489,7 +489,7 @@ std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, std::str
         {
             command: "widgetUpdate",
             id: "$CHANNEL",
-            data: `$DATA`
+            widgetJson: `$DATA`
         }
     )", "$CHANNEL", channel, "$DATA", data);
     return result.c_str();
