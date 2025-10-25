@@ -515,16 +515,14 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
     {
         try
         {
-            nlohmann::json obj;
-            
-            // Handle both old format (wrapped in "obj") and new format (direct properties)
+            // Check for old format (wrapped in "obj") - no longer supported
             if (incomingMessage.contains("obj")) {
-                // Old format: parse the JSON string in "obj"
-                obj = nlohmann::json::parse(incomingMessage["obj"].get<std::string>());
-            } else {
-                // New format: use the message directly
-                obj = incomingMessage;
+                lattice::logDebug << "parameterChange message using deprecated 'obj' wrapper format is no longer supported. Please update to use direct properties.";
+                return; // Don't process old format
             }
+            
+            // New format: use the message directly
+            auto obj = incomingMessage;
             
             lattice::logDebug << obj.dump(4);
             // Extract values
@@ -725,7 +723,11 @@ void CabbageProcessor::updateUI()
             continue;
         }
         auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(channelStr, w.dump(), true);
-        sendWebViewMessage(updatedWidget);
+        if(uiIsOpen)
+            sendWebViewMessage(updatedWidget);
+        else{
+            webviewMessageQueue.push_back(updatedWidget);
+        }
     }
     
     // Check if editor has any pending messages when loaded..
@@ -815,25 +817,25 @@ void CabbageProcessor::setParameter(int paramId, double value)
             }
             if (widgetOpt) break;
         }
-        // Old schema
-        if (w.contains("channel")) {
-            if (w["channel"].is_string() && w["channel"].get<std::string>() == channel) {
-                widgetOpt = w;
-                break;
-            } else if (w["channel"].is_object()) {
-                bool found = false;
-                for (auto& [key, value] : w["channel"].items()) {
-                    if (value.is_string() && value.get<std::string>() == channel) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (found) {
-                    widgetOpt = w;
-                    break;
-                }
-            }
-        }
+// Old schema
+//        if (w.contains("channel")) {
+//            if (w["channel"].is_string() && w["channel"].get<std::string>() == channel) {
+//                widgetOpt = w;
+//                break;
+//            } else if (w["channel"].is_object()) {
+//                bool found = false;
+//                for (auto& [key, value] : w["channel"].items()) {
+//                    if (value.is_string() && value.get<std::string>() == channel) {
+//                        found = true;
+//                        break;
+//                    }
+//                }
+//                if (found) {
+//                    widgetOpt = w;
+//                    break;
+//                }
+//            }
+//        }
     }
     if (widgetOpt)
     {
@@ -842,7 +844,7 @@ void CabbageProcessor::setParameter(int paramId, double value)
         
         // For comboBox and optionButton, send normalized value since widget sends normalized
         if (widgetType == "comboBox" || widgetType == "optionButton") {
-            cabbage.setControlChannel(getParameters()[paramId].name, value); // value is already normalized (0-1)
+            cabbage.setControlChannel(getParameters()[paramId].name, denormalValue); // value is already normalized (0-1)
             return;
         }
         else if (j.contains("type") && j.contains("indexOffset") &&
