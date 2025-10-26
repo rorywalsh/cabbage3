@@ -216,14 +216,18 @@ void CabbageAudioApp::processIncomingMessage(const std::string& message)
         const std::string command = json["command"];
         nlohmann::json jsonObj;
 
-        if (json.contains("obj"))
-        {
+        // Handle both old obj wrapper format and new direct properties format
+        if (json.contains("obj")) {
             //"obj" can be a string when coming from vscode - but will always be
             // an object when testing outside vscode
             if(json["obj"].is_string())
                 jsonObj = nlohmann::json::parse(json["obj"].get<std::string>());
             else
                 jsonObj = json["obj"];
+        } else {
+            // New format: properties are directly on the message
+            jsonObj = json;
+            jsonObj.erase("command"); // Remove command field from the object
         }
 
         if (command == "parameterChange")
@@ -246,7 +250,10 @@ void CabbageAudioApp::processIncomingMessage(const std::string& message)
                         auto &widgetObj = widgetOpt->get();
                         widgetObj["value"] = jsonObj["value"].get<double>();
                     }
-                    processor->setParameter(i, jsonObj["value"].get<double>());
+                    // Normalize the denormalized value from frontend before setting parameter
+                    auto param = processor->getParameter(i);
+                    double normalizedValue = param.toNormalised(jsonObj["value"].get<double>());
+                    processor->setParameter(i, normalizedValue);
                 }
             }
         }

@@ -182,17 +182,26 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
                     const bool isClickEvent = (event.find("mousePress") == 0) || (event.find("mouseRelease") == 0) || (event.find("mouseClick") == 0);
                     const float minVal = ch["range"]["min"].get<float>();
                     
-                    // Determine max value - widgets send normalized values (0-1) for comboBox/optionButton
+                    // Determine max value - widgets send denormalized index values for comboBox/optionButton
                     float maxVal = ch["range"]["max"].get<float>();
+                    float minValAdjusted = minVal;
                     if (w["type"].get<std::string>() == "comboBox" || w["type"].get<std::string>() == "optionButton") {
-                        maxVal = (ch.contains("items") && ch["items"].is_array()) ?  ch["items"].size() -1 : 2;
+                        bool hasIndexOffset = w.contains("indexOffset") && w["indexOffset"].is_boolean() && w["indexOffset"].get<bool>();
+                        size_t itemCount = (ch.contains("items") && ch["items"].is_array()) ? ch["items"].size() : 3;
+                        if (hasIndexOffset) {
+                            minValAdjusted = 1.0f;
+                            maxVal = static_cast<float>(itemCount);
+                        } else {
+                            minValAdjusted = 0.0f;
+                            maxVal = static_cast<float>(itemCount - 1);
+                        }
                     }
                     
                     const float defVal = ch["range"]["defaultValue"].get<float>();
                     const float incVal = ch["range"]["increment"].get<float>();
                     const float skewVal = ch["range"]["skew"].get<float>();
-                    addParameter({channel, minVal, maxVal, defVal, incVal, skewVal});
-                    lattice::logDebug << "Added parameter for channel '" << channel << "' (event: " << event << ") min: " << minVal << "max: " << maxVal;
+                    addParameter({channel, minValAdjusted, maxVal, defVal, incVal, skewVal});
+                    lattice::logDebug << "Added parameter for channel '" << channel << "' (event: " << event << ") min: " << minValAdjusted << " max: " << maxVal;
                 }
                 
                 w["parameterIndex"] = startIndex;
@@ -498,8 +507,8 @@ void CabbageProcessor::setCabbageIsReady()
 }
 
 //========================================================================================
-// Callback function - triggered when a message is sent from the webview. Values should
-// be normalised in the range of 0 to 1
+// Callback function - triggered when a message is sent from the webview. Values are
+// denormalized (in the actual parameter range) and will be normalized for host communication.
 //========================================================================================
 void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
 {
@@ -525,8 +534,8 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
             auto obj = incomingMessage;
             
             lattice::logDebug << obj.dump(4);
-            // Extract values
-            float value = obj.value("value", 0.f);
+            // Extract values (now denormalized from frontend)
+            float denormValue = obj.value("value", 0.f);
             auto paramIdx = obj.value("paramIdx", -1);
             if (paramIdx < 0) return;
             auto gesture = obj.value("gesture", "complete");
@@ -547,27 +556,33 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
             if(paramIdx >= static_cast<int>(num))
                 return;
             
-            getParameters()[paramIdx].value = value;
+            // Normalize for host communication
+            float normalizedValue = getParameter(paramIdx).toNormalised(denormValue);
+            getParameters()[paramIdx].value = normalizedValue;
 
             if (gesture == "begin") {
-                addParameterChange({paramIdx, value, lattice::ParamChangeType::GestureBegin});
+                addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::GestureBegin});
             } else if (gesture == "value") {
-                addParameterChange({paramIdx, value, lattice::ParamChangeType::Value});
+                addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::Value});
             } else if (gesture == "end") {
-                addParameterChange({paramIdx, value, lattice::ParamChangeType::GestureEnd});
+                addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::GestureEnd});
             }
             else{
-                addParameterChange({paramIdx, value, lattice::ParamChangeType::Complete});
+                addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::Complete});
             }
             
-            // Update Csound channel
-            cabbage.setControlChannel(channel, getParameter(paramIdx).fromNormalised(value));
+            lattice::logDebug << "Parameter " << paramIdx << " changed to denorm value: " << denormValue << " (norm: " << normalizedValue << ") on channel: " << channel;
+            // Get parameter range for debugging
+            auto param = getParameter(paramIdx);
+            lattice::logDebug << "Parameter range: min=" << param.min << ", max=" << param.max << ", current=" << param.value;
+            // Update Csound channel with denormalized value
+            cabbage.setControlChannel(channel, denormValue);
             
             auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), channel);
             if (widgetOpt)
             {
                 auto &j = widgetOpt->get();
-                j["value"] = value;
+                j["value"] = denormValue;
             }
         }
         catch (const nlohmann::json::exception& e)
@@ -580,7 +595,7 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json& j)
         addNoteEventFromJson(nlohmann::json::parse(incomingMessage["obj"].get<std::string>()));
         //"{\"statusByte\":144,\"dataByte1\":77,\"dataByte2\":127}"
     }
-    else if (incomingMessage["command"] == "channelStringData")
+    else if (incomingMessage["command"] == "channelData")
     {
         try
         {
@@ -842,15 +857,14 @@ void CabbageProcessor::setParameter(int paramId, double value)
         auto &j = widgetOpt->get();
         std::string widgetType = j["type"].get<std::string>();
         
-        // For comboBox and optionButton, send normalized value since widget sends normalized
+        // For comboBox and optionButton, map normalized value to index
         if (widgetType == "comboBox" || widgetType == "optionButton") {
-            cabbage.setControlChannel(getParameters()[paramId].name, denormalValue); // value is already normalized (0-1)
-            return;
-        }
-        else if (j.contains("type") && j.contains("indexOffset") &&
-                j["type"] == "comboBox" && j["indexOffset"] == true)
-        {
-            cabbage.setControlChannel(getParameters()[paramId].name, denormalValue+1);
+            size_t itemCount = (j.contains("items") && j["items"].is_array()) ? j["items"].size() : 3;
+            size_t index = round(denormalValue * (itemCount - 1));
+            if (j.contains("indexOffset") && j["indexOffset"].is_boolean() && j["indexOffset"].get<bool>()) {
+                index += 1;
+            }
+            cabbage.setControlChannel(getParameters()[paramId].name, index);
             return;
         }
     }
