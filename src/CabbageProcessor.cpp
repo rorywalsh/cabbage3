@@ -740,9 +740,6 @@ void CabbageProcessor::updateUI()
         auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(channelStr, w.dump(), true);
         if(uiIsOpen)
             sendWebViewMessage(updatedWidget);
-        else{
-            webviewMessageQueue.push_back(updatedWidget);
-        }
     }
     
     // Check if editor has any pending messages when loaded..
@@ -799,9 +796,9 @@ void CabbageProcessor::loadPluginState(nlohmann::json state)
         // Set parameter values for plugin
         getParameters()[idx].value = value;
         
-        // Save to message queue - denormalise value for webview
-        auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(getParameters()[idx].name, getParameter(idx).fromNormalised(value));
-        webviewMessageQueue.push_back({getParameters()[idx].name, -1, -1, value, -1, -1});
+        // Store denormalized value for UI and Csound
+        float denormalizedValue = getParameter(idx).fromNormalised(value);
+        webviewMessageQueue.push_back({getParameters()[idx].name, -1, -1, denormalizedValue, -1, -1});
         idx++;
     }
 }
