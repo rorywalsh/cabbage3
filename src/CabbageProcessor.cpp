@@ -22,12 +22,13 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
     {
         suspendProcessing();
         
-        // Delay showing error page to allow host to finish opening editor
-        lattice::setTimeout([this]() {
-            auto errors = cabbage.getCompileErrors();
-            lattice::logInfo << errors;
-            setWebViewHtml(generateErrorPageHtml(errors));
-        }, 500);
+        // Store error HTML to be displayed when webview is ready
+        auto errors = cabbage.getCompileErrors();
+        lattice::logInfo << "COMPILE ERRORS:\n" << errors;
+        compileErrorHtml = generateErrorPageHtml(errors);
+        hasCompileErrors = true;
+        lattice::logDebug << "Generated error HTML, length: " << compileErrorHtml.length();
+        
         setEditorSize(550, 350);
         
         return;
@@ -163,8 +164,10 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
 {
     std::string widgetType = w.contains("type") ? w["type"].get<std::string>() : "unknown";
     
-    if (w.contains("automatable") && w["automatable"] == 1 &&
-        (!w.contains("channelType") || w["channelType"] == "number"))
+    // Check for automatable - expect boolean true
+    bool isAutomatable = w.contains("automatable") && w["automatable"].is_boolean() && w["automatable"].get<bool>();
+    
+    if (isAutomatable && (!w.contains("channelType") || w["channelType"] == "number"))
     {
         try
         {
@@ -249,7 +252,12 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
     }
     else
     {
-        lattice::logDebug << w["type"].get<std::string>() <<" widget skipped - automatable=" << (w.contains("automatable") ? std::to_string(w["automatable"].get<int>()) : "missing")
+        std::string automatableStr = "false";
+        if (w.contains("automatable") && w["automatable"].is_boolean()) {
+            automatableStr = w["automatable"].get<bool>() ? "true" : "false";
+        }
+        
+        lattice::logDebug << w["type"].get<std::string>() <<" widget skipped - automatable=" << automatableStr
                          << ", channelType=" << (w.contains("channelType") ? w["channelType"].get<std::string>() : "missing");
     }
 }
@@ -491,6 +499,14 @@ void CabbageProcessor::stopIdleThread()
 //========================================================================================
 void CabbageProcessor::onWebViewIsReady()
 {
+    // If there were compile errors, display the error page
+    if (hasCompileErrors)
+    {
+        lattice::logDebug << "Displaying error page in webview (called from main thread)";
+        setWebViewHtml(compileErrorHtml);
+        return;
+    }
+    
     updateUI();
 }
 

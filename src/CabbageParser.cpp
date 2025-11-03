@@ -27,9 +27,10 @@ bool Parser::isWidget(const std::string &target)
     return std::find(widgetTypes.begin(), widgetTypes.end(), target) != widgetTypes.end();
 }
 
-std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string &csdFile)
+std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string &csdFile, std::string *outError)
 {
     std::vector<nlohmann::json> widgets;
+    std::string jsonError;
 
     std::ifstream file(csdFile);
     if (!file.is_open())
@@ -54,7 +55,7 @@ std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string &csdFil
 
         if (foundFormWidget)
         {
-            parseContent(cabbageContent, widgets);
+            jsonError = parseContent(cabbageContent, widgets);
         }
         else
         {
@@ -86,11 +87,17 @@ std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string &csdFil
         lattice::logInfo << "No <Cabbage> section found in the file: " << csdFile;
     }
 
+    if (outError && !jsonError.empty())
+    {
+        *outError = jsonError;
+    }
+
     return widgets;
 }
 
-void Parser::parseContent(const std::string &content, std::vector<nlohmann::json> &widgets)
+std::string Parser::parseContent(const std::string &content, std::vector<nlohmann::json> &widgets)
 {
+    std::string errorMessage;
     try
     {
         auto jsonArray = nlohmann::json::parse(content);
@@ -127,8 +134,10 @@ void Parser::parseContent(const std::string &content, std::vector<nlohmann::json
     }
     catch (const nlohmann::json::parse_error &e)
     {
-        lattice::logInfo << "JSON parse error: " << e.what();
+        errorMessage = "JSON Parse Error: " + std::string(e.what());
+        lattice::logError << errorMessage;
     }
+    return errorMessage;
 }
 
 void Parser::parseJsonFile(const std::string &filename, std::vector<nlohmann::json> &widgets)
@@ -442,9 +451,22 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
             }
             else
             {
-                // For all other properties, just assign the value directly
-                jsonObj[key] = value;
+                // For nested objects (like label, thumb, track, valueText), merge properties
+                if (value.is_object() && jsonObj.contains(key) && jsonObj[key].is_object())
+                {
+                    // Recursively merge nested object properties
+                    for (auto &[nestedKey, nestedVal] : value.items())
+                    {
+                        jsonObj[key][nestedKey] = nestedVal;
+                    }
+//                    lattice::logDebug << "Merged nested object property '" << key << "' for widget type: " << widgetType;
+                }
+                else
+                {
+                    // For all other properties, just assign the value directly
+                    jsonObj[key] = value;
 //                    lattice::logDebug << "Set property '" << key << "' for widget type: " << widgetType;
+                }
             }
         }
         catch (const nlohmann::json::exception &e)

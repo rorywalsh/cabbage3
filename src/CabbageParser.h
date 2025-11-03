@@ -18,10 +18,10 @@ class Parser
   public:
     static std::string removeQuotes(const std::string &str);
     static bool isWidget(const std::string &target);
-    static std::vector<nlohmann::json> parseCsdForWidgets(const std::string &csdFile);
+    static std::vector<nlohmann::json> parseCsdForWidgets(const std::string &csdFile, std::string *outError = nullptr);
 
     // Helper functions
-    static void parseContent(const std::string &content, std::vector<nlohmann::json> &widgets);
+    static std::string parseContent(const std::string &content, std::vector<nlohmann::json> &widgets);
     static void parseJsonFile(const std::string &filename, std::vector<nlohmann::json> &widgets);
 
     static void initialiseWidgetJson(nlohmann::json &jsonObj, const nlohmann::json &incomingJson, size_t numWidgets);

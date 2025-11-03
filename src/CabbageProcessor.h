@@ -90,6 +90,8 @@ public:
     std::thread idleThread;
     int idleCounter = 0;
     std::vector<lattice::Parameter> webviewMessageQueue;
+    bool hasCompileErrors = false;
+    std::string compileErrorHtml;
     
     std::string errorPageHtml = "<!DOCTYPE html>\n"
     "<html lang=\"en\">\n"

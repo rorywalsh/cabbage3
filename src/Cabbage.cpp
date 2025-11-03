@@ -115,7 +115,15 @@ bool Engine::setupCsound()
         }
 
         widgets.clear();
-        widgets = cabbage::Parser::parseCsdForWidgets(csdFile);
+        std::string jsonError;
+        widgets = cabbage::Parser::parseCsdForWidgets(csdFile, &jsonError);
+        
+        // If there was a JSON parse error, add it to compileErrors and return false
+        if (!jsonError.empty())
+        {
+            compileErrors += "\n" + jsonError;
+            return false;
+        }
         
         // Initialise genTable widgets that have file properties
         initialiseGenTableWidgets();
@@ -219,7 +227,8 @@ int Engine::getNumberOfParameters(const std::string &csdFile)
     int numParams = 0;
     for (auto &w : widgets)
     {
-        if (w.contains("automatable") && w["automatable"] == 1)
+        // Check for automatable - expect boolean true
+        if (w.contains("automatable") && w["automatable"].is_boolean() && w["automatable"].get<bool>())
             numParams++;
     }
 
