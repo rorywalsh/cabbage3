@@ -372,21 +372,21 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
                     lattice::logDebug << "samples property must be an array for widget type: " << widgetType;
                 }
             }
-            else if (key == "colour")
+            else if (key == "color")
             {
                 if (value.is_object())
                 {
-                    parseColourProperties(value, jsonObj[key]);
-//                        lattice::logDebug << "Parsed colour object for widget type: " << widgetType;
+                    parseColorProperties(value, jsonObj[key]);
+//                        lattice::logDebug << "Parsed color object for widget type: " << widgetType;
                 }
                 else if (value.is_string() || value.is_number())
                 {
                     jsonObj[key] = parseColorValue(value);
-//                        lattice::logDebug << "Parsed colour value for widget type: " << widgetType;
+//                        lattice::logDebug << "Parsed color value for widget type: " << widgetType;
                 }
                 else
                 {
-                    lattice::logDebug << "colour property must be an object, string, or number for widget type: " << widgetType;
+                    lattice::logDebug << "color property must be an object, string, or number for widget type: " << widgetType;
                 }
             }
             else if (key == "file")
@@ -499,17 +499,17 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
 
 void Parser::parseStroke(const nlohmann::json &strokeValue, nlohmann::json &target)
 {
-    if (strokeValue.contains("colour"))
+    if (strokeValue.contains("color"))
     {
-        target["colour"] = parseColorValue(strokeValue["colour"]);
+        target["color"] = parseColorValue(strokeValue["color"]);
     }
-    if (strokeValue.contains("width") && strokeValue["width"].is_number())
+    if (strokeValue.contains("width"))
     {
         target["width"] = strokeValue["width"];
     }
 }
 
-void Parser::parseColourProperties(const nlohmann::json &value, nlohmann::json &target)
+void Parser::parseColorProperties(const nlohmann::json &value, nlohmann::json &target)
 {
     for (auto &[key, val] : value.items())
     {
@@ -528,7 +528,7 @@ void Parser::parseColourProperties(const nlohmann::json &value, nlohmann::json &
         }
         else if (val.is_object())
         {
-            parseColourProperties(val, target[key]);
+            parseColorProperties(val, target[key]);
         }
         else if (val.is_number())
         {
