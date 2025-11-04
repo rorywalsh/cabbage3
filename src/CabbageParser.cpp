@@ -463,9 +463,26 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
                 }
                 else
                 {
-                    // For all other properties, just assign the value directly
-                    jsonObj[key] = value;
-//                    lattice::logDebug << "Set property '" << key << "' for widget type: " << widgetType;
+                    // List of known boolean properties that need conversion from numeric 1/0 to boolean true/false
+                    // This is needed because Csound doesn't support boolean types, so it sends 1/0
+                    static const std::unordered_set<std::string> booleanProperties = {
+                        "visible", "automatable", "active", "popup", "presetIgnore", "identChannel",
+                        "svgElement", "valueTextBox", "moveBehind", "filmStrip"
+                    };
+                    
+                    // Check if this is a boolean property and the value is numeric (from Csound)
+                    if (booleanProperties.find(key) != booleanProperties.end() && value.is_number())
+                    {
+                        // Convert numeric 1/0 from Csound to boolean true/false for JavaScript
+                        jsonObj[key] = (value.get<double>() != 0);
+//                        lattice::logDebug << "Converted numeric " << value << " to boolean for property '" << key << "'";
+                    }
+                    else
+                    {
+                        // For all other properties, just assign the value directly
+                        jsonObj[key] = value;
+//                        lattice::logDebug << "Set property '" << key << "' for widget type: " << widgetType;
+                    }
                 }
             }
         }
