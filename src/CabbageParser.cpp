@@ -794,14 +794,19 @@ void Parser::assignDefaultRangesToChannels(nlohmann::json &jsonObj)
                     {
                         // Ensure all required properties exist in the existing range object
                         auto& range = channel["range"];
-                        if (!range.contains("min") || !range["min"].is_number()) range["min"] = defaultRange["min"];
-                        if (!range.contains("max") || !range["max"].is_number()) range["max"] = defaultRange["max"];
-                        if (!range.contains("value") || !range["value"].is_number()) range["value"] = defaultRange["value"];
-                        if (!range.contains("defaultValue") || !range["defaultValue"].is_number()) range["defaultValue"] = defaultRange["defaultValue"];
-                        if (!range.contains("skew") || !range["skew"].is_number()) range["skew"] = defaultRange["skew"];
-                        if (!range.contains("increment") || !range["increment"].is_number()) range["increment"] = defaultRange["increment"];
-                        
-                        lattice::logDebug << "Completed partial range object for channel in widget type: " << widgetType;
+                        if (!range.contains("min") || !range["min"].is_number())
+                            range["min"] = defaultRange["min"];
+                        if (!range.contains("max") || !range["max"].is_number())
+                            range["max"] = defaultRange["max"];
+                        if (!range.contains("value") || !range["value"].is_number())
+                            range["value"] = defaultRange["value"];
+                        if (!range.contains("defaultValue") || !range["defaultValue"].is_number())
+                            range["defaultValue"] = defaultRange["defaultValue"];
+                        if (!range.contains("skew") || !range["skew"].is_number())
+                            range["skew"] = defaultRange["skew"];
+                        if (!range.contains("increment") || !range["increment"].is_number())
+                            range["increment"] = defaultRange["increment"];
+
                     }
                 }
             }

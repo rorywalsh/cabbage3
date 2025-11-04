@@ -220,6 +220,12 @@ void Engine::setReservedChannels()
 }
 
 //===========================================================================================
+int Engine::getCurrentParameterCount()
+{
+    return static_cast<int>(processor.getParameters().size());
+}
+
+//===========================================================================================
 int Engine::getNumberOfParameters(const std::string &csdFile)
 {
     std::vector<nlohmann::json> widgets =
@@ -494,7 +500,8 @@ const std::string Engine::updateWidgetState(nlohmann::json j)
 std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, std::string data, bool includeValue)
 {
     std::string result;
-    if (includeValue) {
+    if (includeValue)
+    {
         // Parse the data to extract the value
         nlohmann::json widgetJson = nlohmann::json::parse(data);
         float value = 0.0f;
@@ -518,15 +525,17 @@ std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, std::str
             widgetJson: `$DATA`,
             value: $VALUE
         }
-    )", "$CHANNEL", channel, "$DATA", data, "$VALUE", std::to_string(value));
-    } else {
+        )", "$CHANNEL", channel, "$DATA", data, "$VALUE", std::to_string(value));
+    }
+    else
+    {
         result = choc::text::replace(R"(
         {
             command: "widgetUpdate",
             id: "$CHANNEL",
             widgetJson: `$DATA`
         }
-    )", "$CHANNEL", channel, "$DATA", data);
+        )", "$CHANNEL", channel, "$DATA", data);
     }
     return result;
 }
@@ -535,11 +544,11 @@ std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, float va
 {
     std::string result;
     result = choc::text::replace(R"(
-        {
-            command: "widgetUpdate",
-            id: "$CHANNEL",
-            value: $VALUE
-        }
+    {
+        command: "widgetUpdate",
+        id: "$CHANNEL",
+        value: $VALUE
+    }
     )", "$CHANNEL", channel, "$VALUE", std::to_string(value));
             
     return result.c_str();

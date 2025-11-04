@@ -238,24 +238,37 @@ void CabbageAudioApp::processIncomingMessage(const std::string& message)
                 return;
             }
             
-            auto &cabbage = processor->getCabbageEngine();
-            for (int i = 0; i < cabbage.getNumberOfParameters(); i++)
+            // Get paramIdx from the message - frontend now sends this directly
+            if (!jsonObj.contains("paramIdx"))
             {
-                if (cabbage.getParameterChannel(i).name == jsonObj["channel"].get<std::string>())
-                {
-                    // update underlying JSON object if the value has changed
-                    auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), jsonObj["channel"]);
-                    if (widgetOpt)
-                    {                            
-                        auto &widgetObj = widgetOpt->get();
-                        widgetObj["value"] = jsonObj["value"].get<double>();
-                    }
-                    // Normalize the denormalized value from frontend before setting parameter
-                    auto param = processor->getParameter(i);
-                    double normalizedValue = param.toNormalised(jsonObj["value"].get<double>());
-                    processor->setParameter(i, normalizedValue);
-                }
+                lattice::logError << "parameterChange message missing paramIdx field";
+                return;
             }
+            
+            int paramIdx = jsonObj["paramIdx"].get<int>();
+            
+            // Validate paramIdx
+            if (paramIdx < 0 || paramIdx >= processor->getParameters().size())
+            {
+                lattice::logError << "Invalid paramIdx: " << paramIdx 
+                                  << " (valid range: 0-" << processor->getParameters().size() - 1 << ")";
+                return;
+            }
+            
+            auto &cabbage = processor->getCabbageEngine();
+            
+            // Update underlying JSON object if the value has changed
+            auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), jsonObj["channel"]);
+            if (widgetOpt)
+            {                            
+                auto &widgetObj = widgetOpt->get();
+                widgetObj["value"] = jsonObj["value"].get<double>();
+            }
+            
+            // Normalize the denormalized value from frontend before setting parameter
+            auto param = processor->getParameter(paramIdx);
+            double normalizedValue = param.toNormalised(jsonObj["value"].get<double>());
+            processor->setParameter(paramIdx, normalizedValue);
         }
 
         else if (command == "fileOpenFromVSCode")

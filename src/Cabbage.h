@@ -127,7 +127,7 @@ class Engine
     static int getNumberOfParameters(const std::string &csdFile);
     
     // Returns the current number of parameters registered
-    int getCurrentParameterCount(){ return numberOfParameters;  }
+    int getCurrentParameterCount();
 
     // Return the channel config string, e.g., '2-2'
     static const std::string getIOChannalConfig(const std::string &csdFile);

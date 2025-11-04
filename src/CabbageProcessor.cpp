@@ -166,7 +166,7 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
     
     // Check for automatable - expect boolean true
     bool isAutomatable = w.contains("automatable") && w["automatable"].is_boolean() && w["automatable"].get<bool>();
-    
+
     if (isAutomatable && (!w.contains("channelType") || w["channelType"] == "number"))
     {
         try
@@ -174,8 +174,8 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
             // New schema: channels array
             if (w.contains("channels") && w["channels"].is_array())
             {
-                const int startIndex = cabbage.getCurrentParameterCount();
-                for (const auto &ch : w["channels"])
+                int currentIndex = cabbage.getCurrentParameterCount();
+                for (auto &ch : w["channels"])
                 {
                     if (!ch.contains("id") || !ch["id"].is_string())
                         continue;
@@ -204,44 +204,17 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
                     const float incVal = ch["range"]["increment"].get<float>();
                     const float skewVal = ch["range"]["skew"].get<float>();
                     addParameter({channel, minValAdjusted, maxVal, defVal, incVal, skewVal});
-                    lattice::logDebug << "Added parameter for channel '" << channel << "' (event: " << event << ") min: " << minValAdjusted << " max: " << maxVal;
+                    
+                    // Store parameterIndex in each channel object
+                    ch["parameterIndex"] = currentIndex;
+                    lattice::logDebug << "Added parameter for channel '" << channel << "' with parameterIndex " << currentIndex;
+                    currentIndex++;
                 }
                 
-                w["parameterIndex"] = startIndex;
                 cabbage.initParameter(w);
                 return;
             }
             
-            // Ensure channel is a string before proceeding (single-channel widget)
-            if (!w.contains("channel") || !w["channel"].is_string())
-            {
-                lattice::logWarning << "Widget " << widgetType << " missing valid channel string, skipping parameter addition";
-                return;
-            }
-            
-            int paramIndex = cabbage.getCurrentParameterCount();
-            if (w.contains("range"))
-            {
-                addParameter({w["channel"].get<std::string>(), 
-                    w["range"]["min"].get<float>(),
-                    w["range"]["max"].get<float>(), 
-                    w["range"]["defaultValue"].get<float>(),
-                    w["range"]["increment"].get<float>(),
-                    w["range"]["skew"].get<float>()});
-                    
-                lattice::logDebug << "Added parameter for channel '" << w["channel"].get<std::string>() << "'";
-            }
-            else
-            {
-                addParameter({w["channel"].get<std::string>(), 
-                    w["min"].get<float>(),
-                    w["max"].get<float>(), 
-                    w["defaultValue"].get<float>()});
-                    
-                lattice::logDebug << "Added parameter for channel '" << w["channel"].get<std::string>() << "' (using min/max/defaultValue)";
-            }
-            w["parameterIndex"] = paramIndex;
-            cabbage.initParameter(w);
         }
         catch (nlohmann::json::exception &e)
         {
@@ -250,16 +223,7 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
             // cabbage::Utils::check(false, "");
         }
     }
-    else
-    {
-        std::string automatableStr = "false";
-        if (w.contains("automatable") && w["automatable"].is_boolean()) {
-            automatableStr = w["automatable"].get<bool>() ? "true" : "false";
-        }
-        
-        lattice::logDebug << w["type"].get<std::string>() <<" widget skipped - automatable=" << automatableStr
-                         << ", channelType=" << (w.contains("channelType") ? w["channelType"].get<std::string>() : "missing");
-    }
+
 }
 
 //========================================================================================
@@ -845,30 +809,14 @@ void CabbageProcessor::setParameter(int paramId, double value)
             }
             if (widgetOpt) break;
         }
-// Old schema
-//        if (w.contains("channel")) {
-//            if (w["channel"].is_string() && w["channel"].get<std::string>() == channel) {
-//                widgetOpt = w;
-//                break;
-//            } else if (w["channel"].is_object()) {
-//                bool found = false;
-//                for (auto& [key, value] : w["channel"].items()) {
-//                    if (value.is_string() && value.get<std::string>() == channel) {
-//                        found = true;
-//                        break;
-//                    }
-//                }
-//                if (found) {
-//                    widgetOpt = w;
-//                    break;
-//                }
-//            }
-//        }
     }
     if (widgetOpt)
     {
         auto &j = widgetOpt->get();
         std::string widgetType = j["type"].get<std::string>();
+        
+        // Update the widget's value property so it persists when UI reopens
+        j["value"] = denormalValue;
         
         // For comboBox and optionButton, map normalized value to index
         if (widgetType == "comboBox" || widgetType == "optionButton") {
@@ -877,6 +825,7 @@ void CabbageProcessor::setParameter(int paramId, double value)
             if (j.contains("indexOffset") && j["indexOffset"].is_boolean() && j["indexOffset"].get<bool>()) {
                 index += 1;
             }
+            j["value"] = index; // Override with index for these widget types
             cabbage.setControlChannel(getParameters()[paramId].name, index);
             return;
         }
