@@ -7,6 +7,8 @@
 #include <regex>
 #include <iomanip>
 #include <numeric>
+#include <algorithm>
+#include <unordered_set>
 
 // choc string utility class
 #include <choc/text/choc_StringUtilities.h>
