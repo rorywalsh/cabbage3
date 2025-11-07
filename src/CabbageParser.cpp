@@ -830,44 +830,6 @@ void Parser::assignDefaultRangesToChannels(nlohmann::json &jsonObj)
                 }
             }
         }
-        // Handle single-channel case (legacy widgets with "channel" string property)
-        else if (jsonObj.contains("channel") && jsonObj["channel"].is_string())
-        {
-            std::string widgetType = jsonObj.contains("type") && jsonObj["type"].is_string() 
-                ? jsonObj["type"].get<std::string>() : "";
-            
-            // If widget doesn't have a range object but has min/max/defaultValue, create range object
-            if ((!jsonObj.contains("range") || !jsonObj["range"].is_object()) &&
-                jsonObj.contains("min") && jsonObj.contains("max") && jsonObj.contains("defaultValue"))
-            {
-                nlohmann::json rangeObj = {
-                    {"min", jsonObj["min"].get<double>()},
-                    {"max", jsonObj["max"].get<double>()},
-                    {"value", jsonObj["defaultValue"].get<double>()},
-                    {"defaultValue", jsonObj["defaultValue"].get<double>()},
-                    {"skew", 1.0},
-                    {"increment", 0.001}
-                };
-                
-                jsonObj["range"] = rangeObj;
-                lattice::logDebug << "Created range object from min/max/defaultValue for single-channel widget type: " << widgetType;
-            }
-            // If widget has no range object and no min/max/defaultValue, create default range
-            else if (!jsonObj.contains("range") || !jsonObj["range"].is_object())
-            {
-                nlohmann::json defaultRange = {
-                    {"min", 0.0},
-                    {"max", 1.0},
-                    {"value", widgetType == "checkBox" ? 1.0 : 0.0},
-                    {"defaultValue", widgetType == "checkBox" ? 1.0 : 0.0},
-                    {"skew", 1.0},
-                    {"increment", 0.001}
-                };
-                
-                jsonObj["range"] = defaultRange;
-                lattice::logDebug << "Assigned default range to single-channel widget type: " << widgetType;
-            }
-        }
     }
     catch (const nlohmann::json::exception &e)
     {

@@ -168,28 +168,6 @@ void Engine::initParameter(nlohmann::json &w)
     else if (w.contains("channel") && w["channel"].is_object())
     {
         lattice::logError << "Old schema is no longer supported";
-//        if (!w.contains("range") || !w["range"].is_object())
-//            return;
-//        
-//        for (auto& [channelKey, channelName] : w["channel"].items())
-//        {
-//            if (!channelName.is_string())
-//                continue;
-//                
-//            std::string channel = cabbage::Parser::removeQuotes(channelName.get<std::string>());
-//            
-//            if (w["range"].contains(channelKey))
-//            {
-//                auto& channelRange = w["range"][channelKey];
-//                float defaultValue = channelRange.contains("defaultValue") 
-//                    ? channelRange["defaultValue"].get<float>()
-//                    : 0.5f;
-//                
-//                parameterChannels.push_back({channel, defaultValue});
-//                csound->SetControlChannel(channel.c_str(), defaultValue);
-//                numberOfParameters++;
-//            }
-//        }
     }
     // Handle old schema: single-channel widgets
     else if (w.contains("channel") && w["channel"].is_string())
@@ -774,11 +752,6 @@ void Engine::queueGenTableUpdates()
                                          << "' with tableNumber " << tableNumber 
                                          << " (size: " << tableSize << ")";
                     }
-                }
-                else if (tableSize == -1)
-                {
-                    lattice::logWarning << "genTable widget has tableNumber " << tableNumber 
-                                       << " but no corresponding function table exists in Csound";
                 }
             }
         }

@@ -127,7 +127,7 @@ void CabbageProcessor::addParameters()
                              << "Found type: " << w["children"].type_name();
         }
         
-        addParameterForWidget(w);
+        addParametersForWidget(w);
         
         // ALWAYS check for child widgets, even if parent is not automatable
         // (containers like image, groupbox are not automatable but their children might be)
@@ -137,7 +137,7 @@ void CabbageProcessor::addParameters()
             {
                 // Work directly with the child widget, not a temporary copy
                 std::string childType = child.contains("type") ? child["type"].get<std::string>() : "unknown";
-                addParameterForWidget(child);
+                addParametersForWidget(child);
                 
                 // Recursively process grandchildren
                 if (child.contains("children") && child["children"].is_array())
@@ -145,7 +145,7 @@ void CabbageProcessor::addParameters()
                     for (auto &grandchild : child["children"])
                     {
                         std::string grandchildType = grandchild.contains("type") ? grandchild["type"].get<std::string>() : "unknown";
-                        addParameterForWidget(grandchild);
+                        addParametersForWidget(grandchild);
                     }
                 }
             }
@@ -160,7 +160,7 @@ void CabbageProcessor::addParameters()
 // up to comminucate on an id provided by the widget.channels array object. The top level
 // widget.id property is used for UI updating only.
 //========================================================================================
-void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
+void CabbageProcessor::addParametersForWidget(nlohmann::json& w)
 {
     std::string widgetType = w.contains("type") ? w["type"].get<std::string>() : "unknown";
     
@@ -169,6 +169,9 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
 
     if (isAutomatable && (!w.contains("channelType") || w["channelType"] == "number"))
     {
+        // Ensure default ranges are set if missing
+        cabbage::Parser::assignDefaultRangesToChannels(w);
+        
         try
         {
             // New schema: channels array
@@ -205,13 +208,16 @@ void CabbageProcessor::addParameterForWidget(nlohmann::json& w)
                     const float skewVal = ch["range"]["skew"].get<float>();
                     addParameter({channel, minValAdjusted, maxVal, defVal, incVal, skewVal});
                     
+                    // Set initial value in Csound
+                    cabbage.setControlChannel(channel, defVal);
+                    
                     // Store parameterIndex in each channel object
                     ch["parameterIndex"] = currentIndex;
-                    lattice::logDebug << "Added parameter for channel '" << channel << "' with parameterIndex " << currentIndex;
+                    lattice::logDebug << "Added parameter for channel '" << channel << "' with parameterIndex "
+                                     << currentIndex << " and default value of : " << defVal;
                     currentIndex++;
                 }
                 
-                cabbage.initParameter(w);
                 return;
             }
             

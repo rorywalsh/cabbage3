@@ -73,7 +73,7 @@ public:
     void startOnIdle();
     void stopOnIdle();
     void updateWidgetData(const CabbageOpcodeData &data);
-    void addParameterForWidget(nlohmann::json& w);
+    void addParametersForWidget(nlohmann::json& w);
     void openFileDialog(const std::string& channel, const std::string& directory, const std::string& filters, bool openAtLastKnownLocation);
     std::string generateErrorPageHtml(const std::string& errors);
     std::atomic<bool> processingEnabled{true};
