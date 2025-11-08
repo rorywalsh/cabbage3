@@ -68,7 +68,19 @@ public:
                 midiInChan = settingsJson["currentConfig"]["midi"].value("inChan", 0);
                 midiOutChan = settingsJson["currentConfig"]["midi"].value("outChan", 0);
 
-                jsSourceDirectory = settingsJson["currentConfig"].value("jsSourceDir", "add path to JS src directory");
+                // Handle jsSourceDir as array or string for backward compatibility
+                if (settingsJson["currentConfig"].contains("jsSourceDir")) {
+                    const auto& jsSourceDirValue = settingsJson["currentConfig"]["jsSourceDir"];
+                    if (jsSourceDirValue.is_array() && !jsSourceDirValue.empty()) {
+                        jsSourceDirectory = jsSourceDirValue[0].get<std::string>(); // Use first directory
+                    } else if (jsSourceDirValue.is_string()) {
+                        jsSourceDirectory = jsSourceDirValue.get<std::string>();
+                    } else {
+                        jsSourceDirectory = "add path to JS src directory";
+                    }
+                } else {
+                    jsSourceDirectory = "add path to JS src directory";
+                }
 
             } catch (nlohmann::json::exception& e) {
                 std::cerr << "Error parsing JSON: " << e.what() << std::endl;

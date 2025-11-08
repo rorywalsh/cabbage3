@@ -154,8 +154,43 @@ std::string File::findCabbageJSWidgetPath()
     std::string widgetPath;
 
 #if defined(CabbageApp) || defined(CabbageTests)
-    // Primary: Get path from settings
-    widgetPath = cabbage::File::getSettingsProperty("currentConfig", "jsSourceDir") + "/cabbage/widgets";
+    // Primary: Get path(s) from settings. jsSourceDir may be a string or an array of strings.
+    try
+    {
+        std::ifstream file(getSettingsFile(), std::ios::binary);
+        if (file.is_open())
+        {
+            std::ostringstream oss; oss << file.rdbuf(); file.close();
+            auto jsonData = nlohmann::json::parse(oss.str());
+            std::vector<std::string> dirs;
+            if (jsonData.contains("currentConfig") && jsonData["currentConfig"].contains("jsSourceDir"))
+            {
+                auto &val = jsonData["currentConfig"]["jsSourceDir"];
+                if (val.is_array())
+                {
+                    for (auto &v : val)
+                        if (v.is_string()) dirs.emplace_back(v.get<std::string>());
+                }
+                else if (val.is_string())
+                {
+                    dirs.emplace_back(val.get<std::string>());
+                }
+            }
+
+            // Iterate all configured dirs and return the first existing widgets path
+            for (const auto &baseDir : dirs)
+            {
+                std::string candidate = lattice::File::joinPath(baseDir, "cabbage", "widgets");
+                if (cabbage::File::directoryExists(candidate))
+                    return candidate;
+            }
+        }
+    }
+    catch (const std::exception &e)
+    {
+        lattice::logDebug << "Error reading jsSourceDir from settings: " << e.what();
+    }
+    // Fallback to extension source directory if settings not available
 #else
     const auto resourceDir = lattice::File::getParentDirectory(cabbage::File::getCsdFileAndPath());
     widgetPath = lattice::File::joinPath(resourceDir, "cabbage", "widgets");

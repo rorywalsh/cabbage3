@@ -15,7 +15,8 @@
 #include <choc/audio/choc_AudioFileFormat_FLAC.h>
 #include <choc/audio/choc_AudioFileFormat_MP3.h>
 #include <choc/audio/choc_SampleBuffers.h>
-
+#include <set>
+#include <filesystem>
 #ifdef LATTICE_WINDOWS
 #include <shlobj.h>
 #endif
@@ -215,35 +216,98 @@ class WidgetDescriptors
 {
 public:
     // Utility function to get full list of widget types contained in widgets directory
+    // Scans ALL configured widget directories (built-in + custom)
     static std::vector<std::string> getWidgetTypes()
     {
         std::vector<std::string> widgetTypes;
-        std::string widgetPath = cabbage::File::findCabbageJSWidgetPath(); // Folder containing widget files
+        std::vector<std::string> widgetPaths;
         
-        // Check if the directory exists
-        if (!std::filesystem::exists(widgetPath) || !std::filesystem::is_directory(widgetPath))
+        // Get all configured widget directories from settings
+        try
         {
-            std::cerr << "Error: Directory " << widgetPath << " does not exist or is not a directory." << std::endl;
-            return widgetTypes; // Return an empty vector if directory is not found
-        }
-        
-        // Iterate through the directory and extract the filenames without the extension
-        for (const auto &entry : std::filesystem::directory_iterator(widgetPath))
-        {
-            if (entry.is_regular_file())
-            {                                                            // Only process regular files
-                std::string filename = entry.path().filename().string(); // Get filename
-                std::string extension = entry.path().extension().string();
+            std::ifstream file(cabbage::File::getSettingsFile(), std::ios::binary);
+            if (file.is_open())
+            {
+                std::ostringstream oss; oss << file.rdbuf(); file.close();
+                auto jsonData = nlohmann::json::parse(oss.str());
                 
-                // Remove extension from filename
-                if (!extension.empty())
+                if (jsonData.contains("currentConfig") && jsonData["currentConfig"].contains("jsSourceDir"))
                 {
-                    filename = filename.substr(0, filename.length() - extension.length());
+                    auto &val = jsonData["currentConfig"]["jsSourceDir"];
+                    std::vector<std::string> dirs;
+                    
+                    if (val.is_array())
+                    {
+                        for (auto &v : val)
+                            if (v.is_string()) dirs.emplace_back(v.get<std::string>());
+                    }
+                    else if (val.is_string())
+                    {
+                        dirs.emplace_back(val.get<std::string>());
+                    }
+                    
+                    // Build list of all widget directories
+                    for (const auto &baseDir : dirs)
+                    {
+                        std::string candidate = lattice::File::joinPath(baseDir, "cabbage", "widgets");
+                        if (cabbage::File::directoryExists(candidate))
+                            widgetPaths.push_back(candidate);
+                    }
                 }
-                
-                widgetTypes.push_back(filename); // Add filename to the vector
             }
         }
+        catch (const std::exception &e)
+        {
+            lattice::logDebug << "Error reading jsSourceDir from settings: " << e.what();
+        }
+        
+        // If no paths found, use the fallback
+        if (widgetPaths.empty())
+        {
+            std::string fallbackPath = cabbage::File::findCabbageJSWidgetPath();
+            if (!fallbackPath.empty())
+                widgetPaths.push_back(fallbackPath);
+        }
+        
+        // Scan all widget directories and collect unique widget types
+        std::set<std::string> uniqueTypes; // Use set to avoid duplicates
+        
+        lattice::logDebug << "Scanning " << widgetPaths.size() << " widget directories";
+        
+        for (const auto &widgetPath : widgetPaths)
+        {
+            lattice::logDebug << "Checking widget path: " << widgetPath;
+            
+            if (!std::filesystem::exists(widgetPath) || !std::filesystem::is_directory(widgetPath))
+            {
+                lattice::logDebug << "Path does not exist or is not a directory: " << widgetPath;
+                continue;
+            }
+            
+            // Iterate through the directory and extract the filenames without the extension
+            for (const auto &entry : std::filesystem::directory_iterator(widgetPath))
+            {
+                if (entry.is_regular_file())
+                {
+                    std::string filename = entry.path().filename().string();
+                    std::string extension = entry.path().extension().string();
+                    
+                    // Remove extension from filename
+                    if (!extension.empty())
+                    {
+                        filename = filename.substr(0, filename.length() - extension.length());
+                    }
+                    
+                    lattice::logDebug << "Found widget type: " << filename;
+                    uniqueTypes.insert(filename); // Add to set (automatically deduplicates)
+                }
+            }
+        }
+        
+        lattice::logDebug << "Total unique widget types found: " << uniqueTypes.size();
+        
+        // Convert set to vector
+        widgetTypes.assign(uniqueTypes.begin(), uniqueTypes.end());
         
         return widgetTypes;
     }
@@ -251,20 +315,80 @@ public:
     // returns a widget descriptor object for a given widget type
     static nlohmann::json get(const std::string &widgetType)
     {
+        std::vector<std::string> widgetPaths;
         
-        std::vector<std::string> widgetTypes;
-        std::string widgetPath = cabbage::File::findCabbageJSWidgetPath(); // Folder containing widget files
-
-        if (!cabbage::File::directoryExists(widgetPath))
+#ifndef CabbageApp
+        // In plugin mode, look for widgets relative to the CSD file
+        const auto resourceDir = lattice::File::getParentDirectory(cabbage::File::getCsdFileAndPath());
+        std::string pluginWidgetPath = lattice::File::joinPath(resourceDir, "cabbage", "widgets");
+        if (cabbage::File::directoryExists(pluginWidgetPath))
         {
-            lattice::logDebug << "Invalid widget JS files path:" << widgetPath;
-            return {};
+            widgetPaths.push_back(pluginWidgetPath);
+            lattice::logDebug << "Plugin mode: Added CSD-relative widget path: " << pluginWidgetPath;
+        }
+#else
+        // In CabbageApp mode, get all configured widget directories from settings
+        try
+        {
+            std::ifstream file(cabbage::File::getSettingsFile(), std::ios::binary);
+            if (file.is_open())
+            {
+                std::ostringstream oss; oss << file.rdbuf(); file.close();
+                auto jsonData = nlohmann::json::parse(oss.str());
+                
+                if (jsonData.contains("currentConfig") && jsonData["currentConfig"].contains("jsSourceDir"))
+                {
+                    auto &val = jsonData["currentConfig"]["jsSourceDir"];
+                    std::vector<std::string> dirs;
+                    
+                    if (val.is_array())
+                    {
+                        for (auto &v : val)
+                            if (v.is_string()) dirs.emplace_back(v.get<std::string>());
+                    }
+                    else if (val.is_string())
+                    {
+                        dirs.emplace_back(val.get<std::string>());
+                    }
+                    
+                    // Build list of all widget directories
+                    for (const auto &baseDir : dirs)
+                    {
+                        std::string candidate = lattice::File::joinPath(baseDir, "cabbage", "widgets");
+                        if (cabbage::File::directoryExists(candidate))
+                            widgetPaths.push_back(candidate);
+                    }
+                }
+            }
+        }
+        catch (const std::exception &e)
+        {
+            lattice::logDebug << "Error reading jsSourceDir from settings: " << e.what();
         }
         
-        auto jsFileContents = cabbage::File::loadJSFile(widgetPath + "/" + widgetType + ".js");
-        if (!jsFileContents.empty())
+        // If no paths found, use the fallback
+        if (widgetPaths.empty())
         {
-            return cabbage::File::extractPropsFromJS(jsFileContents);
+            std::string fallbackPath = cabbage::File::findCabbageJSWidgetPath();
+            if (!fallbackPath.empty())
+                widgetPaths.push_back(fallbackPath);
+        }
+#endif
+        
+        // Search all widget directories for the widget file
+        for (const auto &widgetPath : widgetPaths)
+        {
+            std::string fullPath = widgetPath + "/" + widgetType + ".js";
+            lattice::logDebug << "Searching " << widgetPath << " for widget classes..";
+            if (cabbage::File::exists(fullPath))
+            {
+                auto jsFileContents = cabbage::File::loadJSFile(fullPath);
+                if (!jsFileContents.empty())
+                {
+                    lattice::logDebug << "Found widget descriptor for '" << widgetType << "' in: " << widgetPath;
+                    return cabbage::File::extractPropsFromJS(jsFileContents);
+                }
+            }
         }
         
         lattice::logInfo << "Unknown widget type: " << widgetType << " - skipping widget";
