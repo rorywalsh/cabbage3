@@ -359,19 +359,7 @@ void CabbageProcessor::onIdle()
 //========================================================================================
 void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
 {
-    auto updatedWidgetJsonOpt = processOpcodeData(data);
-    if (updatedWidgetJsonOpt.has_value())
-    {
-        std::string updatedWidgetJson = cabbage.getUpdatedWidgetJsonStr(data.channel, updatedWidgetJsonOpt.value().dump());
-        sendWebViewMessage(updatedWidgetJson);
-    }
-}
-
-//========================================================================================
-// Process opcode data and return the updated widget JSON if applicable
-//========================================================================================
-std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageOpcodeData &data)
-{
+    // For value-only updates, use the float overload to send just the value
     if (data.type == CabbageOpcodeData::MessageType::Value)
     {
         auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), data.channel);
@@ -379,10 +367,35 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
         {
             auto &j = widgetOpt->get();
             cabbage::Parser::mergeJsonProperties(j, data.cabbageJson);
-            return j;
+            
+            // Extract the float value from the merged JSON
+            if (j.contains("value") && j["value"].is_number())
+            {
+                float value = j["value"].get<float>();
+                std::string updatedWidgetJson = cabbage.getUpdatedWidgetJsonStr(data.channel, value);
+                sendWebViewMessage(updatedWidgetJson);
+            }
         }
     }
-    else if (data.type == CabbageOpcodeData::MessageType::Identifier)
+    else
+    {
+        // For full widget updates, use the string overload
+        auto updatedWidgetJsonOpt = processOpcodeData(data);
+        if (updatedWidgetJsonOpt.has_value())
+        {
+            std::string updatedWidgetJson = cabbage.getUpdatedWidgetJsonStr(data.channel, updatedWidgetJsonOpt.value().dump());
+            sendWebViewMessage(updatedWidgetJson);
+        }
+    }
+}
+
+//========================================================================================
+// Process opcode data and return the updated widget JSON if applicable
+// Note: Value-only updates are now handled in updateWidgetData() to use the float overload
+//========================================================================================
+std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageOpcodeData &data)
+{
+    if (data.type == CabbageOpcodeData::MessageType::Identifier)
     {
         auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), data.channel);
         if (widgetOpt)
