@@ -244,6 +244,13 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
     
     const std::string widgetType = jsonObj["type"].get<std::string>();
     
+    // Known boolean properties that may be encoded as numeric 1/0 by Csound.
+    // We include both top-level keys and common nested property names (eg. "logarithmic").
+    static const std::unordered_set<std::string> booleanProperties = {
+        "visible", "automatable", "active", "popup", "presetIgnore", "identChannel",
+        "svgElement", "valueTextBox", "moveBehind", "filmStrip", "logarithmic"
+    };
+
     // Iterate through incoming JSON properties
     for (auto it = incomingJson.begin(); it != incomingJson.end(); ++it)
     {
@@ -455,24 +462,26 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
             {
                 // For nested objects (like label, thumb, track, valueText), merge properties
                 if (value.is_object() && jsonObj.contains(key) && jsonObj[key].is_object())
-                {
-                    // Recursively merge nested object properties
-                    for (auto &[nestedKey, nestedVal] : value.items())
                     {
-                        jsonObj[key][nestedKey] = nestedVal;
+                        // Recursively merge nested object properties. When nested properties
+                        // come from Csound they are sometimes encoded as numeric 1/0 —
+                        // convert those to real booleans for known boolean properties
+                        for (auto &[nestedKey, nestedVal] : value.items())
+                        {
+                            if (booleanProperties.find(nestedKey) != booleanProperties.end() && nestedVal.is_number())
+                            {
+                                jsonObj[key][nestedKey] = (nestedVal.get<double>() != 0);
+                            }
+                            else
+                            {
+                                jsonObj[key][nestedKey] = nestedVal;
+                            }
+                        }
+    //                    lattice::logDebug << "Merged nested object property '" << key << "' for widget type: " << widgetType;
                     }
-//                    lattice::logDebug << "Merged nested object property '" << key << "' for widget type: " << widgetType;
-                }
                 else
                 {
-                    // List of known boolean properties that need conversion from numeric 1/0 to boolean true/false
-                    // This is needed because Csound doesn't support boolean types, so it sends 1/0
-                    static const std::unordered_set<std::string> booleanProperties = {
-                        "visible", "automatable", "active", "popup", "presetIgnore", "identChannel",
-                        "svgElement", "valueTextBox", "moveBehind", "filmStrip"
-                    };
-                    
-                    // Check if this is a boolean property and the value is numeric (from Csound)
+                    // Check if this is a known boolean property and the value is numeric (from Csound)
                     if (booleanProperties.find(key) != booleanProperties.end() && value.is_number())
                     {
                         // Convert numeric 1/0 from Csound to boolean true/false for JavaScript
