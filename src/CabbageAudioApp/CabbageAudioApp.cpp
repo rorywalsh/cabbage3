@@ -157,7 +157,7 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
         auto &j = updatedOpt.value();
         nlohmann::json msg;
         msg["command"] = "widgetUpdate";
-        msg["channel"] = data.channel;
+        msg["id"] = data.channel;
         
         if (data.type == CabbageOpcodeData::MessageType::Value)
         {
@@ -167,6 +167,7 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
         {
             msg["data"] = j.dump();
         }
+        
         sendJsonMessage(msg);
     }
 }

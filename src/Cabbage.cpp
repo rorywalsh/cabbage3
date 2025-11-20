@@ -9,21 +9,20 @@
 #include "Cabbage.h"
 #include "CabbageProcessor.h"
 
-
 #include <choc/text/choc_StringUtilities.h>
 
 namespace cabbage
 {
 
-Engine::Engine(CabbageProcessor &p, std::string file) : csdFile(file), processor(p) 
-{
+Engine::Engine(CabbageProcessor &p, std::string file)
+    : csdFile(file), processor(p) {
 
-};
+      };
 
 Engine::~Engine()
 {
     if (csound)
-    {       
+    {
         csCompileResult = false;
         csound.reset();
     }
@@ -34,30 +33,42 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageSetValue>((csnd::Csound *)csound->GetCsound(), "cabbageSetValue", "", "SkP", csnd::thread::k);
     csnd::plugin<CabbageSetValue>((csnd::Csound *)csound->GetCsound(), "cabbageSetValue", "", "Si", csnd::thread::i);
 
-    csnd::plugin<CabbageSetPerfString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSW",csnd::thread::k);
-    csnd::plugin<CabbageSetInitString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "SW", csnd::thread::i);
-    csnd::plugin<CabbageSetPerfMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSM",csnd::thread::k);
-    csnd::plugin<CabbageSetInitMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "SSM", csnd::thread::i);
+    csnd::plugin<CabbageSetPerfString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSW",
+                                       csnd::thread::k);
+    csnd::plugin<CabbageSetInitString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "SW",
+                                       csnd::thread::i);
+    csnd::plugin<CabbageSetPerfMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSM",
+                                      csnd::thread::k);
+    csnd::plugin<CabbageSetInitMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "SSM",
+                                      csnd::thread::i);
 
-    csnd::plugin<CabbageSetInitMYFLTArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "SSi[]",csnd::thread::i);
-    csnd::plugin<CabbageSetPerfMYFLTArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSk[]", csnd::thread::k);
+    csnd::plugin<CabbageSetInitMYFLTArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "SSi[]",
+                                           csnd::thread::i);
+    csnd::plugin<CabbageSetPerfMYFLTArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSk[]",
+                                           csnd::thread::k);
 
-
-    csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
-    csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "i", "S", csnd::thread::i);
-    csnd::plugin<CabbageGetValueString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "S", "S", csnd::thread::ik);
-    csnd::plugin<CabbageGetValueWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "kk", "S", csnd::thread::ik);
-    csnd::plugin<CabbageGetValueStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "Sk", "So", csnd::thread::ik);
+    csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "k", "S",
+                                  csnd::thread::ik);
+    csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "i", "S",
+                                  csnd::thread::i);
+    csnd::plugin<CabbageGetValueString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "S", "S",
+                                        csnd::thread::ik);
+    csnd::plugin<CabbageGetValueWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "kk", "S",
+                                             csnd::thread::ik);
+    csnd::plugin<CabbageGetValueStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "Sk",
+                                                   "So", csnd::thread::ik);
 
     csnd::plugin<CabbageGetMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "k", "SW", csnd::thread::ik);
     csnd::plugin<CabbageGetMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "i", "SS", csnd::thread::i);
     csnd::plugin<CabbageGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "S", "SS", csnd::thread::i);
-    csnd::plugin<CabbageGetStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "Sk", "SS", csnd::thread::k);
+    csnd::plugin<CabbageGetStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "Sk", "SS",
+                                              csnd::thread::k);
 
     csnd::plugin<CabbageCreate>((csnd::Csound *)getCsound()->GetCsound(), "cabbageCreate", "", "S", csnd::thread::i);
-    
+
     csnd::plugin<CabbageDump>((csnd::Csound *)getCsound()->GetCsound(), "cabbageDump", "", "So", csnd::thread::i);
-    csnd::plugin<CabbageDumpWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageDump", "", "kSo", csnd::thread::ik);
+    csnd::plugin<CabbageDumpWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageDump", "", "kSo",
+                                         csnd::thread::ik);
 }
 
 bool Engine::setupCsound()
@@ -68,7 +79,6 @@ bool Engine::setupCsound()
     csound->SetHostData(this);
 
     addOpcodes();
-    
 
     csound->CreateMessageBuffer(0);
     csound->SetExternalMidiInOpenCallback(CabbageProcessor::OpenMidiInputDevice);
@@ -80,8 +90,10 @@ bool Engine::setupCsound()
     csound->SetOption((char *)"-d");
     csound->SetOption((char *)"-b0");
     csound->SetOption(std::string("--sample-rate=" + std::to_string(processor.getSampleRate())).c_str());
-    csound->SetOption(std::string("--nchnls=" + std::to_string(processor.getChannelConfig().getTotalNumOutputChannels())).c_str());
-    csound->SetOption(std::string("--nchnls_i=" + std::to_string(processor.getChannelConfig().getTotalNumInputChannels())).c_str());
+    csound->SetOption(
+        std::string("--nchnls=" + std::to_string(processor.getChannelConfig().getTotalNumOutputChannels())).c_str());
+    csound->SetOption(
+        std::string("--nchnls_i=" + std::to_string(processor.getChannelConfig().getTotalNumInputChannels())).c_str());
     //    csdFile = "/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/CabbagePluginEffect.csd";
     std::filesystem::path file = csdFile.empty() ? cabbage::File::getCsdFileAndPath() : csdFile;
     csdFile = file.string();
@@ -91,7 +103,7 @@ bool Engine::setupCsound()
     {
         // Check for compile time errors
         csCompileResult = csound->Compile(csdFile.c_str());
-        
+
         // No check for i-time errors and instr0 issues
         if (csound->Start() == CSOUND_SUCCESS && csdCompiledWithoutError())
         {
@@ -111,23 +123,22 @@ bool Engine::setupCsound()
                 csound->PopFirstMessage();
             }
             return false;
-
         }
 
         widgets.clear();
         std::string jsonError;
         widgets = cabbage::Parser::parseCsdForWidgets(csdFile, &jsonError);
-        
+
         // If there was a JSON parse error, add it to compileErrors and return false
         if (!jsonError.empty())
         {
             compileErrors += "\n" + jsonError;
             return false;
         }
-        
+
         // Initialise genTable widgets that have file properties
         initialiseGenTableWidgets();
-        
+
         // Queue automatic updates for genTable widgets with tableNumber > 0
         queueGenTableUpdates();
 
@@ -146,18 +157,20 @@ void Engine::initParameter(nlohmann::json &w)
     // Handle new schema: channels array
     if (w.contains("channels") && w["channels"].is_array())
     {
-        for (const auto& ch : w["channels"])
+        for (const auto &ch : w["channels"])
         {
-            if (!ch.contains("id") || !ch["id"].is_string()) continue;
+            if (!ch.contains("id") || !ch["id"].is_string())
+                continue;
             std::string channel = cabbage::Parser::removeQuotes(ch["id"].get<std::string>());
-            
+
             if (ch.contains("range"))
             {
-                auto& channelRange = ch["range"];
-                float defaultValue = channelRange.contains("value") 
-                    ? channelRange["value"].get<float>()
-                    : (channelRange.contains("defaultValue") ? channelRange["defaultValue"].get<float>() : 0.5f);
-                
+                auto &channelRange = ch["range"];
+                float defaultValue =
+                    channelRange.contains("value")
+                        ? channelRange["value"].get<float>()
+                        : (channelRange.contains("defaultValue") ? channelRange["defaultValue"].get<float>() : 0.5f);
+
                 parameterChannels.push_back({channel, defaultValue});
                 csound->SetControlChannel(channel.c_str(), defaultValue);
                 numberOfParameters++;
@@ -174,7 +187,7 @@ void Engine::initParameter(nlohmann::json &w)
     {
         std::string channel = cabbage::Parser::removeQuotes(w["channel"].get<std::string>());
         float defaultValue = 0.5f;
-        
+
         if (w.contains("range"))
         {
             defaultValue = w["range"]["defaultValue"].get<float>();
@@ -183,7 +196,7 @@ void Engine::initParameter(nlohmann::json &w)
         {
             defaultValue = w["defaultValue"].get<float>();
         }
-        
+
         parameterChannels.push_back({channel, defaultValue});
         csound->SetControlChannel(channel.c_str(), defaultValue);
         numberOfParameters++;
@@ -278,18 +291,18 @@ void Engine::setStringChannel(const std::string channel, std::string data)
 //=============================================================================================
 void Engine::processCsoundMessages()
 {
-    auto* csound = getCsound();
-    if (!csound) 
+    auto *csound = getCsound();
+    if (!csound)
         return;
 
-    //set max number of message to prevent UI freezing..
+    // set max number of message to prevent UI freezing..
     const int maxMessagesPerCycle = 100;
     int processedCount = 0;
 
-    while (csound->GetMessageCnt() > 0 && processedCount++ < maxMessagesPerCycle) 
+    while (csound->GetMessageCnt() > 0 && processedCount++ < maxMessagesPerCycle)
     {
-        const char* msg = csound->GetFirstMessage();
-        if (!msg) 
+        const char *msg = csound->GetFirstMessage();
+        if (!msg)
         {
             csound->PopFirstMessage();
             continue;
@@ -297,13 +310,13 @@ void Engine::processCsoundMessages()
 
         std::string message(msg);
 
-        if (!message.empty() && message.back() == '\n') 
+        if (!message.empty() && message.back() == '\n')
         {
             message.pop_back();
         }
 
         // Skip repetitive "end of Performance" messages
-        if (message.find("end of Performance") != std::string::npos) 
+        if (message.find("end of Performance") != std::string::npos)
         {
             csound->PopFirstMessage();
             continue;
@@ -330,42 +343,50 @@ size_t Engine::getIndexForParamChannel(std::string name)
 }
 
 //===========================================================================================
-std::string Engine::extractChannelName(const nlohmann::json& widget)
+std::string Engine::extractChannelName(const nlohmann::json &widget)
 {
     // First priority: explicit widget id
-    if (widget.contains("id") && widget["id"].is_string()) {
+    if (widget.contains("id") && widget["id"].is_string())
+    {
         return cabbage::Parser::removeQuotes(widget["id"].get<std::string>());
     }
-    
+
     // Second priority: new channels array format
-    if (widget.contains("channels") && widget["channels"].is_array() && !widget["channels"].empty()) {
-        auto& firstChannel = widget["channels"][0];
-        if (firstChannel.contains("id") && firstChannel["id"].is_string()) {
+    if (widget.contains("channels") && widget["channels"].is_array() && !widget["channels"].empty())
+    {
+        auto &firstChannel = widget["channels"][0];
+        if (firstChannel.contains("id") && firstChannel["id"].is_string())
+        {
             return cabbage::Parser::removeQuotes(firstChannel["id"].get<std::string>());
         }
     }
-    
+
     // Third priority: legacy channel formats for backward compatibility
-    if (widget.contains("channel")) {
-        if (widget["channel"].is_string()) {
+    if (widget.contains("channel"))
+    {
+        if (widget["channel"].is_string())
+        {
             lattAssert(widget["channel"].is_string(), "Channel should be a string");
-        } else if (widget["channel"].is_object() && widget["channel"].contains("id")) {
+        }
+        else if (widget["channel"].is_object() && widget["channel"].contains("id"))
+        {
             return cabbage::Parser::removeQuotes(widget["channel"]["id"].get<std::string>());
         }
     }
-    
+
     return "";
 }
 
 //===========================================================================================
-std::optional<std::reference_wrapper<nlohmann::json>> Engine::findWidgetInArray(nlohmann::json& jsonArray, const std::string& channel)
+std::optional<std::reference_wrapper<nlohmann::json>> Engine::findWidgetInArray(nlohmann::json &jsonArray,
+                                                                                const std::string &channel)
 {
-    for (auto& w : jsonArray)
+    for (auto &w : jsonArray)
     {
         // New schema: channels array
         if (w.contains("channels") && w["channels"].is_array())
         {
-            for (const auto& ch : w["channels"])
+            for (const auto &ch : w["channels"])
             {
                 if (ch.contains("id") && ch["id"].is_string() && cabbage::Parser::removeQuotes(ch["id"]) == channel)
                 {
@@ -384,7 +405,7 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::findWidgetInArray(
             // Handle multi-channel widgets (channel is an object with x/y properties)
             else if (w["channel"].is_object())
             {
-                for (auto& [key, value] : w["channel"].items())
+                for (auto &[key, value] : w["channel"].items())
                 {
                     if (value.is_string() && cabbage::Parser::removeQuotes(value) == channel)
                     {
@@ -396,45 +417,27 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::findWidgetInArray(
         if (w.contains("children") && w["children"].is_array())
         {
             auto child = findWidgetInArray(w["children"], channel);
-            if (child) return child;
+            if (child)
+                return child;
         }
     }
     return std::nullopt;
 }
 
 // Overload for std::vector<nlohmann::json>
-std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetByChannel(std::vector<nlohmann::json>& widgets, const std::string& channel)
+std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetByChannel(std::vector<nlohmann::json> &widgets,
+                                                                                 const std::string &channel)
 {
-    for (auto& w : widgets)
+    for (auto &w : widgets)
     {
         // New schema: channels array
         if (w.contains("channels") && w["channels"].is_array())
         {
-            for (const auto& ch : w["channels"])
+            for (const auto &ch : w["channels"])
             {
                 if (ch.contains("id") && ch["id"].is_string() && cabbage::Parser::removeQuotes(ch["id"]) == channel)
                 {
                     return std::ref(w);
-                }
-            }
-        }
-        // Old schema: channel as string or object
-        if (w.contains("channel"))
-        {
-            // Handle single-channel widgets (channel is a string)
-            if (w["channel"].is_string() && cabbage::Parser::removeQuotes(w["channel"]) == channel)
-            {
-                return std::ref(w);
-            }
-            // Handle multi-channel widgets (channel is an object with x/y properties)
-            else if (w["channel"].is_object())
-            {
-                for (auto& [key, value] : w["channel"].items())
-                {
-                    if (value.is_string() && cabbage::Parser::removeQuotes(value) == channel)
-                    {
-                        return std::ref(w);
-                    }
                 }
             }
         }
@@ -446,18 +449,19 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetByChannel
         if (w.contains("children") && w["children"].is_array())
         {
             auto child = findWidgetInArray(w["children"], channel);
-            if (child) return child;
+            if (child)
+                return child;
         }
     }
     return std::nullopt;
 }
 
 // Overload for nlohmann::json (assuming it's an array)
-std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetByChannel(nlohmann::json& widgets, const std::string& channel)
+std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetByChannel(nlohmann::json &widgets,
+                                                                                 const std::string &channel)
 {
     return findWidgetInArray(widgets, channel);
 }
-
 
 const std::string Engine::updateWidgetState(nlohmann::json j)
 {
@@ -475,7 +479,7 @@ const std::string Engine::updateWidgetState(nlohmann::json j)
 }
 //===========================================================================================
 
-std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, std::string data, bool includeValue)
+std::string Engine::getUpdatedWidgetJsonStr(const std::string &channel, std::string data, bool includeValue)
 {
     std::string result;
     if (includeValue)
@@ -483,12 +487,12 @@ std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, std::str
         // Parse the data to extract the value
         nlohmann::json widgetJson = nlohmann::json::parse(data);
         float value = 0.0f;
-        
-        if (widgetJson.contains("value") && !widgetJson["value"].is_null()) 
+
+        if (widgetJson.contains("value") && !widgetJson["value"].is_null())
         {
             value = widgetJson["value"].get<float>();
         }
-        else if (widgetJson.contains("range") && widgetJson["range"].contains("defaultValue")) 
+        else if (widgetJson.contains("range") && widgetJson["range"].contains("defaultValue"))
         {
             value = widgetJson["range"]["defaultValue"].get<float>();
         }
@@ -503,7 +507,8 @@ std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, std::str
             widgetJson: `$DATA`,
             value: $VALUE
         }
-        )", "$CHANNEL", channel, "$DATA", data, "$VALUE", std::to_string(value));
+        )",
+                                     "$CHANNEL", channel, "$DATA", data, "$VALUE", std::to_string(value));
     }
     else
     {
@@ -513,12 +518,13 @@ std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, std::str
             id: "$CHANNEL",
             widgetJson: `$DATA`
         }
-        )", "$CHANNEL", channel, "$DATA", data);
+        )",
+                                     "$CHANNEL", channel, "$DATA", data);
     }
     return result;
 }
 
-std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, float value)
+std::string Engine::getUpdatedWidgetJsonStr(const std::string &channel, float value)
 {
     std::string result;
     result = choc::text::replace(R"(
@@ -527,8 +533,9 @@ std::string Engine::getUpdatedWidgetJsonStr(const std::string& channel, float va
         id: "$CHANNEL",
         value: $VALUE
     }
-    )", "$CHANNEL", channel, "$VALUE", std::to_string(value));
-            
+    )",
+                                 "$CHANNEL", channel, "$VALUE", std::to_string(value));
+
     return result.c_str();
 }
 
@@ -541,7 +548,7 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
             try
             {
                 cabbage::Parser::mergeJsonProperties(jsonObj, data.cabbageJson);
-                
+
                 // Get tableNumber from data.cabbageJson since initialiseWidgetJson may not set it reliably
                 int tableNumber = -1;
                 if (data.cabbageJson.contains("tableNumber") && data.cabbageJson["tableNumber"].is_number())
@@ -552,11 +559,11 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
                 {
                     tableNumber = jsonObj["tableNumber"].get<int>();
                 }
-                
+
                 if (tableNumber != -1)
                 {
                     const int tableSize = getCsound()->TableLength(tableNumber);
-                    
+
                     if (tableSize != -1)
                     {
                         MYFLT *tablePtr = nullptr;
@@ -575,17 +582,16 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
         {
             try
             {
-                
+
                 cabbage::Parser::mergeJsonProperties(jsonObj, data.cabbageJson);
-                
+
                 auto soundfile = cabbage::File::readAudioFile<double>(jsonObj["file"].get<std::string>(), sampleRate);
                 auto samples = soundfile.audioData;
-                
+
                 if (samples.size() == 0)
                     return;
-                
+
                 setTableJSON(data.channel, samples, jsonObj);
-                        
             }
             catch (nlohmann::json::exception &e)
             {
@@ -599,19 +605,21 @@ void Engine::setTableJSON(std::string /*channel*/, std::vector<double> samples, 
 {
     // this is a condensed version of the sample data that is passed around between C++ and JS.
     std::vector<double> widgetSampleData;
-    
+
     // Ensure range object exists and set default y-axis range for waveform display
-    if (!jsonObj.contains("range")) {
+    if (!jsonObj.contains("range"))
+    {
         jsonObj["range"] = nlohmann::json::object();
     }
-    if (!jsonObj["range"].contains("y")) {
+    if (!jsonObj["range"].contains("y"))
+    {
         jsonObj["range"]["y"] = {{"min", -1.0}, {"max", 1.0}};
     }
-    
+
     // Handle nested range structure for genTable (sampleRange for sample selection)
     int startSample = 0;
     int endSample = static_cast<int>(samples.size());
-    
+
     if (jsonObj.contains("range") && jsonObj["range"].is_object())
     {
         if (jsonObj["range"].contains("x") && jsonObj["range"]["x"].is_object())
@@ -620,8 +628,8 @@ void Engine::setTableJSON(std::string /*channel*/, std::vector<double> samples, 
             if (jsonObj["range"]["x"].contains("start"))
                 startSample = jsonObj["range"]["x"]["start"].get<int>();
             if (jsonObj["range"]["x"].contains("end"))
-                endSample = jsonObj["range"]["x"]["end"].get<int>() == -1 ? static_cast<int>(samples.size()) 
-                                                                         : jsonObj["range"]["x"]["end"].get<int>();
+                endSample = jsonObj["range"]["x"]["end"].get<int>() == -1 ? static_cast<int>(samples.size())
+                                                                          : jsonObj["range"]["x"]["end"].get<int>();
         }
         else if (jsonObj["range"].contains("start"))
         {
@@ -646,11 +654,9 @@ void Engine::setTableJSON(std::string /*channel*/, std::vector<double> samples, 
 
 void Engine::initialiseGenTableWidgets()
 {
-    for (auto& widget : widgets)
+    for (auto &widget : widgets)
     {
-        if (widget["type"].get<std::string>() == "genTable" && 
-            widget.contains("file") && 
-            widget["file"].is_string() &&
+        if (widget["type"].get<std::string>() == "genTable" && widget.contains("file") && widget["file"].is_string() &&
             !widget["file"].get<std::string>().empty())
         {
             try
@@ -658,24 +664,27 @@ void Engine::initialiseGenTableWidgets()
                 const int tableNumber = widget["tableNumber"].get<int>();
                 auto soundfile = cabbage::File::readAudioFile<double>(widget["file"].get<std::string>(), sampleRate);
                 auto samples = soundfile.audioData;
-                
+
                 if (samples.size() > 0)
                 {
                     std::stringstream ss;
-                    ss << "giTable" << tableNumber << " ftgen " << tableNumber << ", 0, " << samples.size() << ", -7, 0, 0";
+                    ss << "giTable" << tableNumber << " ftgen " << tableNumber << ", 0, " << samples.size()
+                       << ", -7, 0, 0";
                     getCsound()->CompileOrc(ss.str().c_str());
                     const int tableSize = getCsound()->TableLength(tableNumber);
-                    
+
                     if (tableSize != -1)
                     {
                         MYFLT *tablePtr = nullptr;
                         getCsound()->GetTable(&tablePtr, tableNumber);
-                        std::memcpy(tablePtr, samples.data(), std::min(tableSize, static_cast<int>(samples.size())) * sizeof(MYFLT));
+                        std::memcpy(tablePtr, samples.data(),
+                                    std::min(tableSize, static_cast<int>(samples.size())) * sizeof(MYFLT));
                         setTableJSON("", samples, widget);
                     }
                     else
                     {
-                        lattice::logError << "Failed to create/update Csound table for genTable: " << widget["file"].get<std::string>();
+                        lattice::logError << "Failed to create/update Csound table for genTable: "
+                                          << widget["file"].get<std::string>();
                     }
                 }
                 else
@@ -683,22 +692,25 @@ void Engine::initialiseGenTableWidgets()
                     lattice::logError << "No samples loaded from file: " << widget["file"].get<std::string>();
                 }
             }
-            catch (const std::exception& e)
+            catch (const std::exception &e)
             {
                 lattice::logError << "Failed to load genTable file: " << e.what();
             }
         }
-        else if(widget["type"].get<std::string>() == "genTable" && 
-            widget.contains("tableNumber") && 
-            widget["tableNumber"].is_number() &&
-            widget["tableNumber"] != -9999)
+        else if (widget["type"].get<std::string>() == "genTable" && widget.contains("tableNumber") &&
+                 widget["tableNumber"].is_number() && widget["tableNumber"] != -9999)
         {
             std::string channelName;
-            if (widget["channel"].is_string()) {
+            if (widget["channel"].is_string())
+            {
                 lattice::logDebug << "Error widget[\"channel\"] " << widget["channel"] << "should not be string ";
-            } else if (widget["channel"].is_object() && widget["channel"].contains("id")) {
+            }
+            else if (widget["channel"].is_object() && widget["channel"].contains("id"))
+            {
                 channelName = cabbage::Parser::removeQuotes(widget["channel"]["id"].get<std::string>());
-            } else {
+            }
+            else
+            {
                 // Skip if no valid channel
                 continue;
             }
@@ -718,25 +730,24 @@ void Engine::queueGenTableUpdates()
     // which don't exist until after Csound's init pass. Without this, users would need
     // to manually call cabbageSet "tableId", "tableNumber", N to trigger the update.
     // Iterate through all widgets looking for genTable widgets with tableNumber > 0
-    for (auto& widget : widgets)
+    for (auto &widget : widgets)
     {
-        if (widget["type"].get<std::string>() == "genTable" && 
-            widget.contains("tableNumber") && 
+        if (widget["type"].get<std::string>() == "genTable" && widget.contains("tableNumber") &&
             widget["tableNumber"].is_number_integer())
         {
             const int tableNumber = widget["tableNumber"].get<int>();
-            
+
             // Only process if tableNumber is valid (> 0)
             if (tableNumber > 0)
             {
                 // Check if this table exists in Csound
                 const int tableSize = getCsound()->TableLength(tableNumber);
-                
+
                 if (tableSize > 0)
                 {
                     // Get the channel name
                     std::string channelId = extractChannelName(widget);
-                    
+
                     if (!channelId.empty())
                     {
                         // Create an opcode data message to trigger table update
@@ -744,13 +755,12 @@ void Engine::queueGenTableUpdates()
                         data.channel = channelId;
                         data.type = CabbageOpcodeData::MessageType::Identifier;
                         data.cabbageJson["tableNumber"] = tableNumber;
-                        
+
                         // Queue the update - this will be processed in onIdle()
                         opcodeData.enqueue(data);
-                        
-                        lattice::logDebug << "Queued automatic table update for genTable '" << channelId 
-                                         << "' with tableNumber " << tableNumber 
-                                         << " (size: " << tableSize << ")";
+
+                        lattice::logDebug << "Queued automatic table update for genTable '" << channelId
+                                          << "' with tableNumber " << tableNumber << " (size: " << tableSize << ")";
                     }
                 }
             }
@@ -765,7 +775,8 @@ const std::string Engine::getCsoundOutputUpdateScript(const std::string &output)
     std::string result;
     result = choc::text::replace(R"(
          window.postMessage({ command: "csoundOutputUpdate", text: `$OUTPUT_TEXT` });
-        )", "$OUTPUT_TEXT", outputText);
+        )",
+                                 "$OUTPUT_TEXT", outputText);
 
     return result.c_str();
 }
@@ -807,7 +818,7 @@ std::string Engine::removeControlCharacters(const std::string &input)
 }
 
 // Check if a widget has a specific channel (searches id then channels array)
-bool Engine::hasChannel(const nlohmann::json& widget, const std::string& channel)
+bool Engine::hasChannel(const nlohmann::json &widget, const std::string &channel)
 {
     // First check widget["id"]
     if (widget.contains("id") && widget["id"].is_string())
@@ -822,7 +833,7 @@ bool Engine::hasChannel(const nlohmann::json& widget, const std::string& channel
     // Then check widget["channels"] array
     if (widget.contains("channels") && widget["channels"].is_array())
     {
-        for (const auto& ch : widget["channels"])
+        for (const auto &ch : widget["channels"])
         {
             if (ch.contains("id") && ch["id"].is_string())
             {
