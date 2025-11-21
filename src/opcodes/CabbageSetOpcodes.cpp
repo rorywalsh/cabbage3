@@ -30,11 +30,16 @@ int CabbageSetValue::setValue(int /*pass*/)
             *value = args[1];
         }
 
-
-        CabbageOpcodeData data = getValueIdentData(args, true, 0, 1);
-        data.cabbageJson["value"] = *value;
-        data.type = CabbageOpcodeData::MessageType::Value;
-        hostData->opcodeData.enqueue(data);
+        // Only enqueue if value has changed
+        if (lastValue == -1.0 || lastValue != *value)
+        {
+            CabbageOpcodeData data = getValueIdentData(args, true, 0, 1);
+            data.cabbageJson["value"] = *value;
+            data.type = CabbageOpcodeData::MessageType::Value;
+            hostData->opcodeData.enqueue(data);
+            lastValue = *value;
+        }
+        
         kCycles = 0;
 
     }
@@ -71,7 +76,14 @@ int CabbageSetPerfString::setIdentifier(int /*pass*/)
             updateWidgetJson(data.cabbageJson, args, argIndex, data.identifier, CabbageOpcodeData::ArgType::String);
         else
             updateWidgetJson(data.cabbageJson, args, argIndex + 1, data.identifier, CabbageOpcodeData::ArgType::String);
-        hostData->opcodeData.enqueue(data);
+        
+        // Only enqueue if value has changed
+        std::string currentValue = data.cabbageJson[data.identifier].dump();
+        if (lastValue != currentValue)
+        {
+            hostData->opcodeData.enqueue(data);
+            lastValue = currentValue;
+        }
     }
 
     return IS_OK;
@@ -132,7 +144,14 @@ int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
     else
     {
         updateWidgetJson(data.cabbageJson, args, argIndex + 1, data.identifier, CabbageOpcodeData::ArgType::Scalar);
-        hostData->opcodeData.enqueue(data);
+        
+        // Only enqueue if value has changed
+        MYFLT currentValue = args[argIndex + 1];
+        if (lastValue == -1.0 || lastValue != currentValue)
+        {
+            hostData->opcodeData.enqueue(data);
+            lastValue = currentValue;
+        }
     }
 
     return IS_OK;

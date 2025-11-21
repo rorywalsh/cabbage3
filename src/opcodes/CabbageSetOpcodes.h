@@ -22,6 +22,7 @@
 struct CabbageSetValue : csnd::InPlug<3>, CabbageOpcodes<3>
 {
     MYFLT *value;
+    MYFLT lastValue = -1.0; // Sentinel value to ensure first value is always sent
     int init() { return setValue(CabbageOpcodeData::PassType::Init); };
     int kperf() { return setValue(CabbageOpcodeData::PassType::Perf); };
     int setValue(int init);
@@ -36,6 +37,7 @@ struct CabbageSetInitString : csnd::InPlug<64>, CabbageOpcodes<64>
 
 struct CabbageSetPerfString : csnd::InPlug<64>, CabbageOpcodes<64>
 {
+    std::string lastValue = ""; // Sentinel for string comparison
     int init() { return setIdentifier(CabbageOpcodeData::PassType::Init); };
     int kperf() { return setIdentifier(CabbageOpcodeData::PassType::Perf); };
     int setIdentifier(int init);
@@ -49,6 +51,7 @@ struct CabbageSetInitMYFLT : csnd::InPlug<64>, CabbageOpcodes<64>
 
 struct CabbageSetPerfMYFLT : csnd::InPlug<64>, CabbageOpcodes<64>
 {
+    MYFLT lastValue = -1.0; // Sentinel value
     int init() { return setIdentifier(CabbageOpcodeData::PassType::Init); };
     int kperf() { return setIdentifier(CabbageOpcodeData::PassType::Perf); };
     int setIdentifier(int init);
