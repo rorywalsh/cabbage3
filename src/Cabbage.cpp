@@ -853,12 +853,21 @@ void Engine::updateChannelCache(const CabbageOpcodeData &data)
 {
     if (channelCache.find(data.channel) != channelCache.end())
     {
-        channelCache[data.channel].cabbageJson.merge_patch(data.cabbageJson);
-        // If the new data is of type Identifier, we must update the cached type to Identifier
-        // so that the full JSON is sent to the frontend, not just the value.
-        if (data.type == CabbageOpcodeData::MessageType::Identifier)
+        // For value-only updates, don't merge - just update the value field
+        if (data.type == CabbageOpcodeData::MessageType::Value)
         {
-            channelCache[data.channel].type = CabbageOpcodeData::MessageType::Identifier;
+            channelCache[data.channel].cabbageJson["value"] = data.cabbageJson["value"];
+            channelCache[data.channel].type = CabbageOpcodeData::MessageType::Value;
+        }
+        else
+        {
+            channelCache[data.channel].cabbageJson.merge_patch(data.cabbageJson);
+            // If the new data is of type Identifier, we must update the cached type to Identifier
+            // so that the full JSON is sent to the frontend, not just the value.
+            if (data.type == CabbageOpcodeData::MessageType::Identifier)
+            {
+                channelCache[data.channel].type = CabbageOpcodeData::MessageType::Identifier;
+            }
         }
     }
     else
@@ -872,7 +881,22 @@ void Engine::flushChannelCache()
 {
     for (const auto &channel : dirtyChannels)
     {
-        opcodeData.enqueue(channelCache[channel]);
+        const auto &cachedData = channelCache[channel];
+
+        // For value-only updates, create minimal message
+        if (cachedData.type == CabbageOpcodeData::MessageType::Value)
+        {
+            CabbageOpcodeData minimalData;
+            minimalData.channel = cachedData.channel;
+            minimalData.type = CabbageOpcodeData::MessageType::Value;
+            minimalData.cabbageJson["value"] = cachedData.cabbageJson["value"];
+            opcodeData.enqueue(minimalData);
+        }
+        else
+        {
+            // For identifier updates, send full JSON
+            opcodeData.enqueue(cachedData);
+        }
     }
     dirtyChannels.clear();
 }
