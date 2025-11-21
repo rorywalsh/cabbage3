@@ -849,4 +849,32 @@ bool Engine::hasChannel(const nlohmann::json &widget, const std::string &channel
     return false;
 }
 
+void Engine::updateChannelCache(const CabbageOpcodeData &data)
+{
+    if (channelCache.find(data.channel) != channelCache.end())
+    {
+        channelCache[data.channel].cabbageJson.merge_patch(data.cabbageJson);
+        // If the new data is of type Identifier, we must update the cached type to Identifier
+        // so that the full JSON is sent to the frontend, not just the value.
+        if (data.type == CabbageOpcodeData::MessageType::Identifier)
+        {
+            channelCache[data.channel].type = CabbageOpcodeData::MessageType::Identifier;
+        }
+    }
+    else
+    {
+        channelCache[data.channel] = data;
+    }
+    dirtyChannels.insert(data.channel);
+}
+
+void Engine::flushChannelCache()
+{
+    for (const auto &channel : dirtyChannels)
+    {
+        opcodeData.enqueue(channelCache[channel]);
+    }
+    dirtyChannels.clear();
+}
+
 } // namespace cabbage

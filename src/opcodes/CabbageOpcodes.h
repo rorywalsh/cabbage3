@@ -14,7 +14,6 @@
  * include files.
  */
 
-#include <readerwriterqueue.h>
 #include <plugin.h>
 #include <nlohmann/json.hpp>
 #include <type_traits>
@@ -44,7 +43,7 @@ struct CabbageOpcodeData
         String,
         Array
     };
-    
+
     nlohmann::json cabbageJson = {};
     std::string channel = {};
     std::string identifier = {};
@@ -217,7 +216,8 @@ struct CabbageOpcodes
         return current;
     }
 
-    void updateWidgetJson(nlohmann::json &jsonObj, csnd::Param<NumInputParams> &args, int argIndex, std::string identifier, CabbageOpcodeData::ArgType argType)
+    void updateWidgetJson(nlohmann::json &jsonObj, csnd::Param<NumInputParams> &args, int argIndex,
+                          std::string identifier, CabbageOpcodeData::ArgType argType)
     {
         // check if the identifier is already a JSON object, i.e, as in the case below
         // cabbageSet metro(1), "infoText", sprintf({{"text":"%s"}}, SText)
@@ -228,11 +228,11 @@ struct CabbageOpcodes
         {
             if (identifier.find(".") == std::string::npos)
             {
-                if(argType == CabbageOpcodeData::ArgType::String)
+                if (argType == CabbageOpcodeData::ArgType::String)
                 {
                     jsonObj[identifier] = args.str_data(argIndex).data;
                 }
-                else if(argType == CabbageOpcodeData::ArgType::Array)
+                else if (argType == CabbageOpcodeData::ArgType::Array)
                 {
                     if (args.myfltvec_data(argIndex).len() > 0)
                     {
@@ -249,12 +249,12 @@ struct CabbageOpcodes
             else
             {
                 // dot notation - needs updating for array
-                if(argType == CabbageOpcodeData::ArgType::String)
+                if (argType == CabbageOpcodeData::ArgType::String)
                 {
                     setJsonValue(jsonObj, args.str_data(argIndex - 1).data, args.str_data(argIndex).data);
                     lattice::logDebug << jsonObj.dump(4);
                 }
-                else if(argType == CabbageOpcodeData::ArgType::Scalar)
+                else if (argType == CabbageOpcodeData::ArgType::Scalar)
                 {
                     setJsonValue(jsonObj, args.str_data(argIndex - 1).data, args[argIndex]);
                 }

@@ -280,6 +280,7 @@ void CabbageProcessor::process(float **inputs, float **outputs, std::size_t bloc
                     outputs[outputChannel][i] = cabbage.getSpOut(outputChannel + pos);
                 }
             }
+            cabbage.flushChannelCache();
         }
     }
     else

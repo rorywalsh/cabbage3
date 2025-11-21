@@ -36,12 +36,11 @@ int CabbageSetValue::setValue(int /*pass*/)
             CabbageOpcodeData data = getValueIdentData(args, true, 0, 1);
             data.cabbageJson["value"] = *value;
             data.type = CabbageOpcodeData::MessageType::Value;
-            hostData->opcodeData.enqueue(data);
+            hostData->updateChannelCache(data);
             lastValue = *value;
         }
-        
-        kCycles = 0;
 
+        kCycles = 0;
     }
 
     return IS_OK;
@@ -76,12 +75,12 @@ int CabbageSetPerfString::setIdentifier(int /*pass*/)
             updateWidgetJson(data.cabbageJson, args, argIndex, data.identifier, CabbageOpcodeData::ArgType::String);
         else
             updateWidgetJson(data.cabbageJson, args, argIndex + 1, data.identifier, CabbageOpcodeData::ArgType::String);
-        
+
         // Only enqueue if value has changed
         std::string currentValue = data.cabbageJson[data.identifier].dump();
         if (lastValue != currentValue)
         {
-            hostData->opcodeData.enqueue(data);
+            hostData->updateChannelCache(data);
             lastValue = currentValue;
         }
     }
@@ -100,8 +99,7 @@ int CabbageSetInitString::setIdentifier(int /*pass*/)
     const int argIndex = 1;
     auto data = getIdentData(csound, args, true, 0, argIndex);
     data.type = CabbageOpcodeData::MessageType::Identifier;
-    
-        
+
     if (!testForValidNumberOfInputs(in_count(), 2))
     {
         csound->init_error("Not enough input arguments\n");
@@ -113,7 +111,7 @@ int CabbageSetInitString::setIdentifier(int /*pass*/)
     else
         updateWidgetJson(data.cabbageJson, args, argIndex + 1, data.identifier, CabbageOpcodeData::ArgType::String);
 
-    hostData->opcodeData.enqueue(data);
+    hostData->updateChannelCache(data);
 
     return IS_OK;
 }
@@ -144,12 +142,12 @@ int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
     else
     {
         updateWidgetJson(data.cabbageJson, args, argIndex + 1, data.identifier, CabbageOpcodeData::ArgType::Scalar);
-        
+
         // Only enqueue if value has changed
         MYFLT currentValue = args[argIndex + 1];
         if (lastValue == -1.0 || lastValue != currentValue)
         {
-            hostData->opcodeData.enqueue(data);
+            hostData->updateChannelCache(data);
             lastValue = currentValue;
         }
     }
@@ -178,7 +176,7 @@ int CabbageSetInitMYFLT::setIdentifier(int /*pass*/)
     else
         updateWidgetJson(data.cabbageJson, args, argIndex + 1, data.identifier, CabbageOpcodeData::ArgType::Scalar);
 
-    hostData->opcodeData.enqueue(data);
+    hostData->updateChannelCache(data);
 
     return IS_OK;
 }
@@ -209,7 +207,7 @@ int CabbageSetPerfMYFLTArray::setIdentifier(int /*pass*/)
     else
     {
         updateWidgetJson(data.cabbageJson, args, argIndex + 1, data.identifier, CabbageOpcodeData::ArgType::Array);
-        hostData->opcodeData.enqueue(data);
+        hostData->updateChannelCache(data);
     }
 
     return IS_OK;
@@ -232,7 +230,7 @@ int CabbageSetInitMYFLTArray::setIdentifier(int /*pass*/)
     }
 
     updateWidgetJson(data.cabbageJson, args, argIndex + 1, data.identifier, CabbageOpcodeData::ArgType::Array);
-    hostData->opcodeData.enqueue(data);
+    hostData->updateChannelCache(data);
 
     return IS_OK;
 }
