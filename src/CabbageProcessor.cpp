@@ -326,27 +326,38 @@ void CabbageProcessor::onIdle()
 
     if (allowDequeuing)
     {
+        // Dequeue all messages and deduplicate by channel
+        // This prevents processing redundant updates when multiple instances
+        // write to the same channel (e.g., multiple notes updating the same ADSR)
+        std::unordered_map<std::string, CabbageOpcodeData> latestMessages;
+
         while (cabbage.opcodeData.try_dequeue(data))
         {
-            // when sending a widget value update, or any attribute, nested widgets will be an issue
-            // we need to test the nested object's channel name, and update that too
-            auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), data.channel);
+            // For each channel, keep only the latest message
+            // Newer messages automatically overwrite older ones
+            latestMessages[data.channel] = data;
+        }
+
+        // Now process only the latest message for each channel
+        for (const auto &[channel, latestData] : latestMessages)
+        {
+            auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), latestData.channel);
             if (widgetOpt)
             {
                 auto &j = widgetOpt->get();
                 if (j.is_null())
                 {
-                    break;
+                    continue;
                 }
 
-                cabbage::Parser::mergeJsonProperties(j, data.cabbageJson);
+                cabbage::Parser::mergeJsonProperties(j, latestData.cabbageJson);
             }
 
 #ifdef CabbageApp
-            hostCallback(data);
+            hostCallback(latestData);
 #else
             cabbage.processCsoundMessages();
-            updateWidgetData(data);
+            updateWidgetData(latestData);
 #endif
         }
     }
