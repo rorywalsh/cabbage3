@@ -16,16 +16,18 @@
 #include "CabbageProcessor.h"
 #include <readerwriterqueue.h>
 
-class CabbageAudioApp {
-public:
-    
-    enum class CommandType {
+class CabbageAudioApp
+{
+  public:
+    enum class CommandType
+    {
         KillProcessor,
         InitCabbage,
         StopAudio
     };
-    
-    struct AudioConfig {
+
+    struct AudioConfig
+    {
         int audioDriverType = 0;
         std::string audioInDev = "";
         std::string audioOutDev = "";
@@ -41,15 +43,17 @@ public:
         int midiOutChan = 0;
         std::string jsSourceDirectory = "";
 
-        bool loadFromJson(const std::string& settingsPath) 
+        bool loadFromJson(const std::string &settingsPath)
         {
             std::ifstream file(settingsPath);
-            if (!file) {
+            if (!file)
+            {
                 std::cerr << "Error: Could not open settings file: " << settingsPath << std::endl;
                 return false;
             }
 
-            try {
+            try
+            {
                 nlohmann::json settingsJson;
                 file >> settingsJson;
 
@@ -69,20 +73,29 @@ public:
                 midiOutChan = settingsJson["currentConfig"]["midi"].value("outChan", 0);
 
                 // Handle jsSourceDir as array or string for backward compatibility
-                if (settingsJson["currentConfig"].contains("jsSourceDir")) {
-                    const auto& jsSourceDirValue = settingsJson["currentConfig"]["jsSourceDir"];
-                    if (jsSourceDirValue.is_array() && !jsSourceDirValue.empty()) {
+                if (settingsJson["currentConfig"].contains("jsSourceDir"))
+                {
+                    const auto &jsSourceDirValue = settingsJson["currentConfig"]["jsSourceDir"];
+                    if (jsSourceDirValue.is_array() && !jsSourceDirValue.empty())
+                    {
                         jsSourceDirectory = jsSourceDirValue[0].get<std::string>(); // Use first directory
-                    } else if (jsSourceDirValue.is_string()) {
+                    }
+                    else if (jsSourceDirValue.is_string())
+                    {
                         jsSourceDirectory = jsSourceDirValue.get<std::string>();
-                    } else {
+                    }
+                    else
+                    {
                         jsSourceDirectory = "add path to JS src directory";
                     }
-                } else {
+                }
+                else
+                {
                     jsSourceDirectory = "add path to JS src directory";
                 }
-
-            } catch (nlohmann::json::exception& e) {
+            }
+            catch (nlohmann::json::exception &e)
+            {
                 std::cerr << "Error parsing JSON: " << e.what() << std::endl;
                 return false;
             }
@@ -90,58 +103,55 @@ public:
             return true;
         }
     };
-    
-    CabbageAudioApp(int argc, char* argv[]);
+
+    CabbageAudioApp(int argc, char *argv[]);
     ~CabbageAudioApp();
     void closeAudioDevice();
-    bool parseComandLineArgs(int argc, char* argv[]);
-    
+    bool parseComandLineArgs(int argc, char *argv[]);
+
     bool isStreamRunning() const;
-    static void errorCallback(RtAudioErrorType type, const std::string& errorText);
+    static void errorCallback(RtAudioErrorType type, const std::string &errorText);
 
     std::unique_ptr<CabbageProcessor> processor; // Main processor
-    AudioConfig audioConfig; // Audio configuration
-    
+    AudioConfig audioConfig;                     // Audio configuration
 
     void onIdle();
     void sendWidgetDataToVscode();
-    void addMessageToQueue(CabbageAudioApp::CommandType command){   messageQueue.enqueue(command);  }
-    void setCsoundFile(std::string file){   csdFileAndPath = file;  }
-    void scanAudioDevices(); // Scan and populate settings with available audio/MIDI devices
+    void addMessageToQueue(CabbageAudioApp::CommandType command) { messageQueue.enqueue(command); }
+    void setCsoundFile(std::string file) { csdFileAndPath = file; }
+    void scanAudioDevices();  // Scan and populate settings with available audio/MIDI devices
     void initialiseCabbage(); // Initialize Cabbage if CSD file exists
-    
+
     // Test-related methods
     size_t getMessageQueueSize() const { return messageQueue.size_approx(); }
     bool initialiseStdioConnection();
-    
+
     bool getCanDestroyProcessor() const { return canDestroyProcessor.load(); }
     bool getAudioShutdownComplete() const { return audioShutdownComplete.load(); }
-    
+
     void hostCallback(CabbageOpcodeData data);
-    
-private:
-    void sendJsonMessage(const nlohmann::json& msg);
-    void processIncomingMessage(const std::string& message);
+
+  private:
+    void sendJsonMessage(const nlohmann::json &msg);
+    void processIncomingMessage(const std::string &message);
     bool createCabbageProcessor();
     void initialiseAudio(bool startStream);
     void initialiseMidi();
     void deinitAudioAndMidi();
-    
+
     // stdin/stdout communication thread
     std::thread stdinThread;
     std::atomic<bool> shouldStopStdinThread{false};
-    std::mutex stdoutMutex;  // Protect stdout writes
-    
-    // Functions for running test server - for tests without vscode
-    bool shouldStartTestServer = false;
+    std::mutex stdoutMutex; // Protect stdout writes
+
     moodycamel::ReaderWriterQueue<CabbageAudioApp::CommandType> messageQueue;
-    
+
     // Return a valid device ID for a given device name
-    int getAudioDeviceId(const std::string& deviceName) const;
-    
+    int getAudioDeviceId(const std::string &deviceName) const;
+
     // Settings functions
-    void addDevicesToSettings(const std::string& settingsFile);
-    
+    void addDevicesToSettings(const std::string &settingsFile);
+
     std::unique_ptr<RtAudio> audioDevice = nullptr;
     std::unique_ptr<RtMidiIn> midiInDevice = nullptr;
     std::unique_ptr<RtMidiOut> midiOutDevice = nullptr;
@@ -150,27 +160,25 @@ private:
 
     unsigned int numOutputChannels = 2; // Number of audio channels
     unsigned int numInputChannels = 1;
-    std::atomic<bool> canProcessAudio{false}; // Flag to track stream state
+    std::atomic<bool> canProcessAudio{false};     // Flag to track stream state
     std::atomic<bool> canDestroyProcessor{false}; // Flag to track stream state
     std::atomic<bool> audioShutdownComplete{false};
-    float** emptyInputBuffer; // Preallocated empty input buffer
-    float** getEmptyInputBuffer() const;
+    float **emptyInputBuffer; // Preallocated empty input buffer
+    float **getEmptyInputBuffer() const;
     bool emptyInputBufferInitialised = false; // Flag to check if the buffer is initialised
-    unsigned int bufferSize; // Size of the audio buffer (in frames)
-
+    unsigned int bufferSize;                  // Size of the audio buffer (in frames)
 
     unsigned int getNumInputChannels() const;
     unsigned int getNumOutputChannels() const;
 
     // Callbacks for audio and midi
-    static int audioCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames,
-                            double streamTime, RtAudioStreamStatus status, void* userData);
-    
+    static int audioCallback(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames, double streamTime,
+                             RtAudioStreamStatus status, void *userData);
+
     static void midiCallback(double deltatime, std::vector<uint8_t> *pMsg, void *userData);
-    
+
     int portNumber = 0;
     std::string csdFileAndPath = "";
-
 };
 
 #endif // CABBAGEAUDIOAPP_H
