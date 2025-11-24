@@ -585,7 +585,7 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
 
                 cabbage::Parser::mergeJsonProperties(jsonObj, data.cabbageJson);
 
-                auto soundfile = cabbage::File::readAudioFile<double>(jsonObj["file"].get<std::string>(), sampleRate);
+                auto soundfile = cabbage::File::readAudioFile<double>(jsonObj["file"].get<std::string>(), static_cast<int>(sampleRate));
                 auto samples = soundfile.audioData;
 
                 if (samples.size() == 0)
@@ -643,7 +643,7 @@ void Engine::setTableJSON(std::string /*channel*/, std::vector<double> samples, 
     // no point in sending more samples that can be displayed per pixel...
     const float incr = float(endSample - startSample) / ((jsonObj["bounds"]["width"].get<float>()));
     lattice::logDebug << "Updating function table";
-    for (float i = startSample; i < static_cast<int>(endSample); i += incr)
+    for (int i = startSample; i < static_cast<int>(endSample); i += static_cast<int>(incr))
     {
         widgetSampleData.push_back(samples[int(i)]);
     }
@@ -662,7 +662,7 @@ void Engine::initialiseGenTableWidgets()
             try
             {
                 const int tableNumber = widget["tableNumber"].get<int>();
-                auto soundfile = cabbage::File::readAudioFile<double>(widget["file"].get<std::string>(), sampleRate);
+                auto soundfile = cabbage::File::readAudioFile<double>(widget["file"].get<std::string>(), static_cast<int>(sampleRate));
                 auto samples = soundfile.audioData;
 
                 if (samples.size() > 0)
@@ -785,7 +785,7 @@ const std::string Engine::getCsoundOutputUpdateScript(const std::string &output)
 
 float Engine::remap(double n, double start1, double stop1, double start2, double stop2)
 {
-    return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
+    return static_cast<float>(((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2);
 }
 
 float Engine::getFullRangeValue(std::string channel, float normalValue)
