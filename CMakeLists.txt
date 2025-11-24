@@ -42,7 +42,7 @@ if (NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
 endif()
 
 
-include(${CMAKE_SOURCE_DIR}/cmake/Dependencies.cmake)
+
 # -----------------------------
 # Set compiler standard and build options for CLAP wrapper
 # -----------------------------
