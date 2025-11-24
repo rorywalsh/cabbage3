@@ -27,6 +27,7 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}" OR CabbageTests STREQUAL "${CA
         set(RTMIDI_API_JACK OFF CACHE BOOL "Disabling Jack for RtMidi" FORCE)
     endif()
 
+
     # Disable testing to avoid conflict with RtAudio
     set(RTMIDI_BUILD_TESTING OFF CACHE BOOL "Disable RtMidi tests" FORCE)
 
@@ -45,6 +46,13 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}" OR CabbageTests STREQUAL "${CA
     # Make all dependencies available
     FetchContent_MakeAvailable(rtaudio rtmidi)
 
+    if (MSVC)
+        target_compile_options(rtmidi PRIVATE /std:c++17)
+         target_compile_options(rtaudio PRIVATE /std:c++17)
+    else()
+        target_compile_features(rtmidi PRIVATE cxx_std_17)
+        target_compile_features(rtaudio PRIVATE cxx_std_17)
+    endif()
     # Only make catch2 available when building tests
     if(CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
         FetchContent_MakeAvailable(catch2)
