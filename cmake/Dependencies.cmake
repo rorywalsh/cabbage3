@@ -16,7 +16,7 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}" OR CabbageTests STREQUAL "${CA
     FetchContent_Declare(
         rtaudio
         GIT_REPOSITORY https://github.com/thestk/rtaudio.git
-        GIT_TAG master
+        GIT_TAG 6.0.1
     )
 
     # Disable unnecessary backends on macOS
@@ -36,6 +36,10 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}" OR CabbageTests STREQUAL "${CA
     set(RTAUDIO_BUILD_SHARED_LIBRARY OFF CACHE BOOL "Build static library for RtAudio" FORCE)
     set(RTMIDI_BUILD_SHARED_LIBRARY OFF CACHE BOOL "Build static library for RtMidi" FORCE)
 
+    # Prevent RtAudio/RtMidi from forcing static runtime when building static libs
+    set(RTAUDIO_STATIC_MSVCRT OFF CACHE BOOL "Use dynamic MSVC runtime for RtAudio" FORCE)
+    set(RTMIDI_STATIC_MSVCRT OFF CACHE BOOL "Use dynamic MSVC runtime for RtMidi" FORCE)
+
     # Use FetchContent to include RtMidi
     FetchContent_Declare(
         rtmidi
@@ -46,13 +50,14 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}" OR CabbageTests STREQUAL "${CA
     # Make all dependencies available
     FetchContent_MakeAvailable(rtaudio rtmidi)
 
-    if (MSVC)
-        target_compile_options(rtmidi PRIVATE /std:c++17)
-         target_compile_options(rtaudio PRIVATE /std:c++17)
+    if (APPLE)
+        target_compile_features(rtmidi PRIVATE cxx_std_20)
+        target_compile_features(rtaudio PRIVATE cxx_std_20)      
     else()
-        target_compile_features(rtmidi PRIVATE cxx_std_17)
-        target_compile_features(rtaudio PRIVATE cxx_std_17)
+        target_compile_options(rtmidi PRIVATE /std:c++20)
+        target_compile_options(rtaudio PRIVATE /std:c++20)
     endif()
+
     # Only make catch2 available when building tests
     if(CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
         FetchContent_MakeAvailable(catch2)
