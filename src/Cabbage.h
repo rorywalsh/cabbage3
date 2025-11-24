@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 #include <optional>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "CabbageUtils.h"
 #include "csound.hpp"
@@ -67,7 +69,11 @@ class Engine
     void compileCsdFile(std::string csoundFile) { csCompileResult = csound->Compile(csoundFile.c_str()); }
 
     // Perform KSMPS (control periods)
-    int performKsmps() { csCompileResult = csound->PerformKsmps();  return csCompileResult; }
+    int performKsmps()
+    {
+        csCompileResult = csound->PerformKsmps();
+        return csCompileResult;
+    }
 
     // Set input value for a specific index in csSpin array
     void setSpIn(int index, MYFLT value) { csSpin[index] = value * csScale; }
@@ -104,13 +110,16 @@ class Engine
     std::vector<nlohmann::json> &getWidgets() { return widgets; }
 
     // Helper function that handles the actual searching
-    std::optional<std::reference_wrapper<nlohmann::json>> findWidgetInArray(nlohmann::json& jsonArray, const std::string& channel);
+    std::optional<std::reference_wrapper<nlohmann::json>> findWidgetInArray(nlohmann::json &jsonArray,
+                                                                            const std::string &channel);
 
     // Overload for std::vector<nlohmann::json>
-    std::optional<std::reference_wrapper<nlohmann::json>> getWidgetByChannel(std::vector<nlohmann::json>& widgets, const std::string& channel);
+    std::optional<std::reference_wrapper<nlohmann::json>> getWidgetByChannel(std::vector<nlohmann::json> &widgets,
+                                                                             const std::string &channel);
 
     // Overload for nlohmann::json (assuming it's an array)
-    std::optional<std::reference_wrapper<nlohmann::json>> getWidgetByChannel(nlohmann::json& widgets, const std::string& channel);
+    std::optional<std::reference_wrapper<nlohmann::json>> getWidgetByChannel(nlohmann::json &widgets,
+                                                                             const std::string &channel);
     // Update widget with JSON object
     const std::string updateWidgetState(nlohmann::json j);
     // Get the index for a parameter channel by name
@@ -125,7 +134,7 @@ class Engine
     // Returns number of plugin paremters - even though lots of widgets have channels, only a select few can be plugin
     // parameters
     static int getNumberOfParameters(const std::string &csdFile);
-    
+
     // Returns the current number of parameters registered
     int getCurrentParameterCount();
 
@@ -142,17 +151,17 @@ class Engine
     void processCsoundMessages();
 
     // Return a JS script that will trigger a widget's properties to be updated
-    static std::string getUpdatedWidgetJsonStr(const std::string& channel, std::string data, bool includeValue = false);
-    static std::string getUpdatedWidgetJsonStr(const std::string& channel, float value);
+    static std::string getUpdatedWidgetJsonStr(const std::string &channel, std::string data, bool includeValue = false);
+    static std::string getUpdatedWidgetJsonStr(const std::string &channel, float value);
 
     // These two methods return combine with getWidgetIdentifierUpdateScript() to return a JS method
     // that packs samples for a given table
     void updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj);
     static void setTableJSON(std::string channel, std::vector<double> samples, nlohmann::json &jsonObj);
-    
+
     // Initialise genTable widgets by loading audio files specified in their file property
     void initialiseGenTableWidgets();
-    
+
     // Extracts the primary channel name from a widget, handling both new and legacy schemas.
     std::string extractChannelName(const nlohmann::json &widget);
 
@@ -160,7 +169,7 @@ class Engine
     void queueGenTableUpdates();
 
     // Returns a script that will update a csoundoutput widget
-    const std::string getCsoundOutputUpdateScript(const std::string& output);
+    const std::string getCsoundOutputUpdateScript(const std::string &output);
 
     // Setup reserved channel
     void setReservedChannels();
@@ -170,9 +179,20 @@ class Engine
     float getFullRangeValue(std::string channel, float normalValue);
 
     // Check if a widget has a specific channel (searches id then channels array)
-    static bool hasChannel(const nlohmann::json& widget, const std::string& channel);
+    static bool hasChannel(const nlohmann::json &widget, const std::string &channel);
 
     moodycamel::ReaderWriterQueue<CabbageOpcodeData> opcodeData;
+
+    //=====================================================================================
+    // Updates the channel cache with new data. This is called by the opcodes.
+    //=====================================================================================
+    void updateChannelCache(const CabbageOpcodeData &data);
+
+    //=====================================================================================
+    // Flushes the channel cache to the opcodeData queue. This is called at the end of
+    // the processing block.
+    //=====================================================================================
+    void flushChannelCache();
 
     std::string getCompileErrors() { return compileErrors; }
 
@@ -184,8 +204,8 @@ class Engine
             compileErrors.clear();
         }
     }
-    
-    CabbageProcessor& getProcessor(){   return processor;  }
+
+    CabbageProcessor &getProcessor() { return processor; }
 
   private:
     void addOpcodes();
@@ -201,5 +221,7 @@ class Engine
     std::string compileErrors;
     std::unique_ptr<Csound> csound;
     CabbageProcessor &processor;
+    std::unordered_map<std::string, CabbageOpcodeData> channelCache;
+    std::unordered_set<std::string> dirtyChannels;
 };
 } // namespace cabbage
