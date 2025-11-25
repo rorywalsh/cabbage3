@@ -876,11 +876,13 @@ void CabbageProcessor::setParameter(int paramId, double value)
         // Update the widget's value property so it persists when UI reopens
         j["value"] = denormalValue;
 
-        // For comboBox and optionButton, map normalized value to index
+        // For comboBox and optionButton, the frontend already sends the correct index
+        // (not a normalized value), so we should use it directly
         if (widgetType == "comboBox" || widgetType == "optionButton")
         {
-            size_t itemCount = (j.contains("items") && j["items"].is_array()) ? j["items"].size() : 3;
-            size_t index = round(denormalValue * (itemCount - 1));
+            // The denormalValue is already the index from the frontend
+            size_t index = static_cast<size_t>(round(denormalValue));
+
             if (j.contains("indexOffset") && j["indexOffset"].is_boolean() && j["indexOffset"].get<bool>())
             {
                 index += 1;
