@@ -30,6 +30,19 @@ option(USER_LIB "Output AU plugins directly to ~/Library/Audio/Plug-Ins/Componen
 # Define common base directory for all dependency downloads and builds
 set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/_deps" CACHE PATH "Base directory for downloaded dependencies")
 
+# Include shared dependencies configuration
+# ----------------------------
+# Set dynamic MSVC runtime for Windows builds to match Csound
+# ----------------------------
+if (NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
+  if (WIN32)
+    message(STATUS "CMAKE_MSVC_RUNTIME_LIBRARY not defined. Setting to dynamic link")
+  endif()
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" CACHE STRING "MSVC Runtime Library" FORCE)
+endif()
+
+
+
 # -----------------------------
 # Set compiler standard and build options for CLAP wrapper
 # -----------------------------
@@ -48,8 +61,7 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
     set(CABBAGE_BUILD_TARGETS CabbageApp CabbagePluginEffect CabbagePluginSynth CabbagePluginEffectAUv2 CabbagePluginSynthAUv2 CabbageTests)
     message(STATUS "No CABBAGE_BUILD_TARGET specified. Building all targets.")
 
-    # Include shared dependencies configuration
-    include(${CMAKE_SOURCE_DIR}/cmake/Dependencies.cmake)
+
 
     # Configure and build each target separately
     foreach(target IN LISTS CABBAGE_BUILD_TARGETS)
@@ -149,15 +161,7 @@ elseif (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbageTests LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
 endif()
 
-# ----------------------------
-# Set static MSVC runtime for Windows builds
-# ----------------------------
-if (NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
-  if (WIN32)
-    message(STATUS "CMAKE_MSVC_RUNTIME_LIBRARY not defined. Setting to static link")
-  endif()
-  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-endif()
+
 
 # ----------------------------
 # Include dependencies and modules

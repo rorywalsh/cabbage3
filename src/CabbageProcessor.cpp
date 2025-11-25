@@ -58,6 +58,15 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Pr
 CabbageProcessor::~CabbageProcessor()
 {
     suspendProcessing();
+    
+    // Drain any pending operations from queues before stopping threads
+    // This prevents race conditions where the audio thread might try to
+    // access the queue while it's being destroyed
+    allowDequeuing = false;
+    
+    // Give any in-flight queue operations time to complete
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    
     stopIdleThread();
 }
 
@@ -471,7 +480,7 @@ void CabbageProcessor::onIdleScheduler()
 {
     while (isIdleRunning)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(50)); // Sleep to avoid busy-waiting
+        std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60Hz update rate for smoother UI
         onIdle();
     }
 }
@@ -486,6 +495,10 @@ void CabbageProcessor::startOnIdle()
 void CabbageProcessor::stopIdleThread()
 {
     isIdleRunning.store(false);
+    // Give the idle thread time to exit its current onIdle() call
+    // before we try to join it. This prevents race conditions where
+    // the thread might be in the middle of a queue operation.
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     if (idleThread.joinable())
     {
         idleThread.join(); // Ensure the thread is joined before reset
