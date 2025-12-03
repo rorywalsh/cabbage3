@@ -77,11 +77,9 @@ int CabbageSetPerfString::setIdentifier(int /*pass*/)
             updateWidgetJson(data.cabbageJson, args, argIndex + 1, data.identifier, CabbageOpcodeData::ArgType::String);
 
         // Only enqueue if value has changed
-        std::string currentValue = data.cabbageJson[data.identifier].dump();
-        if (lastValue != currentValue)
+        if (hostData->isValueDifferent(data))
         {
             hostData->updateChannelCache(data);
-            lastValue = currentValue;
         }
     }
 
@@ -144,11 +142,9 @@ int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
         updateWidgetJson(data.cabbageJson, args, argIndex + 1, data.identifier, CabbageOpcodeData::ArgType::Scalar);
 
         // Only enqueue if value has changed
-        MYFLT currentValue = args[argIndex + 1];
-        if (lastValue == -1.0 || lastValue != currentValue)
+        if (hostData->isValueDifferent(data))
         {
             hostData->updateChannelCache(data);
-            lastValue = currentValue;
         }
     }
 
@@ -207,7 +203,8 @@ int CabbageSetPerfMYFLTArray::setIdentifier(int /*pass*/)
     else
     {
         updateWidgetJson(data.cabbageJson, args, argIndex + 1, data.identifier, CabbageOpcodeData::ArgType::Array);
-        hostData->updateChannelCache(data);
+        if (hostData->isValueDifferent(data))
+            hostData->updateChannelCache(data);
     }
 
     return IS_OK;

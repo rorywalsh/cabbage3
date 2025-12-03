@@ -57,7 +57,6 @@ struct CabbageOpcodes
     char *name = NULL;
     char *identifier = NULL;
     MYFLT *value = {};
-    MYFLT lastValue = 0;
     MYFLT *str = {};
 
     static bool hasNullTerminator(const char *str, size_t length)
