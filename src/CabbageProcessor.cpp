@@ -350,7 +350,7 @@ void CabbageProcessor::onIdle()
         // Now process only the latest message for each channel
         for (const auto &[channel, latestData] : latestMessages)
         {
-            auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), latestData.channel);
+            auto widgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), latestData.channel);
             if (widgetOpt)
             {
                 auto &j = widgetOpt->get();
@@ -358,7 +358,7 @@ void CabbageProcessor::onIdle()
                 {
                     continue;
                 }
-
+                
                 cabbage::Parser::mergeJsonProperties(j, latestData.cabbageJson);
             }
 
@@ -380,7 +380,7 @@ void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
     // For value-only updates, use the float overload to send just the value
     if (data.type == CabbageOpcodeData::MessageType::Value)
     {
-        auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), data.channel);
+        auto widgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), data.channel);
         if (widgetOpt)
         {
             auto &j = widgetOpt->get();
@@ -416,7 +416,7 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
 {
     if (data.type == CabbageOpcodeData::MessageType::Identifier || data.type == CabbageOpcodeData::MessageType::Value)
     {
-        auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), data.channel);
+        auto widgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), data.channel);
         if (widgetOpt)
         {
             auto &j = widgetOpt->get();
@@ -430,7 +430,7 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
     }
     else if (data.type == CabbageOpcodeData::MessageType::Widget)
     {
-        auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), data.channel);
+        auto widgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), data.channel);
         if (widgetOpt)
         {
             lattice::logDebug << "A widget with channel: " << data.channel
@@ -459,7 +459,7 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
             cabbage.getWidgets().push_back(newWidget);
 
             // Debug: Check if widget can now be found
-            auto testWidgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), data.channel);
+            auto testWidgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), data.channel);
             if (testWidgetOpt)
             {
                 lattice::logDebug << "Widget successfully registered and found: " << data.channel;
@@ -619,7 +619,7 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
             // Update Csound channel with denormalized value
             cabbage.setControlChannel(channel, denormValue);
 
-            auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), channel);
+            auto widgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), channel);
             if (widgetOpt)
             {
                 auto &j = widgetOpt->get();
@@ -795,7 +795,7 @@ void CabbageProcessor::updateUI()
     // Check if editor has any pending messages when loaded..
     for (const auto &param : webviewMessageQueue)
     {
-        auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), param.name);
+        auto widgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), param.name);
         if (widgetOpt)
         {
             auto &j = widgetOpt->get();

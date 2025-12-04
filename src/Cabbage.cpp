@@ -425,7 +425,7 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::findWidgetInArray(
 }
 
 // Overload for std::vector<nlohmann::json>
-std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetByChannel(std::vector<nlohmann::json> &widgets,
+std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetFromId(std::vector<nlohmann::json> &widgets,
                                                                                  const std::string &channel)
 {
     for (auto &w : widgets)
@@ -441,11 +441,12 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetByChannel
                 }
             }
         }
-        // Check widget id (new schema)
+
         if (w.contains("id") && w["id"].is_string() && cabbage::Parser::removeQuotes(w["id"]) == channel)
         {
             return std::ref(w);
         }
+        
         if (w.contains("children") && w["children"].is_array())
         {
             auto child = findWidgetInArray(w["children"], channel);
@@ -466,7 +467,7 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetByChannel
 const std::string Engine::updateWidgetState(nlohmann::json j)
 {
     auto const channel = j["channel"].get<std::string>();
-    auto widgetOpt = getWidgetByChannel(widgets, channel);
+    auto widgetOpt = getWidgetFromId(widgets, channel);
     if (widgetOpt.has_value())
     {
         auto &w = widgetOpt.value().get();

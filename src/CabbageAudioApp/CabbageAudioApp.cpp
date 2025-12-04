@@ -249,7 +249,7 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
             auto &cabbage = processor->getCabbageEngine();
 
             // Update underlying JSON object if the value has changed
-            auto widgetOpt = cabbage.getWidgetByChannel(cabbage.getWidgets(), jsonObj["channel"]);
+            auto widgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), jsonObj["channel"]);
             if (widgetOpt)
             {
                 auto &widgetObj = widgetOpt->get();

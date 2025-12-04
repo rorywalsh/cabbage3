@@ -114,7 +114,7 @@ class Engine
                                                                             const std::string &channel);
 
     // Overload for std::vector<nlohmann::json>
-    std::optional<std::reference_wrapper<nlohmann::json>> getWidgetByChannel(std::vector<nlohmann::json> &widgets,
+    std::optional<std::reference_wrapper<nlohmann::json>> getWidgetFromId(std::vector<nlohmann::json> &widgets,
                                                                              const std::string &channel);
 
     // Overload for nlohmann::json (assuming it's an array)
