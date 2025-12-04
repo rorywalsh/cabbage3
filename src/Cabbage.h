@@ -189,6 +189,11 @@ class Engine
     void updateChannelCache(const CabbageOpcodeData &data);
 
     //=====================================================================================
+    // Checks if the value is different from the cached value
+    //=====================================================================================
+    bool isValueDifferent(const CabbageOpcodeData &data);
+
+    //=====================================================================================
     // Flushes the channel cache to the opcodeData queue. This is called at the end of
     // the processing block.
     //=====================================================================================

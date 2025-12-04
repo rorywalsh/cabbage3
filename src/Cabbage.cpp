@@ -878,6 +878,46 @@ void Engine::updateChannelCache(const CabbageOpcodeData &data)
     dirtyChannels.insert(data.channel);
 }
 
+bool Engine::isValueDifferent(const CabbageOpcodeData &data)
+{
+    if (channelCache.find(data.channel) == channelCache.end())
+    {
+        return true;
+    }
+
+    const auto &cachedData = channelCache[data.channel];
+
+    // Helper lambda to check if json is subset
+    auto isSubset = [](const nlohmann::json &j1, const nlohmann::json &j2) -> bool {
+        if (j1.is_object() && j2.is_object())
+        {
+            for (auto it = j1.begin(); it != j1.end(); ++it)
+            {
+                if (j2.find(it.key()) == j2.end())
+                {
+                    return false;
+                }
+                if (it.value() != j2[it.key()])
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return j1 == j2;
+    };
+
+    if (data.type == CabbageOpcodeData::MessageType::Value)
+    {
+        return cachedData.cabbageJson["value"] != data.cabbageJson["value"];
+    }
+    else
+    {
+        // Check if new data is already contained in cached data
+        return !isSubset(data.cabbageJson, cachedData.cabbageJson);
+    }
+}
+
 void Engine::flushChannelCache()
 {
     for (const auto &channel : dirtyChannels)
