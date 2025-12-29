@@ -22,6 +22,7 @@
 #include "opcodes/CabbageSetOpcodes.h"
 #include "opcodes/CabbageGetOpcodes.h"
 #include "opcodes/CabbageCreateOpcode.h"
+#include "opcodes/CabbageStateOpcodes.h"
 
 class CabbageProcessor;
 struct CabbageOpcodeData;
@@ -211,6 +212,16 @@ class Engine
     }
 
     CabbageProcessor &getProcessor() { return processor; }
+
+    //=====================================================================================
+    // State Management Utilities - Used by both opcodes and CabbageProcessor
+    //=====================================================================================
+    
+    // Save complete widget state to JSON
+    nlohmann::json saveWidgetState();
+    
+    // Load complete widget state from JSON and update all systems
+    void loadWidgetState(const nlohmann::json &state);
 
   private:
     void addOpcodes();

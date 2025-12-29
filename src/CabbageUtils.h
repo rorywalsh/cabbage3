@@ -109,7 +109,11 @@ public:
     static std::string findCabbageJSWidgetPath();
     // Browse for a file using native dialog
     static std::string browseForFile(const std::string& title = "Choose a file", const std::string& initialDir = "", const std::string& filters = "*");
-      
+    // Write std::string to file
+    static bool writeToFile(const std::string &filePath, const std::string &content);
+    // Read from file
+    static std::string readFromFile(const std::string &filePath);
+
 #if defined(_WIN32)
     static std::string getWindowsProgramDataDir()
     {

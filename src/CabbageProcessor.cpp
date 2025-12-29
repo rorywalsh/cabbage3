@@ -377,7 +377,7 @@ void CabbageProcessor::onIdle()
 //========================================================================================
 void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
 {
-    // For value-only updates, use the float overload to send just the value
+    // For value-only updates, send just the value
     if (data.type == CabbageOpcodeData::MessageType::Value)
     {
         auto widgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), data.channel);
@@ -390,20 +390,28 @@ void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
             if (j.contains("value") && j["value"].is_number())
             {
                 float value = j["value"].get<float>();
-                std::string updatedWidgetJson = cabbage.getUpdatedWidgetJsonStr(data.channel, value);
-                sendWebViewMessage(updatedWidgetJson);
+                // Send proper JSON message like CabbageApp does
+                nlohmann::json msg;
+                msg["command"] = "widgetUpdate";
+                msg["id"] = data.channel;
+                msg["value"] = value;
+                sendWebViewMessage(msg);
             }
         }
     }
     else
     {
-        // For full widget updates, use the string overload
+        // For full widget updates, send the complete widget JSON
         auto updatedWidgetJsonOpt = processOpcodeData(data);
         if (updatedWidgetJsonOpt.has_value())
         {
-            std::string updatedWidgetJson =
-                cabbage.getUpdatedWidgetJsonStr(data.channel, updatedWidgetJsonOpt.value().dump());
-            sendWebViewMessage(updatedWidgetJson);
+            auto &j = updatedWidgetJsonOpt.value();
+            // Send proper JSON message like CabbageApp does
+            nlohmann::json msg;
+            msg["command"] = "widgetUpdate";
+            msg["id"] = data.channel;
+            msg["widgetJson"] = j.dump();  // Send as JSON string, consistent with updateUI()
+            sendWebViewMessage(msg);
         }
     }
 }
@@ -522,13 +530,15 @@ void CabbageProcessor::onWebViewIsReady()
 
 void CabbageProcessor::setCabbageIsReady()
 {
-
+    lattice::logDebug << "setCabbageIsReady() called";
     uiIsOpen = true;
     allowDequeuing = true;
 
 #ifndef CabbageApp
     // We update the UI each time the plugin window is shown
+    lattice::logDebug << "Calling updateUI() from setCabbageIsReady()";
     updateUI();
+    lattice::logDebug << "updateUI() call completed";
 #endif
 }
 
@@ -538,8 +548,27 @@ void CabbageProcessor::setCabbageIsReady()
 //========================================================================================
 void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
 {
-    // Incoming JSON message is always wrapped in []
-    auto incomingMessage = j.at(0);
+    lattice::logDebug << "onMessageFromWebView received: " << j.dump();
+    
+    // Handle both array-wrapped messages (legacy plugin format) and plain object messages (VSCode extension)
+    nlohmann::json incomingMessage;
+    if (j.is_array() && !j.empty())
+    {
+        lattice::logDebug << "Message is array, extracting first element";
+        incomingMessage = j.at(0);
+    }
+    else if (j.is_object())
+    {
+        lattice::logDebug << "Message is plain object";
+        incomingMessage = j;
+    }
+    else
+    {
+        lattice::logError << "Invalid message format received from webview: " << j.dump();
+        return;
+    }
+
+    lattice::logDebug << "Processing command: " << incomingMessage["command"];
 
     if (incomingMessage["command"] == "cabbageIsReadyToLoad")
     {
@@ -765,8 +794,9 @@ void CabbageProcessor::addNoteEventFromJson(const nlohmann::json &j)
 // Update UI - we typically call this when we want to update widgets in the UI
 //========================================================================================
 void CabbageProcessor::updateUI()
-{
+{    
     // iterate over all widget objects and send to webview
+    int widgetsSent = 0;
     for (auto &w : cabbage.getWidgets())
     {
         std::string channelStr;
@@ -776,7 +806,6 @@ void CabbageProcessor::updateUI()
         }
         else if (w.contains("channel") && w["channel"].is_string())
         {
-            lattice::logDebug << "Channel string property is deprecated";
             channelStr = w["channel"].get<std::string>();
         }
         else if (w.contains("channel") && w["channel"].is_object() && w["channel"].contains("id"))
@@ -785,12 +814,27 @@ void CabbageProcessor::updateUI()
         }
         else
         {
+            lattice::logDebug << "Widget skipped - no valid channel identifier";
             continue;
         }
-        auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(channelStr, w.dump(), true);
+        // Send proper JSON message like CabbageApp does
+        nlohmann::json msg;
+        msg["command"] = "widgetUpdate";
+        msg["id"] = channelStr;
+        msg["widgetJson"] = w.dump();  // Send as JSON string, like CabbageApp does
         if (uiIsOpen)
-            sendWebViewMessage(updatedWidget);
+        {
+            lattice::logDebug << "Sending widgetUpdate for: " << channelStr;
+            sendWebViewMessage(msg);
+            widgetsSent++;
+        }
+        else
+        {
+            lattice::logDebug << "Widget not sent (uiIsOpen=false): " << channelStr;
+        }
     }
+    
+    lattice::logDebug << "Total widgets sent: " << widgetsSent;
 
     // Check if editor has any pending messages when loaded..
     for (const auto &param : webviewMessageQueue)
@@ -800,56 +844,31 @@ void CabbageProcessor::updateUI()
         {
             auto &j = widgetOpt->get();
             j["value"] = param.value;
-            auto updatedWidget = cabbage.getUpdatedWidgetJsonStr(param.name, param.value);
+            // Send proper JSON message like CabbageApp does
+            nlohmann::json msg;
+            msg["command"] = "widgetUpdate";
+            msg["id"] = param.name;
+            msg["value"] = param.value;
             cabbage.setControlChannel(param.name, param.value);
-            sendWebViewMessage(updatedWidget);
+            sendWebViewMessage(msg);
         }
     }
     webviewMessageQueue.clear();
 }
 //========================================================================================
-// Plugin state/loding functions
+// Plugin state/loading functions
 //========================================================================================
 nlohmann::json CabbageProcessor::savePluginState()
 {
-    const auto parameters = getParameters();
-
-    // Use array instead of object so we can maintain order
-    nlohmann::json j = nlohmann::json::array();
-
-    // Store parameters by index in array
-    for (size_t i = 0; i < parameters.size(); i++)
-    {
-        nlohmann::json param;
-        param["name"] = parameters[i].name;
-        param["value"] = parameters[i].value;
-        j.push_back(param);
-    }
-
-    return j;
+    // Use the Engine utility function to save complete widget state
+    return cabbage.saveWidgetState();
 }
 
 void CabbageProcessor::loadPluginState(nlohmann::json state)
 {
-    auto json = nlohmann::json::parse(state.dump(4));
-    int idx = 0;
-
-    // Iterate through array
-    for (const auto &param : json)
-    {
-        // Read values
-        float value = param.value("value", 0.f);
-
-        // Add parameter updates to queue for host - these should be normalised
-        addParameterChange({idx, getParameter(idx).toNormalised(value), lattice::ParamChangeType::Value});
-        // Set parameter values for plugin
-        getParameters()[idx].value = value;
-
-        // Store denormalized value for UI and Csound
-        float denormalizedValue = getParameter(idx).fromNormalised(value);
-        webviewMessageQueue.push_back({getParameters()[idx].name, -1, -1, denormalizedValue, -1, -1});
-        idx++;
-    }
+    // Use the Engine utility function to load complete widget state
+    // This handles: widgets array, Csound channels, parameters, and UI updates
+    cabbage.loadWidgetState(state);
 }
 
 //========================================================================================

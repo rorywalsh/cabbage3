@@ -120,6 +120,50 @@ std::string Utils::getJsonWithLineNumbers(const std::string &json_str)
 }
 
 //======================================================================================================
+bool File::writeToFile(const std::string &filePath, const std::string &content)
+{
+    try
+    {
+        std::ofstream outFile(filePath, std::ios::binary);
+        if (!outFile)
+        {
+            lattice::logDebug << "Failed to open file for writing: " << filePath;
+            return false;
+        }
+        outFile << content;
+        outFile.close();
+        return true;
+    }
+    catch (const std::exception &e)
+    {
+        lattice::logDebug << "Exception writing to file " << filePath << ": " << e.what();
+        return false;
+    }
+}
+
+std::string File::readFromFile(const std::string &filePath)
+{
+    try
+    {
+        std::ifstream inFile(filePath, std::ios::binary);
+        if (!inFile)
+        {
+            lattice::logDebug << "Failed to open file for reading: " << filePath;
+            return "";
+        }
+        std::ostringstream ss;
+        ss << inFile.rdbuf();
+        inFile.close();
+        return ss.str();
+    }
+    catch (const std::exception &e)
+    {
+        lattice::logDebug << "Exception reading from file " << filePath << ": " << e.what();
+        return "";
+    }
+}
+
+//======================================================================================================
 std::string File::getBinaryWithoutExtension()
 {
     std::string binaryFileName = getBinaryFileName(); // Full path with extension

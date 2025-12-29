@@ -33,42 +33,31 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageSetValue>((csnd::Csound *)csound->GetCsound(), "cabbageSetValue", "", "SkP", csnd::thread::k);
     csnd::plugin<CabbageSetValue>((csnd::Csound *)csound->GetCsound(), "cabbageSetValue", "", "Si", csnd::thread::i);
 
-    csnd::plugin<CabbageSetPerfString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSW",
-                                       csnd::thread::k);
-    csnd::plugin<CabbageSetInitString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "SW",
-                                       csnd::thread::i);
-    csnd::plugin<CabbageSetPerfMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSM",
-                                      csnd::thread::k);
-    csnd::plugin<CabbageSetInitMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "SSM",
-                                      csnd::thread::i);
+    csnd::plugin<CabbageSetPerfString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSW", csnd::thread::k);
+    csnd::plugin<CabbageSetInitString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "SW", csnd::thread::i);
+    csnd::plugin<CabbageSetPerfMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSM", csnd::thread::k);
+    csnd::plugin<CabbageSetInitMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "SSM", csnd::thread::i);
 
-    csnd::plugin<CabbageSetInitMYFLTArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "SSi[]",
-                                           csnd::thread::i);
-    csnd::plugin<CabbageSetPerfMYFLTArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSk[]",
-                                           csnd::thread::k);
+    csnd::plugin<CabbageSetInitMYFLTArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "SSi[]", csnd::thread::i);
+    csnd::plugin<CabbageSetPerfMYFLTArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSk[]", csnd::thread::k);
 
-    csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "k", "S",
-                                  csnd::thread::ik);
-    csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "i", "S",
-                                  csnd::thread::i);
-    csnd::plugin<CabbageGetValueString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "S", "S",
-                                        csnd::thread::ik);
-    csnd::plugin<CabbageGetValueWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "kk", "S",
-                                             csnd::thread::ik);
-    csnd::plugin<CabbageGetValueStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "Sk",
-                                                   "So", csnd::thread::ik);
+    csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
+    csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "i", "S", csnd::thread::i);
+    csnd::plugin<CabbageGetValueString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "S", "S", csnd::thread::ik);
+    csnd::plugin<CabbageGetValueWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "kk", "S", csnd::thread::ik);
+    csnd::plugin<CabbageGetValueStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "Sk", "So", csnd::thread::ik);
 
     csnd::plugin<CabbageGetMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "k", "SW", csnd::thread::ik);
     csnd::plugin<CabbageGetMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "i", "SS", csnd::thread::i);
     csnd::plugin<CabbageGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "S", "SS", csnd::thread::i);
-    csnd::plugin<CabbageGetStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "Sk", "SS",
-                                              csnd::thread::k);
+    csnd::plugin<CabbageGetStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "Sk", "SS", csnd::thread::k);
 
     csnd::plugin<CabbageCreate>((csnd::Csound *)getCsound()->GetCsound(), "cabbageCreate", "", "S", csnd::thread::i);
-
     csnd::plugin<CabbageDump>((csnd::Csound *)getCsound()->GetCsound(), "cabbageDump", "", "So", csnd::thread::i);
-    csnd::plugin<CabbageDumpWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageDump", "", "kSo",
-                                         csnd::thread::ik);
+    csnd::plugin<CabbageDumpWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageDump", "", "kSo", csnd::thread::ik);
+    
+    csnd::plugin<CabbageSaveState>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSaveState", "", "S", csnd::thread::k);
+    csnd::plugin<CabbageLoadState>((csnd::Csound *)getCsound()->GetCsound(), "cabbageLoadState", "", "S", csnd::thread::k);
 }
 
 bool Engine::setupCsound()
@@ -501,15 +490,28 @@ std::string Engine::getUpdatedWidgetJsonStr(const std::string &channel, std::str
         {
             value = 0.0f; // Default fallback value
         }
+        // Escape the data string for JSON by replacing backslashes and quotes
+        std::string escapedData = data;
+        size_t pos = 0;
+        while ((pos = escapedData.find('\\', pos)) != std::string::npos) {
+            escapedData.replace(pos, 1, "\\\\");
+            pos += 2;
+        }
+        pos = 0;
+        while ((pos = escapedData.find('"', pos)) != std::string::npos) {
+            escapedData.replace(pos, 1, "\\\"");
+            pos += 2;
+        }
+        
         result = choc::text::replace(R"(
         {
-            command: "widgetUpdate",
-            id: "$CHANNEL",
-            widgetJson: `$DATA`,
-            value: $VALUE
+            "command": "widgetUpdate",
+            "id": "$CHANNEL",
+            "widgetJson": "$DATA",
+            "value": $VALUE
         }
         )",
-                                     "$CHANNEL", channel, "$DATA", data, "$VALUE", std::to_string(value));
+                                     "$CHANNEL", channel, "$DATA", escapedData, "$VALUE", std::to_string(value));
     }
     else
     {
@@ -940,6 +942,85 @@ void Engine::flushChannelCache()
         }
     }
     dirtyChannels.clear();
+}
+
+//=====================================================================================
+// State Management Utilities - Used by both opcodes and CabbageProcessor
+//=====================================================================================
+
+nlohmann::json Engine::saveWidgetState()
+{
+    nlohmann::json state;
+    state["cabbageWidgetsState"] = widgets;
+    return state;
+}
+
+void Engine::loadWidgetState(const nlohmann::json &state)
+{
+    // Check if we have the widget state
+    if (!state.contains("cabbageWidgetsState")) {
+        lattice::logError << "Invalid state: missing 'cabbageWidgetsState' key";
+        return;
+    }
+    
+    // Restore the complete widget state
+    widgets = state["cabbageWidgetsState"];
+    
+    // Update Csound control channels and plugin parameters
+    for (const auto &widget : widgets) {
+        if (widget.contains("channels") && widget["channels"].is_array()) {
+            for (const auto &channel : widget["channels"]) {
+                if (channel.contains("id") && channel["id"].is_string()) {
+                    std::string channelId = channel["id"].get<std::string>();
+                    
+                    if (widget.contains("value") && widget["value"].is_number()) {
+                        float value = widget["value"].get<float>();
+                        
+                        // Update Csound control channel
+                        setControlChannel(channelId, value);
+                        
+                        // If this is an automatable parameter, update it for the host
+                        if (channel.contains("parameterIndex") && channel["parameterIndex"].is_number()) {
+                            int paramIdx = channel["parameterIndex"].get<int>();
+                            if (paramIdx < static_cast<int>(processor.getParameters().size())) {
+                                auto &param = processor.getParameters()[paramIdx];
+                                float normalizedValue = param.toNormalised(value);
+                                param.value = normalizedValue;
+                                
+                                // Notify host of parameter change
+                                processor.addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::Value});
+                                
+                                lattice::logDebug << "Loaded parameter " << paramIdx << " (" << channelId 
+                                                 << ") with value: " << value << " (normalized: " << normalizedValue << ")";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Queue UI updates for all widgets
+    for (const auto &widget : widgets) {
+        std::string channelId;
+        if (widget.contains("id") && widget["id"].is_string()) {
+            channelId = widget["id"].get<std::string>();
+        } else if (widget.contains("channels") && widget["channels"].is_array() && 
+                   !widget["channels"].empty() && widget["channels"][0].contains("id")) {
+            channelId = widget["channels"][0]["id"].get<std::string>();
+        }
+        
+        if (!channelId.empty()) {
+            // Queue the full widget update
+            CabbageOpcodeData data;
+            data.channel = channelId;
+            data.type = CabbageOpcodeData::MessageType::Identifier;
+            data.cabbageJson = widget;
+            opcodeData.enqueue(data);
+        }
+    }
+    
+    lattice::logInfo << "Widget state loaded successfully";
 }
 
 } // namespace cabbage
