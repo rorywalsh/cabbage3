@@ -302,7 +302,7 @@ public:
                         filename = filename.substr(0, filename.length() - extension.length());
                     }
                     
-                    lattice::logDebug << "Found widget type: " << filename;
+                    //lattice::logDebug << "Found widget type: " << filename;
                     uniqueTypes.insert(filename); // Add to set (automatically deduplicates)
                 }
             }
@@ -328,7 +328,7 @@ public:
         if (cabbage::File::directoryExists(pluginWidgetPath))
         {
             widgetPaths.push_back(pluginWidgetPath);
-            lattice::logDebug << "Plugin mode: Added CSD-relative widget path: " << pluginWidgetPath;
+            //lattice::logDebug << "Plugin mode: Added CSD-relative widget path: " << pluginWidgetPath;
         }
 #else
         // In CabbageApp mode, get all configured widget directories from settings
@@ -383,13 +383,13 @@ public:
         for (const auto &widgetPath : widgetPaths)
         {
             std::string fullPath = widgetPath + "/" + widgetType + ".js";
-            lattice::logDebug << "Searching " << widgetPath << " for widget classes..";
+            //lattice::logDebug << "Searching " << widgetPath << " for widget classes..";
             if (cabbage::File::exists(fullPath))
             {
                 auto jsFileContents = cabbage::File::loadJSFile(fullPath);
                 if (!jsFileContents.empty())
                 {
-                    lattice::logDebug << "Found widget descriptor for '" << widgetType << "' in: " << widgetPath;
+                    //lattice::logDebug << "Found widget descriptor for '" << widgetType << "' in: " << widgetPath;
                     return cabbage::File::extractPropsFromJS(jsFileContents);
                 }
             }

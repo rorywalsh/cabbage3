@@ -448,7 +448,7 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
         else
         {
             lattice::logDebug << "Creating widget: " << data.channel;
-            lattAssert(false, "Double check cabbageCreate still works as expected");
+
             // Get the widget type
             std::string widgetType = data.cabbageJson["type"].get<std::string>();
 
@@ -468,11 +468,7 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
 
             // Debug: Check if widget can now be found
             auto testWidgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), data.channel);
-            if (testWidgetOpt)
-            {
-                lattice::logDebug << "Widget successfully registered and found: " << data.channel;
-            }
-            else
+            if (!testWidgetOpt)
             {
                 lattice::logError << "Widget was added but cannot be found: " << data.channel;
             }
