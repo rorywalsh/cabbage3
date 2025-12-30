@@ -965,7 +965,7 @@ void Engine::loadWidgetState(const nlohmann::json &state)
     
     // Restore the complete widget state
     widgets = state["cabbageWidgetsState"];
-    
+
     // Update Csound control channels and plugin parameters
     for (const auto &widget : widgets) {
         if (widget.contains("channels") && widget["channels"].is_array()) {
@@ -1021,6 +1021,214 @@ void Engine::loadWidgetState(const nlohmann::json &state)
     }
     
     lattice::logInfo << "Widget state loaded successfully";
+}
+
+//=====================================================================================
+// Process webview commands - central handler for UI messages
+// Returns true if handled, false if environment-specific handling needed
+//=====================================================================================
+bool Engine::processWebViewCommand(const nlohmann::json &message)
+{
+    if (!message.contains("command"))
+    {
+        lattice::logError << "Message missing command field";
+        return false;
+    }
+
+    const std::string command = message["command"].get<std::string>();
+    lattice::logDebug << "Engine::processWebViewCommand: " << command;
+
+    // Handle cabbageIsReadyToLoad
+    if (command == "cabbageIsReadyToLoad")
+    {
+        lattice::logDebug << "Cabbage UI is ready to load";
+        // This is typically handled by the processor to trigger UI updates
+        return false; // Let processor handle this
+    }
+
+    // Handle widgetStateUpdate
+    else if (command == "widgetStateUpdate")
+    {
+        updateWidgetState(message);
+        return true;
+    }
+
+    // Handle midiMessage
+    else if (command == "midiMessage")
+    {
+        // MIDI messages need processor's addNoteEvent functionality
+        return false; // Let processor handle this
+    }
+
+    // Handle channelData
+    else if (command == "channelData")
+    {
+        // Extract channel - can be a string or an object
+        std::string channel;
+        if (message["channel"].is_string())
+        {
+            channel = message["channel"].get<std::string>();
+        }
+        else if (message["channel"].is_object() && message["channel"].contains("id"))
+        {
+            channel = message["channel"]["id"].get<std::string>();
+        }
+        else if (message["channel"].is_object())
+        {
+            // For multi-channel, find the first string value
+            for (auto &[key, value] : message["channel"].items())
+            {
+                if (value.is_string())
+                {
+                    channel = value.get<std::string>();
+                    break;
+                }
+            }
+        }
+        else
+        {
+            lattice::logError << "Invalid channel format in channelData message";
+            return false;
+        }
+
+        // Check if we have string data or float data
+        if (message.contains("stringData"))
+        {
+            std::string stringData = message.value("stringData", "");
+            // Set the Csound string channel
+            getCsound()->SetChannel(channel.c_str(), stringData.c_str());
+            lattice::logDebug << "Set channel " << channel << " to string: " << stringData;
+        }
+        else if (message.contains("floatData"))
+        {
+            double floatData = message.value("floatData", 0.0);
+            // Set the Csound control channel
+            setControlChannel(channel, floatData);
+            lattice::logDebug << "Set channel " << channel << " to float: " << floatData;
+            
+            // Update the widget JSON
+            auto widgetOpt = getWidgetFromId(widgets, channel);
+            if (widgetOpt)
+            {
+                auto &j = widgetOpt->get();
+                j["value"] = floatData;
+            }
+        }
+        else
+        {
+            lattice::logError << "channelData message missing both stringData and floatData fields";
+            return false;
+        }
+        
+        return true;
+    }
+
+    // Handle parameterChange - needs processor interaction
+    else if (command == "parameterChange")
+    {
+        return false; // Let processor handle parameter changes
+    }
+
+    // Handle fileOpen - environment specific
+    else if (command == "fileOpen" || command == "fileOpenFromVSCode")
+    {
+        return false; // Environment-specific
+    }
+
+    // Handle stopAudio - CabbageApp specific
+    else if (command == "stopAudio")
+    {
+        return false; // CabbageApp-specific
+    }
+
+    // Handle onFileChanged - CabbageApp specific
+    else if (command == "onFileChanged")
+    {
+        return false; // CabbageApp-specific
+    }
+
+    // Handle initialiseWidgets - CabbageApp specific
+    else if (command == "initialiseWidgets")
+    {
+        return false; // CabbageApp-specific
+    }
+
+    // Unknown command
+    lattice::logDebug << "Unknown or unhandled command: " << command;
+    return false;
+}
+
+//=====================================================================================
+// Handle parameter update from UI - validates, normalizes, and applies changes
+// Returns gesture string for plugin automation, or empty string on failure
+//=====================================================================================
+std::string Engine::handleParameterUpdate(const nlohmann::json &message)
+{
+    // Check for old format (wrapped in "obj") - no longer supported
+    if (message.contains("obj"))
+    {
+        lattice::logDebug << "parameterChange message using deprecated 'obj' wrapper format is no longer supported. "
+                             "Please update to use direct properties.";
+        return "";
+    }
+
+    // Validate required fields
+    if (!message.contains("paramIdx") || !message.contains("value") || !message.contains("channel"))
+    {
+        lattice::logError << "parameterChange message missing required fields (paramIdx, value, or channel)";
+        return "";
+    }
+
+    // Extract paramIdx
+    int paramIdx = message["paramIdx"].get<int>();
+    if (paramIdx < 0 || paramIdx >= static_cast<int>(processor.getParameters().size()))
+    {
+        lattice::logError << "Invalid paramIdx: " << paramIdx 
+                         << " (valid range: 0-" << processor.getParameters().size() - 1 << ")";
+        return "";
+    }
+
+    // Extract denormalized value
+    double denormValue = message["value"].get<double>();
+
+    // Extract channel - can be a string or an object with 'id'
+    std::string channel;
+    if (message["channel"].is_string())
+    {
+        channel = message["channel"].get<std::string>();
+    }
+    else if (message["channel"].is_object() && message["channel"].contains("id"))
+    {
+        channel = message["channel"]["id"].get<std::string>();
+    }
+    else
+    {
+        lattice::logError << "Invalid channel format in parameterChange message";
+        return "";
+    }
+
+    // Extract gesture (optional, defaults to "complete")
+    std::string gesture = message.value("gesture", "complete");
+
+    // Normalize the value
+    auto param = processor.getParameter(paramIdx);
+    double normalizedValue = param.toNormalised(denormValue);
+
+    // Update parameter value
+    processor.setParameter(paramIdx, normalizedValue);
+
+    // Update Csound channel with denormalized value
+    setControlChannel(channel, denormValue);
+
+    // Update widget JSON
+    auto widgetOpt = getWidgetFromId(widgets, channel);
+    if (widgetOpt)
+    {
+        auto &j = widgetOpt->get();
+        j["value"] = denormValue;
+    }
+
+    return gesture;
 }
 
 } // namespace cabbage

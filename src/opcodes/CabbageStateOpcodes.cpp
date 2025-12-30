@@ -32,7 +32,8 @@ int CabbageSaveState::writeDataToDisk()
     // Use the utility function to get the complete widget state
     nlohmann::json stateJson = hostData->saveWidgetState();
 
-    cabbage::File::writeToFile(stateFile, stateJson.dump(-1, ' ', false));
+//    cabbage::File::writeToFile(stateFile, stateJson.dump(-1, ' ', false));
+    cabbage::File::writeToFile(stateFile, stateJson.dump(4));
     
     return IS_OK;
 

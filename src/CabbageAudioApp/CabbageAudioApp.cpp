@@ -221,45 +221,39 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
             jsonObj.erase("command"); // Remove command field from the object
         }
 
-        if (command == "parameterChange")
+        // Add command back to jsonObj for Engine processing
+        jsonObj["command"] = command;
+
+        // Try to handle with Engine first (only if processor exists)
+        if (processor && processor->getCabbageEngine().processWebViewCommand(jsonObj))
+        {
+            lattice::logDebug << "Command handled by Engine: " << command;
+            return;
+        }
+
+        // Handle environment-specific commands
+        if (command == "cabbageIsReadyToLoad")
+        {
+            if (!processor)
+            {
+                lattice::logInfo << "Processor is null! Cannot process cabbageIsReadyToLoad.";
+                return;
+            }
+            lattice::logDebug << "Received cabbageIsReadyToLoad message";
+            processor->setCabbageIsReady();
+            processor->updateUI();
+        }
+
+        else if (command == "parameterChange")
         {
             if (!processor)
             {
                 lattice::logInfo << "Processor is null! Cannot process parameterChange.";
                 return;
             }
-
-            // Get paramIdx from the message - frontend now sends this directly
-            if (!jsonObj.contains("paramIdx"))
-            {
-                lattice::logError << "parameterChange message missing paramIdx field";
-                return;
-            }
-
-            int paramIdx = jsonObj["paramIdx"].get<int>();
-
-            // Validate paramIdx
-            if (paramIdx < 0 || paramIdx >= processor->getParameters().size())
-            {
-                lattice::logError << "Invalid paramIdx: " << paramIdx << " (valid range: 0-"
-                                  << processor->getParameters().size() - 1 << ")";
-                return;
-            }
-
             auto &cabbage = processor->getCabbageEngine();
-
-            // Update underlying JSON object if the value has changed
-            auto widgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), jsonObj["channel"]);
-            if (widgetOpt)
-            {
-                auto &widgetObj = widgetOpt->get();
-                widgetObj["value"] = jsonObj["value"].get<double>();
-            }
-
-            // Normalize the denormalized value from frontend before setting parameter
-            auto param = processor->getParameter(paramIdx);
-            double normalizedValue = param.toNormalised(jsonObj["value"].get<double>());
-            processor->setParameter(paramIdx, normalizedValue);
+            cabbage.handleParameterUpdate(jsonObj);
+            // Engine handles everything for standalone (no gesture handling needed)
         }
 
         else if (command == "fileOpenFromVSCode")
@@ -292,18 +286,6 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
             {
                 lattice::logDebug << "File does not exist";
             }
-        }
-
-        else if (command == "widgetStateUpdate")
-        {
-            if (!processor)
-            {
-                lattice::logInfo << "Processor is null! Cannot process widgetStateUpdate.";
-                return;
-            }
-
-            auto &cabbage = processor->getCabbageEngine();
-            cabbage.updateWidgetState(jsonObj);
         }
 
         else if (command == "midiMessage")

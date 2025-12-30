@@ -223,6 +223,18 @@ class Engine
     // Load complete widget state from JSON and update all systems
     void loadWidgetState(const nlohmann::json &state);
 
+    //=====================================================================================
+    // WebView Command Processing - Central handler for UI messages
+    //=====================================================================================
+    
+    // Process commands from webview (used by both plugin and CabbageApp)
+    // Returns true if command was handled, false if it needs environment-specific handling
+    bool processWebViewCommand(const nlohmann::json &message);
+
+    // Handle parameter update from UI - validates, normalizes, and applies changes
+    // Returns gesture string for plugin automation, or empty string on failure/for standalone
+    std::string handleParameterUpdate(const nlohmann::json &message);
+
   private:
     void addOpcodes();
     int numberOfParameters = 0;

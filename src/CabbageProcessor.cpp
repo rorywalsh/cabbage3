@@ -566,162 +566,45 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
 
     lattice::logDebug << "Processing command: " << incomingMessage["command"];
 
-    if (incomingMessage["command"] == "cabbageIsReadyToLoad")
+    // Try to handle with Engine first
+    if (cabbage.processWebViewCommand(incomingMessage))
+    {
+        lattice::logDebug << "Command handled by Engine";
+        return;
+    }
+
+    // Handle environment-specific commands
+    const std::string command = incomingMessage["command"].get<std::string>();
+
+    if (command == "cabbageIsReadyToLoad")
     {
         setCabbageIsReady();
         updateUI();
     }
-    else if (incomingMessage["command"] == "parameterChange")
+    else if (command == "parameterChange")
     {
-        try
-        {
-            // Check for old format (wrapped in "obj") - no longer supported
-            if (incomingMessage.contains("obj"))
-            {
-                lattice::logDebug << "parameterChange message using deprecated 'obj' wrapper format is no longer "
-                                     "supported. Please update to use direct properties.";
-                return; // Don't process old format
-            }
+        std::string gesture = cabbage.handleParameterUpdate(incomingMessage);
+        if (gesture.empty())
+            return; // Validation failed, error already logged
 
-            // New format: use the message directly
-            auto obj = incomingMessage;
+        // Engine updated the parameter, just handle gesture for DAW automation
+        int paramIdx = incomingMessage["paramIdx"].get<int>();
+        float normalizedValue = getParameters()[paramIdx].value;
 
-            lattice::logDebug << obj.dump(4);
-            // Extract values (now denormalized from frontend)
-            float denormValue = obj.value("value", 0.f);
-            auto paramIdx = obj.value("paramIdx", -1);
-            if (paramIdx < 0)
-                return;
-            auto gesture = obj.value("gesture", "complete");
-
-            // Extract channel - can be a string or an object with 'id'
-            std::string channel;
-            if (obj["channel"].is_string())
-            {
-                channel = obj["channel"].get<std::string>();
-            }
-            else if (obj["channel"].is_object() && obj["channel"].contains("id"))
-            {
-                channel = obj["channel"]["id"].get<std::string>();
-            }
-            else
-            {
-                lattice::logError << "Invalid channel format in parameterChange message";
-                return;
-            }
-
-            auto num = getParameters().size();
-            if (paramIdx >= static_cast<int>(num))
-                return;
-
-            // Normalize for host communication
-            float normalizedValue = getParameter(paramIdx).toNormalised(denormValue);
-            getParameters()[paramIdx].value = normalizedValue;
-
-            if (gesture == "begin")
-            {
-                addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::GestureBegin});
-            }
-            else if (gesture == "value")
-            {
-                addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::Value});
-            }
-            else if (gesture == "end")
-            {
-                addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::GestureEnd});
-            }
-            else
-            {
-                addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::Complete});
-            }
-
-            lattice::logDebug << "Parameter " << paramIdx << " changed to denorm value: " << denormValue
-                              << " (norm: " << normalizedValue << ") on channel: " << channel;
-            // Get parameter range for debugging
-            auto param = getParameter(paramIdx);
-            lattice::logDebug << "Parameter range: min=" << param.min << ", max=" << param.max
-                              << ", current=" << param.value;
-            // Update Csound channel with denormalized value
-            cabbage.setControlChannel(channel, denormValue);
-
-            auto widgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), channel);
-            if (widgetOpt)
-            {
-                auto &j = widgetOpt->get();
-                j["value"] = denormValue;
-            }
-        }
-        catch (const nlohmann::json::exception &e)
-        {
-            lattice::logError << "Failed to parse 'obj': " << e.what();
-        }
+        if (gesture == "begin")
+            addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::GestureBegin});
+        else if (gesture == "value")
+            addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::Value});
+        else if (gesture == "end")
+            addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::GestureEnd});
+        else
+            addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::Complete});
     }
-    else if (incomingMessage["command"] == "midiMessage")
+    else if (command == "midiMessage")
     {
         addNoteEventFromJson(nlohmann::json::parse(incomingMessage["obj"].get<std::string>()));
-        //"{\"statusByte\":144,\"dataByte1\":77,\"dataByte2\":127}"
     }
-    else if (incomingMessage["command"] == "channelData")
-    {
-        try
-        {
-            // Parse the JSON string contained in "obj"
-            auto obj = nlohmann::json::parse(incomingMessage["obj"].get<std::string>());
-
-            // Extract channel - can be a string or an object
-            std::string channel;
-            if (obj["channel"].is_string())
-            {
-                channel = obj["channel"].get<std::string>();
-            }
-            else if (obj["channel"].is_object() && obj["channel"].contains("id"))
-            {
-                channel = obj["channel"]["id"].get<std::string>();
-            }
-            else if (obj["channel"].is_object())
-            {
-                // For multi-channel, find the first string value
-                for (auto &[key, value] : obj["channel"].items())
-                {
-                    if (value.is_string())
-                    {
-                        channel = value.get<std::string>();
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                lattice::logError << "Invalid channel format in channelStringData message";
-                return;
-            }
-
-            // Check if we have string data or float data
-            if (obj.contains("stringData"))
-            {
-                std::string stringData = obj.value("stringData", "");
-                // Set the Csound string channel
-                cabbage.getCsound()->SetChannel(channel.c_str(), stringData.c_str());
-                lattice::logDebug << "Set channel " << channel << " to string: " << stringData;
-            }
-            else if (obj.contains("floatData"))
-            {
-                double floatData = obj.value("floatData", 0.0);
-                // Set the Csound control channel
-                cabbage.setControlChannel(channel, floatData);
-                lattice::logDebug << "Set channel " << channel << " to float: " << floatData;
-            }
-            else
-            {
-                lattice::logError << "channelStringData message missing both stringData and floatData fields";
-            }
-        }
-        catch (const nlohmann::json::exception &e)
-        {
-            lattice::logError << "Failed to parse channelStringData 'obj': " << e.what();
-        }
-    }
-    else if (incomingMessage["command"] == "fileOpen")
+    else if (command == "fileOpen")
     {
         try
         {
