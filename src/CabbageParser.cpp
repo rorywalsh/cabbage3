@@ -806,8 +806,8 @@ void Parser::assignDefaultRangesToChannels(nlohmann::json &jsonObj)
                     nlohmann::json defaultRange = {
                         {"min", 0.0},
                         {"max", 1.0},
-                        {"value", widgetType == "checkBox" ? 1.0 : 0.0},
-                        {"defaultValue", widgetType == "checkBox" ? 1.0 : 0.0},
+                        {"value", 0.0},
+                        {"defaultValue", 0.0},
                         {"skew", 1.0},
                         {"increment", interaction == "click" ? 1.0 : 0.001}
                     };

@@ -30,19 +30,23 @@ Engine::~Engine()
 
 void Engine::addOpcodes()
 {
-    csnd::plugin<CabbageSetValue>((csnd::Csound *)csound->GetCsound(), "cabbageSetValue", "", "SkP", csnd::thread::k);
+    // The order in which these are registered is important!
     csnd::plugin<CabbageSetValue>((csnd::Csound *)csound->GetCsound(), "cabbageSetValue", "", "Si", csnd::thread::i);
+    csnd::plugin<CabbageSetValue>((csnd::Csound *)csound->GetCsound(), "cabbageSetValue", "", "SkP", csnd::thread::k);
 
-    csnd::plugin<CabbageSetPerfString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSW", csnd::thread::k);
     csnd::plugin<CabbageSetInitString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "SW", csnd::thread::i);
-    csnd::plugin<CabbageSetPerfMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSM", csnd::thread::k);
+    csnd::plugin<CabbageSetPerfString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSW", csnd::thread::k);
+    
     csnd::plugin<CabbageSetInitMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "SSM", csnd::thread::i);
+    csnd::plugin<CabbageSetPerfMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSM", csnd::thread::k);
+    
 
     csnd::plugin<CabbageSetInitMYFLTArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "SSi[]", csnd::thread::i);
     csnd::plugin<CabbageSetPerfMYFLTArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSk[]", csnd::thread::k);
 
-    csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "i", "S", csnd::thread::i);
+    csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
+
     csnd::plugin<CabbageGetValueString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "S", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValueWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "kk", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValueStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "Sk", "So", csnd::thread::ik);
@@ -455,7 +459,22 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetByChannel
 
 const std::string Engine::updateWidgetState(nlohmann::json j)
 {
-    auto const channel = j["channel"].get<std::string>();
+    // Accept either 'id' (new) or 'channel' (legacy)
+    std::string channel;
+    if (j.contains("id") && j["id"].is_string())
+    {
+        channel = j["id"].get<std::string>();
+    }
+    else if (j.contains("channel") && j["channel"].is_string())
+    {
+        channel = j["channel"].get<std::string>();
+    }
+    else
+    {
+        lattice::logError << "updateWidgetState: missing 'id' or 'channel' field";
+        return "";
+    }
+    
     auto widgetOpt = getWidgetFromId(widgets, channel);
     if (widgetOpt.has_value())
     {
@@ -922,6 +941,11 @@ bool Engine::isValueDifferent(const CabbageOpcodeData &data)
 
 void Engine::flushChannelCache()
 {
+    if (!dirtyChannels.empty())
+    {
+        lattice::logDebug << "Flushing " << dirtyChannels.size() << " dirty channels to opcodeData queue";
+    }
+    
     for (const auto &channel : dirtyChannels)
     {
         const auto &cachedData = channelCache[channel];
@@ -1036,7 +1060,6 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
     }
 
     const std::string command = message["command"].get<std::string>();
-    lattice::logDebug << "Engine::processWebViewCommand: " << command;
 
     // Handle cabbageIsReadyToLoad
     if (command == "cabbageIsReadyToLoad")
@@ -1063,29 +1086,47 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
     // Handle channelData
     else if (command == "channelData")
     {
-        // Extract channel - can be a string or an object
+        // Extract channel - accept 'id' (new) or 'channel' (legacy)
         std::string channel;
-        if (message["channel"].is_string())
+        
+        // Try 'id' first (new format)
+        if (message.contains("id"))
         {
-            channel = message["channel"].get<std::string>();
-        }
-        else if (message["channel"].is_object() && message["channel"].contains("id"))
-        {
-            channel = message["channel"]["id"].get<std::string>();
-        }
-        else if (message["channel"].is_object())
-        {
-            // For multi-channel, find the first string value
-            for (auto &[key, value] : message["channel"].items())
+            if (message["id"].is_string())
             {
-                if (value.is_string())
+                channel = message["id"].get<std::string>();
+            }
+            else if (message["id"].is_object() && message["id"].contains("id"))
+            {
+                channel = message["id"]["id"].get<std::string>();
+            }
+        }
+        // Fall back to 'channel' (legacy format)
+        else if (message.contains("channel"))
+        {
+            if (message["channel"].is_string())
+            {
+                channel = message["channel"].get<std::string>();
+            }
+            else if (message["channel"].is_object() && message["channel"].contains("id"))
+            {
+                channel = message["channel"]["id"].get<std::string>();
+            }
+            else if (message["channel"].is_object())
+            {
+                // For multi-channel, find the first string value
+                for (auto &[key, value] : message["channel"].items())
                 {
-                    channel = value.get<std::string>();
-                    break;
+                    if (value.is_string())
+                    {
+                        channel = value.get<std::string>();
+                        break;
+                    }
                 }
             }
         }
-        else
+        
+        if (channel.empty())
         {
             lattice::logError << "Invalid channel format in channelData message";
             return false;
@@ -1097,14 +1138,12 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
             std::string stringData = message.value("stringData", "");
             // Set the Csound string channel
             getCsound()->SetChannel(channel.c_str(), stringData.c_str());
-            lattice::logDebug << "Set channel " << channel << " to string: " << stringData;
         }
         else if (message.contains("floatData"))
         {
             double floatData = message.value("floatData", 0.0);
             // Set the Csound control channel
             setControlChannel(channel, floatData);
-            lattice::logDebug << "Set channel " << channel << " to float: " << floatData;
             
             // Update the widget JSON
             auto widgetOpt = getWidgetFromId(widgets, channel);

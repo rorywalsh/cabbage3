@@ -24,21 +24,20 @@ int CabbageSetValue::setValue(int /*pass*/)
 
     if (trigger == 1)
     {
-        if (csound->get_csound()->GetChannelPtr(csound->get_csound(), (void **)&value, args.str_data(0).data,
-                                                CSOUND_CONTROL_CHANNEL | CSOUND_INPUT_CHANNEL) == CSOUND_SUCCESS)
+        std::string channel = args.str_data(0).data;
+        MYFLT newValue = args[1];
+        
+        if (csound->get_csound()->GetChannelPtr(csound->get_csound(), (void **)&value, channel.c_str(),
+                                                CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
         {
-            *value = args[1];
+            *value = newValue;
         }
 
-        // Only enqueue if value has changed
-        if (lastValue == -1.0 || lastValue != *value)
-        {
-            CabbageOpcodeData data = getValueIdentData(args, true, 0, 1);
-            data.cabbageJson["value"] = *value;
-            data.type = CabbageOpcodeData::MessageType::Value;
-            hostData->updateChannelCache(data);
-            lastValue = *value;
-        }
+        // Always enqueue - let updateChannelCache handle deduplication
+        CabbageOpcodeData data = getValueIdentData(args, true, 0, 1);
+        data.cabbageJson["value"] = newValue;
+        data.type = CabbageOpcodeData::MessageType::Value;
+        hostData->updateChannelCache(data);
 
         kCycles = 0;
     }
@@ -141,6 +140,12 @@ int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
     {
         updateWidgetJson(data.cabbageJson, args, argIndex + 1, data.identifier, CabbageOpcodeData::ArgType::Scalar);
 
+        // If updating the value identifier, also update the Csound channel
+        if (data.identifier == "value")
+        {
+            hostData->setControlChannel(args.str_data(1).data, args[argIndex + 1]);
+        }
+
         // Only enqueue if value has changed
         if (hostData->isValueDifferent(data))
         {
@@ -226,7 +231,14 @@ int CabbageSetInitMYFLTArray::setIdentifier(int /*pass*/)
         return NOTOK;
     }
 
-    updateWidgetJson(data.cabbageJson, args, argIndex + 1, data.identifier, CabbageOpcodeData::ArgType::Array);
+    updateWidgetJson(data.cabbageJson, args, argIndex + 1, data.identifier, CabbageOpcodeData::ArgType::Scalar);
+
+    // If updating the value identifier, also update the Csound channel
+    if (data.identifier == "value")
+    {
+        hostData->setControlChannel(args.str_data(0).data, args[argIndex + 1]);
+    }
+
     hostData->updateChannelCache(data);
 
     return IS_OK;

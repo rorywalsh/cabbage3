@@ -73,6 +73,24 @@ int CabbageCreate::init()
         return NOTOK;
     }
     
+    // Create Csound channel(s) for the widget so cabbageSetValue/cabbageGetValue work
+    cabbage::Parser::assignDefaultRangesToChannels(data.cabbageJson);
+    
+    if (data.cabbageJson.contains("channels") && data.cabbageJson["channels"].is_array())
+    {
+        for (auto &ch : data.cabbageJson["channels"])
+        {
+            if (!ch.contains("id") || !ch["id"].is_string())
+                continue;
+                
+            const std::string channel = ch["id"].get<std::string>();
+            const float defVal = ch["range"]["defaultValue"].get<float>();
+            hostData->setControlChannel(channel, defVal);
+            lattice::logDebug << "cabbageCreate: Created channel '" << channel 
+                              << "' with default value " << defVal;
+        }
+    }
+    
     hostData->opcodeData.enqueue(data);
 
     return IS_OK;

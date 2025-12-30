@@ -166,11 +166,11 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
     // Check for automatable - expect boolean true
     bool isAutomatable = w.contains("automatable") && w["automatable"].is_boolean() && w["automatable"].get<bool>();
 
+    // Ensure default ranges are set if missing
+    cabbage::Parser::assignDefaultRangesToChannels(w);
+
     if (isAutomatable && (!w.contains("channelType") || w["channelType"] == "number"))
     {
-        // Ensure default ranges are set if missing
-        cabbage::Parser::assignDefaultRangesToChannels(w);
-
         try
         {
             // New schema: channels array
@@ -232,7 +232,50 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
         {
             lattice::logError << "JSON error while adding parameter for widget: " << e.what() << "\n" << w.dump(4);
             // Don't crash - just skip this widget and continue
-            // cabbage::Utils::check(false, "");
+        }
+    }
+    else
+    {
+        // Non-automatable widget - still needs Csound channel created for cabbageGetValue/cabbageSetValue
+        try
+        {
+            if (w.contains("channels") && w["channels"].is_array())
+            {
+                for (auto &ch : w["channels"])
+                {
+                    if (!ch.contains("id") || !ch["id"].is_string())
+                        continue;
+
+                    const std::string channel = ch["id"].get<std::string>();
+                    const float defVal = ch["range"]["defaultValue"].get<float>();
+                    
+                    // Create Csound channel with default value
+                    cabbage.setControlChannel(channel, defVal);
+                    lattice::logDebug << "Created channel for non-automatable widget '" << channel 
+                                      << "' with default value " << defVal;
+                }
+            }
+            // Legacy schema: single id
+            else if (w.contains("id") && w["id"].is_string())
+            {
+                const std::string channel = w["id"].get<std::string>();
+                float defVal = 0.0f;
+                if (w.contains("value"))
+                {
+                    if (w["value"].is_number())
+                        defVal = w["value"].get<float>();
+                    else if (w["value"].is_boolean())
+                        defVal = w["value"].get<bool>() ? 1.0f : 0.0f;
+                }
+                
+                cabbage.setControlChannel(channel, defVal);
+                lattice::logDebug << "Created channel for non-automatable widget (legacy) '" << channel 
+                                  << "' with default value " << defVal;
+            }
+        }
+        catch (nlohmann::json::exception &e)
+        {
+            lattice::logError << "JSON error while creating channel for non-automatable widget: " << e.what();
         }
     }
 }
@@ -347,6 +390,8 @@ void CabbageProcessor::onIdle()
             latestMessages[data.channel] = data;
         }
 
+        // lattice::logDebug << "Dequeued " << latestMessages.size() << " unique messages from opcodeData";
+
         // Now process only the latest message for each channel
         for (const auto &[channel, latestData] : latestMessages)
         {
@@ -395,6 +440,7 @@ void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
                 msg["command"] = "widgetUpdate";
                 msg["id"] = data.channel;
                 msg["value"] = value;
+                lattice::logDebug << "Sending value update to webview: " << msg.dump();
                 sendWebViewMessage(msg);
             }
         }
@@ -411,6 +457,7 @@ void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
             msg["command"] = "widgetUpdate";
             msg["id"] = data.channel;
             msg["widgetJson"] = j.dump();  // Send as JSON string, consistent with updateUI()
+            lattice::logDebug << "Sending widgetJson update to webview: channel=" << data.channel;
             sendWebViewMessage(msg);
         }
     }
@@ -563,8 +610,23 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
         lattice::logError << "Invalid message format received from webview: " << j.dump();
         return;
     }
-
-    lattice::logDebug << "Processing command: " << incomingMessage["command"];
+    
+    // Unpack 'obj' field if present (for plugin mode messages)
+    if (incomingMessage.contains("obj") && incomingMessage["obj"].is_string())
+    {
+        try
+        {
+            auto objData = nlohmann::json::parse(incomingMessage["obj"].get<std::string>());
+            // Merge obj data into the message, keeping the command field
+            std::string cmd = incomingMessage["command"].get<std::string>();
+            incomingMessage = objData;
+            incomingMessage["command"] = cmd;
+        }
+        catch (const nlohmann::json::exception &e)
+        {
+            lattice::logError << "Failed to parse 'obj' field: " << e.what();
+        }
+    }
 
     // Try to handle with Engine first
     if (cabbage.processWebViewCommand(incomingMessage))

@@ -147,7 +147,7 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
         }
         else
         {
-            msg["data"] = j.dump();
+            msg["widgetJson"] = j.dump();
         }
 
         sendJsonMessage(msg);
@@ -340,18 +340,18 @@ void CabbageAudioApp::sendWidgetDataToVscode()
         // Use id if available, otherwise fallback to channel
         if (w.contains("id") && w["id"].is_string())
         {
-            msg["channel"] = w["id"];
+            msg["id"] = w["id"];
         }
         else if (w.contains("channels") && w["channels"].is_array() && !w["channels"].empty() &&
                  w["channels"][0].contains("id"))
         {
-            msg["channel"] = w["channels"][0]["id"];
+            msg["id"] = w["channels"][0]["id"];
         }
         else
         {
-            msg["channel"] = w["channel"];
+            msg["id"] = w["channel"];
         }
-        msg["data"] = w.dump();
+        msg["widgetJson"] = w.dump();
         sendJsonMessage(msg);
     }
 

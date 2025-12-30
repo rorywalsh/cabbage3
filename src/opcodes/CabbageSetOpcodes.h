@@ -22,7 +22,6 @@
 struct CabbageSetValue : csnd::InPlug<3>, CabbageOpcodes<3>
 {
     MYFLT *value;
-    MYFLT lastValue = -1.0; // Sentinel value to ensure first value is always sent
     int init() { return setValue(CabbageOpcodeData::PassType::Init); };
     int kperf() { return setValue(CabbageOpcodeData::PassType::Perf); };
     int setValue(int init);
