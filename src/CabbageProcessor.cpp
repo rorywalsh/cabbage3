@@ -53,6 +53,12 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Pr
     }
 
     startOnIdle();
+    
+    // For CabbageApp, enable dequeuing immediately so widgets created during
+    // init are processed right away. For plugins, this is set when UI is ready.
+#ifdef CabbageApp
+    allowDequeuing = true;
+#endif
 }
 
 CabbageProcessor::~CabbageProcessor()
@@ -389,8 +395,6 @@ void CabbageProcessor::onIdle()
             // Newer messages automatically overwrite older ones
             latestMessages[data.channel] = data;
         }
-
-        // lattice::logDebug << "Dequeued " << latestMessages.size() << " unique messages from opcodeData";
 
         // Now process only the latest message for each channel
         for (const auto &[channel, latestData] : latestMessages)

@@ -151,6 +151,9 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
         }
 
         sendJsonMessage(msg);
+        
+        // Small delay to prevent stdio buffer overflow when sending many widgets at once
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
     }
 }
 
