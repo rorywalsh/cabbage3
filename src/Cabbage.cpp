@@ -1253,6 +1253,12 @@ std::string Engine::handleParameterUpdate(const nlohmann::json &message)
     auto param = processor.getParameter(paramIdx);
     double normalizedValue = param.toNormalised(denormValue);
 
+    lattice::logInfo << "handleParameterUpdate: paramIdx=" << paramIdx 
+                     << ", denormValue=" << denormValue
+                     << ", normalizedValue=" << normalizedValue
+                     << ", param.min=" << param.min
+                     << ", param.max=" << param.max;
+
     // Update parameter value
     processor.setParameter(paramIdx, normalizedValue);
 

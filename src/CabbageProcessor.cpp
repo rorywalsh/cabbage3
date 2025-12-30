@@ -219,6 +219,11 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                     const float defVal = ch["range"]["defaultValue"].get<float>();
                     const float incVal = ch["range"]["increment"].get<float>();
                     const float skewVal = ch["range"]["skew"].get<float>();
+                    
+                    lattice::logInfo << "Creating parameter '" << channel << "': min=" << minValAdjusted 
+                                     << ", max=" << maxVal << ", default=" << defVal 
+                                     << ", inc=" << incVal << ", skew=" << skewVal;
+                    
                     addParameter({channel, minValAdjusted, maxVal, defVal, incVal, skewVal});
 
                     // Set initial value in Csound
@@ -657,6 +662,8 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
         int paramIdx = incomingMessage["paramIdx"].get<int>();
         float normalizedValue = getParameters()[paramIdx].value;
 
+        lattice::logInfo << "CabbageProcessor: After handleParameterUpdate, stored normalizedValue=" << normalizedValue;
+
         if (gesture == "begin")
             addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::GestureBegin});
         else if (gesture == "value")
@@ -821,9 +828,11 @@ void CabbageProcessor::loadPluginState(nlohmann::json state)
 //========================================================================================
 void CabbageProcessor::setParameter(int paramId, double value)
 {
+    // Store the normalized value (value parameter is already normalized)
+    getParameters()[paramId].value = value;
+    
+    // Calculate denormalized value for Csound channel
     const float denormalValue = getParameter(paramId).fromNormalised(value);
-    getParameters()[paramId].value = denormalValue;
-
     const auto channel = getParameters()[paramId].name;
 
     // cabbage2 -> cabbage3 combobox quirk
