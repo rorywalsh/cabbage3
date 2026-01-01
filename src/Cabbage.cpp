@@ -47,10 +47,12 @@ void Engine::addOpcodes()
 
     csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "i", "S", csnd::thread::i);
     csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
+    csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "S", "S", csnd::thread::i);
+    csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "S", "S", csnd::thread::k);
 
     csnd::plugin<CabbageGetValueString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "S", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValueWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "kk", "S", csnd::thread::ik);
-    csnd::plugin<CabbageGetValueStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "Sk", "So", csnd::thread::ik);
+    csnd::plugin<CabbageGetValueStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "Sk", "S", csnd::thread::ik);
 
     csnd::plugin<CabbageGetMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "k", "SW", csnd::thread::ik);
     csnd::plugin<CabbageGetMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "i", "SS", csnd::thread::i);
@@ -66,6 +68,8 @@ void Engine::addOpcodes()
     
     csnd::plugin<CabbageGetFiles>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetFiles", "S[]", "SS", csnd::thread::i);
     csnd::plugin<CabbageCreateFileName>((csnd::Csound *)getCsound()->GetCsound(), "cabbageCreateFileName", "S", "SS", csnd::thread::i);
+    csnd::plugin<CabbageJoinPath>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJoinPath", "S", "SW", csnd::thread::i);
+
 }
 
 bool Engine::setupCsound()
@@ -1101,7 +1105,6 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
     // Handle cabbageIsReadyToLoad
     if (command == "cabbageIsReadyToLoad")
     {
-        lattice::logDebug << "Cabbage UI is ready to load";
         // This is typically handled by the processor to trigger UI updates
         return false; // Let processor handle this
     }
@@ -1165,7 +1168,7 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
         
         if (channel.empty())
         {
-            lattice::logError << "Invalid channel format in channelData message";
+            lattice::logError << "Invalid channel format in channelData message: " << message.dump();
             return false;
         }
 

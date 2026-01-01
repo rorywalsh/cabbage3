@@ -40,3 +40,9 @@ struct CabbageCreateFileName : csnd::Plugin<1, 2>
     int createFileName();
 };
 
+struct CabbageJoinPath : csnd::Plugin<1, 32>
+{
+    int init(){    return joinPath(); };
+    int joinPath();
+};
+

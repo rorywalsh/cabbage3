@@ -329,6 +329,7 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
                     jsonObj[key]["directory"] = directory;
                     jsonObj[key]["fileType"] = fileType;
                     jsonObj["channelType"] = "string";
+                    jsonObj["automatable"] = false;
 
                     // Optionally return only filename stems (no directory, no extension)
                     bool fullPath = false;

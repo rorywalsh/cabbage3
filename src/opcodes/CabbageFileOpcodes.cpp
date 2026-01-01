@@ -94,3 +94,40 @@ int CabbageCreateFileName::createFileName()
     return IS_OK;
 }
 
+
+//===========================================================================================
+int CabbageJoinPath::joinPath() {
+    // Require at least one argument
+    if (in_count() < 1)
+    {
+        outargs.str_data(0).size = 1;
+        outargs.str_data(0).data = "";
+        return IS_OK;
+    }
+
+    // Start with the first argument as base
+    auto &baseArg = inargs.str_data(0);
+    std::string baseStr;
+    if (baseArg.data != nullptr && baseArg.size > 0)
+        baseStr = std::string(baseArg.data, baseArg.size);
+
+    std::filesystem::path result = baseStr;
+
+    // Append remaining parts
+    for (int i = 1; i < int(in_count()); ++i)
+    {
+        auto &arg = inargs.str_data(i);
+        if (arg.data != nullptr && arg.size > 0)
+        {
+            std::string part(arg.data, arg.size);
+            result /= part;
+        }
+    }
+
+    std::string finalPath = result.generic_string();
+
+    outargs.str_data(0).size = static_cast<int>(finalPath.size() + 1);
+    outargs.str_data(0).data = csound->strdup(finalPath.data());
+
+    return IS_OK;
+}

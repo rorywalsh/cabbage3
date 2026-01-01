@@ -599,18 +599,14 @@ void CabbageProcessor::setCabbageIsReady()
 //========================================================================================
 void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
 {
-    lattice::logDebug << "onMessageFromWebView received: " << j.dump();
-
     // Handle both array-wrapped messages (legacy plugin format) and plain object messages (VSCode extension)
     nlohmann::json incomingMessage;
     if (j.is_array() && !j.empty())
     {
-        lattice::logDebug << "Message is array, extracting first element";
         incomingMessage = j.at(0);
     }
     else if (j.is_object())
     {
-        lattice::logDebug << "Message is plain object";
         incomingMessage = j;
     }
     else
@@ -639,7 +635,6 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
     // Try to handle with Engine first
     if (cabbage.processWebViewCommand(incomingMessage))
     {
-        lattice::logDebug << "Command handled by Engine";
         return;
     }
 
