@@ -23,6 +23,7 @@
 #include "opcodes/CabbageGetOpcodes.h"
 #include "opcodes/CabbageCreateOpcode.h"
 #include "opcodes/CabbageStateOpcodes.h"
+#include "opcodes/CabbageFileOpcodes.h"
 
 class CabbageProcessor;
 struct CabbageOpcodeData;

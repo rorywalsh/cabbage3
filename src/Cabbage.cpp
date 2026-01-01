@@ -15,9 +15,10 @@ namespace cabbage
 {
 
 Engine::Engine(CabbageProcessor &p, std::string file)
-    : csdFile(file), processor(p) {
-
-      };
+    : csdFile(file), processor(p)
+{
+    
+};
 
 Engine::~Engine()
 {
@@ -62,6 +63,9 @@ void Engine::addOpcodes()
     
     csnd::plugin<CabbageSaveState>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSaveState", "", "S", csnd::thread::k);
     csnd::plugin<CabbageLoadState>((csnd::Csound *)getCsound()->GetCsound(), "cabbageLoadState", "", "S", csnd::thread::k);
+    
+    csnd::plugin<CabbageGetFiles>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetFiles", "S[]", "SS", csnd::thread::i);
+    csnd::plugin<CabbageCreateFileName>((csnd::Csound *)getCsound()->GetCsound(), "cabbageCreateFileName", "S", "SS", csnd::thread::i);
 }
 
 bool Engine::setupCsound()
@@ -96,15 +100,13 @@ bool Engine::setupCsound()
     {
         // Check for compile time errors
         csCompileResult = csound->Compile(csdFile.c_str());
-
+        setReservedChannels();
         // No check for i-time errors and instr0 issues
         if (csound->Start() == CSOUND_SUCCESS && csdCompiledWithoutError())
         {
             csdKsmps = csound->GetKsmps();
             csSpin = csound->GetSpin();
             csScale = csound->Get0dBFS();
-            setReservedChannels();
-
             lattice::logDebug << "Resetting csound ...\ncsound = " << csound.get();
         }
         else
@@ -201,6 +203,41 @@ void Engine::setReservedChannels()
 {
     auto path = cabbage::File::getCsdPath(csdFile);
     csound->SetStringChannel("CSD_PATH", (char *)path.c_str());
+
+    // Set all reserved directory channels using lattice::File::getSpecialLocation
+    // All paths are converted to generic string format, i.e, forward slashes, for cross-platform compatibility
+    csound->SetStringChannel("USER_HOME_DIRECTORY",
+        (char *)std::filesystem::path(lattice::File::getSpecialLocation("USER_HOME_DIRECTORY")).generic_string().c_str());
+
+    csound->SetStringChannel("USER_DOCUMENTS_DIRECTORY",
+        (char *)std::filesystem::path(lattice::File::getSpecialLocation("USER_DOCUMENTS_DIRECTORY")).generic_string().c_str());
+
+    csound->SetStringChannel("USER_DESKTOP_DIRECTORY",
+        (char *)std::filesystem::path(lattice::File::getSpecialLocation("USER_DESKTOP_DIRECTORY")).generic_string().c_str());
+
+    csound->SetStringChannel("USER_MUSIC_DIRECTORY",
+        (char *)std::filesystem::path(lattice::File::getSpecialLocation("USER_MUSIC_DIRECTORY")).generic_string().c_str());
+
+    csound->SetStringChannel("USER_MOVIES_DIRECTORY",
+        (char *)std::filesystem::path(lattice::File::getSpecialLocation("USER_MOVIES_DIRECTORY")).generic_string().c_str());
+
+    csound->SetStringChannel("USER_PICTURES_DIRECTORY",
+        (char *)std::filesystem::path(lattice::File::getSpecialLocation("USER_PICTURES_DIRECTORY")).generic_string().c_str());
+
+    csound->SetStringChannel("USER_APPLICATION_DATA_DIRECTORY",
+        (char *)std::filesystem::path(lattice::File::getSpecialLocation("USER_APPLICATION_DATA_DIRECTORY")).generic_string().c_str());
+
+    csound->SetStringChannel("COMMON_APPLICATION_DATA_DIRECTORY",
+        (char *)std::filesystem::path(lattice::File::getSpecialLocation("COMMON_APPLICATION_DATA_DIRECTORY")).generic_string().c_str());
+
+    csound->SetStringChannel("COMMON_DOCUMENTS_DIRECTORY",
+        (char *)std::filesystem::path(lattice::File::getSpecialLocation("COMMON_DOCUMENTS_DIRECTORY")).generic_string().c_str());
+
+    csound->SetStringChannel("WINDOWS_SYSTEM_DIRECTORY",
+        (char *)std::filesystem::path(lattice::File::getSpecialLocation("WINDOWS_SYSTEM_DIRECTORY")).generic_string().c_str());
+
+    csound->SetStringChannel("GLOBAL_APPLICATIONS_DIRECTORY",
+        (char *)std::filesystem::path(lattice::File::getSpecialLocation("GLOBAL_APPLICATIONS_DIRECTORY")).generic_string().c_str());
 }
 
 //===========================================================================================
@@ -1253,11 +1290,6 @@ std::string Engine::handleParameterUpdate(const nlohmann::json &message)
     auto param = processor.getParameter(paramIdx);
     double normalizedValue = param.toNormalised(denormValue);
 
-    lattice::logInfo << "handleParameterUpdate: paramIdx=" << paramIdx 
-                     << ", denormValue=" << denormValue
-                     << ", normalizedValue=" << normalizedValue
-                     << ", param.min=" << param.min
-                     << ", param.max=" << param.max;
 
     // Update parameter value
     processor.setParameter(paramIdx, normalizedValue);

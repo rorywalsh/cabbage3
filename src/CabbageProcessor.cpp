@@ -53,7 +53,7 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Pr
     }
 
     startOnIdle();
-    
+
     // For CabbageApp, enable dequeuing immediately so widgets created during
     // init are processed right away. For plugins, this is set when UI is ready.
 #ifdef CabbageApp
@@ -64,15 +64,15 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Pr
 CabbageProcessor::~CabbageProcessor()
 {
     suspendProcessing();
-    
+
     // Drain any pending operations from queues before stopping threads
     // This prevents race conditions where the audio thread might try to
     // access the queue while it's being destroyed
     allowDequeuing = false;
-    
+
     // Give any in-flight queue operations time to complete
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    
+
     stopIdleThread();
 }
 
@@ -219,11 +219,11 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                     const float defVal = ch["range"]["defaultValue"].get<float>();
                     const float incVal = ch["range"]["increment"].get<float>();
                     const float skewVal = ch["range"]["skew"].get<float>();
-                    
-                    lattice::logInfo << "Creating parameter '" << channel << "': min=" << minValAdjusted 
-                                     << ", max=" << maxVal << ", default=" << defVal 
-                                     << ", inc=" << incVal << ", skew=" << skewVal;
-                    
+
+                    lattice::logInfo << "Creating parameter '" << channel << "': min=" << minValAdjusted
+                                     << ", max=" << maxVal << ", default=" << defVal << ", inc=" << incVal
+                                     << ", skew=" << skewVal;
+
                     addParameter({channel, minValAdjusted, maxVal, defVal, incVal, skewVal});
 
                     // Set initial value in Csound
@@ -259,10 +259,10 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
 
                     const std::string channel = ch["id"].get<std::string>();
                     const float defVal = ch["range"]["defaultValue"].get<float>();
-                    
+
                     // Create Csound channel with default value
                     cabbage.setControlChannel(channel, defVal);
-                    lattice::logDebug << "Created channel for non-automatable widget '" << channel 
+                    lattice::logDebug << "Created channel for non-automatable widget '" << channel
                                       << "' with default value " << defVal;
                 }
             }
@@ -278,9 +278,9 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                     else if (w["value"].is_boolean())
                         defVal = w["value"].get<bool>() ? 1.0f : 0.0f;
                 }
-                
+
                 cabbage.setControlChannel(channel, defVal);
-                lattice::logDebug << "Created channel for non-automatable widget (legacy) '" << channel 
+                lattice::logDebug << "Created channel for non-automatable widget (legacy) '" << channel
                                   << "' with default value " << defVal;
             }
         }
@@ -412,7 +412,7 @@ void CabbageProcessor::onIdle()
                 {
                     continue;
                 }
-                
+
                 cabbage::Parser::mergeJsonProperties(j, latestData.cabbageJson);
             }
 
@@ -465,8 +465,7 @@ void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
             nlohmann::json msg;
             msg["command"] = "widgetUpdate";
             msg["id"] = data.channel;
-            msg["widgetJson"] = j.dump();  // Send as JSON string, consistent with updateUI()
-            lattice::logDebug << "Sending widgetJson update to webview: channel=" << data.channel;
+            msg["widgetJson"] = j.dump(); // Send as JSON string, consistent with updateUI()
             sendWebViewMessage(msg);
         }
     }
@@ -601,7 +600,7 @@ void CabbageProcessor::setCabbageIsReady()
 void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
 {
     lattice::logDebug << "onMessageFromWebView received: " << j.dump();
-    
+
     // Handle both array-wrapped messages (legacy plugin format) and plain object messages (VSCode extension)
     nlohmann::json incomingMessage;
     if (j.is_array() && !j.empty())
@@ -619,7 +618,7 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
         lattice::logError << "Invalid message format received from webview: " << j.dump();
         return;
     }
-    
+
     // Unpack 'obj' field if present (for plugin mode messages)
     if (incomingMessage.contains("obj") && incomingMessage["obj"].is_string())
     {
@@ -661,8 +660,6 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
         // Engine updated the parameter, just handle gesture for DAW automation
         int paramIdx = incomingMessage["paramIdx"].get<int>();
         float normalizedValue = getParameters()[paramIdx].value;
-
-        lattice::logInfo << "CabbageProcessor: After handleParameterUpdate, stored normalizedValue=" << normalizedValue;
 
         if (gesture == "begin")
             addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::GestureBegin});
@@ -746,7 +743,7 @@ void CabbageProcessor::addNoteEventFromJson(const nlohmann::json &j)
 // Update UI - we typically call this when we want to update widgets in the UI
 //========================================================================================
 void CabbageProcessor::updateUI()
-{    
+{
     // iterate over all widget objects and send to webview
     int widgetsSent = 0;
     for (auto &w : cabbage.getWidgets())
@@ -773,10 +770,9 @@ void CabbageProcessor::updateUI()
         nlohmann::json msg;
         msg["command"] = "widgetUpdate";
         msg["id"] = channelStr;
-        msg["widgetJson"] = w.dump();  // Send as JSON string, like CabbageApp does
+        msg["widgetJson"] = w.dump(); // Send as JSON string, like CabbageApp does
         if (uiIsOpen)
         {
-            lattice::logDebug << "Sending widgetUpdate for: " << channelStr;
             sendWebViewMessage(msg);
             widgetsSent++;
         }
@@ -785,7 +781,7 @@ void CabbageProcessor::updateUI()
             lattice::logDebug << "Widget not sent (uiIsOpen=false): " << channelStr;
         }
     }
-    
+
     lattice::logDebug << "Total widgets sent: " << widgetsSent;
 
     // Check if editor has any pending messages when loaded..
@@ -830,7 +826,7 @@ void CabbageProcessor::setParameter(int paramId, double value)
 {
     // Store the normalized value (value parameter is already normalized)
     getParameters()[paramId].value = value;
-    
+
     // Calculate denormalized value for Csound channel
     const float denormalValue = getParameter(paramId).fromNormalised(value);
     const auto channel = getParameters()[paramId].name;

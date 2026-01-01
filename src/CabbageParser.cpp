@@ -294,42 +294,62 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
             {
                 if (value.is_object())
                 {
-                    // Validate required fields in populate object
-                    if (!value.contains("directory") || !value["directory"].is_string()) {
+                    // Merge with existing populate object if it exists
+                    nlohmann::json mergedPopulate = jsonObj.contains("populate") && jsonObj["populate"].is_object() 
+                        ? jsonObj["populate"] 
+                        : nlohmann::json::object();
+                    
+                    // Update with incoming fields
+                    for (auto& [k, v] : value.items()) {
+                        mergedPopulate[k] = v;
+                    }
+                    
+                    // Validate required fields in the merged populate object
+                    if (!mergedPopulate.contains("directory") || !mergedPopulate["directory"].is_string()) {
                         lattice::logError << "populate object missing required 'directory' string field for widget type: " << widgetType;
                         continue;
                     }
                     
-                    if (!value.contains("fileType") || !value["fileType"].is_string()) {
+                    if (!mergedPopulate.contains("fileType") || !mergedPopulate["fileType"].is_string()) {
                         lattice::logError << "populate object missing required 'fileType' string field for widget type: " << widgetType;
                         continue;
                     }
                     
-                    std::string directory = value["directory"].get<std::string>();
-                    std::string fileType = cabbage::Utils::sanitisePath(value["fileType"].get<std::string>());
+                    std::string directory = mergedPopulate["directory"].get<std::string>();
+                    std::string fileType = cabbage::Utils::sanitisePath(mergedPopulate["fileType"].get<std::string>());
                     
                     lattice::logInfo << "Populating widget from directory: " << directory << " with file type: " << fileType;
                     
                     std::vector<std::string> files = File::getFilesOfType(directory, fileType);
-                    
+
                     if (files.empty()) {
                         lattice::logWarning << "No files found in directory '" << directory << "' with type '" << fileType << "'";
                     }
-                    
+
                     jsonObj[key]["directory"] = directory;
                     jsonObj[key]["fileType"] = fileType;
                     jsonObj["channelType"] = "string";
-                    
-                    
+
+                    // Optionally return only filename stems (no directory, no extension)
+                    bool fullPath = false;
+                    if (value.contains("fullFileAndPath") && value["fullFileAndPath"].is_boolean()) {
+                        fullPath = value["fullFileAndPath"].get<bool>();
+                    }
+
+                    std::vector<std::string> items;
                     if (!files.empty()) {
-                        const std::string items =
-                            std::accumulate(std::next(files.begin()), files.end(), files[0],
-                                            [](std::string a, const std::string &b) { return std::move(a) + ", " + b; });
-                        jsonObj["items"] = files;
+                        if (!fullPath) {
+                            items.reserve(files.size());
+                            for (const auto &fp : files) {
+                                items.push_back(std::filesystem::path(fp).filename().stem().string());
+                            }
+                        } else {
+                            items = files;
+                        }
+                        jsonObj["items"] = items;
                         lattice::logDebug << "Found " << files.size() << " files for populate operation";
                     } else {
-                        std::vector<std::string> tmp;
-                        jsonObj["items"] = tmp;
+                        jsonObj["items"] = items; // empty
                     }
                 }
                 else

@@ -144,16 +144,20 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
         if (data.type == CabbageOpcodeData::MessageType::Value)
         {
             msg["value"] = j["value"].get<float>();
+            sendJsonMessage(msg);
+        }
+        else if (data.type == CabbageOpcodeData::MessageType::Widget)
+        {
+            msg["widgetJson"] = j.dump();
+            sendJsonMessage(msg);
+            // Small delay only for widget creation to prevent stdout buffer overflow
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
         }
         else
         {
             msg["widgetJson"] = j.dump();
+            sendJsonMessage(msg);
         }
-
-        sendJsonMessage(msg);
-        
-        // Small delay to prevent stdio buffer overflow when sending many widgets at once
-        std::this_thread::sleep_for(std::chrono::microseconds(100));
     }
 }
 
@@ -163,7 +167,10 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
 void CabbageAudioApp::sendJsonMessage(const nlohmann::json &msg)
 {
     std::lock_guard<std::mutex> lock(stdoutMutex);
-    std::cout << "CABBAGE_JSON:" << msg.dump() << std::endl; // Prepend identifier and flush
+
+    // Ensure stdout is unbuffered for immediate delivery
+    std::cout << "CABBAGE_JSON:" << msg.dump() << std::endl;
+    std::cout.flush(); // Explicit flush to ensure message is sent immediately
 }
 
 //==============================================================================
