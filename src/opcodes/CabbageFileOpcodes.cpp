@@ -88,8 +88,11 @@ int CabbageCreateFileName::createFileName()
 
        ++suffix;
    }
-    outargs.str_data(0).size = int(strlen(fileName.c_str()) + 1);
-    outargs.str_data(0).data = csound->strdup(fileName.data());
+   
+    // Return the full absolute path
+    std::string fullPath = (directory / fileName).string();
+    outargs.str_data(0).size = int(fullPath.size() + 1);
+    outargs.str_data(0).data = csound->strdup((char*)fullPath.c_str());
 
     return IS_OK;
 }

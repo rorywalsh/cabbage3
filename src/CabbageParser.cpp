@@ -326,8 +326,46 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
                         lattice::logWarning << "No files found in directory '" << directory << "' with type '" << fileType << "'";
                     }
 
+                    // Apply sorting based on populate.order property
+                    std::string orderType = "alphanumeric"; // default
+                    if (mergedPopulate.contains("order") && mergedPopulate["order"].is_string()) {
+                        orderType = mergedPopulate["order"].get<std::string>();
+                    }
+
+                    if (orderType == "date") {
+                        // Sort by modification time (oldest first)
+                        std::sort(files.begin(), files.end(),
+                            [](const std::string &a, const std::string &b) {
+                                namespace fs = std::filesystem;
+                                try {
+                                    auto timeA = fs::last_write_time(a);
+                                    auto timeB = fs::last_write_time(b);
+                                    return timeA < timeB; // oldest first
+                                } catch (...) {
+                                    return a < b; // fallback to alphanumeric
+                                }
+                            });
+                    } else if (orderType == "size") {
+                        // Sort by file size (largest first)
+                        std::sort(files.begin(), files.end(),
+                            [](const std::string &a, const std::string &b) {
+                                namespace fs = std::filesystem;
+                                try {
+                                    auto sizeA = fs::file_size(a);
+                                    auto sizeB = fs::file_size(b);
+                                    return sizeA > sizeB; // largest first
+                                } catch (...) {
+                                    return a < b; // fallback to alphanumeric
+                                }
+                            });
+                    }
+                    // else "alphanumeric" - already sorted by getFilesOfType
+
                     jsonObj[key]["directory"] = directory;
                     jsonObj[key]["fileType"] = fileType;
+                    if (!orderType.empty()) {
+                        jsonObj[key]["order"] = orderType;
+                    }
                     // Set channel type to string for populate
                     if (jsonObj.contains("channels") && jsonObj["channels"].is_array() && !jsonObj["channels"].empty()) {
                         jsonObj["channels"][0]["type"] = "string";
@@ -351,7 +389,7 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
                             items = files;
                         }
                         jsonObj["items"] = items;
-                        lattice::logDebug << "Found " << files.size() << " files for populate operation";
+                        lattice::logDebug << "Found " << files.size() << " files for populate operation (order: " << orderType << ")";
                     } else {
                         jsonObj["items"] = items; // empty
                     }
