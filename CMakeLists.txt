@@ -197,6 +197,8 @@ set(CABBAGE_OPCODE_SOURCES
     "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageOpcodes.h"
     "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageStateOpcodes.cpp"
     "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageStateOpcodes.h"
+    "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageFileOpcodes.cpp"
+    "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageFileOpcodes.h"
 )
 
 # ----------------------------

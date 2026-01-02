@@ -150,11 +150,12 @@ int CabbageGetValueStringWithTrigger::getValue(int rate)
         return NOTOK;
 
     int trigOnInit = 0;
+    std::string channel = inargs.str_data(0).data;
 
     if (in_count() == 2)
         trigOnInit = inargs[1];
 
-    if (csound->get_csound()->GetChannelPtr(csound->get_csound(), (void **)&value, inargs.str_data(0).data,
+    if (csound->get_csound()->GetChannelPtr(csound->get_csound(), (void **)&value, channel.c_str(),
                                             CSOUND_STRING_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
     {
         if (!currentString)
