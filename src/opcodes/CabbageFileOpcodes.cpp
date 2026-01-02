@@ -108,8 +108,8 @@ int CabbageJoinPath::joinPath() {
     // Start with the first argument as base
     auto &baseArg = inargs.str_data(0);
     std::string baseStr;
-    if (baseArg.data != nullptr && baseArg.size > 0)
-        baseStr = std::string(baseArg.data, baseArg.size);
+    if (baseArg.data != nullptr)
+        baseStr = std::string(baseArg.data); // Use null-terminated string constructor
 
     std::filesystem::path result = baseStr;
 
@@ -117,10 +117,23 @@ int CabbageJoinPath::joinPath() {
     for (int i = 1; i < int(in_count()); ++i)
     {
         auto &arg = inargs.str_data(i);
-        if (arg.data != nullptr && arg.size > 0)
+        if (arg.data != nullptr)
         {
-            std::string part(arg.data, arg.size);
-            result /= part;
+            std::string part(arg.data); // Use null-terminated string constructor
+            
+            // If the part starts with a dot, treat it as an extension to append to the filename
+            // rather than a separate path component
+            if (!part.empty() && part[0] == '.')
+            {
+                // Append extension directly to the last component
+                std::string currentPath = result.string();
+                result = currentPath + part;
+            }
+            else
+            {
+                // Normal path component - use filesystem path joining
+                result /= part;
+            }
         }
     }
 

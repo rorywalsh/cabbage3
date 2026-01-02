@@ -175,7 +175,15 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
     // Ensure default ranges are set if missing
     cabbage::Parser::assignDefaultRangesToChannels(w);
 
-    if (isAutomatable && (!w.contains("channelType") || w["channelType"] == "number"))
+    // Check if channel type is numeric (default) or explicitly set to number
+    bool isNumericChannel = true;
+    if (w.contains("channels") && w["channels"].is_array() && !w["channels"].empty()) {
+        if (w["channels"][0].contains("type") && w["channels"][0]["type"].is_string()) {
+            isNumericChannel = (w["channels"][0]["type"].get<std::string>() == "number");
+        }
+    }
+    
+    if (isAutomatable && isNumericChannel)
     {
         try
         {
@@ -258,12 +266,29 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                         continue;
 
                     const std::string channel = ch["id"].get<std::string>();
-                    const float defVal = ch["range"]["defaultValue"].get<float>();
-
-                    // Create Csound channel with default value
-                    cabbage.setControlChannel(channel, defVal);
-                    lattice::logDebug << "Created channel for non-automatable widget '" << channel
-                                      << "' with default value " << defVal;
+                    
+                    // Check channel type - default to "number" if not specified
+                    std::string channelType = "number";
+                    if (ch.contains("type") && ch["type"].is_string())
+                    {
+                        channelType = ch["type"].get<std::string>();
+                    }
+                    
+                    // Create appropriate channel type
+                    if (channelType == "string")
+                    {
+                        // For string channels, set empty string as default
+                        cabbage.getCsound()->SetStringChannel(channel.c_str(), "");
+                        lattice::logDebug << "Created string channel for non-automatable widget '" << channel << "'";
+                    }
+                    else
+                    {
+                        // For numeric channels, use default value from range
+                        const float defVal = ch["range"]["defaultValue"].get<float>();
+                        cabbage.setControlChannel(channel, defVal);
+                        lattice::logDebug << "Created numeric channel for non-automatable widget '" << channel
+                                          << "' with default value " << defVal;
+                    }
                 }
             }
             // Legacy schema: single id
