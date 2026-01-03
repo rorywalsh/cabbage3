@@ -60,8 +60,8 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageDump>((csnd::Csound *)getCsound()->GetCsound(), "cabbageDump", "", "So", csnd::thread::i);
     csnd::plugin<CabbageDumpWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageDump", "", "kSo", csnd::thread::ik);
     
-    csnd::plugin<CabbageSaveState>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSaveState", "", "S", csnd::thread::k);
-    csnd::plugin<CabbageLoadState>((csnd::Csound *)getCsound()->GetCsound(), "cabbageLoadState", "", "S", csnd::thread::k);
+    csnd::plugin<CabbageSaveState>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSaveState", "", "S", csnd::thread::i);
+    csnd::plugin<CabbageLoadState>((csnd::Csound *)getCsound()->GetCsound(), "cabbageLoadState", "", "S", csnd::thread::i);
     
     csnd::plugin<CabbageGetFiles>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetFiles", "S[]", "SS", csnd::thread::i);
     csnd::plugin<CabbageCreateFileName>((csnd::Csound *)getCsound()->GetCsound(), "cabbageCreateFileName", "S", "SS", csnd::thread::i);
@@ -456,17 +456,143 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::findWidgetInArray(
 }
 
 // Overload for std::vector<nlohmann::json>
+// Thread-safe version that returns a copy
+std::optional<nlohmann::json> Engine::getWidgetCopyById(const std::string &channel)
+{
+    std::lock_guard<std::mutex> lock(widgetsMutex);
+    
+    for (const auto &w : widgets)
+    {
+        if (!w.is_object())
+            continue;
+            
+        // Check channels array
+        if (w.contains("channels") && w["channels"].is_array())
+        {
+            for (const auto &ch : w["channels"])
+            {
+                if (ch.is_object() && ch.contains("id") && ch["id"].is_string() && 
+                    cabbage::Parser::removeQuotes(ch["id"]) == channel)
+                {
+                    return w; // Return a copy
+                }
+            }
+        }
+
+        if (w.contains("id") && w["id"].is_string() && 
+            cabbage::Parser::removeQuotes(w["id"]) == channel)
+        {
+            return w; // Return a copy
+        }
+        
+        // Check children recursively
+        if (w.contains("children") && w["children"].is_array())
+        {
+            auto childOpt = findWidgetInArray(const_cast<nlohmann::json&>(w["children"]), channel);
+            if (childOpt)
+                return childOpt->get(); // Return a copy
+        }
+    }
+    return std::nullopt;
+}
+
+// Thread-safe atomic update: read-modify-write
+bool Engine::updateWidget(const std::string &channel, std::function<void(nlohmann::json&)> modifier)
+{
+    std::lock_guard<std::mutex> lock(widgetsMutex);
+    
+    for (auto &w : widgets)
+    {
+        if (!w.is_object())
+            continue;
+            
+        // Check channels array
+        if (w.contains("channels") && w["channels"].is_array())
+        {
+            for (const auto &ch : w["channels"])
+            {
+                if (ch.is_object() && ch.contains("id") && ch["id"].is_string() && 
+                    cabbage::Parser::removeQuotes(ch["id"]) == channel)
+                {
+                    modifier(w);
+                    return true;
+                }
+            }
+        }
+
+        if (w.contains("id") && w["id"].is_string() && 
+            cabbage::Parser::removeQuotes(w["id"]) == channel)
+        {
+            modifier(w);
+            return true;
+        }
+        
+        // Check children recursively
+        if (w.contains("children") && w["children"].is_array())
+        {
+            // For children, we need to search recursively
+            std::function<bool(nlohmann::json&)> searchChildren = [&](nlohmann::json &arr) -> bool {
+                for (auto &child : arr)
+                {
+                    if (!child.is_object())
+                        continue;
+                        
+                    if (child.contains("channels") && child["channels"].is_array())
+                    {
+                        for (const auto &ch : child["channels"])
+                        {
+                            if (ch.is_object() && ch.contains("id") && ch["id"].is_string() && 
+                                cabbage::Parser::removeQuotes(ch["id"]) == channel)
+                            {
+                                modifier(child);
+                                return true;
+                            }
+                        }
+                    }
+                    
+                    if (child.contains("id") && child["id"].is_string() && 
+                        cabbage::Parser::removeQuotes(child["id"]) == channel)
+                    {
+                        modifier(child);
+                        return true;
+                    }
+                    
+                    if (child.contains("children") && child["children"].is_array())
+                    {
+                        if (searchChildren(child["children"]))
+                            return true;
+                    }
+                }
+                return false;
+            };
+            
+            if (searchChildren(w["children"]))
+                return true;
+        }
+    }
+    return false;
+}
+
 std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetFromId(std::vector<nlohmann::json> &widgets,
                                                                                  const std::string &channel)
 {
+    std::lock_guard<std::mutex> lock(widgetsMutex);
+    
     for (auto &w : widgets)
     {
+        // Safety check: ensure w is a valid object
+        if (!w.is_object())
+        {
+            lattice::logWarning << "Engine::getWidgetFromId: encountered non-object widget, skipping";
+            continue;
+        }
+        
         // New schema: channels array
         if (w.contains("channels") && w["channels"].is_array())
         {
             for (const auto &ch : w["channels"])
             {
-                if (ch.contains("id") && ch["id"].is_string() && cabbage::Parser::removeQuotes(ch["id"]) == channel)
+                if (ch.is_object() && ch.contains("id") && ch["id"].is_string() && cabbage::Parser::removeQuotes(ch["id"]) == channel)
                 {
                     return std::ref(w);
                 }
@@ -513,16 +639,13 @@ const std::string Engine::updateWidgetState(nlohmann::json j)
         return "";
     }
     
-    auto widgetOpt = getWidgetFromId(widgets, channel);
-    if (widgetOpt.has_value())
-    {
-        auto &w = widgetOpt.value().get();
+    std::string result;
+    bool updated = updateWidget(channel, [&](nlohmann::json &w) {
         w.merge_patch(j);
-        auto result = getUpdatedWidgetJsonStr(channel, w.dump(), false);
-        return result;
-    }
-
-    return "";
+        result = getUpdatedWidgetJsonStr(channel, w.dump(), false);
+    });
+    
+    return updated ? result : "";
 }
 //===========================================================================================
 
@@ -531,17 +654,23 @@ std::string Engine::getUpdatedWidgetJsonStr(const std::string &channel, std::str
     std::string result;
     if (includeValue)
     {
-        // Parse the data to extract the value
+        // Parse the data to extract the value from channels[0].range.value
         nlohmann::json widgetJson = nlohmann::json::parse(data);
         float value = 0.0f;
 
-        if (widgetJson.contains("value") && !widgetJson["value"].is_null())
+        // Read from channels[0].range.value (new architecture)
+        if (widgetJson.contains("channels") && widgetJson["channels"].is_array() && 
+            !widgetJson["channels"].empty())
         {
-            value = widgetJson["value"].get<float>();
-        }
-        else if (widgetJson.contains("range") && widgetJson["range"].contains("defaultValue"))
-        {
-            value = widgetJson["range"]["defaultValue"].get<float>();
+            auto& firstChannel = widgetJson["channels"][0];
+            if (firstChannel.contains("range") && firstChannel["range"].contains("value"))
+            {
+                value = firstChannel["range"]["value"].get<float>();
+            }
+            else if (firstChannel.contains("range") && firstChannel["range"].contains("defaultValue"))
+            {
+                value = firstChannel["range"]["defaultValue"].get<float>();
+            }
         }
         else
         {
@@ -979,11 +1108,6 @@ bool Engine::isValueDifferent(const CabbageOpcodeData &data)
 
 void Engine::flushChannelCache()
 {
-    if (!dirtyChannels.empty())
-    {
-        lattice::logDebug << "Flushing " << dirtyChannels.size() << " dirty channels to opcodeData queue";
-    }
-    
     for (const auto &channel : dirtyChannels)
     {
         const auto &cachedData = channelCache[channel];
@@ -1012,8 +1136,79 @@ void Engine::flushChannelCache()
 
 nlohmann::json Engine::saveWidgetState()
 {
+    // Make a quick copy of widgets to avoid holding mutex during filtering/serialization
+    std::vector<nlohmann::json> widgetsCopy;
+    {
+        std::lock_guard<std::mutex> lock(widgetsMutex);
+        widgetsCopy = widgets;
+    }
+    
+    // Filter widgets without holding the mutex (avoid blocking audio thread)
     nlohmann::json state;
-    state["cabbageWidgetsState"] = widgets;
+    nlohmann::json filteredWidgets = nlohmann::json::array();
+    
+    for (auto widget : widgetsCopy)
+    {
+        if (widget.is_object())
+        {
+            // Check if presetIgnore is set to true
+            bool shouldIgnore = false;
+            if (widget.contains("presetIgnore") && widget["presetIgnore"].is_boolean())
+            {
+                shouldIgnore = widget["presetIgnore"].get<bool>();
+            }
+            
+            // Only add widget if it should NOT be ignored
+            if (!shouldIgnore)
+            {
+                // Update channel range values from Csound channels before saving
+                if (widget.contains("channels") && widget["channels"].is_array())
+                {
+                    for (auto& channel : widget["channels"])
+                    {
+                        if (channel.is_object() && channel.contains("id") && channel["id"].is_string())
+                        {
+                            std::string channelId = channel["id"].get<std::string>();
+                            
+                            // Read current value from Csound channel
+                            MYFLT* channelPtr = nullptr;
+                            if (csoundGetChannelPtr(csound->GetCsound(), (void**)&channelPtr, channelId.c_str(),
+                                                     CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
+                            {
+                                if (channelPtr != nullptr)
+                                {
+                                    MYFLT currentValue = *channelPtr;
+                                    
+                                    // Update the range.value with the current channel value
+                                    if (channel.contains("range") && channel["range"].is_object())
+                                    {
+                                        channel["range"]["value"] = currentValue;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Remove top-level value property if it exists (shouldn't be there)
+                if (widget.contains("value"))
+                {
+                    widget.erase("value");
+                }
+                
+                // Remove populate config - it's a configuration property, not state
+                // Saving it can cause issues if it was partially updated via cabbageSet
+                if (widget.contains("populate"))
+                {
+                    widget.erase("populate");
+                }
+                
+                filteredWidgets.push_back(widget);
+            }
+        }
+    }
+    
+    state["cabbageWidgetsState"] = filteredWidgets;
     return state;
 }
 
@@ -1025,36 +1220,161 @@ void Engine::loadWidgetState(const nlohmann::json &state)
         return;
     }
     
-    // Restore the complete widget state
-    widgets = state["cabbageWidgetsState"];
-
-    // Update Csound control channels and plugin parameters
-    for (const auto &widget : widgets) {
-        if (widget.contains("channels") && widget["channels"].is_array()) {
-            for (const auto &channel : widget["channels"]) {
-                if (channel.contains("id") && channel["id"].is_string()) {
-                    std::string channelId = channel["id"].get<std::string>();
+    // Validate that cabbageWidgetsState is an array
+    if (!state["cabbageWidgetsState"].is_array()) {
+        lattice::logError << "Invalid state: 'cabbageWidgetsState' is not an array";
+        return;
+    }
+    
+    // PHASE 1: Prepare channel value updates (without holding mutex)
+    // Instead of replacing widgets, we'll merge the channel values from the loaded state
+    std::unordered_map<std::string, std::unordered_map<std::string, double>> channelUpdates;
+    
+    try {
+        for (const auto& savedWidget : state["cabbageWidgetsState"]) {
+            if (!savedWidget.is_object()) {
+                lattice::logError << "Invalid state: found non-object widget in state, aborting load";
+                return;
+            }
+            
+            // Extract widget ID to match with existing widgets
+            std::string widgetId;
+            if (savedWidget.contains("id") && savedWidget["id"].is_string()) {
+                widgetId = cabbage::Parser::removeQuotes(savedWidget["id"]);
+            }
+            
+            // For widgets with channels array, extract channel values
+            if (savedWidget.contains("channels") && savedWidget["channels"].is_array())
+            {
+                for (const auto& channel : savedWidget["channels"])
+                {
+                    if (!channel.is_object())
+                        continue;
+                        
+                    std::string channelId;
+                    if (channel.contains("id") && channel["id"].is_string()) {
+                        channelId = cabbage::Parser::removeQuotes(channel["id"]);
+                    }
                     
-                    if (widget.contains("value") && widget["value"].is_number()) {
-                        float value = widget["value"].get<float>();
+                    // Get the value from range.value
+                    if (channel.contains("range") && channel["range"].is_object() &&
+                        channel["range"].contains("value"))
+                    {
+                        double value = 0.0;
                         
-                        // Update Csound control channel
-                        setControlChannel(channelId, value);
-                        
-                        // If this is an automatable parameter, update it for the host
-                        if (channel.contains("parameterIndex") && channel["parameterIndex"].is_number()) {
-                            int paramIdx = channel["parameterIndex"].get<int>();
-                            if (paramIdx < static_cast<int>(processor.getParameters().size())) {
-                                auto &param = processor.getParameters()[paramIdx];
-                                float normalizedValue = param.toNormalised(value);
-                                param.value = normalizedValue;
-                                
-                                // Notify host of parameter change
-                                processor.addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::Value});
-                                
-                                lattice::logDebug << "Loaded parameter " << paramIdx << " (" << channelId 
-                                                 << ") with value: " << value << " (normalized: " << normalizedValue << ")";
+                        // Get value, defaulting to 0 if null
+                        if (channel["range"]["value"].is_number()) {
+                            value = channel["range"]["value"].get<double>();
+                        }
+                        else if (channel["range"]["value"].is_null()) {
+                            // Use defaultValue if present
+                            if (channel["range"].contains("defaultValue") && 
+                                channel["range"]["defaultValue"].is_number()) {
+                                value = channel["range"]["defaultValue"].get<double>();
                             }
+                        }
+                        
+                        if (!channelId.empty()) {
+                            channelUpdates[channelId][widgetId] = value;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch (const std::exception& e) {
+        lattice::logError << "Exception during widget state preparation: " << e.what();
+        return;
+    }
+    
+    // PHASE 2: Apply channel value updates to existing widgets (quick operation with mutex)
+    {
+        std::lock_guard<std::mutex> lock(widgetsMutex);
+        
+        lattice::logInfo << "Merging " << channelUpdates.size() << " channel updates into existing widgets (preserving widget properties like populate)";
+        
+        for (auto& widget : widgets)
+        {
+            if (!widget.is_object())
+                continue;
+                
+            std::string widgetId;
+            if (widget.contains("id") && widget["id"].is_string()) {
+                widgetId = cabbage::Parser::removeQuotes(widget["id"]);
+            }
+            
+            // Update channels array values
+            if (widget.contains("channels") && widget["channels"].is_array())
+            {
+                for (auto& channel : widget["channels"])
+                {
+                    if (!channel.is_object())
+                        continue;
+                        
+                    std::string channelId;
+                    if (channel.contains("id") && channel["id"].is_string()) {
+                        channelId = cabbage::Parser::removeQuotes(channel["id"]);
+                    }
+                    
+                    // Check if we have an update for this channel
+                    if (!channelId.empty() && channelUpdates.count(channelId) > 0)
+                    {
+                        auto& updates = channelUpdates[channelId];
+                        
+                        // Update the range.value with loaded state
+                        if (!channel.contains("range")) {
+                            channel["range"] = nlohmann::json::object();
+                        }
+                        
+                        if (updates.count(widgetId) > 0) {
+                            channel["range"]["value"] = updates[widgetId];
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // PHASE 3: Update Csound channels and parameters (no mutex needed - reading from local copy)
+    // Make a local copy to avoid holding lock during Csound calls
+    std::vector<nlohmann::json> widgetsCopy;
+    {
+        std::lock_guard<std::mutex> lock(widgetsMutex);
+        widgetsCopy = widgets;
+    }
+    
+    for (const auto &widget : widgetsCopy)
+    {
+        if (widget.contains("channels") && widget["channels"].is_array())
+        {
+            for (const auto &channel : widget["channels"])
+            {
+                if (!channel.is_object() || !channel.contains("id") || !channel["id"].is_string())
+                    continue;
+                    
+                std::string channelId = channel["id"].get<std::string>();
+                
+                // Get value from channel.range.value (proper location for multi-channel widgets)
+                if (channel.contains("range") && channel["range"].is_object() &&
+                    channel["range"].contains("value") && channel["range"]["value"].is_number())
+                {
+                    float value = channel["range"]["value"].get<float>();
+                    
+                    // Update Csound control channel
+                    setControlChannel(channelId, value);
+                    
+                    // If this is an automatable parameter, update it for the host
+                    if (channel.contains("parameterIndex") && channel["parameterIndex"].is_number())
+                    {
+                        int paramIdx = channel["parameterIndex"].get<int>();
+                        if (paramIdx < static_cast<int>(processor.getParameters().size()))
+                        {
+                            auto &param = processor.getParameters()[paramIdx];
+                            float normalizedValue = param.toNormalised(value);
+                            param.value = normalizedValue;
+                            
+                            // Notify host of parameter change
+                            processor.addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::Value});
                         }
                     }
                 }
@@ -1062,8 +1382,21 @@ void Engine::loadWidgetState(const nlohmann::json &state)
         }
     }
     
-    // Queue UI updates for all widgets
-    for (const auto &widget : widgets) {
+    // Queue UI updates for all widgets as a single batch message
+    // This is more efficient than sending 148 individual messages
+    // and prevents message flooding that could overwhelm the WebView
+    nlohmann::json batchUpdate;
+    batchUpdate["command"] = "batchWidgetUpdate";
+    batchUpdate["widgets"] = nlohmann::json::array();
+    
+    int widgetCount = 0;
+    for (const auto &widget : widgetsCopy) {
+        // Skip widgets with presetIgnore=true
+        if (widget.contains("presetIgnore") && widget["presetIgnore"].is_boolean() && 
+            widget["presetIgnore"].get<bool>()) {
+            continue;
+        }
+        
         std::string channelId;
         if (widget.contains("id") && widget["id"].is_string()) {
             channelId = widget["id"].get<std::string>();
@@ -1073,16 +1406,29 @@ void Engine::loadWidgetState(const nlohmann::json &state)
         }
         
         if (!channelId.empty()) {
-            // Queue the full widget update
-            CabbageOpcodeData data;
-            data.channel = channelId;
-            data.type = CabbageOpcodeData::MessageType::Identifier;
-            data.cabbageJson = widget;
-            opcodeData.enqueue(data);
+            batchUpdate["widgets"].push_back({
+                {"id", channelId},
+                {"widgetJson", widget.dump()}
+            });
+            widgetCount++;
         }
     }
     
-    lattice::logInfo << "Widget state loaded successfully";
+    // Send single batch message instead of queuing many individual messages
+    if (widgetCount > 0) {
+        lattice::logInfo << "Batch update structure: command=" << batchUpdate["command"] 
+                         << ", widgets count=" << batchUpdate["widgets"].size()
+                         << ", first widget id=" << (batchUpdate["widgets"].size() > 0 ? batchUpdate["widgets"][0]["id"].get<std::string>() : "none");
+        
+        // Queue as a special batch message that bypasses normal deduplication
+        CabbageOpcodeData data;
+        data.channel = "__batch_update__";
+        data.type = CabbageOpcodeData::MessageType::Identifier;
+        data.cabbageJson = batchUpdate;
+        opcodeData.enqueue(data);
+    }
+    
+    lattice::logInfo << "Widget state loaded successfully. Queued batch update with " << widgetCount << " widgets for UI";
 }
 
 //=====================================================================================
@@ -1183,12 +1529,9 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
             setControlChannel(channel, floatData);
             
             // Update the widget JSON
-            auto widgetOpt = getWidgetFromId(widgets, channel);
-            if (widgetOpt)
-            {
-                auto &j = widgetOpt->get();
+            updateWidget(channel, [&](nlohmann::json &j) {
                 j["value"] = floatData;
-            }
+            });
         }
         else
         {
@@ -1298,12 +1641,9 @@ std::string Engine::handleParameterUpdate(const nlohmann::json &message)
     setControlChannel(channel, denormValue);
 
     // Update widget JSON
-    auto widgetOpt = getWidgetFromId(widgets, channel);
-    if (widgetOpt)
-    {
-        auto &j = widgetOpt->get();
+    updateWidget(channel, [&](nlohmann::json &j) {
         j["value"] = denormValue;
-    }
+    });
 
     return gesture;
 }

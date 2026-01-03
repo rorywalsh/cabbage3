@@ -33,6 +33,9 @@ int CabbageSetValue::setValue(int /*pass*/)
             *value = newValue;
         }
 
+        // Update the Csound channel via Engine
+        hostData->setControlChannel(channel, newValue);
+
         // Always enqueue - let updateChannelCache handle deduplication
         CabbageOpcodeData data = getValueIdentData(args, true, 0, 1);
         data.cabbageJson["value"] = newValue;

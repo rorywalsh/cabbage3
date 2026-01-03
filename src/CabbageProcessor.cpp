@@ -429,23 +429,74 @@ void CabbageProcessor::onIdle()
         // Now process only the latest message for each channel
         for (const auto &[channel, latestData] : latestMessages)
         {
-            auto widgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), latestData.channel);
-            if (widgetOpt)
+            // Make an explicit copy to ensure deep copy of JSON data
+            CabbageOpcodeData dataCopy = latestData;
+            
+            // Check if this message contains a populate update
+            bool hasPopulateUpdate = dataCopy.cabbageJson.contains("populate");
+            
+            cabbage.updateWidget(dataCopy.channel, [dataCopy](nlohmann::json &j) {
+                cabbage::Parser::mergeJsonProperties(j, dataCopy.cabbageJson);
+            });
+            
+            // If this update included populate data, trigger async processing
+            if (hasPopulateUpdate)
             {
-                auto &j = widgetOpt->get();
-                if (j.is_null())
+                auto widgetOpt = cabbage.getWidgetCopyById(dataCopy.channel);
+                if (widgetOpt.has_value() && widgetOpt->contains("populate") && (*widgetOpt)["populate"].is_object())
                 {
-                    continue;
+                    std::string widgetChannel = dataCopy.channel;
+                    nlohmann::json populateConfig = (*widgetOpt)["populate"];
+                    
+                    // Verify it has the required fields before processing
+                    if (populateConfig.contains("directory") && populateConfig.contains("fileType"))
+                    {
+                        lattice::logDebug << "Triggering processPopulateAsync for widget: " << widgetChannel;
+                        
+                        // Process populate on background thread, then update widget with results
+                        cabbage::Parser::processPopulateAsync(widgetChannel, populateConfig, 
+                            [this, widgetChannel](const nlohmann::json& result) {
+                                
+                                // Update widget with populated items (this runs on background thread)
+                                cabbage.updateWidget(widgetChannel, [result](nlohmann::json &j) {
+                                    if (result.contains("items")) {
+                                        j["items"] = result["items"];
+                                    }
+                                    // Note: We DON'T update j["populate"] here to avoid triggering
+                                    // another populate detection in onIdle (which would create an infinite loop)
+                                });
+                                
+                                // Send the updated widget directly to UI (bypass opcode queue to avoid loop)
+                                auto widgetCopy = cabbage.getWidgetCopyById(widgetChannel);
+                                if (widgetCopy.has_value()) {
+                                    nlohmann::json msg;
+                                    msg["command"] = "widgetUpdate";
+                                    msg["id"] = widgetChannel;
+                                    msg["widgetJson"] = widgetCopy->dump();
+                                    sendWebViewMessage(msg);
+                                }
+                            });
+                    }
+                    else
+                    {
+                        lattice::logWarning << "Populate config missing directory or fileType for: " << widgetChannel;
+                        lattice::logWarning << "Current populate config: " << populateConfig.dump();
+                    }
                 }
-
-                cabbage::Parser::mergeJsonProperties(j, latestData.cabbageJson);
+                else
+                {
+                    lattice::logWarning << "Widget not found or populate not an object for: " << dataCopy.channel;
+                    if (widgetOpt.has_value()) {
+                        lattice::logWarning << "Widget JSON: " << widgetOpt->dump();
+                    }
+                }
             }
 
 #ifdef CabbageApp
-            hostCallback(latestData);
+            hostCallback(dataCopy);
 #else
             cabbage.processCsoundMessages();
-            updateWidgetData(latestData);
+            updateWidgetData(dataCopy);
 #endif
         }
     }
@@ -456,27 +507,45 @@ void CabbageProcessor::onIdle()
 //========================================================================================
 void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
 {
-    // For value-only updates, send just the value
+    // Handle batch updates from loadWidgetState
+    if (data.channel == "__batch_update__" && data.cabbageJson.contains("command") && 
+        data.cabbageJson["command"] == "batchWidgetUpdate")
+    {
+        lattice::logInfo << "Processing batch widget update with " << data.cabbageJson["widgets"].size() << " widgets";
+        sendWebViewMessage(data.cabbageJson);
+        return;
+    }
+    
+    // For value-only updates, update the channel's range.value (not top-level value)
     if (data.type == CabbageOpcodeData::MessageType::Value)
     {
-        auto widgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), data.channel);
-        if (widgetOpt)
-        {
-            auto &j = widgetOpt->get();
-            cabbage::Parser::mergeJsonProperties(j, data.cabbageJson);
-
-            // Extract the float value from the merged JSON
-            if (j.contains("value") && j["value"].is_number())
+        float value = 0.0f;
+        bool updated = cabbage.updateWidget(data.channel, [data, &value](nlohmann::json &j) {
+            // Extract value from the message
+            if (data.cabbageJson.contains("value") && data.cabbageJson["value"].is_number())
             {
-                float value = j["value"].get<float>();
-                // Send proper JSON message like CabbageApp does
-                nlohmann::json msg;
-                msg["command"] = "widgetUpdate";
-                msg["id"] = data.channel;
-                msg["value"] = value;
-                lattice::logDebug << "Sending value update to webview: " << msg.dump();
-                sendWebViewMessage(msg);
+                value = data.cabbageJson["value"].get<float>();
+                
+                // Update the first channel's range.value (proper location for values)
+                if (j.contains("channels") && j["channels"].is_array() && !j["channels"].empty())
+                {
+                    auto& firstChannel = j["channels"][0];
+                    if (firstChannel.contains("range") && firstChannel["range"].is_object())
+                    {
+                        firstChannel["range"]["value"] = value;
+                    }
+                }
             }
+        });
+        
+        if (updated)
+        {
+            // Send proper JSON message like CabbageApp does
+            nlohmann::json msg;
+            msg["command"] = "widgetUpdate";
+            msg["id"] = data.channel;
+            msg["value"] = value;
+            sendWebViewMessage(msg);
         }
     }
     else
@@ -491,7 +560,13 @@ void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
             msg["command"] = "widgetUpdate";
             msg["id"] = data.channel;
             msg["widgetJson"] = j.dump(); // Send as JSON string, consistent with updateUI()
+            
+            lattice::logDebug << "Sending full widget update to UI for channel: " << data.channel;
             sendWebViewMessage(msg);
+        }
+        else
+        {
+            lattice::logWarning << "processOpcodeData returned nullopt for channel: " << data.channel;
         }
     }
 }
@@ -504,10 +579,10 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
 {
     if (data.type == CabbageOpcodeData::MessageType::Identifier || data.type == CabbageOpcodeData::MessageType::Value)
     {
-        auto widgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), data.channel);
+        auto widgetOpt = cabbage.getWidgetCopyById(data.channel);
         if (widgetOpt)
         {
-            auto &j = widgetOpt->get();
+            auto j = widgetOpt.value();
             if (j["type"].get<std::string>() == "genTable")
             {
                 cabbage.updateFunctionTable(data, j);
@@ -518,7 +593,7 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
     }
     else if (data.type == CabbageOpcodeData::MessageType::Widget)
     {
-        auto widgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), data.channel);
+        auto widgetOpt = cabbage.getWidgetCopyById(data.channel);
         if (widgetOpt)
         {
             lattice::logDebug << "A widget with channel: " << data.channel
@@ -547,7 +622,7 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
             cabbage.getWidgets().push_back(newWidget);
 
             // Debug: Check if widget can now be found
-            auto testWidgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), data.channel);
+            auto testWidgetOpt = cabbage.getWidgetCopyById(data.channel);
             if (!testWidgetOpt)
             {
                 lattice::logError << "Widget was added but cannot be found: " << data.channel;
@@ -807,11 +882,12 @@ void CabbageProcessor::updateUI()
     // Check if editor has any pending messages when loaded..
     for (const auto &param : webviewMessageQueue)
     {
-        auto widgetOpt = cabbage.getWidgetFromId(cabbage.getWidgets(), param.name);
-        if (widgetOpt)
-        {
-            auto &j = widgetOpt->get();
+        bool updated = cabbage.updateWidget(param.name, [&](nlohmann::json &j) {
             j["value"] = param.value;
+        });
+        
+        if (updated)
+        {
             // Send proper JSON message like CabbageApp does
             nlohmann::json msg;
             msg["command"] = "widgetUpdate";
@@ -875,8 +951,15 @@ void CabbageProcessor::setParameter(int paramId, double value)
         auto &j = widgetOpt->get();
         std::string widgetType = j["type"].get<std::string>();
 
-        // Update the widget's value property so it persists when UI reopens
-        j["value"] = denormalValue;
+        // Update the channel's range.value (not top-level value property)
+        if (j.contains("channels") && j["channels"].is_array() && !j["channels"].empty())
+        {
+            auto& firstChannel = j["channels"][0];
+            if (firstChannel.contains("range") && firstChannel["range"].is_object())
+            {
+                firstChannel["range"]["value"] = denormalValue;
+            }
+        }
 
         // For comboBox and optionButton, the frontend already sends the correct index
         // (not a normalized value), so we should use it directly
@@ -889,7 +972,17 @@ void CabbageProcessor::setParameter(int paramId, double value)
             {
                 index += 1;
             }
-            j["value"] = index; // Override with index for these widget types
+            
+            // Update channel range value with the index
+            if (j.contains("channels") && j["channels"].is_array() && !j["channels"].empty())
+            {
+                auto& firstChannel = j["channels"][0];
+                if (firstChannel.contains("range") && firstChannel["range"].is_object())
+                {
+                    firstChannel["range"]["value"] = static_cast<double>(index);
+                }
+            }
+            
             cabbage.setControlChannel(getParameters()[paramId].name, index);
             return;
         }

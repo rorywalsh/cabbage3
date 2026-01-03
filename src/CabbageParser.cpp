@@ -294,105 +294,21 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
             {
                 if (value.is_object())
                 {
-                    // Merge with existing populate object if it exists
-                    nlohmann::json mergedPopulate = jsonObj.contains("populate") && jsonObj["populate"].is_object() 
-                        ? jsonObj["populate"] 
-                        : nlohmann::json::object();
-                    
-                    // Update with incoming fields
-                    for (auto& [k, v] : value.items()) {
-                        mergedPopulate[k] = v;
+                    // Merge populate configuration properties (don't replace entire object)
+                    // This allows updating just directory or fileType without losing other properties
+                    if (!jsonObj.contains("populate") || !jsonObj["populate"].is_object())
+                    {
+                        jsonObj["populate"] = nlohmann::json::object();
                     }
                     
-                    // Validate required fields in the merged populate object
-                    if (!mergedPopulate.contains("directory") || !mergedPopulate["directory"].is_string()) {
-                        lattice::logError << "populate object missing required 'directory' string field for widget type: " << widgetType;
-                        continue;
+                    for (auto &[popKey, popVal] : value.items())
+                    {
+                        jsonObj["populate"][popKey] = popVal;
                     }
                     
-                    if (!mergedPopulate.contains("fileType") || !mergedPopulate["fileType"].is_string()) {
-                        lattice::logError << "populate object missing required 'fileType' string field for widget type: " << widgetType;
-                        continue;
-                    }
-                    
-                    std::string directory = mergedPopulate["directory"].get<std::string>();
-                    std::string fileType = cabbage::Utils::sanitisePath(mergedPopulate["fileType"].get<std::string>());
-                    
-                    lattice::logInfo << "Populating widget from directory: " << directory << " with file type: " << fileType;
-                    
-                    std::vector<std::string> files = File::getFilesOfType(directory, fileType);
-
-                    if (files.empty()) {
-                        lattice::logWarning << "No files found in directory '" << directory << "' with type '" << fileType << "'";
-                    }
-
-                    // Apply sorting based on populate.order property
-                    std::string orderType = "alphanumeric"; // default
-                    if (mergedPopulate.contains("order") && mergedPopulate["order"].is_string()) {
-                        orderType = mergedPopulate["order"].get<std::string>();
-                    }
-
-                    if (orderType == "date") {
-                        // Sort by modification time (oldest first)
-                        std::sort(files.begin(), files.end(),
-                            [](const std::string &a, const std::string &b) {
-                                namespace fs = std::filesystem;
-                                try {
-                                    auto timeA = fs::last_write_time(a);
-                                    auto timeB = fs::last_write_time(b);
-                                    return timeA < timeB; // oldest first
-                                } catch (...) {
-                                    return a < b; // fallback to alphanumeric
-                                }
-                            });
-                    } else if (orderType == "size") {
-                        // Sort by file size (largest first)
-                        std::sort(files.begin(), files.end(),
-                            [](const std::string &a, const std::string &b) {
-                                namespace fs = std::filesystem;
-                                try {
-                                    auto sizeA = fs::file_size(a);
-                                    auto sizeB = fs::file_size(b);
-                                    return sizeA > sizeB; // largest first
-                                } catch (...) {
-                                    return a < b; // fallback to alphanumeric
-                                }
-                            });
-                    }
-                    // else "alphanumeric" - already sorted by getFilesOfType
-
-                    jsonObj[key]["directory"] = directory;
-                    jsonObj[key]["fileType"] = fileType;
-                    if (!orderType.empty()) {
-                        jsonObj[key]["order"] = orderType;
-                    }
-                    // Set channel type to string for populate
-                    if (jsonObj.contains("channels") && jsonObj["channels"].is_array() && !jsonObj["channels"].empty()) {
-                        jsonObj["channels"][0]["type"] = "string";
-                    }
-                    jsonObj["automatable"] = false;
-
-                    // Optionally return only filename stems (no directory, no extension)
-                    bool fullPath = false;
-                    if (value.contains("fullFileAndPath") && value["fullFileAndPath"].is_boolean()) {
-                        fullPath = value["fullFileAndPath"].get<bool>();
-                    }
-
-                    std::vector<std::string> items;
-                    if (!files.empty()) {
-                        if (!fullPath) {
-                            items.reserve(files.size());
-                            for (const auto &fp : files) {
-                                items.push_back(std::filesystem::path(fp).filename().stem().string());
-                            }
-                        } else {
-                            items = files;
-                        }
-                        jsonObj["items"] = items;
-                        lattice::logDebug << "Found " << files.size() << " files for populate operation (order: " << orderType << ")";
-                    } else {
-                        jsonObj["items"] = items; // empty
-                    }
+                    // CRITICAL: Cannot do file I/O here - we're likely holding a mutex
+                    // Just store the config, actual population happens elsewhere
+                    lattice::logDebug << "Merged populate config (processing deferred to avoid blocking)";
                 }
                 else
                 {
@@ -498,11 +414,27 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
             {
                 if (value.is_array())
                 {
+                    // Ensure jsonObj has a channels array initialized
+                    if (!jsonObj.contains("channels") || !jsonObj["channels"].is_array())
+                    {
+                        jsonObj["channels"] = nlohmann::json::array();
+                    }
+                    
                     // Handle channels array
                     for (size_t i = 0; i < value.size(); ++i)
                     {
                         if (value[i].is_object())
                         {
+                            // Ensure the channel element exists
+                            if (i >= jsonObj["channels"].size())
+                            {
+                                jsonObj["channels"].push_back(nlohmann::json::object());
+                            }
+                            else if (!jsonObj["channels"][i].is_object())
+                            {
+                                jsonObj["channels"][i] = nlohmann::json::object();
+                            }
+                            
                             for (auto &[chKey, chVal] : value[i].items())
                             {
                                 jsonObj["channels"][i][chKey] = chVal;
@@ -868,8 +800,8 @@ void Parser::assignDefaultRangesToChannels(nlohmann::json &jsonObj)
                     nlohmann::json defaultRange = {
                         {"min", 0.0},
                         {"max", 1.0},
-                        {"value", 0.0},
                         {"defaultValue", 0.0},
+                        {"value", 0.0},  // Will be set to defaultValue below
                         {"skew", 1.0},
                         {"increment", interaction == "click" ? 1.0 : 0.001}
                     };
@@ -878,7 +810,6 @@ void Parser::assignDefaultRangesToChannels(nlohmann::json &jsonObj)
                     if (!channel.contains("range") || !channel["range"].is_object())
                     {
                         channel["range"] = defaultRange;
-                        lattice::logDebug << "Assigned default range to channel in widget type: " << widgetType;
                     }
                     else
                     {
@@ -888,10 +819,11 @@ void Parser::assignDefaultRangesToChannels(nlohmann::json &jsonObj)
                             range["min"] = defaultRange["min"];
                         if (!range.contains("max") || !range["max"].is_number())
                             range["max"] = defaultRange["max"];
-                        if (!range.contains("value") || !range["value"].is_number())
-                            range["value"] = defaultRange["value"];
                         if (!range.contains("defaultValue") || !range["defaultValue"].is_number())
                             range["defaultValue"] = defaultRange["defaultValue"];
+                        // Initialize value from defaultValue if not present
+                        if (!range.contains("value") || !range["value"].is_number())
+                            range["value"] = range["defaultValue"];
                         if (!range.contains("skew") || !range["skew"].is_number())
                             range["skew"] = defaultRange["skew"];
                         if (!range.contains("increment") || !range["increment"].is_number())
@@ -910,6 +842,155 @@ void Parser::assignDefaultRangesToChannels(nlohmann::json &jsonObj)
     {
         lattice::logError << "Unexpected exception in assignDefaultRangesToChannels: " << e.what();
     }
+}
+
+//=====================================================================================
+// Process populate configuration asynchronously to avoid blocking calling thread
+// This is critical when called from audio thread or during state save operations
+// The issue is that populate needs to do file I/O which can be slow,
+// so we offload that work to a background thread and notify via callback when done
+//=====================================================================================
+void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohmann::json& populateConfig, 
+                                   std::function<void(const nlohmann::json&)> callback)
+{
+    std::thread([widgetChannel, populateConfig, callback]() {
+        try {
+            // Small delay to allow any pending file operations (like saves) to complete
+            // This prevents race conditions where cabbageSet triggers a populate refresh
+            // immediately after cabbageSaveState but before the file is written to disk
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+            
+            // All file I/O happens on this background thread
+            nlohmann::json result;
+            
+            // Validate required fields
+            if (!populateConfig.contains("directory") || !populateConfig["directory"].is_string()) {
+                lattice::logError << "populate missing 'directory' for widget: " << widgetChannel;
+                return;
+            }
+            
+            if (!populateConfig.contains("fileType") || !populateConfig["fileType"].is_string()) {
+                lattice::logError << "populate missing 'fileType' for widget: " << widgetChannel;
+                return;
+            }
+            
+            std::string directory = populateConfig["directory"].get<std::string>();
+            std::string fileType = cabbage::Utils::sanitisePath(populateConfig["fileType"].get<std::string>());
+            
+            std::vector<std::string> files = File::getFilesOfType(directory, fileType);
+            
+            if (files.empty()) {
+                lattice::logWarning << "No files found in '" << directory << "' with type '" << fileType << "'";
+            }
+            
+            // Apply sorting
+            std::string orderType = populateConfig.value("order", "alphanumeric");
+            
+            if (orderType == "date") {
+                // Cache file modification times to avoid race conditions during sort
+                struct FileWithTime {
+                    std::string path;
+                    std::filesystem::file_time_type time;
+                };
+                
+                std::vector<FileWithTime> filesWithTime;
+                filesWithTime.reserve(files.size());
+                
+                for (const auto &file : files) {
+                    try {
+                        if (std::filesystem::exists(file)) {
+                            filesWithTime.push_back({file, std::filesystem::last_write_time(file)});
+                        } else {
+                            // File disappeared, use epoch time
+                            filesWithTime.push_back({file, std::filesystem::file_time_type{}});
+                        }
+                    } catch (...) {
+                        // Error reading time, use epoch time
+                        filesWithTime.push_back({file, std::filesystem::file_time_type{}});
+                    }
+                }
+                
+                // Sort using cached times
+                std::sort(filesWithTime.begin(), filesWithTime.end(),
+                    [](const FileWithTime &a, const FileWithTime &b) -> bool {
+                        return a.time < b.time;
+                    });
+                
+                // Extract sorted paths
+                files.clear();
+                files.reserve(filesWithTime.size());
+                for (const auto &item : filesWithTime) {
+                    files.push_back(item.path);
+                }
+                
+            } else if (orderType == "size") {
+                // Cache file sizes to avoid race conditions during sort
+                struct FileWithSize {
+                    std::string path;
+                    std::uintmax_t size;
+                };
+                
+                std::vector<FileWithSize> filesWithSize;
+                filesWithSize.reserve(files.size());
+                
+                for (const auto &file : files) {
+                    try {
+                        if (std::filesystem::exists(file)) {
+                            filesWithSize.push_back({file, std::filesystem::file_size(file)});
+                        } else {
+                            // File disappeared, use size 0
+                            filesWithSize.push_back({file, 0});
+                        }
+                    } catch (...) {
+                        // Error reading size, use size 0
+                        filesWithSize.push_back({file, 0});
+                    }
+                }
+                
+                // Sort using cached sizes (largest first)
+                std::sort(filesWithSize.begin(), filesWithSize.end(),
+                    [](const FileWithSize &a, const FileWithSize &b) -> bool {
+                        return a.size > b.size;
+                    });
+                
+                // Extract sorted paths
+                files.clear();
+                files.reserve(filesWithSize.size());
+                for (const auto &item : filesWithSize) {
+                    files.push_back(item.path);
+                }
+            }
+            
+            // Build result JSON
+            result["populate"] = populateConfig;
+            
+            bool fullPath = populateConfig.value("fullFileAndPath", false);
+            std::vector<std::string> items;
+            
+            if (!files.empty()) {
+                if (!fullPath) {
+                    items.reserve(files.size());
+                    for (const auto &fp : files) {
+                        items.push_back(std::filesystem::path(fp).filename().stem().string());
+                    }
+                } else {
+                    items = files;
+                }
+            } else if (populateConfig.contains("labelWhenEmpty")) {
+                items.push_back(populateConfig["labelWhenEmpty"].get<std::string>());
+            }
+            
+            result["items"] = items;
+            
+            // Notify via callback
+            if (callback) {
+                callback(result);
+            }
+            
+        } catch (const std::exception &e) {
+            lattice::logError << "Error in processPopulateAsync: " << e.what();
+        }
+    }).detach();
 }
 
 } // namespace cabbage

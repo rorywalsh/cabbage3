@@ -86,8 +86,6 @@ int CabbageCreate::init()
             const std::string channel = ch["id"].get<std::string>();
             const float defVal = ch["range"]["defaultValue"].get<float>();
             hostData->setControlChannel(channel, defVal);
-            lattice::logDebug << "cabbageCreate: Created channel '" << channel 
-                              << "' with default value " << defVal;
         }
     }
     

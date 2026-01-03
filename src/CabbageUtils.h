@@ -17,6 +17,8 @@
 #include <choc/audio/choc_SampleBuffers.h>
 #include <set>
 #include <filesystem>
+#include <future>
+#include <thread>
 #ifdef LATTICE_WINDOWS
 #include <shlobj.h>
 #endif
@@ -111,8 +113,12 @@ public:
     static std::string browseForFile(const std::string& title = "Choose a file", const std::string& initialDir = "", const std::string& filters = "*");
     // Write std::string to file
     static bool writeToFile(const std::string &filePath, const std::string &content);
+    // Write std::string to file asynchronously (non-blocking, safe for audio thread)
+    static void writeToFileAsync(const std::string &filePath, const std::string &content);
     // Read from file
     static std::string readFromFile(const std::string &filePath);
+    // Read from file asynchronously with callback (non-blocking, safe for audio thread)
+    static void readFromFileAsync(const std::string &filePath, std::function<void(const std::string&)> callback);
 
 #if defined(_WIN32)
     static std::string getWindowsProgramDataDir()

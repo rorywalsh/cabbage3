@@ -29,6 +29,10 @@ class Parser
     static void assignDefaultRangesToChannels(nlohmann::json &jsonObj);
     static void parseStroke(const nlohmann::json &strokeValue, nlohmann::json &target);
     static void parseColorProperties(const nlohmann::json &value, nlohmann::json &target);
+    
+    // Async populate processing - returns immediately, processes in background
+    static void processPopulateAsync(const std::string& widgetChannel, const nlohmann::json& populateConfig, 
+                                     std::function<void(const nlohmann::json&)> callback);
 
   private:
     static std::string parseColorValue(const nlohmann::json &value);

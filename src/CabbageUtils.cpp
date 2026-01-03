@@ -141,6 +141,14 @@ bool File::writeToFile(const std::string &filePath, const std::string &content)
     }
 }
 
+void File::writeToFileAsync(const std::string &filePath, const std::string &content)
+{
+    // Launch detached thread for true fire-and-forget (no blocking on destruction)
+    std::thread([filePath, content]() {
+        writeToFile(filePath, content);
+    }).detach();
+}
+
 std::string File::readFromFile(const std::string &filePath)
 {
     try
@@ -161,6 +169,17 @@ std::string File::readFromFile(const std::string &filePath)
         lattice::logDebug << "Exception reading from file " << filePath << ": " << e.what();
         return "";
     }
+}
+
+void File::readFromFileAsync(const std::string &filePath, std::function<void(const std::string&)> callback)
+{
+    // Launch async with explicit policy to ensure new thread
+    std::async(std::launch::async, [filePath, callback]() {
+        std::string content = readFromFile(filePath);
+        if (callback) {
+            callback(content);
+        }
+    });
 }
 
 //======================================================================================================

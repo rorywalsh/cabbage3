@@ -36,6 +36,7 @@ class Engine
 
     // a vector containined all Cabbage widgets
     std::vector<nlohmann::json> widgets;
+    mutable std::mutex widgetsMutex;
 
   public:
     // a parameter struct whose namees match that of the corresponding Csound channel
@@ -111,17 +112,11 @@ class Engine
     // Get the widgets
     std::vector<nlohmann::json> &getWidgets() { return widgets; }
 
-    // Helper function that handles the actual searching
-    std::optional<std::reference_wrapper<nlohmann::json>> findWidgetInArray(nlohmann::json &jsonArray,
-                                                                            const std::string &channel);
-
-    // Overload for std::vector<nlohmann::json>
-    std::optional<std::reference_wrapper<nlohmann::json>> getWidgetFromId(std::vector<nlohmann::json> &widgets,
-                                                                             const std::string &channel);
-
-    // Overload for nlohmann::json (assuming it's an array)
-    std::optional<std::reference_wrapper<nlohmann::json>> getWidgetByChannel(nlohmann::json &widgets,
-                                                                             const std::string &channel);
+    // Thread-safe version that returns a copy
+    std::optional<nlohmann::json> getWidgetCopyById(const std::string &channel);
+    
+    // Thread-safe atomic update: read-modify-write
+    bool updateWidget(const std::string &channel, std::function<void(nlohmann::json&)> modifier);
     // Update widget with JSON object
     const std::string updateWidgetState(nlohmann::json j);
     // Get the index for a parameter channel by name
@@ -238,6 +233,19 @@ class Engine
 
   private:
     void addOpcodes();
+    
+    // Helper function that handles the actual searching (internal use only)
+    std::optional<std::reference_wrapper<nlohmann::json>> findWidgetInArray(nlohmann::json &jsonArray,
+                                                                            const std::string &channel);
+
+    // Legacy method - returns reference wrapper (internal use only, prefer getWidgetCopyById or updateWidget)
+    std::optional<std::reference_wrapper<nlohmann::json>> getWidgetFromId(std::vector<nlohmann::json> &widgets,
+                                                                            const std::string &channel);
+    
+    // Overload for nlohmann::json array (internal use only)
+    std::optional<std::reference_wrapper<nlohmann::json>> getWidgetByChannel(nlohmann::json &widgets,
+                                                                             const std::string &channel);
+    
     int numberOfParameters = 0;
     std::vector<ParameterChannel> parameterChannels;
     std::string csoundOutput = {};
