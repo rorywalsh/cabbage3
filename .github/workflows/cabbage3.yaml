@@ -1,5 +1,11 @@
 name: cabbage3-build
 
+#Current Csound7 release...
+env:
+  CSOUND_MAC_URL: "https://github.com/csound/csound/releases/download/7.0.0-beta.10/csound-macos-7.0.0-beta.10.zip"
+  CSOUND_WIN_URL: "https://github.com/csound/csound/releases/download/7.0.0-beta.10/csound-windows-7.0.0-beta.10.zip"
+
+
 on:
   push:
     branches:
@@ -20,19 +26,20 @@ jobs:
       - name: Download CsoundLib64 Package
         run: |
           # Download the package using curl
-          curl -L -o csound-7.zip "https://www.dropbox.com/scl/fi/d5hnkcecizlwgvnaw1yjy/csound-7.zip?rlkey=pf9v3ucfo8hecyl5ahbacr0a0&dl=1"
+          curl -L -o csound-7.zip "${{ env.CSOUND_MAC_URL }}"
           
           # Extract the zip file
-          unzip csound-7.zip -d csound-7
+          unzip -o csound-7.zip -d csound-7
 
-          # Verify the file exists
-          ls -l csound-7/CsoundLib64-7.0-vanilla-universal.pkg
+          # Find the .pkg file (handles future name changes)
+          PKG=$(find csound-7 -name "*.pkg" | head -n 1)
+          echo "Found pkg: $PKG"
 
           # Make the downloaded file executable
-          chmod +x csound-7/CsoundLib64-7.0-vanilla-universal.pkg
+          chmod +x "$PKG"
 
           # Install the package
-          sudo installer -pkg csound-7/CsoundLib64-7.0-vanilla-universal.pkg -target /
+          sudo installer -pkg "$PKG" -target /
 
 
       # - name: Set up Xcode path
@@ -128,9 +135,11 @@ jobs:
       - name: Download and Extract Csound
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/41g11e00yb4v66fduyw3f/Csound7.zip?rlkey=231ot83u6rmnxapwe03krm04z&st=5bzhtada&dl=1" -OutFile "Csound7.zip"
-          Expand-Archive -Path "Csound7.zip" -DestinationPath "$env:ProgramFiles"
-          Get-ChildItem "$env:ProgramFiles\Csound7"
+          Invoke-WebRequest -Uri "${{ env.CSOUND_WIN_URL }}" -OutFile "csound7.zip"
+          Expand-Archive -Path "csound7.zip" -DestinationPath "csound7"
+          $exe = Get-ChildItem -Path "csound7" -Filter "*.exe" | Select-Object -First 1
+          Write-Host "Found installer: $($exe.FullName)"
+          Move-Item $exe.FullName .\csound-7.exe
 
       - name: Configure build
         shell: cmd
