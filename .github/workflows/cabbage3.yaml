@@ -155,6 +155,11 @@ jobs:
           Write-Host "Found installer: $($exe.FullName)"
           Copy-Item -Path $exe.FullName -Destination ".\csound-7.exe" -Force
 
+      - name: Install Csound
+        shell: pwsh
+        run: |
+          Start-Process -FilePath ".\csound-7.exe" -ArgumentList "/VERYSILENT" -Wait -Verb RunAs
+
       - name: Configure build
         shell: cmd
         run: |
