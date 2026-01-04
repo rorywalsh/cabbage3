@@ -137,7 +137,11 @@ jobs:
         run: |
           Invoke-WebRequest -Uri "${{ env.CSOUND_WIN_URL }}" -OutFile "csound7.zip"
           Expand-Archive -Path "csound7.zip" -DestinationPath "csound7"
-          $exe = Get-ChildItem -Path "csound7" -Filter "*.exe" | Select-Object -First 1
+          $exe = Get-ChildItem -Path "csound7" -Recurse -Filter "*.exe" | Select-Object -First 1
+          if (-not $exe) {
+            Write-Error "No .exe installer found in csound7 folder!"
+            exit 1
+          }
           Write-Host "Found installer: $($exe.FullName)"
           Move-Item $exe.FullName .\csound-7.exe
 
