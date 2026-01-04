@@ -104,7 +104,7 @@ int CabbageJoinPath::joinPath() {
     if (in_count() < 1)
     {
         outargs.str_data(0).size = 1;
-        outargs.str_data(0).data = "";
+        outargs.str_data(0).data = csound->strdup("");
         return IS_OK;
     }
 
