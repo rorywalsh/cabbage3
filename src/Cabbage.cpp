@@ -723,7 +723,7 @@ std::string Engine::getUpdatedWidgetJsonStr(const std::string &channel, float va
         value: $VALUE
     }
     )",
-                                 "$CHANNEL", channel, "$VALUE", std::to_string(value));
+    "$CHANNEL", channel, "$VALUE", std::to_string(value));
 
     return result.c_str();
 }

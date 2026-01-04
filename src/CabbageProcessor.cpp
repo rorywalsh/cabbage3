@@ -895,6 +895,7 @@ void CabbageProcessor::updateUI()
             msg["value"] = param.value;
             cabbage.setControlChannel(param.name, param.value);
             sendWebViewMessage(msg);
+            lattice::logDebug << "Widget sent via queue: " << msg.dump();
         }
     }
     webviewMessageQueue.clear();

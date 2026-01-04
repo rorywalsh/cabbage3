@@ -60,7 +60,7 @@ int CabbageCreateFileName::createFileName()
    };
 
    // --- Get existing files ---
-   auto existingFiles = lattice::File::getFilesOfType(directory, "*" + extension);
+   auto existingFiles = lattice::File::getFilesOfType(directory.string(), "*" + extension);
 
    // --- Random engine ---
    static std::random_device rd;

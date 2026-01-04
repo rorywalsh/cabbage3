@@ -173,13 +173,25 @@ std::string File::readFromFile(const std::string &filePath)
 
 void File::readFromFileAsync(const std::string &filePath, std::function<void(const std::string&)> callback)
 {
+    // Static vector to keep futures alive (prevents immediate blocking)
+    static std::vector<std::future<void>> activeFutures;
+    
+    // Clean up completed futures to avoid unbounded growth
+    activeFutures.erase(
+        std::remove_if(activeFutures.begin(), activeFutures.end(),
+            [](std::future<void>& f) {
+                return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+            }),
+        activeFutures.end()
+    );
+    
     // Launch async with explicit policy to ensure new thread
-    std::async(std::launch::async, [filePath, callback]() {
+    activeFutures.push_back(std::async(std::launch::async, [filePath, callback]() {
         std::string content = readFromFile(filePath);
         if (callback) {
             callback(content);
         }
-    });
+    }));
 }
 
 //======================================================================================================
