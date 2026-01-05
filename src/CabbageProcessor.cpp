@@ -676,7 +676,18 @@ void CabbageProcessor::onWebViewIsReady()
         return;
     }
 
+#ifdef CabbageApp
+    // For CabbageApp, don't call updateUI() here because:
+    // 1. The webview sends cabbageIsReadyToLoad explicitly when ready
+    // 2. setCabbageIsReady() will be called which enables the opcode queue
+    // 3. Calling updateUI() here creates a race condition where widgets are sent
+    //    both from the opcode queue (with table data) and from updateUI() (without table data)
+    // 4. The updateUI() call after setCabbageIsReady() in onMessageFromWebView handles initial state
+    lattice::logDebug << "onWebViewIsReady() called for CabbageApp - skipping updateUI(), waiting for cabbageIsReadyToLoad";
+#else
+    // For plugins, update UI immediately when webview is ready
     updateUI();
+#endif
 }
 
 void CabbageProcessor::setCabbageIsReady()

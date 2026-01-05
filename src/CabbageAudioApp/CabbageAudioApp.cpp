@@ -342,6 +342,12 @@ void CabbageAudioApp::sendWidgetDataToVscode()
 
     for (auto &w : cabbage.getWidgets())
     {
+        // Skip genTable widgets - they will be sent via opcode queue with samples
+        if (w.contains("type") && w["type"] == "genTable")
+        {
+            continue;
+        }
+        
         nlohmann::json msg;
         msg["command"] = "widgetUpdate";
         // Use id if available, otherwise fallback to channel
@@ -703,6 +709,9 @@ void CabbageAudioApp::onIdle()
             if (createCabbageProcessor())
             {
                 lattice::logDebug << "Cabbage processor created successfully";
+                // If this is a recompile (UI already open), enable dequeuing immediately
+                // so that queued genTable updates are sent
+                processor->setCabbageIsReady();
                 sendWidgetDataToVscode();
             }
             else
