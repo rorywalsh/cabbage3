@@ -135,7 +135,9 @@ bool Engine::setupCsound()
         // Initialise genTable widgets that have file properties
         initialiseGenTableWidgets();
 
-        // Queue automatic updates for genTable widgets with tableNumber > 0
+        // Queue table data updates for genTable widgets with tableNumber > 0
+        // The queued messages will be held until allowDequeuing is set to true
+        // (which happens when webview sends cabbageIsReadyToLoad)
         queueGenTableUpdates();
 
         return true;

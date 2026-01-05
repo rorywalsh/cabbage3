@@ -54,11 +54,9 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Pr
 
     startOnIdle();
 
-    // For CabbageApp, enable dequeuing immediately so widgets created during
-    // init are processed right away. For plugins, this is set when UI is ready.
-#ifdef CabbageApp
-    allowDequeuing = true;
-#endif
+    // For plugins, allowDequeuing is set when UI is ready (setCabbageIsReady).
+    // For CabbageApp, it's set when webview signals cabbageIsReadyToLoad.
+    // This ensures messages aren't sent before the webview is connected.
 }
 
 CabbageProcessor::~CabbageProcessor()
@@ -493,7 +491,9 @@ void CabbageProcessor::onIdle()
             }
 
 #ifdef CabbageApp
-            hostCallback(dataCopy);
+            if (hostCallback) {
+                hostCallback(dataCopy);
+            }
 #else
             cabbage.processCsoundMessages();
             updateWidgetData(dataCopy);
@@ -743,8 +743,11 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
 
     if (command == "cabbageIsReadyToLoad")
     {
+        lattice::logInfo << "CabbageProcessor: Calling queueGenTableUpdates() for webview reconnection";
         setCabbageIsReady();
         updateUI();
+        // Re-queue table data for the reconnected webview
+        cabbage.queueGenTableUpdates();
     }
     else if (command == "parameterChange")
     {

@@ -246,12 +246,15 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
         {
             if (!processor)
             {
-                lattice::logInfo << "Processor is null! Cannot process cabbageIsReadyToLoad.";
+                // Webview loaded before processor was created - this is normal on initial load.
+                // Webview will send cabbageIsReadyToLoad again after widgets are received.
+                lattice::logDebug << "Received cabbageIsReadyToLoad but processor not ready yet - ignoring";
                 return;
             }
-            lattice::logDebug << "Received cabbageIsReadyToLoad message";
+            lattice::logDebug << "Received cabbageIsReadyToLoad - enabling message dequeuing";
+            // Signal that webview is ready - this enables message dequeuing
+            // Now queued table data and other updates will be processed and sent
             processor->setCabbageIsReady();
-            processor->updateUI();
         }
 
         else if (command == "parameterChange")
@@ -309,12 +312,6 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
             processor->addNoteEventFromJson(jsonObj);
         }
 
-        else if (command == "initialiseWidgets")
-        {
-            // vscode will notify when it's ready to receive the Cabbage widget data
-            sendWidgetDataToVscode();
-        }
-
         else if (command == "stopAudio")
         {
             // when VS Code tries to end the process, it first send a stopAudio message..
@@ -365,7 +362,9 @@ void CabbageAudioApp::sendWidgetDataToVscode()
         sendJsonMessage(msg);
     }
 
-    processor->setCabbageIsReady();
+    // Note: Don't call setCabbageIsReady() here. 
+    // It should only be called when webview explicitly sends cabbageIsReadyToLoad,
+    // otherwise queued messages (like table data) will be sent before webview is connected.
 }
 
 //==============================================================================
