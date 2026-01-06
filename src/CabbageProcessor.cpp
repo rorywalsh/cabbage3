@@ -324,6 +324,19 @@ void CabbageProcessor::process(float **inputs, float **outputs, std::size_t bloc
         return;
     }
 
+    // Get transport info from host and update Csound channels
+    auto transport = getTransportInfo();
+    
+    // Update transport-related control channels
+    cabbage.setControlChannel("HOST_BPM", transport.tempo);
+    cabbage.setControlChannel("IS_PLAYING", transport.isPlaying ? 1.0f : 0.0f);
+    cabbage.setControlChannel("IS_RECORDING", transport.isRecording ? 1.0f : 0.0f);
+    cabbage.setControlChannel("TIME_IN_SECONDS", transport.songPosSeconds);
+    cabbage.setControlChannel("TIME_IN_SAMPLES", transport.songPosSeconds * sampleRate);
+    cabbage.setControlChannel("TIME_SIG_NUM", static_cast<float>(transport.timeSigNum));
+    cabbage.setControlChannel("TIME_SIG_DENOM", static_cast<float>(transport.timeSigDenom));
+    cabbage.setControlChannel("HOST_PPQ_POS", transport.barStart);
+    
     // only process audio if Csound has compiled successfully.
     if (cabbage.csdCompiledWithoutError())
     {
