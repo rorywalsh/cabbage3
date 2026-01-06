@@ -149,8 +149,8 @@ int CabbageSetPerfMYFLT::setIdentifier(int /*pass*/)
             hostData->setControlChannel(args.str_data(1).data, args[argIndex + 1]);
         }
 
-        // Only enqueue if value has changed
-        if (hostData->isValueDifferent(data))
+        // Only enqueue if value has changed - or if we are trying to update a table
+        if (hostData->isValueDifferent(data) || data.identifier == "tableNumber")
         {
             hostData->updateChannelCache(data);
         }

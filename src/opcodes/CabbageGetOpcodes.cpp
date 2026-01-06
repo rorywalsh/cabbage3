@@ -253,6 +253,36 @@ int CabbageGetString::getIdentifier(int /*init*/)
 }
 
 //=========================================================================================
+// SText[] cabbageGet "channel", "identifier"
+//=========================================================================================
+int CabbageGetStringArray::getIdentifier(int /*init*/)
+{
+    auto *hostData = static_cast<cabbage::Engine *>(csound->host_data());
+
+    if (in_count() == 2) // irate version
+    {
+        CabbageOpcodeData data = getIdentData(csound, inargs, true, 0, 1);
+        for (auto &widget : hostData->getWidgets())
+        {
+            if (cabbage::Engine::hasChannel(widget, data.channel))
+            {
+                auto items = getJsonValue(widget, data.identifier).get<std::vector<std::string>>();
+                csnd::Vector<STRINGDAT>& out = outargs.vector_data<STRINGDAT>(0);
+                out.init(csound, static_cast<int>(items.size()), this->insdshead);
+                int index = 0;
+                for( auto& item : items)
+                {
+                    out[index].size = item.size();
+                    out[index].data = csound->strdup((char*)item.c_str());
+                    index++;
+                }
+            }
+        }
+    }
+
+    return IS_OK;
+}
+//=========================================================================================
 //
 //=========================================================================================
 int CabbageGetStringWithTrigger::getIdentifier(int /*init*/)

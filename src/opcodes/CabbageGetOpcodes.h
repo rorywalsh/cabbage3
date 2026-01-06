@@ -92,6 +92,13 @@ struct CabbageGetString : csnd::Plugin<1, 2>, CabbageOpcodes<2>
     int getIdentifier(int init);
 };
 
+struct CabbageGetStringArray : csnd::Plugin<1, 2>, CabbageOpcodes<2>
+{
+    int init() { return getIdentifier(CabbageOpcodeData::PassType::Init); };
+    int kperf() { return getIdentifier(CabbageOpcodeData::PassType::Perf); };
+    int getIdentifier(int init);
+};
+
 struct CabbageGetStringWithTrigger : csnd::Plugin<2, 2>, CabbageOpcodes<2>
 {
     std::string currentString = {};
