@@ -209,6 +209,12 @@ void Engine::setReservedChannels()
     auto path = cabbage::File::getCsdPath(csdFile);
     csound->SetStringChannel("CSD_PATH", (char *)path.c_str());
 
+#ifndef CabbageApp
+    csound->SetControlChannel("IS_A_PLUGIN", 1.0f);
+#else
+    csound->SetControlChannel("IS_A_PLUGIN", 0.0f);
+#endif
+
     // Set all reserved directory channels using lattice::File::getSpecialLocation
     // All paths are converted to generic string format, i.e, forward slashes, for cross-platform compatibility
     csound->SetStringChannel("USER_HOME_DIRECTORY",
