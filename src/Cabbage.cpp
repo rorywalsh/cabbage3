@@ -18,6 +18,10 @@
  */
 
 #include "Cabbage.h"
+
+#ifdef CABBAGE_PRO
+#include "encrypt.h"
+#endif
 #include "CabbageProcessor.h"
 
 #include <choc/text/choc_StringUtilities.h>
@@ -113,7 +117,28 @@ bool Engine::setupCsound()
     if (exists)
     {
         // Check for compile time errors
+#ifdef CABBAGE_PRO
+        // Pro version: Check if file is encrypted
+        if (Decrypt::isEncrypted(csdFile))
+        {
+            try {
+                std::string decryptedCsd = Decrypt::getCsdText(csdFile);
+                csCompileResult = csound->CompileCsd(decryptedCsd.c_str(), 1);
+            }
+            catch (const std::exception& e) {
+                lattice::logError << "Failed to decrypt CSD file: " << e.what();
+                csCompileResult = -1;
+            }
+        }
+        else
+        {
+            // Regular unencrypted CSD file
+            csCompileResult = csound->Compile(csdFile.c_str());
+        }
+#else
+        // Free version: Only handle unencrypted files
         csCompileResult = csound->Compile(csdFile.c_str());
+#endif
         setReservedChannels();
         // No check for i-time errors and instr0 issues
         if (csound->Start() == CSOUND_SUCCESS && csdCompiledWithoutError())
