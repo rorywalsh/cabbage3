@@ -53,13 +53,15 @@ struct CabbageOpcodeData
     {
         Scalar,
         String,
-        Array
+        Array,
+        StringArray
     };
 
     nlohmann::json cabbageJson = {};
     std::string channel = {};
     std::string identifier = {};
     MessageType type;
+    bool skipPopulateProcessing = false;  // Set to true to prevent populate re-triggering
 };
 
 template <std::size_t NumInputParams>
@@ -249,6 +251,19 @@ struct CabbageOpcodes
                     {
                         csnd::Vector<MYFLT> &arrayArgs = args.myfltvec_data(argIndex);
                         std::vector<MYFLT> array(arrayArgs.begin(), arrayArgs.end());
+                        jsonObj[identifier] = array;
+                    }
+                }
+                else if (argType == CabbageOpcodeData::ArgType::StringArray)
+                {
+                    if (args.template vector_data<STRINGDAT>(argIndex).len() > 0)
+                    {
+                        csnd::Vector<STRINGDAT>& arrayArgs = args.template vector_data<STRINGDAT>(argIndex);
+                        std::vector<std::string> array;
+                        array.reserve(arrayArgs.len());
+                        for (size_t i = 0; i < arrayArgs.len(); ++i) {
+                            array.push_back(std::string(arrayArgs[i].data));
+                        }
                         jsonObj[identifier] = array;
                     }
                 }

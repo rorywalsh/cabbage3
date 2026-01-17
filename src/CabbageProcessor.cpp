@@ -461,55 +461,82 @@ void CabbageProcessor::onIdle()
         {
             // Make an explicit copy to ensure deep copy of JSON data
             CabbageOpcodeData dataCopy = latestData;
-            
-            // Check if this message contains a populate update
-            bool hasPopulateUpdate = dataCopy.cabbageJson.contains("populate");
-            
+
+            // Check if this message contains a populate update AND should be processed
+            bool hasPopulateUpdate = dataCopy.cabbageJson.contains("populate") && !dataCopy.skipPopulateProcessing;
+
             cabbage.updateWidget(dataCopy.channel, [dataCopy](nlohmann::json &j) {
                 cabbage::Parser::mergeJsonProperties(j, dataCopy.cabbageJson);
             });
-            
-            // If this update included populate data, trigger async processing
+
+            // If this update included populate data and should be processed, trigger async processing
             if (hasPopulateUpdate)
             {
                 auto widgetOpt = cabbage.getWidgetCopyById(dataCopy.channel);
+                lattice::logDebug << "Checking widget for populate config: " << dataCopy.channel;
+                if (widgetOpt.has_value()) {
+                    if (widgetOpt->contains("populate")) {
+                        lattice::logDebug << "Widget has populate field, type: " << (*widgetOpt)["populate"].type_name();
+                    } else {
+                        lattice::logDebug << "Widget does NOT have populate field";
+                    }
+                }
+
                 if (widgetOpt.has_value() && widgetOpt->contains("populate") && (*widgetOpt)["populate"].is_object())
                 {
                     std::string widgetChannel = dataCopy.channel;
                     nlohmann::json populateConfig = (*widgetOpt)["populate"];
-                    
+
+                    lattice::logDebug << "Populate config: " << populateConfig.dump();
+
+                    // Normalize directories: convert single string to array for consistency
+                    if (populateConfig.contains("directories") && populateConfig["directories"].is_string()) {
+                        std::string singleDir = populateConfig["directories"].get<std::string>();
+                        populateConfig["directories"] = nlohmann::json::array({singleDir});
+                        lattice::logDebug << "Converted single string directories to array for widget: " << widgetChannel;
+                    }
+
                     // Verify it has the required fields before processing
-                    if (populateConfig.contains("directory") && populateConfig.contains("fileType"))
+                    if (populateConfig.contains("directories") && populateConfig["directories"].is_array() && populateConfig.contains("fileType"))
                     {
                         lattice::logDebug << "Triggering processPopulateAsync for widget: " << widgetChannel;
-                        
+
                         // Process populate on background thread, then update widget with results
-                        cabbage::Parser::processPopulateAsync(widgetChannel, populateConfig, 
+                        cabbage::Parser::processPopulateAsync(widgetChannel, populateConfig,
                             [this, widgetChannel](const nlohmann::json& result) {
-                                
+                                lattice::logDebug << "Populate callback received for widget: " << widgetChannel;
+                                lattice::logDebug << "Result contains items: " << (result.contains("items") ? "yes" : "no");
+                                if (result.contains("items")) {
+                                    lattice::logDebug << "Items count: " << result["items"].size();
+                                }
+
                                 // Update widget with populated items (this runs on background thread)
                                 cabbage.updateWidget(widgetChannel, [result](nlohmann::json &j) {
                                     if (result.contains("items")) {
                                         j["items"] = result["items"];
+                                        lattice::logDebug << "Updated widget items in internal state";
                                     }
                                     // Note: We DON'T update j["populate"] here to avoid triggering
                                     // another populate detection in onIdle (which would create an infinite loop)
                                 });
-                                
-                                // Send the updated widget directly to UI (bypass opcode queue to avoid loop)
-                                auto widgetCopy = cabbage.getWidgetCopyById(widgetChannel);
-                                if (widgetCopy.has_value()) {
-                                    nlohmann::json msg;
-                                    msg["command"] = "widgetUpdate";
-                                    msg["id"] = widgetChannel;
-                                    msg["widgetJson"] = widgetCopy->dump();
-                                    sendWebViewMessage(msg);
-                                }
+
+                                // Enqueue widget update to be sent from idle thread
+                                // Create opcode data to trigger a widget update on the idle thread
+                                CabbageOpcodeData opcodeUpdate;
+                                opcodeUpdate.channel = widgetChannel;
+                                opcodeUpdate.type = CabbageOpcodeData::MessageType::Identifier;
+                                opcodeUpdate.identifier = "items";  // This will trigger a full widget update
+                                opcodeUpdate.cabbageJson = result;  // Contains the items
+                                opcodeUpdate.skipPopulateProcessing = true;  // CRITICAL: Prevent infinite loop
+
+                                // Enqueue to opcode queue so it's processed by onIdle
+                                cabbage.opcodeData.enqueue(opcodeUpdate);
+                                lattice::logDebug << "Enqueued widget update for idle thread processing";
                             });
                     }
                     else
                     {
-                        lattice::logWarning << "Populate config missing directory or fileType for: " << widgetChannel;
+                        lattice::logWarning << "Populate config missing directories array or fileType for: " << widgetChannel;
                         lattice::logWarning << "Current populate config: " << populateConfig.dump();
                     }
                 }
@@ -924,6 +951,68 @@ void CabbageProcessor::updateUI()
     }
 
     lattice::logDebug << "Total widgets sent: " << widgetsSent;
+
+    // Process populate configurations for widgets that have them
+    for (auto &w : cabbage.getWidgets())
+    {
+        if (w.contains("populate") && w["populate"].is_object())
+        {
+            std::string widgetChannel;
+            if (w.contains("id") && w["id"].is_string())
+            {
+                widgetChannel = w["id"].get<std::string>();
+            }
+            else if (w.contains("channels") && w["channels"].is_array() && !w["channels"].empty() &&
+                     w["channels"][0].contains("id"))
+            {
+                widgetChannel = w["channels"][0]["id"].get<std::string>();
+            }
+
+            if (!widgetChannel.empty())
+            {
+                nlohmann::json populateConfig = w["populate"];
+
+                // Convert single string to array for consistency
+                if (populateConfig.contains("directories") && populateConfig["directories"].is_string())
+                {
+                    std::string singleDir = populateConfig["directories"].get<std::string>();
+                    populateConfig["directories"] = nlohmann::json::array({singleDir});
+                }
+
+                // Verify it has the required fields before processing
+                if (populateConfig.contains("directories") && populateConfig["directories"].is_array() &&
+                    populateConfig.contains("fileType"))
+                {
+                    lattice::logDebug << "Processing initial populate for widget: " << widgetChannel;
+
+                    // Process populate on background thread, then update widget with results
+                    cabbage::Parser::processPopulateAsync(
+                        widgetChannel, populateConfig, [this, widgetChannel](const nlohmann::json &result) {
+                            // Update widget with populated items (this runs on background thread)
+                            cabbage.updateWidget(widgetChannel, [result](nlohmann::json &j) {
+                                if (result.contains("items"))
+                                {
+                                    j["items"] = result["items"];
+                                }
+                            });
+
+                            // Send the updated widget directly to UI
+                            auto widgetCopy = cabbage.getWidgetCopyById(widgetChannel);
+                            if (widgetCopy.has_value())
+                            {
+                                nlohmann::json msg;
+                                msg["command"] = "widgetUpdate";
+                                msg["id"] = widgetChannel;
+                                msg["widgetJson"] = widgetCopy->dump();
+                                sendWebViewMessage(msg);
+                            }
+
+                            lattice::logDebug << "Finished processing initial populate for widget: " << widgetChannel;
+                        });
+                }
+            }
+        }
+    }
 
     // Check if editor has any pending messages when loaded..
     for (const auto &param : webviewMessageQueue)

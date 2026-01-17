@@ -79,3 +79,9 @@ struct CabbageSetInitMYFLTArray : csnd::InPlug<64>, CabbageOpcodes<64>
     int init() { return setIdentifier(CabbageOpcodeData::PassType::Init); };
     int setIdentifier(int init);
 };
+
+struct CabbageSetInitStringArray : csnd::InPlug<64>, CabbageOpcodes<64>
+{
+    int init() { return setIdentifier(CabbageOpcodeData::PassType::Init); };
+    int setIdentifier(int init);
+};

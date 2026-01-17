@@ -874,40 +874,70 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
 {
     std::thread([widgetChannel, populateConfig, callback]() {
         try {
+            lattice::logDebug << "processPopulateAsync thread started for widget: " << widgetChannel;
+
             // Small delay to allow any pending file operations (like saves) to complete
             // This prevents race conditions where cabbageSet triggers a populate refresh
             // immediately after cabbageSaveState but before the file is written to disk
             std::this_thread::sleep_for(std::chrono::milliseconds(150));
-            
+
             // All file I/O happens on this background thread
             nlohmann::json result;
 
+            // Make a mutable copy of populateConfig for normalization
+            nlohmann::json config = populateConfig;
+
+            lattice::logDebug << "populateConfig received: " << config.dump();
+
             // Validate required fields
-            if (!populateConfig.contains("directories") || !populateConfig["directories"].is_array()) {
-                lattice::logError << "populate missing 'directories' array for widget: " << widgetChannel;
+            if (!config.contains("directories")) {
+                lattice::logError << "populate missing 'directories' for widget: " << widgetChannel;
                 return;
             }
 
-            if (!populateConfig.contains("fileType") || !populateConfig["fileType"].is_string()) {
+            // Convert single string to array for consistency
+            if (config["directories"].is_string()) {
+                std::string singleDir = config["directories"].get<std::string>();
+                config["directories"] = nlohmann::json::array({singleDir});
+                lattice::logDebug << "Converted directories to array: " << config["directories"].dump();
+            }
+
+            if (!config["directories"].is_array()) {
+                lattice::logError << "populate 'directories' must be a string or array for widget: " << widgetChannel;
+                return;
+            }
+
+            if (!config.contains("fileType") || !config["fileType"].is_string()) {
                 lattice::logError << "populate missing 'fileType' for widget: " << widgetChannel;
                 return;
             }
 
-            std::string fileType = cabbage::Utils::sanitisePath(populateConfig["fileType"].get<std::string>());
+            std::string fileType = cabbage::Utils::sanitisePath(config["fileType"].get<std::string>());
+            lattice::logDebug << "fileType: " << fileType;
 
             // Collect directories from array
             std::vector<std::string> directories;
-            for (const auto& dir : populateConfig["directories"]) {
+            for (const auto& dir : config["directories"]) {
                 if (dir.is_string()) {
                     directories.push_back(dir.get<std::string>());
+                    lattice::logDebug << "Adding directory: " << dir.get<std::string>();
                 }
             }
 
-            // Collect files from all directories
+            // Collect files from all directories, avoiding duplicates
             std::vector<std::string> files;
+            std::unordered_set<std::string> seenFiles;
             for (const auto& directory : directories) {
+                lattice::logDebug << "Scanning directory: " << directory;
                 auto dirFiles = File::getFilesOfType(directory, fileType);
-                files.insert(files.end(), dirFiles.begin(), dirFiles.end());
+                lattice::logDebug << "Found " << dirFiles.size() << " files in directory: " << directory;
+                for (const auto &f : dirFiles) {
+                    if (seenFiles.insert(f).second) {
+                        files.push_back(f);
+                    } else {
+                        lattice::logDebug << "Skipping duplicate file: " << f;
+                    }
+                }
             }
 
             if (files.empty()) {
@@ -921,7 +951,7 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
             }
             
             // Apply sorting
-            std::string orderType = populateConfig.value("order", "alphanumeric");
+            std::string orderType = config.value("order", "alphanumeric");
             
             if (orderType == "date") {
                 // Cache file modification times to avoid race conditions during sort
@@ -999,20 +1029,32 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
             }
             
             // Build result JSON
-            result["populate"] = populateConfig;
-            
+            result["populate"] = config;
+
             std::vector<std::string> items;
+
+            lattice::logDebug << "Total files found: " << files.size();
 
             if (!files.empty()) {
                 // Always provide full paths - frontend can strip them for display if needed
                 items = files;
-            } else if (populateConfig.contains("labelWhenEmpty")) {
-                items.push_back(populateConfig["labelWhenEmpty"].get<std::string>());
+                lattice::logDebug << "Setting items to files list";
+            } else if (config.contains("labelWhenEmpty")) {
+                items.push_back(config["labelWhenEmpty"].get<std::string>());
+                lattice::logDebug << "No files found, using labelWhenEmpty";
+            } else {
+                lattice::logDebug << "No files found and no labelWhenEmpty";
             }
-            
+
             result["items"] = items;
-            
+            lattice::logDebug << "Result items count: " << result["items"].size();
+
             // Notify via callback
+            if (callback) {
+                lattice::logDebug << "Calling callback with result";
+            } else {
+                lattice::logWarning << "No callback provided for populate";
+            }
             if (callback) {
                 callback(result);
             }

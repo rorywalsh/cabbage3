@@ -257,3 +257,32 @@ int CabbageSetInitMYFLTArray::setIdentifier(int /*pass*/)
 
     return IS_OK;
 }
+
+//=====================================================================================
+// cabbageSet "channel", "identifier", SArg1[]
+//=====================================================================================
+int CabbageSetInitStringArray::setIdentifier(int /*pass*/)
+{
+    auto *hostData = static_cast<cabbage::Engine *>(csound->host_data());
+    auto data = getIdentData(csound, args, true, 0, 1);
+    data.type = CabbageOpcodeData::MessageType::Identifier;
+    const int argIndex = 1;
+
+    if (!testForValidNumberOfInputs(in_count(), argIndex + 1))
+    {
+        csound->init_error("Not enough input arguments\n");
+        return NOTOK;
+    }
+
+    updateWidgetJson(data.cabbageJson, args, argIndex + 1, data.identifier, CabbageOpcodeData::ArgType::StringArray);
+
+    // If updating the value identifier, also update the Csound channel
+    if (data.identifier == "value")
+    {
+        hostData->setControlChannel(args.str_data(0).data, args[argIndex + 1]);
+    }
+
+    hostData->updateChannelCache(data);
+
+    return IS_OK;
+}

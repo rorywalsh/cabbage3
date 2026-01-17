@@ -59,6 +59,7 @@ void Engine::addOpcodes()
 
     csnd::plugin<CabbageSetInitMYFLTArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "SSi[]", csnd::thread::i);
     csnd::plugin<CabbageSetPerfMYFLTArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "kSSk[]", csnd::thread::k);
+    csnd::plugin<CabbageSetInitStringArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSet", "", "SSS[]", csnd::thread::i);
 
     csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "i", "S", csnd::thread::i);
     csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
