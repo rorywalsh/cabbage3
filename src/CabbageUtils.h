@@ -19,6 +19,7 @@
 
 #include <lattice/LatticeProcessor.h>
 #include <lattice/LatticeUtils.h>
+#include "CabbagePluginInfo.h"
 // choc classes for reading audio files
 #include <choc/audio/choc_AudioFileFormat.h>
 #include <choc/audio/choc_AudioFileFormat_Ogg.h>
@@ -137,7 +138,7 @@ public:
            char path[MAX_PATH];
         if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_COMMON_APPDATA, NULL, 0, path)))
            {
-               return std::string(path) + "\\CabbageAudio";
+               return std::string(path) + "\\" + LATTICE_MANUFACTURER_NAME;
            }
               
            else
@@ -148,12 +149,12 @@ public:
     {
         const char *homeDir = getenv("HOME");
         if (homeDir)
-            return std::string(homeDir) + "/Library/CabbageAudio";
+            return std::string(homeDir) + "/Library/" + std::string(LATTICE_MANUFACTURER_NAME);
         else
         {
             struct passwd *pw = getpwuid(getuid());
             if (pw)
-                return std::string(pw->pw_dir) + "/Library/CabbageAudio";
+                return std::string(pw->pw_dir) + "/Library/" + std::string(LATTICE_MANUFACTURER_NAME);
             else
                 return "";
         }

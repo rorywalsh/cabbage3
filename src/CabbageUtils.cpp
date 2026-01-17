@@ -463,7 +463,7 @@ std::string File::getCabbageResourceDir()
 #elif defined(__APPLE__)
     return getMacCabbageResourceDir();
 #elif defined(__linux__)
-    return getLinuxHomeDir() + "/.config/CabbageAudio";
+    return getLinuxHomeDir() + "/.config/" + std::string(LATTICE_MANUFACTURER_NAME);
 #else
     return "";
 #endif
