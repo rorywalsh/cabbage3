@@ -983,18 +983,11 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
             // Build result JSON
             result["populate"] = populateConfig;
             
-            bool fullPath = populateConfig.value("fullFileAndPath", false);
             std::vector<std::string> items;
-            
+
             if (!files.empty()) {
-                if (!fullPath) {
-                    items.reserve(files.size());
-                    for (const auto &fp : files) {
-                        items.push_back(std::filesystem::path(fp).filename().stem().string());
-                    }
-                } else {
-                    items = files;
-                }
+                // Always provide full paths - frontend can strip them for display if needed
+                items = files;
             } else if (populateConfig.contains("labelWhenEmpty")) {
                 items.push_back(populateConfig["labelWhenEmpty"].get<std::string>());
             }
