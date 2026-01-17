@@ -18,11 +18,17 @@
  */
 
 #include "CabbageUtils.h"
+#include "CabbagePluginInfo.h"
 #include <choc/text/choc_Files.h>
 #include <sstream>
 #include <cstdio>
 
 namespace cabbage {
+
+std::string File::getManufacturerName()
+{
+    return LATTICE_MANUFACTURER_NAME;
+}
 
 std::string Utils::sanitisePath(const std::string &path)
 {
@@ -463,7 +469,7 @@ std::string File::getCabbageResourceDir()
 #elif defined(__APPLE__)
     return getMacCabbageResourceDir();
 #elif defined(__linux__)
-    return getLinuxHomeDir() + "/.config/" + std::string(LATTICE_MANUFACTURER_NAME);
+    return getLinuxHomeDir() + "/.config/" + getManufacturerName();
 #else
     return "";
 #endif

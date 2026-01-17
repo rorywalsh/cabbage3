@@ -19,7 +19,6 @@
 
 #include <lattice/LatticeProcessor.h>
 #include <lattice/LatticeUtils.h>
-#include "CabbagePluginInfo.h"
 // choc classes for reading audio files
 #include <choc/audio/choc_AudioFileFormat.h>
 #include <choc/audio/choc_AudioFileFormat_Ogg.h>
@@ -132,13 +131,16 @@ public:
     // Read from file asynchronously with callback (non-blocking, safe for audio thread)
     static void readFromFileAsync(const std::string &filePath, std::function<void(const std::string&)> callback);
 
+    // Get manufacturer name for resource directories
+    static std::string getManufacturerName();
+
 #if defined(_WIN32)
     static std::string getWindowsProgramDataDir()
     {
            char path[MAX_PATH];
         if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_COMMON_APPDATA, NULL, 0, path)))
            {
-               return std::string(path) + "\\" + LATTICE_MANUFACTURER_NAME;
+               return std::string(path) + "\\" + getManufacturerName();
            }
               
            else
@@ -149,12 +151,12 @@ public:
     {
         const char *homeDir = getenv("HOME");
         if (homeDir)
-            return std::string(homeDir) + "/Library/" + std::string(LATTICE_MANUFACTURER_NAME);
+            return std::string(homeDir) + "/Library/" + getManufacturerName();
         else
         {
             struct passwd *pw = getpwuid(getuid());
             if (pw)
-                return std::string(pw->pw_dir) + "/Library/" + std::string(LATTICE_MANUFACTURER_NAME);
+                return std::string(pw->pw_dir) + "/Library/" + cabbage::File::getManufacturerName();
             else
                 return "";
         }
