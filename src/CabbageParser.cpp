@@ -909,9 +909,15 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
                 auto dirFiles = File::getFilesOfType(directory, fileType);
                 files.insert(files.end(), dirFiles.begin(), dirFiles.end());
             }
-            
+
             if (files.empty()) {
-                lattice::logWarning << "No files found in '" << directory << "' with type '" << fileType << "'";
+                // Build directory list string for logging
+                std::string dirList;
+                for (size_t i = 0; i < directories.size(); ++i) {
+                    dirList += directories[i];
+                    if (i < directories.size() - 1) dirList += ", ";
+                }
+                lattice::logWarning << "No files found in directories [" << dirList << "] with type '" << fileType << "'";
             }
             
             // Apply sorting
