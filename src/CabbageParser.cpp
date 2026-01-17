@@ -881,22 +881,34 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
             
             // All file I/O happens on this background thread
             nlohmann::json result;
-            
+
             // Validate required fields
-            if (!populateConfig.contains("directory") || !populateConfig["directory"].is_string()) {
-                lattice::logError << "populate missing 'directory' for widget: " << widgetChannel;
+            if (!populateConfig.contains("directories") || !populateConfig["directories"].is_array()) {
+                lattice::logError << "populate missing 'directories' array for widget: " << widgetChannel;
                 return;
             }
-            
+
             if (!populateConfig.contains("fileType") || !populateConfig["fileType"].is_string()) {
                 lattice::logError << "populate missing 'fileType' for widget: " << widgetChannel;
                 return;
             }
-            
-            std::string directory = populateConfig["directory"].get<std::string>();
+
             std::string fileType = cabbage::Utils::sanitisePath(populateConfig["fileType"].get<std::string>());
-            
-            std::vector<std::string> files = File::getFilesOfType(directory, fileType);
+
+            // Collect directories from array
+            std::vector<std::string> directories;
+            for (const auto& dir : populateConfig["directories"]) {
+                if (dir.is_string()) {
+                    directories.push_back(dir.get<std::string>());
+                }
+            }
+
+            // Collect files from all directories
+            std::vector<std::string> files;
+            for (const auto& directory : directories) {
+                auto dirFiles = File::getFilesOfType(directory, fileType);
+                files.insert(files.end(), dirFiles.begin(), dirFiles.end());
+            }
             
             if (files.empty()) {
                 lattice::logWarning << "No files found in '" << directory << "' with type '" << fileType << "'";
