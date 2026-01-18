@@ -95,6 +95,7 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
                 -DCMAKE_CXX_STANDARD=20
                 -DCMAKE_CXX_STANDARD_REQUIRED=ON
                 -DCABBAGE_PRO_BUILD=${CABBAGE_PRO_BUILD}
+                -DPRO_MASTER_KEY=${PRO_MASTER_KEY}
                 -S ${CMAKE_SOURCE_DIR}
                 -G ${CMAKE_GENERATOR}
                 -B ${CMAKE_BINARY_DIR}/${target}
@@ -289,7 +290,10 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
 
     # Add CabbagePro definition if building Pro version
     if(CABBAGE_PRO_BUILD)
-        target_compile_definitions(${PROJECT_NAME} PRIVATE CabbagePro)
+        target_compile_definitions(${PROJECT_NAME} PRIVATE
+            CabbagePro
+            PRO_MASTER_KEY="${PRO_MASTER_KEY}"
+        )
     endif()
 
     if(WIN32)
@@ -363,7 +367,10 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
 
     # Add CabbagePro definition if building Pro version
     if(CABBAGE_PRO_BUILD)
-        target_compile_definitions(${PROJECT_NAME} PRIVATE CabbagePro)
+        target_compile_definitions(${PROJECT_NAME} PRIVATE
+            CabbagePro
+            PRO_MASTER_KEY="${PRO_MASTER_KEY}"
+        )
     endif()
     
     if(WIN32)
@@ -405,7 +412,10 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
 
     # Add CabbagePro definition if building Pro version
     if(CABBAGE_PRO_BUILD)
-        target_compile_definitions(${PROJECT_NAME}-impl PRIVATE CabbagePro)
+        target_compile_definitions(${PROJECT_NAME}-impl PRIVATE
+            CabbagePro
+            PRO_MASTER_KEY="${PRO_MASTER_KEY}"
+        )
     endif()
 
     # Platform-specific options
