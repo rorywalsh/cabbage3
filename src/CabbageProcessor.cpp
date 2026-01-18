@@ -646,6 +646,7 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
             {
                 cabbage.updateFunctionTable(data, j);
             }
+            lattice::logDebug << data.cabbageJson.dump(4); 
             cabbage::Parser::mergeJsonProperties(j, data.cabbageJson);
             return j;
         }

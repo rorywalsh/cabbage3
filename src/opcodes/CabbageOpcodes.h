@@ -262,7 +262,7 @@ struct CabbageOpcodes
                         std::vector<std::string> array;
                         array.reserve(arrayArgs.len());
                         for (size_t i = 0; i < arrayArgs.len(); ++i) {
-                            array.push_back(std::string(arrayArgs[i].data));
+                            array.push_back(arrayArgs[i].data);
                         }
                         jsonObj[identifier] = array;
                     }
@@ -274,7 +274,7 @@ struct CabbageOpcodes
             }
             else
             {
-                // dot notation - needs updating for array
+                // dot notation
                 if (argType == CabbageOpcodeData::ArgType::String)
                 {
                     setJsonValue(jsonObj, args.str_data(argIndex - 1).data, args.str_data(argIndex).data);
@@ -283,6 +283,28 @@ struct CabbageOpcodes
                 else if (argType == CabbageOpcodeData::ArgType::Scalar)
                 {
                     setJsonValue(jsonObj, args.str_data(argIndex - 1).data, args[argIndex]);
+                }
+                else if (argType == CabbageOpcodeData::ArgType::Array)
+                {
+                    if (args.myfltvec_data(argIndex).len() > 0)
+                    {
+                        csnd::Vector<MYFLT> &arrayArgs = args.myfltvec_data(argIndex);
+                        std::vector<MYFLT> array(arrayArgs.begin(), arrayArgs.end());
+                        setJsonValue(jsonObj, args.str_data(argIndex - 1).data, array);
+                    }
+                }
+                else if (argType == CabbageOpcodeData::ArgType::StringArray)
+                {
+                    if (args.template vector_data<STRINGDAT>(argIndex).len() > 0)
+                    {
+                        csnd::Vector<STRINGDAT>& arrayArgs = args.template vector_data<STRINGDAT>(argIndex);
+                        std::vector<std::string> array;
+                        array.reserve(arrayArgs.len());
+                        for (size_t i = 0; i < arrayArgs.len(); ++i) {
+                            array.push_back(arrayArgs[i].data);
+                        }
+                        setJsonValue(jsonObj, args.str_data(argIndex - 1).data, array);
+                    }
                 }
             }
         }
