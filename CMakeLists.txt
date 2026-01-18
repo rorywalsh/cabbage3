@@ -229,6 +229,11 @@ else()
     list(APPEND CABBAGE_SOURCES "${CMAKE_SOURCE_DIR}/src/CabbageUtils_linux.cpp")
 endif()
 
+# Add decryption implementation for Pro builds
+if(CABBAGE_PRO_BUILD)
+    list(APPEND CABBAGE_SOURCES "${CMAKE_SOURCE_DIR}/src/decrypt_impl.cpp")
+endif()
+
 # ----------------------------
 # Combine all source files
 # ----------------------------
