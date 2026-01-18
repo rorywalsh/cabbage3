@@ -96,6 +96,7 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
                 -DCMAKE_CXX_STANDARD_REQUIRED=ON
                 -DCABBAGE_PRO_BUILD=${CABBAGE_PRO_BUILD}
                 -DPRO_MASTER_KEY=${PRO_MASTER_KEY}
+                -DPRO_COMPANY_NAME=${PRO_COMPANY_NAME}
                 -S ${CMAKE_SOURCE_DIR}
                 -G ${CMAKE_GENERATOR}
                 -B ${CMAKE_BINARY_DIR}/${target}
@@ -298,6 +299,7 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
         target_compile_definitions(${PROJECT_NAME} PRIVATE
             CabbagePro
             PRO_MASTER_KEY="${PRO_MASTER_KEY}"
+            PRO_COMPANY_NAME="${PRO_COMPANY_NAME}"
         )
     endif()
 
@@ -375,6 +377,7 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
         target_compile_definitions(${PROJECT_NAME} PRIVATE
             CabbagePro
             PRO_MASTER_KEY="${PRO_MASTER_KEY}"
+            PRO_COMPANY_NAME="${PRO_COMPANY_NAME}"
         )
     endif()
     
