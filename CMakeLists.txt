@@ -26,6 +26,7 @@ endif()
 # Build options
 option(CABBAGE_ENABLE_TESTS "Build tests in addition to main app" OFF)
 option(USER_LIB "Output AU plugins directly to ~/Library/Audio/Plug-Ins/Components without Debug subdirectory" OFF)
+option(CABBAGE_PRO_BUILD "Build Cabbage Pro version with encryption support" OFF)
 
 # Define common base directory for all dependency downloads and builds
 set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/_deps" CACHE PATH "Base directory for downloaded dependencies")
@@ -278,12 +279,17 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
     )
 
 
-    target_compile_definitions(${PROJECT_NAME} PRIVATE 
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
         PLUGIN_INFO_HEADER="${CMAKE_SOURCE_DIR}/src/CabbagePluginInfo.h"
         PRODUCT_NAME="${PROJECT_NAME}"
         USE_DOUBLE=1
         "${CABBAGE_BUILD_TARGET}"
     )
+
+    # Add CabbagePro definition if building Pro version
+    if(CABBAGE_PRO_BUILD)
+        target_compile_definitions(${PROJECT_NAME} PRIVATE CabbagePro)
+    endif()
 
     if(WIN32)
         target_compile_definitions(${PROJECT_NAME} PRIVATE WIN32_LEAN_AND_MEAN)
@@ -346,13 +352,18 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
     )
     
     # Set compile definitions for test target
-    target_compile_definitions(${PROJECT_NAME} PRIVATE 
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
         PLUGIN_INFO_HEADER="${CMAKE_SOURCE_DIR}/src/CabbagePluginInfo.h"
         PRODUCT_NAME="CabbageApp"
         USE_DOUBLE=1
         CabbageTests
         CabbageApp
     )
+
+    # Add CabbagePro definition if building Pro version
+    if(CABBAGE_PRO_BUILD)
+        target_compile_definitions(${PROJECT_NAME} PRIVATE CabbagePro)
+    endif()
     
     if(WIN32)
         target_compile_definitions(${PROJECT_NAME} PRIVATE WIN32_LEAN_AND_MEAN)
@@ -385,15 +396,20 @@ endif()
 if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}"))
     add_library(${PROJECT_NAME}-impl STATIC ${SOURCE_FILES})
 
-    target_compile_definitions(${PROJECT_NAME}-impl PRIVATE 
+    target_compile_definitions(${PROJECT_NAME}-impl PRIVATE
         PLUGIN_INFO_HEADER="${CMAKE_SOURCE_DIR}/src/CabbagePluginInfo.h"
         PRODUCT_NAME="${PROJECT_NAME}"
         "${CABBAGE_BUILD_TARGET}"
     )
 
+    # Add CabbagePro definition if building Pro version
+    if(CABBAGE_PRO_BUILD)
+        target_compile_definitions(${PROJECT_NAME}-impl PRIVATE CabbagePro)
+    endif()
+
     # Platform-specific options
     if (WIN32)
-        target_compile_definitions(${PROJECT_NAME}-impl PRIVATE _CRT_SECURE_NO_WARNINGS)    
+        target_compile_definitions(${PROJECT_NAME}-impl PRIVATE _CRT_SECURE_NO_WARNINGS)
         set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded" CACHE STRING "Multithreaded")
     else()
         target_compile_options(${PROJECT_NAME}-impl PRIVATE -Wall -Wextra -pedantic)
