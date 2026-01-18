@@ -684,4 +684,120 @@ std::string File::getCsOptions(const std::string& csdFilePath)
     return content.substr(startPos, endPos - startPos);
 }
 
+#ifdef CabbagePro
+#include "encrypt.h"
+#include <choc/containers/choc_ZipFile.h>
+#include <fstream>
+#include <sstream>
+#include <filesystem>
+#include <ctime>
+
+std::string File::extractCabzArchive(const std::string &resourceDir)
+{
+    // Look for .cabz file in the resource directory
+    std::string cabzPath;
+    std::string binaryName = lattice::File::getBinaryFileName();
+    size_t pos = binaryName.find_last_of(".");
+    if (pos != std::string::npos)
+        binaryName = binaryName.substr(0, pos);
+
+    cabzPath = lattice::File::joinPath(resourceDir, binaryName + ".cabz");
+
+    if (!lattice::File::exists(cabzPath))
+    {
+        lattice::logDebug << "No .cabz archive found at: " << cabzPath;
+        return ""; // No archive, use regular resources
+    }
+
+    lattice::logInfo << "Found .cabz archive: " << cabzPath;
+
+    try
+    {
+        // Read encrypted archive
+        std::ifstream file(cabzPath, std::ios::binary);
+        if (!file.is_open())
+        {
+            lattice::logError << "Failed to open .cabz file: " << cabzPath;
+            return "";
+        }
+
+        // Read entire file
+        file.seekg(0, std::ios::end);
+        size_t fileSize = file.tellg();
+        file.seekg(0, std::ios::beg);
+
+        std::vector<uint8_t> encryptedData(fileSize);
+        file.read(reinterpret_cast<char*>(encryptedData.data()), fileSize);
+        file.close();
+
+        lattice::logInfo << "Read encrypted archive: " << fileSize << " bytes";
+
+        // Decrypt the archive using the Decrypt namespace function
+        // TODO: Get actual pluginId from form widget - for now use "default"
+        lattice::logInfo << "Decrypting archive...";
+        std::vector<uint8_t> zipData = Decrypt::decryptData(encryptedData, "default");
+        lattice::logInfo << "Decrypted archive: " << zipData.size() << " bytes";
+
+        // Create temp directory
+        std::string tempDir = std::filesystem::temp_directory_path().string();
+        tempDir = lattice::File::joinPath(tempDir, "cabbage_" + binaryName + "_" + std::to_string(std::time(nullptr)));
+        std::filesystem::create_directories(tempDir);
+        lattice::logInfo << "Created temp directory: " << tempDir;
+
+        // Create an input stream from decrypted zip data
+        auto zipStream = std::make_shared<std::istringstream>(
+            std::string(reinterpret_cast<const char*>(zipData.data()), zipData.size()),
+            std::ios::binary
+        );
+
+        // Extract zip archive using choc
+        choc::zip::ZipFile archive(zipStream);
+        lattice::logInfo << "Found " << archive.items.size() << " files in archive";
+
+        // Extract all files
+        bool success = archive.uncompressToFolder(tempDir, true, true);
+        if (!success)
+        {
+            lattice::logError << "Failed to extract some files from archive";
+            cleanupCabzTempDir(tempDir);
+            return "";
+        }
+
+        lattice::logInfo << "Successfully extracted .cabz archive to: " << tempDir;
+        return tempDir;
+    }
+    catch (const std::exception& e)
+    {
+        lattice::logError << "Failed to extract .cabz archive: " << e.what();
+        return "";
+    }
+}
+
+void File::cleanupCabzTempDir(const std::string &tempDir)
+{
+    if (tempDir.empty() || tempDir.find("cabbage_") == std::string::npos)
+        return;
+
+    try
+    {
+        std::filesystem::remove_all(tempDir);
+        lattice::logInfo << "Cleaned up temp directory: " << tempDir;
+    }
+    catch (const std::exception& e)
+    {
+        lattice::logError << "Failed to cleanup temp directory: " << e.what();
+    }
+}
+#else
+// Stub implementations for non-Pro builds
+std::string File::extractCabzArchive(const std::string &)
+{
+    return "";
+}
+
+void File::cleanupCabzTempDir(const std::string &)
+{
+}
+#endif
+
 } // end of namespace

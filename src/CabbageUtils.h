@@ -131,6 +131,11 @@ public:
     // Read from file asynchronously with callback (non-blocking, safe for audio thread)
     static void readFromFileAsync(const std::string &filePath, std::function<void(const std::string&)> callback);
 
+    // Extract .cabz archive to temp directory (Pro builds only)
+    static std::string extractCabzArchive(const std::string &resourceDir);
+    // Cleanup temp directory created by extractCabzArchive (Pro builds only)
+    static void cleanupCabzTempDir(const std::string &tempDir);
+
     // Get manufacturer name for resource directories
     static std::string getManufacturerName();
 

@@ -111,6 +111,7 @@ class CabbageProcessor : public lattice::Processor
     std::vector<lattice::Parameter> webviewMessageQueue;
     bool hasCompileErrors = false;
     std::string compileErrorHtml;
+    std::string cabzTempDir;  // Temp directory for extracted .cabz archive (Pro builds only)
 
     std::string errorPageHtml =
         "<!DOCTYPE html>\n"

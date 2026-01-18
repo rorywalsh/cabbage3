@@ -33,7 +33,21 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Pr
 {
     auto rootPath = cabbage::File::getParentDirectory(cabbage::File::getCsdFileAndPath(cabbage.getCsdFile()));
 
+#ifdef CabbagePro
+    // Check for .cabz archive and extract if present
+    cabzTempDir = cabbage::File::extractCabzArchive(rootPath);
+    if (!cabzTempDir.empty())
+    {
+        lattice::logInfo << "Using extracted .cabz archive from: " << cabzTempDir;
+        setMountPoint(cabzTempDir);
+    }
+    else
+    {
+        setMountPoint(rootPath);
+    }
+#else
     setMountPoint(rootPath);
+#endif
 
     if (!cabbage.setupCsound())
     {
@@ -91,6 +105,14 @@ CabbageProcessor::~CabbageProcessor()
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     stopIdleThread();
+
+#ifdef CabbagePro
+    // Cleanup temp directory if we extracted a .cabz archive
+    if (!cabzTempDir.empty())
+    {
+        cabbage::File::cleanupCabzTempDir(cabzTempDir);
+    }
+#endif
 }
 
 //========================================================================================
