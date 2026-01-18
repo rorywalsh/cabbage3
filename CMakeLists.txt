@@ -423,6 +423,7 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
         target_compile_definitions(${PROJECT_NAME}-impl PRIVATE
             CabbagePro
             PRO_MASTER_KEY="${PRO_MASTER_KEY}"
+            PRO_COMPANY_NAME="${PRO_COMPANY_NAME}"
         )
     endif()
 
