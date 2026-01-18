@@ -929,14 +929,28 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
             std::unordered_set<std::string> seenFiles;
             for (const auto& directory : directories) {
                 lattice::logDebug << "Scanning directory: " << directory;
-                auto dirFiles = File::getFilesOfType(directory, fileType);
-                lattice::logDebug << "Found " << dirFiles.size() << " files in directory: " << directory;
-                for (const auto &f : dirFiles) {
-                    if (seenFiles.insert(f).second) {
-                        files.push_back(f);
-                    } else {
-                        lattice::logDebug << "Skipping duplicate file: " << f;
+                try {
+                    // If directory doesn't exist, warn and continue
+                    if (!std::filesystem::exists(directory) || !std::filesystem::is_directory(directory)) {
+                        lattice::logWarning << "populate directory does not exist or is not a directory: " << directory;
+                        continue;
                     }
+
+                    auto dirFiles = File::getFilesOfType(directory, fileType);
+                    lattice::logDebug << "Found " << dirFiles.size() << " files in directory: " << directory;
+                    for (const auto &f : dirFiles) {
+                        if (seenFiles.insert(f).second) {
+                            files.push_back(f);
+                        } else {
+                            lattice::logDebug << "Skipping duplicate file: " << f;
+                        }
+                    }
+                } catch (const std::exception &e) {
+                    lattice::logWarning << "Error scanning directory '" << directory << "': " << e.what();
+                    continue;
+                } catch (...) {
+                    lattice::logWarning << "Unknown error scanning directory: " << directory;
+                    continue;
                 }
             }
 
