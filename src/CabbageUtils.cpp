@@ -22,7 +22,14 @@
 #include <choc/text/choc_Files.h>
 #include <sstream>
 #include <cstdio>
-
+#ifdef CabbagePro
+#include "encrypt.h"
+#include <choc/containers/choc_ZipFile.h>
+#include <fstream>
+#include <sstream>
+#include <filesystem>
+#include <ctime>
+#endif
 namespace cabbage {
 
 std::string File::getManufacturerName()
@@ -685,13 +692,6 @@ std::string File::getCsOptions(const std::string& csdFilePath)
 }
 
 #ifdef CabbagePro
-#include "encrypt.h"
-#include <choc/containers/choc_ZipFile.h>
-#include <fstream>
-#include <sstream>
-#include <filesystem>
-#include <ctime>
-
 std::string File::extractCabzArchive(const std::string &resourceDir)
 {
     // Look for .cabz file in the resource directory
