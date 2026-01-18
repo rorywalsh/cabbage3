@@ -124,7 +124,7 @@ bool Engine::setupCsound()
         {
             try {
                 std::string decryptedCsd = Decrypt::getCsdText(csdFile);
-                csCompileResult = csound->CompileCsd(decryptedCsd.c_str(), 1);
+                csCompileResult = csound->CompileCSD(decryptedCsd.c_str(), 1);
             }
             catch (const std::exception& e) {
                 lattice::logError << "Failed to decrypt CSD file: " << e.what();
