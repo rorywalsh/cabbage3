@@ -29,6 +29,10 @@
 #include <algorithm>
 #include <unordered_set>
 
+#ifdef CabbagePro
+#include "encrypt.h"
+#endif
+
 // choc string utility class
 #include <choc/text/choc_StringUtilities.h>
 
@@ -52,7 +56,40 @@ std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string &csdFil
 {
     std::vector<nlohmann::json> widgets;
     std::string jsonError;
+    std::string content;
 
+#ifdef CabbagePro
+    // Pro version: Check if file is encrypted
+    if (Decrypt::isEncrypted(csdFile))
+    {
+        try {
+            content = Decrypt::getCsdText(csdFile);
+            lattice::logDebug << "Successfully decrypted CSD file for widget parsing";
+        }
+        catch (const std::exception& e) {
+            lattice::logError << "Failed to decrypt CSD file: " << e.what();
+            if (outError) {
+                *outError = "Failed to decrypt CSD file: " + std::string(e.what());
+            }
+            return widgets;
+        }
+    }
+    else
+    {
+        // Regular unencrypted CSD file
+        std::ifstream file(csdFile);
+        if (!file.is_open())
+        {
+            lattice::logInfo << "Error opening CSD file: " << csdFile;
+            return widgets;
+        }
+
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        content = buffer.str();
+    }
+#else
+    // Free version: Only handle unencrypted files
     std::ifstream file(csdFile);
     if (!file.is_open())
     {
@@ -62,7 +99,8 @@ std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string &csdFil
 
     std::stringstream buffer;
     buffer << file.rdbuf();
-    std::string content = buffer.str();
+    content = buffer.str();
+#endif
 
     std::regex cabbageRegex(R"(<Cabbage>([\s\S]*?)</Cabbage>)");
     std::smatch cabbageMatch;
@@ -163,16 +201,50 @@ std::string Parser::parseContent(const std::string &content, std::vector<nlohman
 
 void Parser::parseJsonFile(const std::string &filename, std::vector<nlohmann::json> &widgets)
 {
+    std::string content;
+
+#ifdef CabbagePro
+    // Pro version: Check if file is encrypted (could be .ejson or .ecsd)
+    if (Decrypt::isEncrypted(filename))
+    {
+        try {
+            content = Decrypt::getCsdText(filename);
+            lattice::logDebug << "Successfully decrypted JSON file for widget parsing: " << filename;
+        }
+        catch (const std::exception& e) {
+            lattice::logError << "Failed to decrypt JSON file: " << e.what();
+            return;
+        }
+    }
+    else
+    {
+        // Regular unencrypted JSON file
+        std::ifstream jsonFile(filename);
+        if (!jsonFile.is_open())
+        {
+            lattice::logDebug << "Error opening JSON file: " << filename;
+            return;
+        }
+
+        std::stringstream buffer;
+        buffer << jsonFile.rdbuf();
+        content = buffer.str();
+    }
+#else
+    // Free version: Only handle unencrypted files
     std::ifstream jsonFile(filename);
     if (!jsonFile.is_open())
     {
-        lattice::logDebug << "Error opening JSON file:" << filename;
+        lattice::logDebug << "Error opening JSON file: " << filename;
         return;
     }
 
     std::stringstream buffer;
     buffer << jsonFile.rdbuf();
-    parseContent(buffer.str(), widgets);
+    content = buffer.str();
+#endif
+
+    parseContent(content, widgets);
 }
 
 

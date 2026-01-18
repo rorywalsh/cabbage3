@@ -19,7 +19,7 @@
 
 #include "Cabbage.h"
 
-#ifdef CABBAGE_PRO
+#ifdef CabbagePro
 #include "encrypt.h"
 #endif
 #include "CabbageProcessor.h"
@@ -118,7 +118,7 @@ bool Engine::setupCsound()
     if (exists)
     {
         // Check for compile time errors
-#ifdef CABBAGE_PRO
+#ifdef CabbagePro
         // Pro version: Check if file is encrypted
         if (Decrypt::isEncrypted(csdFile))
         {
