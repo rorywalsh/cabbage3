@@ -29,26 +29,79 @@ pluginType *LatticeProcessorPluginFactory::createPlugin(const clap_host *host)
     return new pluginType(host, *processor);
 }
 //========================================================================================
-CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Processor(), cabbage(*this, csdFile)
+// CabbageProcessor Constructor
+// =============================
+// DESIGN: Single Source of Truth for CSD File Path
+//
+// This constructor is responsible for determining the final CSD file path ONCE and setting
+// it via cabbage.setCsdFile(). All other code should use cabbage.getCsdFile() or rely on
+// the static cache in getCsdFileAndPath() instead of re-computing the path.
+//
+// Flow:
+// 1. Determine initial CSD path (from parameter or default lookup)
+// 2. For Pro builds: Check for .cabz archive and extract if present
+// 3. If cabz exists: Override CSD path to point to extracted .ecsd file in temp directory
+// 4. Call setCsdFile() ONCE with the final path
+//    - This sets csdFile on the Engine instance
+//    - This calls setCsdFileAndPath() to populate the static cache
+// 5. All subsequent calls (WidgetDescriptors, parseCsdForWidgets, etc.) use the cached path
+//========================================================================================
+CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Processor(), cabbage(*this, "")
 {
-    auto rootPath = cabbage::File::getParentDirectory(cabbage::File::getCsdFileAndPath(cabbage.getCsdFile()));
+    std::string finalCsdPath;
 
 #ifdef CabbagePro
+    // First, determine the root path for cabz extraction
+    std::string rootPath;
+    if (!csdFile.empty() && lattice::File::exists(csdFile))
+    {
+        rootPath = cabbage::File::getParentDirectory(csdFile);
+        finalCsdPath = csdFile;
+    }
+    else
+    {
+        // Use default path lookup
+        finalCsdPath = cabbage::File::getCsdFileAndPath();
+        rootPath = cabbage::File::getParentDirectory(finalCsdPath);
+    }
+
     // Check for .cabz archive and extract if present
     cabzTempDir = cabbage::File::extractCabzArchive(rootPath);
     if (!cabzTempDir.empty())
     {
-        lattice::logInfo << "Using extracted .cabz archive from: " << cabzTempDir;
+        auto files = lattice::File::getFilesOfType(cabzTempDir, "*");
+        for(auto &f : files)
+        {
+            lattice::logInfo << "File: " << f;
+        }
+
         setMountPoint(cabzTempDir);
+        // Override with the encrypted CSD file from the cabz archive
+        finalCsdPath = cabzTempDir + "/" + cabbage::File::getBinaryWithoutExtension() + ".ecsd";
     }
     else
     {
         setMountPoint(rootPath);
     }
 #else
+    // Free version: use provided path or default lookup
+    if (!csdFile.empty() && lattice::File::exists(csdFile))
+    {
+        finalCsdPath = csdFile;
+    }
+    else
+    {
+        finalCsdPath = cabbage::File::getCsdFileAndPath();
+    }
+    auto rootPath = cabbage::File::getParentDirectory(finalCsdPath);
     setMountPoint(rootPath);
 #endif
 
+    // Set the final CSD path once - this is the single source of truth
+    cabbage.setCsdFile(finalCsdPath);
+    lattice::logInfo << "CabbageProcessor: Final CSD path set to: " << finalCsdPath;
+    lattice::logDebug << lattice::File::getFileAsString(cabbage::File::getCsdFileAndPath());
+    
     if (!cabbage.setupCsound())
     {
         suspendProcessing();
@@ -70,9 +123,11 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Pr
 
     addParameters();
     addChannels(config);
-
-    if (auto json = cabbage::File::parseCabbageSection(cabbage::File::getCsdFileAndPath(cabbage.getCsdFile())))
+    
+    
+    if (auto json = cabbage::File::parseCabbageSection(cabbage::File::getCsdFileAndPath()))
     {
+        lattice::logDebug << json->dump(4);
         auto w = cabbage::Utils::findPropertyInForm<int>(*json, "size.width");
         auto h = cabbage::Utils::findPropertyInForm<int>(*json, "size.height");
         if (w.has_value() && h.has_value())
@@ -120,7 +175,8 @@ CabbageProcessor::~CabbageProcessor()
 //========================================================================================
 void CabbageProcessor::addChannels(const std::string &config)
 {
-    auto file = cabbage::File::getCsdFileAndPath(cabbage.getCsdFile());
+    // Use the CSD file path set in the constructor - single source of truth
+    auto file = cabbage.getCsdFile();
 
     cabbage::Utils::check(lattice::File::exists(file), "Can't find csd file");
 

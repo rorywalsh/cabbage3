@@ -353,15 +353,41 @@ std::string File::getCabbageSection(const std::string &csdFilePath)
 {
     auto csdFile = (!csdFilePath.empty() && lattice::File::exists(csdFilePath)) ? csdFilePath : getCsdFileAndPath();
     std::string csdText = {};
-    
+
+#ifdef CabbagePro
+    // Pro version: Check if file is encrypted
+    if (Decrypt::isEncrypted(csdFile))
+    {
+        try {
+            csdText = Decrypt::getCsdText(csdFile);
+            lattice::logDebug << "Successfully decrypted CSD file for Cabbage section extraction";
+        }
+        catch (const std::exception& e) {
+            lattice::logError << "Failed to decrypt CSD file: " << e.what();
+            return "";
+        }
+    }
+    else
+    {
+        // Regular unencrypted CSD file
+        try {
+            csdText = choc::file::loadFileAsString(csdFile);
+        }
+        catch (const choc::file::Error& e) {
+            lattice::logDebug << "Couldn't parse "<< csdFile << " file for text";
+            return "";
+        }
+    }
+#else
+    // Free version: Only handle unencrypted files
     try {
-        // Attempt to load the file as a string
         csdText = choc::file::loadFileAsString(csdFile);
     }
     catch (const choc::file::Error& e) {
         lattice::logDebug << "Couldn't parse "<< csdFile << " file for text";
         return "";
     }
+#endif
     
     std::regex cabbageRegex(R"(<Cabbage>([\s\S]*?)</Cabbage>)");
     std::smatch match;
@@ -374,6 +400,7 @@ std::string File::getCabbageSection(const std::string &csdFilePath)
     
     return "";
 }
+
 // Reads and parses the cabbage section from the file
 std::optional<nlohmann::json> File::parseCabbageSection(const std::string &csdFile)
 {
@@ -397,18 +424,40 @@ std::optional<nlohmann::json> File::parseCabbageSection(const std::string &csdFi
 // Function to get the number of input channels (nchnls_i)
 int File::getNumberOfInputChannels(const std::string &csdFile)
 {
-    
     std::string input = {};
     auto csdFilePath = csdFile.empty() ? getCsdFileAndPath() : csdFile;
-    
+
+#ifdef CabbagePro
+    // Pro version: Check if file is encrypted
+    if (Decrypt::isEncrypted(csdFilePath))
+    {
+        try {
+            input = Decrypt::getCsdText(csdFilePath);
+        }
+        catch (const std::exception& e) {
+            lattice::logError << "Failed to decrypt CSD file: " << e.what();
+            return 2;
+        }
+    }
+    else
+    {
+        try {
+            input = choc::file::loadFileAsString(csdFilePath);
+        }
+        catch (const choc::file::Error& e) {
+            lattice::logDebug << "Couldn't parse " << csdFilePath << " file for text";
+            return 2;
+        }
+    }
+#else
     try {
-        // Attempt to load the file as a string
-        input = choc::file::loadFileAsString(csdFile);
+        input = choc::file::loadFileAsString(csdFilePath);
     }
     catch (const choc::file::Error& e) {
         lattice::logDebug << "Couldn't parse " << csdFilePath << " file for text";
         return 2;
     }
+#endif
     
     // Define the regex for inputs (nchnls_i)
     std::regex inputRegex(R"(^\s*nchnls_i\s*=\s*(\d+)\s*$)", std::regex_constants::icase);
@@ -436,15 +485,38 @@ int File::getNumberOfOutputChannels(const std::string &csdFile)
 {
     auto csdFilePath = csdFile.empty() ? getCsdFileAndPath() : csdFile;
     std::string input = {};
-    
+
+#ifdef CabbagePro
+    // Pro version: Check if file is encrypted
+    if (Decrypt::isEncrypted(csdFilePath))
+    {
+        try {
+            input = Decrypt::getCsdText(csdFilePath);
+        }
+        catch (const std::exception& e) {
+            lattice::logError << "Failed to decrypt CSD file: " << e.what();
+            return 2;
+        }
+    }
+    else
+    {
+        try {
+            input = choc::file::loadFileAsString(csdFilePath);
+        }
+        catch (const choc::file::Error& e) {
+            lattice::logDebug << "Couldn't parse " << csdFilePath << " file for text";
+            return 2;
+        }
+    }
+#else
     try {
-        // Attempt to load the file as a string
         input = choc::file::loadFileAsString(csdFilePath);
     }
     catch (const choc::file::Error& e) {
         lattice::logDebug << "Couldn't parse " << csdFilePath << " file for text";
         return 2;
     }
+#endif
     
     // Define the regex for outputs (nchnls)
     std::regex outputRegex(R"(^\s*nchnls\s*=\s*(\d+)\s*$)", std::regex_constants::icase);
@@ -507,11 +579,47 @@ std::string File::getCsdPath(const std::string& file)
     }
 }
 
+// Static cache for CSD file path - shared between setCsdFileAndPath and getCsdFileAndPath
+// This ensures the path set in CabbageProcessor constructor is available to all static methods
+namespace {
+    std::string g_cachedCsdPath;
+}
+
+void File::setCsdFileAndPath(const std::string& csdFile)
+{
+    if(!csdFile.empty() && lattice::File::exists(csdFile))
+    {
+        g_cachedCsdPath = csdFile;
+        lattice::logInfo << "setCsdFileAndPath: Set CSD path to: " << csdFile;
+    }
+    else
+    {
+        lattice::logWarning << "setCsdFileAndPath: Path does not exist or is empty: " << csdFile;
+    }
+}
+
 std::string File::getCsdFileAndPath(std::string csdFile)
 {
-    if(lattice::File::exists(csdFile))
+    // DESIGN: Single Source of Truth for CSD Path
+    // ============================================
+    // The CSD file path is determined ONCE in CabbageProcessor constructor via setCsdFileAndPath().
+    // All subsequent calls (from WidgetDescriptors, parseCsdForWidgets, etc.) use the cached value.
+    // This ensures cabz temp directories work correctly - the path must be set before any
+    // static methods try to locate widget JS files or parse the CSD.
+
+    // If csdFile is provided and exists, return it (but don't cache - use setCsdFileAndPath for that)
+    if(!csdFile.empty() && lattice::File::exists(csdFile))
+    {
         return csdFile;
-    
+    }
+
+    // Use the cached path set by setCsdFileAndPath()
+    if(!g_cachedCsdPath.empty() && lattice::File::exists(g_cachedCsdPath))
+    {
+        lattice::logDebug << "getCsdFileAndPath: Using cached CSD path: " << g_cachedCsdPath;
+        return g_cachedCsdPath;
+    }
+
     std::string resourceDir = lattice::File::getResourceDirFromBundle();
     std::string binaryFileName = lattice::File::getBinaryFileName();
     size_t pos = binaryFileName.find_last_of(".");
@@ -670,14 +778,38 @@ std::string File::getSettingsProperty(const std::string &section, const std::str
 
 std::string File::getCsOptions(const std::string& csdFilePath)
 {
+    std::string content;
+
+#ifdef CabbagePro
+    // Pro version: Check if file is encrypted
+    if (Decrypt::isEncrypted(csdFilePath))
+    {
+        try {
+            content = Decrypt::getCsdText(csdFilePath);
+        }
+        catch (const std::exception& e) {
+            throw std::runtime_error("Failed to decrypt CSD file: " + std::string(e.what()));
+        }
+    }
+    else
+    {
+        std::ifstream file(csdFilePath);
+        if (!file.is_open())
+        {
+            throw std::runtime_error("Failed to open file: " + csdFilePath);
+        }
+        content = std::string((std::istreambuf_iterator<char>(file)),
+                              std::istreambuf_iterator<char>());
+    }
+#else
     std::ifstream file(csdFilePath);
     if (!file.is_open())
     {
         throw std::runtime_error("Failed to open file: " + csdFilePath);
     }
-    
-    std::string content((std::istreambuf_iterator<char>(file)),
-                        std::istreambuf_iterator<char>());
+    content = std::string((std::istreambuf_iterator<char>(file)),
+                          std::istreambuf_iterator<char>());
+#endif
     
     size_t startPos = content.find("<CsOptions>");
     size_t endPos = content.find("</CsOptions>");
@@ -732,10 +864,11 @@ std::string File::extractCabzArchive(const std::string &resourceDir)
 
         lattice::logInfo << "Read encrypted archive: " << fileSize << " bytes";
 
-        // Decrypt the archive using the Decrypt namespace function
-        // TODO: Get actual pluginId from form widget - for now use "default"
+        // Decrypt the archive using the company-wide encryption key
+        // NOTE: All Pro plugins use the same encryption key for simplicity.
+        // This avoids the chicken-and-egg problem of needing to decrypt files to find the key.
         lattice::logInfo << "Decrypting archive...";
-        std::vector<uint8_t> zipData = Decrypt::decryptData(encryptedData, "default");
+        std::vector<uint8_t> zipData = Decrypt::decryptData(encryptedData);
         lattice::logInfo << "Decrypted archive: " << zipData.size() << " bytes";
 
         // Create temp directory

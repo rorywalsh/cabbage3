@@ -73,8 +73,13 @@ class Engine
     // Setup Csound
     bool setupCsound();
 
-    // Set the CSD file
-    void setCsdFile(std::string file) { csdFile = file; }
+    // Set the CSD file and update the static cache for widget descriptor lookups
+    void setCsdFile(std::string file)
+    {
+        csdFile = file;
+        // Update the static cache so WidgetDescriptors::get() can find widgets in cabz temp dirs
+        cabbage::File::setCsdFileAndPath(file);
+    }
 
     // Get the CSD file
     std::string getCsdFile() { return csdFile; }

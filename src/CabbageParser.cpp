@@ -65,6 +65,7 @@ std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string &csdFil
         try {
             content = Decrypt::getCsdText(csdFile);
             lattice::logDebug << "Successfully decrypted CSD file for widget parsing";
+            lattice::logDebug << content;
         }
         catch (const std::exception& e) {
             lattice::logError << "Failed to decrypt CSD file: " << e.what();
@@ -108,7 +109,7 @@ std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string &csdFil
     if (std::regex_search(content, cabbageMatch, cabbageRegex))
     {
         std::string cabbageContent = cabbageMatch[1].str();
-
+        lattice::logDebug << cabbageContent;
         std::regex formRegex(R"("type"\s*:\s*"form")");
         bool foundFormWidget = std::regex_search(cabbageContent, formRegex);
 
@@ -118,6 +119,7 @@ std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string &csdFil
         }
         else
         {
+            //this needs testing - esp for pro builds
             std::regex includeRegex(R"(#include\s*\"([^\"]+\.json)\")");
             std::smatch includeMatch;
 

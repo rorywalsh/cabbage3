@@ -89,6 +89,7 @@ void Engine::addOpcodes()
 
 bool Engine::setupCsound()
 {
+    lattice::logDebug << csdFile;
     csound = std::make_unique<Csound>();
     csound->SetHostMIDIIO();
     csound->SetHostAudioIO();
@@ -110,9 +111,13 @@ bool Engine::setupCsound()
         std::string("--nchnls=" + std::to_string(processor.getChannelConfig().getTotalNumOutputChannels())).c_str());
     csound->SetOption(
         std::string("--nchnls_i=" + std::to_string(processor.getChannelConfig().getTotalNumInputChannels())).c_str());
-    //    csdFile = "/Users/rwalsh/Library/CabbageAudio/CabbagePluginEffect/CabbagePluginEffect.csd";
-    std::filesystem::path file = csdFile.empty() ? cabbage::File::getCsdFileAndPath() : csdFile;
-    csdFile = file.string();
+
+    // csdFile should already be set by CabbageProcessor constructor - single source of truth
+    if (csdFile.empty())
+    {
+        lattice::logError << "setupCsound: csdFile is empty! Should be set by CabbageProcessor constructor.";
+        return false;
+    }
 
     bool exists = std::filesystem::exists(csdFile);
     if (exists)

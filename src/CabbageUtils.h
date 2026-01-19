@@ -94,6 +94,8 @@ public:
 class File : public lattice::File
 {
 public:
+    // Set the CSD file path in the static cache (called once by CabbageProcessor constructor)
+    static void setCsdFileAndPath(const std::string& csdFile);
     // Returns the csd file. If csdFile is emtpy it willdeduct the location
     static std::string getCsdFileAndPath(std::string csdFile = "");
     // Reads and parses the cabbage section from the file
@@ -350,10 +352,15 @@ public:
         // In plugin mode, look for widgets relative to the CSD file
         const auto resourceDir = lattice::File::getParentDirectory(cabbage::File::getCsdFileAndPath());
         std::string pluginWidgetPath = lattice::File::joinPath(resourceDir, "cabbage", "widgets");
+        lattice::logDebug << "WidgetDescriptors::get - Looking for widget '" << widgetType << "' in: " << pluginWidgetPath;
         if (cabbage::File::directoryExists(pluginWidgetPath))
         {
             widgetPaths.push_back(pluginWidgetPath);
-            //lattice::logDebug << "Plugin mode: Added CSD-relative widget path: " << pluginWidgetPath;
+            lattice::logDebug << "Plugin mode: Added CSD-relative widget path: " << pluginWidgetPath;
+        }
+        else
+        {
+            lattice::logDebug << "Plugin widget path does not exist: " << pluginWidgetPath;
         }
 #else
         // In CabbageApp mode, get all configured widget directories from settings
