@@ -62,7 +62,7 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Pr
     {
         // Use default path lookup
         finalCsdPath = cabbage::File::getCsdFileAndPath();
-        rootPath = cabbage::File::getParentDirectory(finalCsdPath);
+        rootPath = cabbage::File::getParentDirectory(cabbage::File::getParentDirectory(finalCsdPath));
     }
 
     // Check for .cabz archive and extract if present
