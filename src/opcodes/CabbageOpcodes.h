@@ -99,6 +99,22 @@ struct CabbageOpcodes
         return result;
     }
 
+    // Helper to safely extract string from Csound STRINGDAT
+    // Uses strlen to find the actual null-terminated string length,
+    // preventing garbage characters from being included
+    static std::string getSafeString(csnd::Param<NumInputParams> &args, int argIndex)
+    {
+        auto &strData = args.str_data(argIndex);
+        if (strData.data == nullptr || strData.size == 0)
+            return std::string();
+        // Use strlen to find actual string length (up to null terminator)
+        // Csound's size field may or may not include the null terminator,
+        // so we use a reasonable upper bound and let strnlen find the actual end
+        size_t maxLen = strData.size + 1; // Allow for null terminator at position size
+        size_t len = strnlen(strData.data, maxLen);
+        return std::string(strData.data, len);
+    }
+
     bool hasNullTerminator(const std::string &str)
     {
         const char *cStr = str.c_str();
@@ -120,7 +136,8 @@ struct CabbageOpcodes
         }
 
         data.cabbageJson["value"] = 0;
-        data.channel = name;
+        // Use getSafeString to properly extract string with correct length
+        data.channel = getSafeString(args, nameIndex);
         return data;
     }
 
@@ -243,7 +260,7 @@ struct CabbageOpcodes
             {
                 if (argType == CabbageOpcodeData::ArgType::String)
                 {
-                    jsonObj[identifier] = args.str_data(argIndex).data;
+                    jsonObj[identifier] = getSafeString(args, argIndex);
                 }
                 else if (argType == CabbageOpcodeData::ArgType::Array)
                 {
@@ -262,7 +279,11 @@ struct CabbageOpcodes
                         std::vector<std::string> array;
                         array.reserve(arrayArgs.len());
                         for (size_t i = 0; i < arrayArgs.len(); ++i) {
-                            array.push_back(arrayArgs[i].data);
+                            // Use strnlen to find actual string length
+                            // Allow for null terminator at position size
+                            size_t maxLen = arrayArgs[i].size + 1;
+                            size_t len = strnlen(arrayArgs[i].data, maxLen);
+                            array.push_back(std::string(arrayArgs[i].data, len));
                         }
                         jsonObj[identifier] = array;
                     }
@@ -277,12 +298,11 @@ struct CabbageOpcodes
                 // dot notation
                 if (argType == CabbageOpcodeData::ArgType::String)
                 {
-                    setJsonValue(jsonObj, args.str_data(argIndex - 1).data, args.str_data(argIndex).data);
-                    lattice::logDebug << jsonObj.dump(4);
+                    setJsonValue(jsonObj, getSafeString(args, argIndex - 1), getSafeString(args, argIndex));
                 }
                 else if (argType == CabbageOpcodeData::ArgType::Scalar)
                 {
-                    setJsonValue(jsonObj, args.str_data(argIndex - 1).data, args[argIndex]);
+                    setJsonValue(jsonObj, getSafeString(args, argIndex - 1), args[argIndex]);
                 }
                 else if (argType == CabbageOpcodeData::ArgType::Array)
                 {
@@ -290,7 +310,7 @@ struct CabbageOpcodes
                     {
                         csnd::Vector<MYFLT> &arrayArgs = args.myfltvec_data(argIndex);
                         std::vector<MYFLT> array(arrayArgs.begin(), arrayArgs.end());
-                        setJsonValue(jsonObj, args.str_data(argIndex - 1).data, array);
+                        setJsonValue(jsonObj, getSafeString(args, argIndex - 1), array);
                     }
                 }
                 else if (argType == CabbageOpcodeData::ArgType::StringArray)
@@ -301,9 +321,13 @@ struct CabbageOpcodes
                         std::vector<std::string> array;
                         array.reserve(arrayArgs.len());
                         for (size_t i = 0; i < arrayArgs.len(); ++i) {
-                            array.push_back(arrayArgs[i].data);
+                            // Use strnlen to find actual string length
+                            // Allow for null terminator at position size
+                            size_t maxLen = arrayArgs[i].size + 1;
+                            size_t len = strnlen(arrayArgs[i].data, maxLen);
+                            array.push_back(std::string(arrayArgs[i].data, len));
                         }
-                        setJsonValue(jsonObj, args.str_data(argIndex - 1).data, array);
+                        setJsonValue(jsonObj, getSafeString(args, argIndex - 1), array);
                     }
                 }
             }
@@ -368,12 +392,14 @@ struct CabbageOpcodes
             }
         }
 
-        data.identifier = identifier;
-        data.channel = name;
+        // Use getSafeString to properly extract strings with correct length
+        data.identifier = getSafeString(args, identIndex);
+        data.channel = getSafeString(args, channelIndex);
 
         try
         {
-            data.cabbageJson = parseAndFormatJson(identifier);
+            // Use sanitized data.identifier, not the raw identifier member variable
+            data.cabbageJson = parseAndFormatJson(data.identifier);
         }
         catch (const nlohmann::json::parse_error &e)
         {

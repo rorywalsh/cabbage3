@@ -39,7 +39,7 @@ int CabbageGetFiles::getFiles()
         int index = 0;
         for( auto& file : files)
         {
-            out[index].size = file.size();
+            out[index].size = static_cast<int>(file.size() + 1); // +1 to include null terminator
             out[index].data = csound->strdup((char*)file.c_str());
             index++;
         }

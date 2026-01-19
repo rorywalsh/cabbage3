@@ -283,7 +283,7 @@ int CabbageGetStringArray::getIdentifier(int /*init*/)
                 int index = 0;
                 for( auto& item : items)
                 {
-                    out[index].size = item.size();
+                    out[index].size = static_cast<int>(item.size() + 1); // +1 to include null terminator
                     out[index].data = csound->strdup((char*)item.c_str());
                     index++;
                 }
