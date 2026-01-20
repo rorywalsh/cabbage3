@@ -27,36 +27,25 @@ endif()
 option(CABBAGE_ENABLE_TESTS "Build tests in addition to main app" OFF)
 option(USER_LIB "Output AU plugins directly to ~/Library/Audio/Plug-Ins/Components without Debug subdirectory" OFF)
 option(CABBAGE_PRO_BUILD "Build Cabbage Pro version with encryption support" OFF)
+option(CABBAGE_USE_STATIC_RUNTIME "Use static MSVC runtime library (MT) instead of dynamic (MD)" OFF)
 
 # Define common base directory for all dependency downloads and builds
 set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/_deps" CACHE PATH "Base directory for downloaded dependencies")
 
-# Optional override variables for external libraries used by Cabbage Pro builds.
-# These can be provided on the cmake command line, e.g.
-#   -DLIB_SNDFILE=libsndfile -DLIB_FLAC=libflac
-# Leave empty to keep defaults or not link them.
-set(LIB_SYN123 "" CACHE STRING "Windows: libsyn123 library name/path")
-set(LIB_MPG123 "" CACHE STRING "Windows: libmpg123 library name/path")
-set(LIB_MPGHIP "" CACHE STRING "Windows: libmpghip library name/path")
-set(LIB_OUT123 "" CACHE STRING "Windows: libout123 library name/path")
-set(LIB_LAME "" CACHE STRING "Windows: liblame library name/path")
-set(LIB_OPUS "" CACHE STRING "libopus library name/path")
-set(LIB_SNDFILE "" CACHE STRING "libsndfile library name/path")
-set(LIB_FLAC "" CACHE STRING "libflac library name/path")
-set(LIB_OGG "" CACHE STRING "libogg library name/path")
-set(LIB_VORBIS "" CACHE STRING "libvorbis library name/path")
-set(LIB_VORBISENC "" CACHE STRING "libvorbisenc library name/path")
-set(LIB_VORBIS_FILE "" CACHE STRING "libvorbisfile library name/path")
-
 # Include shared dependencies configuration
 # ----------------------------
-# Set dynamic MSVC runtime for Windows builds to match Csound
+# Set MSVC runtime for Windows builds
 # ----------------------------
 if (NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
   if (WIN32)
-    message(STATUS "CMAKE_MSVC_RUNTIME_LIBRARY not defined. Setting to dynamic link")
+    if(CABBAGE_USE_STATIC_RUNTIME)
+      message(STATUS "CMAKE_MSVC_RUNTIME_LIBRARY not defined. Setting to static link")
+      set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STRING "MSVC Runtime Library" FORCE)
+    else()
+      message(STATUS "CMAKE_MSVC_RUNTIME_LIBRARY not defined. Setting to dynamic link")
+      set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" CACHE STRING "MSVC Runtime Library" FORCE)
+    endif()
   endif()
-  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" CACHE STRING "MSVC Runtime Library" FORCE)
 endif()
 
 
