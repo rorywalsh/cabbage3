@@ -112,6 +112,11 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
             endforeach()
         endif()
 
+        # If a CSOUND_LIBRARY value was provided to this configure, forward it to inner config
+        if(DEFINED CSOUND_LIBRARY AND NOT "${CSOUND_LIBRARY}" STREQUAL "")
+            list(APPEND PRO_D_ARGS "-DCSOUND_LIBRARY=${CSOUND_LIBRARY}")
+        endif()
+
         # Run CMake configuration for the current target - this needs to be a little verbose for GH actions
         execute_process(
             COMMAND ${CMAKE_COMMAND}
