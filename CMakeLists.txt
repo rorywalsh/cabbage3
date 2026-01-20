@@ -117,6 +117,16 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
             list(APPEND PRO_D_ARGS "-DCSOUND_LIBRARY=${CSOUND_LIBRARY}")
         endif()
 
+        # Only forward ObjC compiler cache vars when building on macOS
+        set(_OBJC_COMPILER_ARGS)
+        if(APPLE)
+            list(APPEND _OBJC_COMPILER_ARGS
+                -DCMAKE_OBJC_COMPILER=${CMAKE_OBJC_COMPILER}
+                -DCMAKE_OBJCXX_COMPILER=${CMAKE_OBJCXX_COMPILER}
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
+            )
+        endif()
+
         # Run CMake configuration for the current target - this needs to be a little verbose for GH actions
         execute_process(
             COMMAND ${CMAKE_COMMAND}
@@ -125,9 +135,7 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
                 -DFETCHCONTENT_BASE_DIR=${FETCHCONTENT_BASE_DIR}
                 -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
                 -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-                -DCMAKE_OBJC_COMPILER=${CMAKE_OBJC_COMPILER}
-                -DCMAKE_OBJCXX_COMPILER=${CMAKE_OBJCXX_COMPILER}
-                -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
+                ${_OBJC_COMPILER_ARGS}
                 -DCMAKE_CXX_STANDARD=20
                 -DCMAKE_CXX_STANDARD_REQUIRED=ON
                 -DCABBAGE_PRO_BUILD=${CABBAGE_PRO_BUILD}
