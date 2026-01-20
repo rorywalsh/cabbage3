@@ -32,7 +32,7 @@ option(CABBAGE_USE_STATIC_RUNTIME "Use static MSVC runtime library (MT) instead 
 # Define common base directory for all dependency downloads and builds
 set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/_deps" CACHE PATH "Base directory for downloaded dependencies")
 
-# Include shared dependencies configuration
+
 # ----------------------------
 # Set MSVC runtime for Windows builds
 # ----------------------------
