@@ -31,6 +31,23 @@ option(CABBAGE_PRO_BUILD "Build Cabbage Pro version with encryption support" OFF
 # Define common base directory for all dependency downloads and builds
 set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/_deps" CACHE PATH "Base directory for downloaded dependencies")
 
+# Optional override variables for external libraries used by Cabbage Pro builds.
+# These can be provided on the cmake command line, e.g.
+#   -DLIB_SNDFILE=libsndfile -DLIB_FLAC=libflac
+# Leave empty to keep defaults or not link them.
+set(LIB_SYN123 "" CACHE STRING "Windows: libsyn123 library name/path")
+set(LIB_MPG123 "" CACHE STRING "Windows: libmpg123 library name/path")
+set(LIB_MPGHIP "" CACHE STRING "Windows: libmpghip library name/path")
+set(LIB_OUT123 "" CACHE STRING "Windows: libout123 library name/path")
+set(LIB_LAME "" CACHE STRING "Windows: liblame library name/path")
+set(LIB_OPUS "" CACHE STRING "libopus library name/path")
+set(LIB_SNDFILE "" CACHE STRING "libsndfile library name/path")
+set(LIB_FLAC "" CACHE STRING "libflac library name/path")
+set(LIB_OGG "" CACHE STRING "libogg library name/path")
+set(LIB_VORBIS "" CACHE STRING "libvorbis library name/path")
+set(LIB_VORBISENC "" CACHE STRING "libvorbisenc library name/path")
+set(LIB_VORBIS_FILE "" CACHE STRING "libvorbisfile library name/path")
+
 # Include shared dependencies configuration
 # ----------------------------
 # Set dynamic MSVC runtime for Windows builds to match Csound
@@ -81,6 +98,20 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
 
         file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/${target})
 
+        # Build -D args for any non-empty LIB_* cache vars so inner cmake receives them
+        set(PRO_D_ARGS)
+        if(CABBAGE_PRO_BUILD)
+            set(_all_pro_lib_vars
+                LIB_SYN123 LIB_MPG123 LIB_MPGHIP LIB_OUT123 LIB_LAME
+                LIB_OPUS LIB_SNDFILE LIB_FLAC LIB_OGG LIB_VORBIS LIB_VORBISENC LIB_VORBIS_FILE
+            )
+            foreach(_v ${_all_pro_lib_vars})
+                if(NOT "${${_v}}" STREQUAL "")
+                    list(APPEND PRO_D_ARGS "-D${_v}=${${_v}}")
+                endif()
+            endforeach()
+        endif()
+
         # Run CMake configuration for the current target - this needs to be a little verbose for GH actions
         execute_process(
             COMMAND ${CMAKE_COMMAND}
@@ -97,6 +128,7 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
                 -DCABBAGE_PRO_BUILD=${CABBAGE_PRO_BUILD}
                 -DPRO_MASTER_KEY=${PRO_MASTER_KEY}
                 -DPRO_COMPANY_NAME=${PRO_COMPANY_NAME}
+                ${PRO_D_ARGS}
                 -S ${CMAKE_SOURCE_DIR}
                 -G ${CMAKE_GENERATOR}
                 -B ${CMAKE_BINARY_DIR}/${target}
@@ -436,11 +468,34 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
     endif()
 
     # Link required libraries
+    # Build a list of "extra" Pro libraries only when CABBAGE_PRO_BUILD is enabled
+    set(PRO_EXTRA_LIBS "")
+    if(CABBAGE_PRO_BUILD)
+        if(APPLE)
+            set(_mac_pro_libs LIB_SNDFILE LIB_FLAC LIB_OGG LIB_OPUS LIB_VORBIS LIB_VORBISENC LIB_VORBIS_FILE)
+            foreach(_lib ${_mac_pro_libs})
+                if(NOT "${${_lib}}" STREQUAL "")
+                    list(APPEND PRO_EXTRA_LIBS ${${_lib}})
+                endif()
+            endforeach()
+        elseif(WIN32)
+            set(_win_pro_libs LIB_SYN123 LIB_MPG123 LIB_MPGHIP LIB_OUT123 LIB_LAME LIB_OPUS LIB_SNDFILE LIB_FLAC)
+            foreach(_lib ${_win_pro_libs})
+                if(NOT "${${_lib}}" STREQUAL "")
+                    list(APPEND PRO_EXTRA_LIBS ${${_lib}})
+                endif()
+            endforeach()
+        endif()
+    endif()
+
     if (APPLE)
         # Add WebKit and Cocoa frameworks for choc::ui::WebView support
-        target_link_libraries(${PROJECT_NAME}-impl PUBLIC clap clap-helpers "-framework Cocoa" "-framework WebKit" ${CSOUND_FRAMEWORK})
+        target_link_libraries(${PROJECT_NAME}-impl PUBLIC clap clap-helpers "-framework Cocoa" "-framework WebKit" ${CSOUND_FRAMEWORK} ${PRO_EXTRA_LIBS})
+    elseif(WIN32)
+        # On Windows, link against CSOUND and any extra Pro libraries
+        target_link_libraries(${PROJECT_NAME}-impl PUBLIC ${CSOUND_LIBRARY} ${PRO_EXTRA_LIBS})
     else()
-        target_link_libraries(${PROJECT_NAME}-impl PUBLIC ${CSOUND_LIBRARY})
+        target_link_libraries(${PROJECT_NAME}-impl PUBLIC ${CSOUND_LIBRARY} ${PRO_EXTRA_LIBS})
     endif()
 
     # Generate plugin formats
