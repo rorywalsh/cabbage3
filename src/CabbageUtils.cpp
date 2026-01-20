@@ -888,7 +888,7 @@ std::string File::extractCabzArchive(const std::string &resourceDir)
         lattice::logInfo << "Found " << archive.items.size() << " files in archive";
 
         // Extract all files
-        bool success = archive.uncompressToFolder(tempDir, true, true);
+        bool success = archive.uncompressToFolder(tempDir, true, false);
         if (!success)
         {
             lattice::logError << "Failed to extract some files from archive";
