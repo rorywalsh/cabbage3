@@ -60,6 +60,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)  # Optional: use standard-compliant mode
 option(BUILD_TARGETS "Build targets after configuration" OFF)
 option(CABBAGE_ENABLE_TESTS "Build Cabbage unit tests" OFF)
 
+# Initialize PRO_EXTRA_LIBS variable
+set(PRO_EXTRA_LIBS "")
 # ----------------------------
 # If no specific build target is provided, build all targets
 # ----------------------------
@@ -87,25 +89,6 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
 
         file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/${target})
 
-        # Build -D args for any non-empty LIB_* cache vars so inner cmake receives them
-        set(PRO_D_ARGS)
-        if(CABBAGE_PRO_BUILD)
-            set(_all_pro_lib_vars
-                LIB_SYN123 LIB_MPG123 LIB_MPGHIP LIB_OUT123 LIB_LAME
-                LIB_OPUS LIB_SNDFILE LIB_FLAC LIB_OGG LIB_VORBIS LIB_VORBISENC LIB_VORBIS_FILE
-            )
-            foreach(_v ${_all_pro_lib_vars})
-                if(NOT "${${_v}}" STREQUAL "")
-                    list(APPEND PRO_D_ARGS "-D${_v}=${${_v}}")
-                endif()
-            endforeach()
-        endif()
-
-        # If a CSOUND_LIBRARY value was provided to this configure, forward it to inner config
-        if(DEFINED CSOUND_LIBRARY AND NOT "${CSOUND_LIBRARY}" STREQUAL "")
-            list(APPEND PRO_D_ARGS "-DCSOUND_LIBRARY=${CSOUND_LIBRARY}")
-        endif()
-
         # Only forward ObjC compiler cache vars when building on macOS
         set(_OBJC_COMPILER_ARGS)
         if(APPLE)
@@ -130,7 +113,6 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
                 -DCABBAGE_PRO_BUILD=${CABBAGE_PRO_BUILD}
                 -DPRO_MASTER_KEY=${PRO_MASTER_KEY}
                 -DPRO_COMPANY_NAME=${PRO_COMPANY_NAME}
-                ${PRO_D_ARGS}
                 -S ${CMAKE_SOURCE_DIR}
                 -G ${CMAKE_GENERATOR}
                 -B ${CMAKE_BINARY_DIR}/${target}
@@ -209,26 +191,6 @@ include(${lattice_SOURCE_DIR}/cmake/Dependencies.cmake)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 find_package(CSOUND REQUIRED)
-
-# Build a list of "extra" Pro libraries only when CABBAGE_PRO_BUILD is enabled
-set(PRO_EXTRA_LIBS "")
-if(CABBAGE_PRO_BUILD)
-    if(APPLE)
-        set(_mac_pro_libs LIB_SNDFILE LIB_FLAC LIB_OGG LIB_OPUS LIB_VORBIS LIB_VORBISENC LIB_VORBIS_FILE)
-        foreach(_lib ${_mac_pro_libs})
-            if(NOT "${${_lib}}" STREQUAL "")
-                list(APPEND PRO_EXTRA_LIBS ${${_lib}})
-            endif()
-        endforeach()
-    elseif(WIN32)
-        set(_win_pro_libs LIB_SYN123 LIB_MPG123 LIB_MPGHIP LIB_OUT123 LIB_LAME LIB_OPUS LIB_SNDFILE LIB_FLAC)
-        foreach(_lib ${_win_pro_libs})
-            if(NOT "${${_lib}}" STREQUAL "")
-                list(APPEND PRO_EXTRA_LIBS ${${_lib}})
-            endif()
-        endforeach()
-    endif()
-endif()
 
 set(LATTICE_ROOT_DIR "${lattice_SOURCE_DIR}")
 include(${LATTICE_ROOT_DIR}/cmake/lattice.cmake)
@@ -366,7 +328,7 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
     target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/_deps/rtmidi-build)
 
     if (APPLE)
-        target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ${CSOUND_FRAMEWORK} "-framework Cocoa")
+        target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ${CSOUND_FRAMEWORK} "-framework Cocoa" ${PRO_EXTRA_LIBS})
     else()
         target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ${CSOUND_LIBRARY} ${PRO_EXTRA_LIBS})
     endif()
@@ -445,7 +407,7 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
     
     if (APPLE)
         # Ensure Cocoa is linked for UI code (NSOpenPanel etc.)
-        target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ${CSOUND_FRAMEWORK} "-framework Cocoa" Catch2::Catch2WithMain)
+        target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ${CSOUND_FRAMEWORK} "-framework Cocoa" ${PRO_EXTRA_LIBS} Catch2::Catch2WithMain)
     else()
         target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ${CSOUND_LIBRARY} ${PRO_EXTRA_LIBS} Catch2::Catch2WithMain)
     endif()
