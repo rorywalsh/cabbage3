@@ -5,12 +5,21 @@ cmake_policy(SET CMP0149 NEW)
 
 # Set the version of the Cabbage project
 set(CABBAGE_VERSION 0.0.100)
+# Build options
+option(CABBAGE_ENABLE_TESTS "Build tests in addition to main app" OFF)
+option(USER_LIB "Output AU plugins directly to ~/Library/Audio/Plug-Ins/Components without Debug subdirectory" OFF)
+option(CABBAGE_PRO_BUILD "Build Cabbage Pro version with encryption support" OFF)
+option(CABBAGE_USE_STATIC_RUNTIME "Use static MSVC runtime library (MT) instead of dynamic (MD)" OFF)
 
 # Enforce Xcode generator on macOS
 if(APPLE)
     set(VST3_FORMATS CLAP VST3)
     set(AU_FORMATS CLAP AUV2)
-    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "" FORCE)
+    if(CABBAGE_PRO_BUILD)
+        set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "" FORCE)
+    else()
+        set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "" FORCE)
+    endif()
     if(NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
         set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS deployment target")
     endif()
@@ -23,11 +32,7 @@ else()
 endif()
 
 
-# Build options
-option(CABBAGE_ENABLE_TESTS "Build tests in addition to main app" OFF)
-option(USER_LIB "Output AU plugins directly to ~/Library/Audio/Plug-Ins/Components without Debug subdirectory" OFF)
-option(CABBAGE_PRO_BUILD "Build Cabbage Pro version with encryption support" OFF)
-option(CABBAGE_USE_STATIC_RUNTIME "Use static MSVC runtime library (MT) instead of dynamic (MD)" OFF)
+
 
 # Define common base directory for all dependency downloads and builds
 set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/_deps" CACHE PATH "Base directory for downloaded dependencies")
