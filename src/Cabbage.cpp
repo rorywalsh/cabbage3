@@ -1342,7 +1342,7 @@ void Engine::loadWidgetState(const nlohmann::json &state)
     {
         std::lock_guard<std::mutex> lock(widgetsMutex);
         
-        lattice::logInfo << "Merging " << channelUpdates.size() << " channel updates into existing widgets (preserving widget properties like populate)";
+        lattice::logDebug << "Merging " << channelUpdates.size() << " channel updates into existing widgets (preserving widget properties like populate)";
         
         for (auto& widget : widgets)
         {
@@ -1437,7 +1437,7 @@ void Engine::loadWidgetState(const nlohmann::json &state)
     // This is more efficient than sending 148 individual messages
     // and prevents message flooding that could overwhelm the WebView
     nlohmann::json batchUpdate;
-    batchUpdate["command"] = "BATCH-UPDATE-7f3d2a";
+    batchUpdate["command"] = "batchWidgetUpdate";
     batchUpdate["widgets"] = nlohmann::json::array();
     
     int widgetCount = 0;
@@ -1467,7 +1467,7 @@ void Engine::loadWidgetState(const nlohmann::json &state)
     
     // Send single batch message instead of queuing many individual messages
     if (widgetCount > 0) {
-        lattice::logInfo << "Batch update structure: command=" << batchUpdate["command"] 
+        lattice::logDebug << "Batch update structure: command=" << batchUpdate["command"]
                          << ", widgets count=" << batchUpdate["widgets"].size()
                          << ", first widget id=" << (batchUpdate["widgets"].size() > 0 ? batchUpdate["widgets"][0]["id"].get<std::string>() : "none");
         

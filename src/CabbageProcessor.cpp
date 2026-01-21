@@ -641,10 +641,10 @@ void CabbageProcessor::onIdle()
 void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
 {
     // Handle batch updates from loadWidgetState
-    if (data.channel == "specialBatchUpdate" && data.cabbageJson.contains("command") &&
+    if (data.channel == "BATCH-UPDATE-7f3d2a" && data.cabbageJson.contains("command") &&
         data.cabbageJson["command"] == "batchWidgetUpdate")
     {
-        lattice::logInfo << "Processing batch widget update with " << data.cabbageJson["widgets"].size() << " widgets";
+        lattice::logDebug << "Processing batch widget update with " << data.cabbageJson["widgets"].size() << " widgets";
         sendWebViewMessage(data.cabbageJson);
         return;
     }
