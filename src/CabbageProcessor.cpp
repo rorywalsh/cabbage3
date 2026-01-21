@@ -141,10 +141,6 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Pr
     }
 
     startOnIdle();
-
-    // For plugins, allowDequeuing is set when UI is ready (setCabbageIsReady).
-    // For CabbageApp, it's set when webview signals cabbageIsReadyToLoad.
-    // This ensures messages aren't sent before the webview is connected.
 }
 
 CabbageProcessor::~CabbageProcessor()
@@ -645,7 +641,7 @@ void CabbageProcessor::onIdle()
 void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
 {
     // Handle batch updates from loadWidgetState
-    if (data.channel == "__batch_update__" && data.cabbageJson.contains("command") && 
+    if (data.channel == "specialBatchUpdate" && data.cabbageJson.contains("command") &&
         data.cabbageJson["command"] == "batchWidgetUpdate")
     {
         lattice::logInfo << "Processing batch widget update with " << data.cabbageJson["widgets"].size() << " widgets";

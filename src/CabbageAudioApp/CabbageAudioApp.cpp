@@ -152,6 +152,30 @@ void CabbageAudioApp::initialiseCabbage()
 //==============================================================================
 void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
 {
+    // Handle batch updates from loadWidgetState (special case for standalone mode)
+    if (data.channel == "BATCH-UPDATE-7f3d2a" && data.cabbageJson.contains("command") &&
+        data.cabbageJson["command"] == "BATCH-UPDATE-7f3d2a" && data.cabbageJson.contains("widgets"))
+    {
+        lattice::logInfo << "Processing batch widget update with " << data.cabbageJson["widgets"].size() << " widgets in standalone mode";
+        
+        // Send individual widgetUpdate messages for each widget in the batch
+        for (const auto& widget : data.cabbageJson["widgets"])
+        {
+            if (widget.contains("id") && widget.contains("widgetJson"))
+            {
+                nlohmann::json msg;
+                msg["command"] = "widgetUpdate";
+                msg["id"] = widget["id"];
+                msg["widgetJson"] = widget["widgetJson"];
+                sendJsonMessage(msg);
+                
+                // Small delay to prevent stdout buffer overflow
+                std::this_thread::sleep_for(std::chrono::microseconds(50));
+            }
+        }
+        return; // Don't process further
+    }
+    
     auto updatedOpt = processor->processOpcodeData(data);
     if (updatedOpt.has_value())
     {

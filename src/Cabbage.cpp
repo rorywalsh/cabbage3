@@ -1278,7 +1278,6 @@ void Engine::loadWidgetState(const nlohmann::json &state)
         return;
     }
     
-    // PHASE 1: Prepare channel value updates (without holding mutex)
     // Instead of replacing widgets, we'll merge the channel values from the loaded state
     std::unordered_map<std::string, std::unordered_map<std::string, double>> channelUpdates;
     
@@ -1339,7 +1338,7 @@ void Engine::loadWidgetState(const nlohmann::json &state)
         return;
     }
     
-    // PHASE 2: Apply channel value updates to existing widgets (quick operation with mutex)
+    // Apply channel value updates to existing widgets (quick operation with mutex)
     {
         std::lock_guard<std::mutex> lock(widgetsMutex);
         
@@ -1387,7 +1386,7 @@ void Engine::loadWidgetState(const nlohmann::json &state)
         }
     }
 
-    // PHASE 3: Update Csound channels and parameters (no mutex needed - reading from local copy)
+    // Update Csound channels and parameters (no mutex needed - reading from local copy)
     // Make a local copy to avoid holding lock during Csound calls
     std::vector<nlohmann::json> widgetsCopy;
     {
@@ -1438,7 +1437,7 @@ void Engine::loadWidgetState(const nlohmann::json &state)
     // This is more efficient than sending 148 individual messages
     // and prevents message flooding that could overwhelm the WebView
     nlohmann::json batchUpdate;
-    batchUpdate["command"] = "batchWidgetUpdate";
+    batchUpdate["command"] = "BATCH-UPDATE-7f3d2a";
     batchUpdate["widgets"] = nlohmann::json::array();
     
     int widgetCount = 0;
@@ -1474,7 +1473,7 @@ void Engine::loadWidgetState(const nlohmann::json &state)
         
         // Queue as a special batch message that bypasses normal deduplication
         CabbageOpcodeData data;
-        data.channel = "__batch_update__";
+        data.channel = "BATCH-UPDATE-7f3d2a";
         data.type = CabbageOpcodeData::MessageType::Identifier;
         data.cabbageJson = batchUpdate;
         opcodeData.enqueue(data);
