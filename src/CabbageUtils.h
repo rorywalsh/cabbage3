@@ -96,6 +96,8 @@ class File : public lattice::File
 public:
     // Set the CSD file path in the static cache (called once by CabbageProcessor constructor)
     static void setCsdFileAndPath(const std::string& csdFile);
+    // Setup the root directory, handle cabz extraction for Pro builds, and return the mount point path and cabz temp dir
+    static std::pair<std::string, std::string> setupRootDirectory(const std::string& csdFile = "");
     // Returns the csd file. If csdFile is emtpy it willdeduct the location
     static std::string getCsdFileAndPath(std::string csdFile = "");
     // Reads and parses the cabbage section from the file
@@ -137,6 +139,10 @@ public:
     static std::string extractCabzArchive(const std::string &resourceDir);
     // Cleanup temp directory created by extractCabzArchive (Pro builds only)
     static void cleanupCabzTempDir(const std::string &tempDir);
+    // Decrement reference count for temp directory and clean up if zero
+    static void decrementTempDirRef(const std::string& tempDir);
+    // Increment reference count for temp directory
+    static void incrementTempDirRef(const std::string& tempDir);
 
     // Get manufacturer name for resource directories
     static std::string getManufacturerName();

@@ -19,6 +19,8 @@
 
 #include "CabbageUtils.h"
 #include "CabbagePluginInfo.h"
+#include <unordered_map>
+#include <mutex>
 #include <choc/text/choc_Files.h>
 #include <sstream>
 #include <cstdio>
@@ -30,6 +32,7 @@
 #include <filesystem>
 #include <ctime>
 #endif
+
 namespace cabbage {
 
 std::string File::getManufacturerName()
@@ -354,6 +357,13 @@ std::string File::getCabbageSection(const std::string &csdFilePath)
     auto csdFile = (!csdFilePath.empty() && lattice::File::exists(csdFilePath)) ? csdFilePath : getCsdFileAndPath();
     std::string csdText = {};
 
+    // Prevent crash during static initialization by checking if file exists
+    if (!lattice::File::exists(csdFile))
+    {
+        lattice::logDebug << "CSD file does not exist: " << csdFile;
+        return "";
+    }
+
 #ifdef CabbagePro
     // Pro version: Check if file is encrypted
     if (Decrypt::isEncrypted(csdFile))
@@ -579,18 +589,51 @@ std::string File::getCsdPath(const std::string& file)
     }
 }
 
-// Static cache for CSD file path - shared between setCsdFileAndPath and getCsdFileAndPath
-// This ensures the path set in CabbageProcessor constructor is available to all static methods
+// Static cache for CSD file paths - keyed by binary name to support multiple plugin types
+// Each plugin binary (e.g., different .vst3 files) gets its own cached CSD path and temp dir data
 namespace {
-    std::string g_cachedCsdPath;
+    // Struct to hold all cached data for a plugin binary
+    struct CachedPluginData {
+        std::string csdPath;           // The cached CSD file path
+        std::string tempDir;           // Temp directory path (empty if no extraction)
+        int tempDirRefCount;           // Reference count for temp dir (0 if tempDir.empty())
+    };
+    
+    // Cache struct to hold the map and mutex
+    struct Cache {
+        std::unordered_map<std::string, CachedPluginData> data;
+        std::mutex mutex;
+    };
+    
+    // Function to get the cache, ensuring lazy initialization
+    Cache& getCache() {
+        static Cache cache;
+        static bool useMutex = false;
+        useMutex = true; // Set after cache is initialized
+        return cache;
+    }
+    
+    // Helper to get lock if safe
+    std::unique_lock<std::mutex> getLock() {
+        static bool useMutex = false;
+        if (useMutex) {
+            return std::unique_lock<std::mutex>(getCache().mutex);
+        }
+        return std::unique_lock<std::mutex>(); // Empty lock
+    }
 }
 
 void File::setCsdFileAndPath(const std::string& csdFile)
 {
+    auto lock = getLock(); // Thread-safe access to global cache
+    std::string binaryName = lattice::File::getBinaryFileName(); // Get unique key for this plugin binary
+    
     if(!csdFile.empty() && lattice::File::exists(csdFile))
     {
-        g_cachedCsdPath = csdFile;
-        lattice::logInfo << "setCsdFileAndPath: Set CSD path to: " << csdFile;
+        // Get or create the cached data for this binary
+        auto& data = getCache().data[binaryName];
+        data.csdPath = csdFile; // Cache CSD path
+        lattice::logInfo << "setCsdFileAndPath: Set CSD path for " << binaryName << " to: " << csdFile;
     }
     else
     {
@@ -598,14 +641,93 @@ void File::setCsdFileAndPath(const std::string& csdFile)
     }
 }
 
+std::pair<std::string, std::string> File::setupRootDirectory(const std::string& csdFile)
+{
+    std::string finalCsdPath;
+    std::string rootPath;
+
+    if (!csdFile.empty() && lattice::File::exists(csdFile))
+    {
+        rootPath = cabbage::File::getParentDirectory(csdFile);
+        finalCsdPath = csdFile;
+    }
+    else
+    {
+        // Use default path lookup
+        finalCsdPath = cabbage::File::getCsdFileAndPath();
+        rootPath = cabbage::File::getParentDirectory(cabbage::File::getParentDirectory(finalCsdPath));
+    }
+
+    // Set the initial CSD path
+    setCsdFileAndPath(finalCsdPath);
+
+#ifdef CabbagePro
+    // Check if this binary already has an extracted temp directory cached
+    std::string binaryName = lattice::File::getBinaryFileName();
+    {
+        auto lock = getLock();
+        auto it = getCache().data.find(binaryName);
+        if (it != getCache().data.end() && !it->second.tempDir.empty() && it->second.tempDirRefCount >= 0)
+        {
+            // Already extracted for this binary, reuse without incrementing here
+            lattice::logInfo << "Reusing existing temp dir for " << binaryName << ": " << it->second.tempDir 
+                           << " (current ref count: " << it->second.tempDirRefCount << ")";
+            
+            // Override with the cached CSD path from the existing temp dir
+            finalCsdPath = it->second.tempDir + "/" + cabbage::File::getBinaryWithoutExtension() + ".ecsd";
+            setCsdFileAndPath(finalCsdPath);
+            
+            return {it->second.tempDir, it->second.tempDir}; // Return cached temp dir
+        }
+    }
+
+    // First time extraction for this binary
+    std::string cabzTempDir = cabbage::File::extractCabzArchive(rootPath);
+    if (!cabzTempDir.empty())
+    {
+        auto files = lattice::File::getFilesOfType(cabzTempDir, "*");
+        for(auto &f : files)
+        {
+            lattice::logInfo << "File: " << f;
+        }
+
+        // Store temp dir and set initial reference count to 0 (will be incremented by caller)
+        // Multiple instances of the same plugin will share this temp dir
+        {
+            auto lock = getLock();
+            auto& data = getCache().data[binaryName];
+            data.tempDir = cabzTempDir;
+            data.tempDirRefCount = 0; // Will be incremented by CabbageProcessor constructor
+            lattice::logInfo << "Set temp dir for " << binaryName << " to: " << cabzTempDir 
+                           << " (initial ref count: " << data.tempDirRefCount << ")";
+        }
+
+        // Override with the encrypted CSD file from the cabz archive
+        finalCsdPath = cabzTempDir + "/" + cabbage::File::getBinaryWithoutExtension() + ".ecsd";
+        // Set the overridden CSD path
+        setCsdFileAndPath(finalCsdPath);
+
+        return {cabzTempDir, cabzTempDir}; // Return temp dir as both root and temp dir
+    }
+    else
+    {
+        return {rootPath, ""}; // No temp dir used
+    }
+#else
+    return {rootPath, ""}; // Free version never uses temp dirs
+#endif
+}
+
 std::string File::getCsdFileAndPath(std::string csdFile)
 {
-    // DESIGN: Single Source of Truth for CSD Path
+    // DESIGN: Single Source of Truth for CSD Path per Plugin Binary
     // ============================================
-    // The CSD file path is determined ONCE in CabbageProcessor constructor via setCsdFileAndPath().
-    // All subsequent calls (from WidgetDescriptors, parseCsdForWidgets, etc.) use the cached value.
-    // This ensures cabz temp directories work correctly - the path must be set before any
-    // static methods try to locate widget JS files or parse the CSD.
+    // The CSD file path is cached ONCE per plugin binary in setCsdFileAndPath().
+    // All subsequent calls for the same binary use the cached value.
+    // This ensures cabz temp directories work correctly and supports multiple plugin types.
+
+    auto lock = getLock(); // Thread-safe access
+    std::string binaryName = lattice::File::getBinaryFileName(); // Get unique key for this plugin binary
 
     // If csdFile is provided and exists, return it (but don't cache - use setCsdFileAndPath for that)
     if(!csdFile.empty() && lattice::File::exists(csdFile))
@@ -613,11 +735,12 @@ std::string File::getCsdFileAndPath(std::string csdFile)
         return csdFile;
     }
 
-    // Use the cached path set by setCsdFileAndPath()
-    if(!g_cachedCsdPath.empty() && lattice::File::exists(g_cachedCsdPath))
+    // Use the cached path for this binary
+    auto it = getCache().data.find(binaryName);
+    if(it != getCache().data.end() && !it->second.csdPath.empty() && lattice::File::exists(it->second.csdPath))
     {
-        lattice::logDebug << "getCsdFileAndPath: Using cached CSD path: " << g_cachedCsdPath;
-        return g_cachedCsdPath;
+        lattice::logDebug << "getCsdFileAndPath: Using cached CSD path for " << binaryName << ": " << it->second.csdPath;
+        return it->second.csdPath;
     }
 
     std::string resourceDir = lattice::File::getResourceDirFromBundle();
@@ -920,6 +1043,65 @@ void File::cleanupCabzTempDir(const std::string &tempDir)
     {
         lattice::logError << "Failed to cleanup temp directory: " << e.what();
     }
+}
+
+// Decrement reference count for temp directory and clean up if no more references
+// Called by CabbageProcessor destructor to ensure temp dirs are cleaned up when last instance is destroyed
+void File::decrementTempDirRef(const std::string& tempDir)
+{
+    if (tempDir.empty())
+        return;
+
+    auto lock = getLock(); // Thread-safe access
+    
+    // Find the binary that has this temp dir
+    for (auto& pair : getCache().data)
+    {
+        auto& data = pair.second;
+        if (data.tempDir == tempDir)
+        {
+            data.tempDirRefCount--; // Decrement reference count
+            lattice::logInfo << "Decremented ref count for temp dir: " << tempDir 
+                           << " (binary: " << pair.first << ") to " << data.tempDirRefCount;
+            
+            if (data.tempDirRefCount <= 0)
+            {
+                // No more references, safe to clean up
+                std::string tempDirToClean = data.tempDir;
+                data.tempDir.clear(); // Clear the temp dir path
+                data.tempDirRefCount = 0; // Reset count
+                cleanupCabzTempDir(tempDirToClean); // Actually remove the directory
+            }
+            return; // Found and handled
+        }
+    }
+    
+    lattice::logWarning << "Attempted to decrement ref count for unknown temp dir: " << tempDir;
+}
+
+// Increment reference count for temp directory
+// Called by CabbageProcessor constructor after setupRootDirectory
+void File::incrementTempDirRef(const std::string& tempDir)
+{
+    if (tempDir.empty())
+        return;
+
+    auto lock = getLock(); // Thread-safe access
+    
+    // Find the binary that has this temp dir
+    for (auto& pair : getCache().data)
+    {
+        auto& data = pair.second;
+        if (data.tempDir == tempDir)
+        {
+            data.tempDirRefCount++; // Increment reference count
+            lattice::logInfo << "Incremented ref count for temp dir: " << tempDir 
+                           << " (binary: " << pair.first << ") to " << data.tempDirRefCount;
+            return; // Found and handled
+        }
+    }
+    
+    lattice::logWarning << "Attempted to increment ref count for unknown temp dir: " << tempDir;
 }
 #else
 // Stub implementations for non-Pro builds

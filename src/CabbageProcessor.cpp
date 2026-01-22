@@ -38,64 +38,30 @@ pluginType *LatticeProcessorPluginFactory::createPlugin(const clap_host *host)
 // the static cache in getCsdFileAndPath() instead of re-computing the path.
 //
 // Flow:
-// 1. Determine initial CSD path (from parameter or default lookup)
-// 2. For Pro builds: Check for .cabz archive and extract if present
-// 3. If cabz exists: Override CSD path to point to extracted .ecsd file in temp directory
-// 4. Call setCsdFile() ONCE with the final path
+// 1. Call setupRootDirectory() to determine root path, set CSD path, and handle cabz extraction
+// 2. Set mount point based on cabz or root path
+// 3. Get final CSD path from cache and call setCsdFile() ONCE with the final path
 //    - This sets csdFile on the Engine instance
 //    - This calls setCsdFileAndPath() to populate the static cache
-// 5. All subsequent calls (WidgetDescriptors, parseCsdForWidgets, etc.) use the cached path
+// 4. All subsequent calls (WidgetDescriptors, parseCsdForWidgets, etc.) use the cached path
 //========================================================================================
 CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Processor(), cabbage(*this, "")
 {
-    std::string finalCsdPath;
+    // Setup root directory and handle cabz extraction
+    auto [mountPoint, cabzTemp] = cabbage::File::setupRootDirectory(csdFile);
+    setMountPoint(mountPoint);
+    cabzTempDir = cabzTemp;
 
 #ifdef CabbagePro
-    // First, determine the root path for cabz extraction
-    std::string rootPath;
-    if (!csdFile.empty() && lattice::File::exists(csdFile))
-    {
-        rootPath = cabbage::File::getParentDirectory(csdFile);
-        finalCsdPath = csdFile;
-    }
-    else
-    {
-        // Use default path lookup
-        finalCsdPath = cabbage::File::getCsdFileAndPath();
-        rootPath = cabbage::File::getParentDirectory(cabbage::File::getParentDirectory(finalCsdPath));
-    }
-
-    // Check for .cabz archive and extract if present
-    cabzTempDir = cabbage::File::extractCabzArchive(rootPath);
+    // Increment reference count for this instance if we have a temp dir
     if (!cabzTempDir.empty())
     {
-        auto files = lattice::File::getFilesOfType(cabzTempDir, "*");
-        for(auto &f : files)
-        {
-            lattice::logInfo << "File: " << f;
-        }
-
-        setMountPoint(cabzTempDir);
-        // Override with the encrypted CSD file from the cabz archive
-        finalCsdPath = cabzTempDir + "/" + cabbage::File::getBinaryWithoutExtension() + ".ecsd";
+        cabbage::File::incrementTempDirRef(cabzTempDir);
     }
-    else
-    {
-        setMountPoint(rootPath);
-    }
-#else
-    // Free version: use provided path or default lookup
-    if (!csdFile.empty() && lattice::File::exists(csdFile))
-    {
-        finalCsdPath = csdFile;
-    }
-    else
-    {
-        finalCsdPath = cabbage::File::getCsdFileAndPath();
-    }
-    auto rootPath = cabbage::File::getParentDirectory(finalCsdPath);
-    setMountPoint(rootPath);
 #endif
+
+    // Get the final CSD path from the cache
+    std::string finalCsdPath = cabbage::File::getCsdFileAndPath();
 
     // Set the final CSD path once - this is the single source of truth
     cabbage.setCsdFile(finalCsdPath);
@@ -158,10 +124,10 @@ CabbageProcessor::~CabbageProcessor()
     stopIdleThread();
 
 #ifdef CabbagePro
-    // Cleanup temp directory if we extracted a .cabz archive
+    // Decrement reference count for temp directory - will clean up only if this is the last instance
     if (!cabzTempDir.empty())
     {
-        cabbage::File::cleanupCabzTempDir(cabzTempDir);
+        cabbage::File::decrementTempDirRef(cabzTempDir);
     }
 #endif
 }
