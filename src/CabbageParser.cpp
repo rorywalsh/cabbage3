@@ -401,7 +401,7 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
                     
                     // CRITICAL: Cannot do file I/O here - we're likely holding a mutex
                     // Just store the config, actual population happens elsewhere
-                    lattice::logDebug << "Merged populate config (processing deferred to avoid blocking)";
+//                    lattice::logDebug << "Merged populate config (processing deferred to avoid blocking)";
                 }
                 else
                 {
@@ -412,19 +412,25 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
             {
                 if (value.is_array())
                 {
+                    lattice::logDebug << "Size of items: " << value.size();
                     // Validate array contains strings
                     bool allStrings = std::all_of(value.begin(), value.end(),
                                                 [](const nlohmann::json& item) { return item.is_string(); });
+
                     
-                    if (allStrings) {
-//                            const std::string items =
-//                                std::accumulate(std::next(value.begin()), value.end(), value[0].get<std::string>(),
-//                                                [](std::string a, const std::string &b) { return std::move(a) + ", " + b; });
+                    if (allStrings)
+                    {
                         jsonObj["items"] = value;
-                        jsonObj["min"] = 0;
-                        jsonObj["max"] = value.size() - 1;
-//                            lattice::logDebug << "Set items array with " << value.size() << " elements for widget type: " << widgetType;
-                    } else {
+
+                        // Update the channel's range min/max based on items count
+                        if (jsonObj.contains("channels") && jsonObj["channels"].is_array() && !jsonObj["channels"].empty())
+                        {
+                            jsonObj["channels"][0]["range"]["min"] = 0;
+                            jsonObj["channels"][0]["range"]["max"] = static_cast<int>(value.size() - 1);
+                        }
+                    }
+                    else
+                    {
                         lattice::logDebug << "items array must contain only string values for widget type: " << widgetType;
                     }
                 }
@@ -586,11 +592,13 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
         }
         catch (const nlohmann::json::exception &e)
         {
-            lattice::logDebug << "JSON processing error for key '" << key << "' in widget type '" << widgetType << "': " << e.what();
+            std::string widgetId = jsonObj.value("id", "unknown");
+            lattice::logDebug << "JSON processing error for key '" << key << "' in widget '" << widgetId << "' (type '" << widgetType << "'): " << e.what();
         }
         catch (const std::exception &e)
         {
-            lattice::logDebug << "Unexpected error processing key '" << key << "' in widget type '" << widgetType << "': " << e.what();
+            std::string widgetId = jsonObj.value("id", "unknown");
+            lattice::logDebug << "Unexpected error processing key '" << key << "' in widget '" << widgetId << "' (type '" << widgetType << "'): " << e.what();
         }
     }
 }
@@ -994,7 +1002,7 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
             for (const auto& dir : config["directories"]) {
                 if (dir.is_string()) {
                     directories.push_back(dir.get<std::string>());
-                    lattice::logDebug << "Adding directory: " << dir.get<std::string>();
+//                    lattice::logDebug << "Adding directory: " << dir.get<std::string>();
                 }
             }
 
@@ -1002,7 +1010,7 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
             std::vector<std::string> files;
             std::unordered_set<std::string> seenFiles;
             for (const auto& directory : directories) {
-                lattice::logDebug << "Scanning directory: " << directory;
+//                lattice::logDebug << "Scanning directory: " << directory;
                 try {
                     // If directory doesn't exist, warn and continue
                     if (!std::filesystem::exists(directory) || !std::filesystem::is_directory(directory)) {
@@ -1127,9 +1135,17 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
                 // Always provide full paths - frontend can strip them for display if needed
                 items = files;
                 lattice::logDebug << "Setting items to files list";
-            } else if (config.contains("labelWhenEmpty")) {
-                items.push_back(config["labelWhenEmpty"].get<std::string>());
-                lattice::logDebug << "No files found, using labelWhenEmpty";
+            } else if (config.contains("labelWhenEmpty") && !directories.empty()) {
+                // Only use labelWhenEmpty if directories were actually specified
+                // Check that at least one directory is non-empty
+                bool hasValidDirectory = std::any_of(directories.begin(), directories.end(),
+                    [](const std::string& dir) { return !dir.empty(); });
+                if (hasValidDirectory) {
+                    items.push_back(config["labelWhenEmpty"].get<std::string>());
+                    lattice::logDebug << "No files found, using labelWhenEmpty";
+                } else {
+                    lattice::logDebug << "No valid directories specified, skipping labelWhenEmpty";
+                }
             } else {
                 lattice::logDebug << "No files found and no labelWhenEmpty";
             }

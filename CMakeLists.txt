@@ -168,19 +168,21 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbageApp LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
 elseif (CabbagePluginEffect STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbagePluginEffect LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
-    set(CabbageAUInstrumentType aufx)
+    set(CABBAGE_AU_INSTRUMENT_TYPE aufx)
+    set(CABBAGE_VST_TYPE CabbagePluginEffectVST3)
     set(FORMATS ${VST3_FORMATS})
 elseif (CabbagePluginSynth STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbagePluginSynth LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
-    set(CabbageAUInstrumentType aumi)
+    set(CABBAGE_AU_INSTRUMENT_TYPE aumi)
+    set(CABBAGE_VST_TYPE CabbagePluginSynthVST3)
     set(FORMATS ${VST3_FORMATS})
 elseif (CabbagePluginEffectAUv2 STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbagePluginEffectAUv2 LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
-    set(CabbageAUInstrumentType aufx)
+    set(CABBAGE_AU_INSTRUMENT_TYPE aufx)
     set(FORMATS ${AU_FORMATS})
 elseif (CabbagePluginSynthAUv2 STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbagePluginSynthAUv2 LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
-    set(CabbageAUInstrumentType aumi)
+    set(CABBAGE_AU_INSTRUMENT_TYPE aumi)
     set(FORMATS ${AU_FORMATS})
 elseif (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbageTests LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
@@ -437,6 +439,7 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
         PLUGIN_INFO_HEADER="${CMAKE_SOURCE_DIR}/src/CabbagePluginInfo.h"
         PRODUCT_NAME="${PROJECT_NAME}"
         "${CABBAGE_BUILD_TARGET}"
+        "${CABBAGE_VST_TYPE}"
     )
 
     # Add CabbagePro definition if building Pro version
@@ -456,26 +459,6 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
         target_compile_options(${PROJECT_NAME}-impl PRIVATE -Wall -Wextra -pedantic)
     endif()
 
-    # Link required libraries
-    # Build a list of "extra" Pro libraries only when CABBAGE_PRO_BUILD is enabled
-    set(PRO_EXTRA_LIBS "")
-    if(CABBAGE_PRO_BUILD)
-        if(APPLE)
-            set(_mac_pro_libs LIB_SNDFILE LIB_FLAC LIB_OGG LIB_OPUS LIB_VORBIS LIB_VORBISENC LIB_VORBIS_FILE)
-            foreach(_lib ${_mac_pro_libs})
-                if(NOT "${${_lib}}" STREQUAL "")
-                    list(APPEND PRO_EXTRA_LIBS ${${_lib}})
-                endif()
-            endforeach()
-        elseif(WIN32)
-            set(_win_pro_libs LIB_SYN123 LIB_MPG123 LIB_MPGHIP LIB_OUT123 LIB_LAME LIB_OPUS LIB_SNDFILE LIB_FLAC)
-            foreach(_lib ${_win_pro_libs})
-                if(NOT "${${_lib}}" STREQUAL "")
-                    list(APPEND PRO_EXTRA_LIBS ${${_lib}})
-                endif()
-            endforeach()
-        endif()
-    endif()
 
     if (APPLE)
         # Add WebKit and Cocoa frameworks for choc::ui::WebView support
@@ -498,7 +481,7 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
         COPY_AFTER_BUILD ${COPY_AFTER_BUILD}
         PLUGIN_FORMATS ${FORMATS}
         ASSET_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_assets
-        AUV2_INSTRUMENT_TYPE "${CabbageAUInstrumentType}"
+        AUV2_INSTRUMENT_TYPE "${CABBAGE_AU_INSTRUMENT_TYPE}"
         # STANDALONE_CONFIGURATIONS
         #     standalone "${PROJECT_NAME}" "your.reversed.domain.name.${PROJECT_NAME}"
     )

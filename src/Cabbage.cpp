@@ -1467,10 +1467,10 @@ void Engine::loadWidgetState(const nlohmann::json &state)
     
     // Send single batch message instead of queuing many individual messages
     if (widgetCount > 0) {
-        lattice::logDebug << "Batch update structure: command=" << batchUpdate["command"]
-                         << ", widgets count=" << batchUpdate["widgets"].size()
-                         << ", first widget id=" << (batchUpdate["widgets"].size() > 0 ? batchUpdate["widgets"][0]["id"].get<std::string>() : "none");
-        
+//        lattice::logDebug << "Batch update structure: command=" << batchUpdate["command"]
+//                         << ", widgets count=" << batchUpdate["widgets"].size()
+//                         << ", first widget id=" << (batchUpdate["widgets"].size() > 0 ? batchUpdate["widgets"][0]["id"].get<std::string>() : "none");
+//        
         // Queue as a special batch message that bypasses normal deduplication
         CabbageOpcodeData data;
         data.channel = "BATCH-UPDATE-7f3d2a";
@@ -1579,9 +1579,16 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
             // Set the Csound control channel
             setControlChannel(channel, floatData);
             
-            // Update the widget JSON
+            // Update the widget JSON - set channel.range.value for number channels
             updateWidget(channel, [&](nlohmann::json &j) {
-                j["value"] = floatData;
+                if (j.contains("channels") && j["channels"].is_array() && !j["channels"].empty())
+                {
+                    auto& firstChannel = j["channels"][0];
+                    if (firstChannel.contains("range") && firstChannel["range"].is_object())
+                    {
+                        firstChannel["range"]["value"] = floatData;
+                    }
+                }
             });
         }
         else
@@ -1691,9 +1698,16 @@ std::string Engine::handleParameterUpdate(const nlohmann::json &message)
     // Update Csound channel with denormalized value
     setControlChannel(channel, denormValue);
 
-    // Update widget JSON
+    // Update widget JSON - set channel.range.value for number channels
     updateWidget(channel, [&](nlohmann::json &j) {
-        j["value"] = denormValue;
+        if (j.contains("channels") && j["channels"].is_array() && !j["channels"].empty())
+        {
+            auto& firstChannel = j["channels"][0];
+            if (firstChannel.contains("range") && firstChannel["range"].is_object())
+            {
+                firstChannel["range"]["value"] = denormValue;
+            }
+        }
     });
 
     return gesture;

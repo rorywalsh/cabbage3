@@ -19,6 +19,7 @@
 
 #include "CabbageProcessor.h"
 #include <iostream>
+#include <algorithm>
 #include "CabbageUtils.h"
 
 //========================================================================================
@@ -65,8 +66,6 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Pr
 
     // Set the final CSD path once - this is the single source of truth
     cabbage.setCsdFile(finalCsdPath);
-    lattice::logInfo << "CabbageProcessor: Final CSD path set to: " << finalCsdPath;
-    lattice::logDebug << lattice::File::getFileAsString(cabbage::File::getCsdFileAndPath());
     
     if (!cabbage.setupCsound())
     {
@@ -93,7 +92,6 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Pr
     
     if (auto json = cabbage::File::parseCabbageSection(cabbage::File::getCsdFileAndPath()))
     {
-        lattice::logDebug << json->dump(4);
         auto w = cabbage::Utils::findPropertyInForm<int>(*json, "size.width");
         auto h = cabbage::Utils::findPropertyInForm<int>(*json, "size.height");
         if (w.has_value() && h.has_value())
@@ -268,7 +266,7 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                     {
                         bool hasIndexOffset =
                             w.contains("indexOffset") && w["indexOffset"].is_boolean() && w["indexOffset"].get<bool>();
-                        size_t itemCount = (ch.contains("items") && ch["items"].is_array()) ? ch["items"].size() : 3;
+                        size_t itemCount = (w.contains("items") && w["items"].is_array()) ? w["items"].size() : 3;
                         if (hasIndexOffset)
                         {
                             minValAdjusted = 1.0f;
@@ -285,14 +283,26 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                     const float incVal = ch["range"]["increment"].get<float>();
                     const float skewVal = ch["range"]["skew"].get<float>();
 
+                    // Use range.value if set, otherwise use defaultValue for initial Csound channel
+                    float initialValue = defVal;
+                    if (ch["range"].contains("value") && ch["range"]["value"].is_number())
+                    {
+                        initialValue = ch["range"]["value"].get<float>();
+                    }
+                    else
+                    {
+                        // Store defaultValue as value for consistency
+                        ch["range"]["value"] = defVal;
+                    }
+
                     lattice::logInfo << "Creating parameter '" << channel << "': min=" << minValAdjusted
-                                     << ", max=" << maxVal << ", default=" << defVal << ", inc=" << incVal
-                                     << ", skew=" << skewVal;
+                                     << ", max=" << maxVal << ", default=" << defVal << ", initial=" << initialValue
+                                     << ", inc=" << incVal << ", skew=" << skewVal;
 
                     addParameter({channel, minValAdjusted, maxVal, defVal, incVal, skewVal});
 
-                    // Set initial value in Csound
-                    cabbage.setControlChannel(channel, defVal);
+                    // Set initial value in Csound using range.value (or defaultValue if not set)
+                    cabbage.setControlChannel(channel, initialValue);
 
                     // Store parameterIndex in each channel object
                     ch["parameterIndex"] = currentIndex;
@@ -513,21 +523,21 @@ void CabbageProcessor::onIdle()
             if (hasPopulateUpdate)
             {
                 auto widgetOpt = cabbage.getWidgetCopyById(dataCopy.channel);
-                lattice::logDebug << "Checking widget for populate config: " << dataCopy.channel;
-                if (widgetOpt.has_value()) {
-                    if (widgetOpt->contains("populate")) {
-                        lattice::logDebug << "Widget has populate field, type: " << (*widgetOpt)["populate"].type_name();
-                    } else {
-                        lattice::logDebug << "Widget does NOT have populate field";
-                    }
-                }
+//                lattice::logDebug << "Checking widget for populate config: " << dataCopy.channel;
+//                if (widgetOpt.has_value()) {
+//                    if (widgetOpt->contains("populate")) {
+//                        lattice::logDebug << "Widget has populate field, type: " << (*widgetOpt)["populate"].type_name();
+//                    } else {
+//                        lattice::logDebug << "Widget does NOT have populate field";
+//                    }
+//                }
 
                 if (widgetOpt.has_value() && widgetOpt->contains("populate") && (*widgetOpt)["populate"].is_object())
                 {
                     std::string widgetChannel = dataCopy.channel;
                     nlohmann::json populateConfig = (*widgetOpt)["populate"];
 
-                    lattice::logDebug << "Populate config: " << populateConfig.dump();
+//                    lattice::logDebug << "Populate config: " << populateConfig.dump();
 
                     // Normalize directories: convert single string to array for consistency
                     if (populateConfig.contains("directories") && populateConfig["directories"].is_string()) {
@@ -536,8 +546,10 @@ void CabbageProcessor::onIdle()
                         lattice::logDebug << "Converted single string directories to array for widget: " << widgetChannel;
                     }
 
-                    // Verify it has the required fields before processing
-                    if (populateConfig.contains("directories") && populateConfig["directories"].is_array() && populateConfig.contains("fileType"))
+                    // Verify it has the required fields before processing - including non-empty directory strings
+                    if (populateConfig.contains("directories") && populateConfig["directories"].is_array() && !populateConfig["directories"].empty() &&
+                        std::any_of(populateConfig["directories"].begin(), populateConfig["directories"].end(), [](const nlohmann::json& dir) { return dir.is_string() && !dir.get<std::string>().empty(); }) &&
+                        populateConfig.contains("fileType"))
                     {
                         lattice::logDebug << "Triggering processPopulateAsync for widget: " << widgetChannel;
 
@@ -610,7 +622,7 @@ void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
     if (data.channel == "BATCH-UPDATE-7f3d2a" && data.cabbageJson.contains("command") &&
         data.cabbageJson["command"] == "batchWidgetUpdate")
     {
-        lattice::logDebug << "Processing batch widget update with " << data.cabbageJson["widgets"].size() << " widgets";
+//        lattice::logDebug << "Processing batch widget update with " << data.cabbageJson["widgets"].size() << " widgets";
         sendWebViewMessage(data.cabbageJson);
         return;
     }
@@ -686,7 +698,6 @@ std::optional<nlohmann::json> CabbageProcessor::processOpcodeData(const CabbageO
             {
                 cabbage.updateFunctionTable(data, j);
             }
-            lattice::logDebug << data.cabbageJson.dump(4); 
             cabbage::Parser::mergeJsonProperties(j, data.cabbageJson);
             return j;
         }
@@ -881,17 +892,24 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
     }
     else if (command == "midiMessage")
     {
-        addNoteEventFromJson(nlohmann::json::parse(incomingMessage["obj"].get<std::string>()));
+        try
+        {
+            // obj field was already parsed and merged into incomingMessage at line 845-849
+            addNoteEventFromJson(incomingMessage);
+        }
+        catch (const std::exception &e)
+        {
+            lattice::logError << "Failed to process midiMessage: " << e.what();
+        }
     }
     else if (command == "fileOpen")
     {
         try
         {
-            // Parse the JSON string contained in "obj"
-            auto obj = nlohmann::json::parse(incomingMessage["obj"].get<std::string>());
+            // obj field was already parsed and merged into incomingMessage at line 845-849
 
             // Extract channel
-            std::string channel = obj.value("channel", "");
+            std::string channel = incomingMessage.value("channel", "");
             if (channel.empty())
             {
                 lattice::logError << "fileOpen message missing channel";
@@ -899,16 +917,16 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
             }
 
             // Extract options
-            std::string directory = obj.value("directory", "");
-            std::string filters = obj.value("filters", "*");
-            bool openAtLastKnownLocation = obj.value("openAtLastKnownLocation", true);
+            std::string directory = incomingMessage.value("directory", "");
+            std::string filters = incomingMessage.value("filters", "*");
+            bool openAtLastKnownLocation = incomingMessage.value("openAtLastKnownLocation", true);
 
             // Open native file dialog
             openFileDialog(channel, directory, filters, openAtLastKnownLocation);
         }
         catch (const nlohmann::json::exception &e)
         {
-            lattice::logError << "Failed to parse fileOpen 'obj': " << e.what();
+            lattice::logError << "Failed to process fileOpen: " << e.what();
         }
     }
 }
@@ -1022,6 +1040,8 @@ void CabbageProcessor::updateUI()
 
                 // Verify it has the required fields before processing
                 if (populateConfig.contains("directories") && populateConfig["directories"].is_array() &&
+                    !populateConfig["directories"].empty() &&
+                    std::any_of(populateConfig["directories"].begin(), populateConfig["directories"].end(), [](const nlohmann::json& dir) { return dir.is_string() && !dir.get<std::string>().empty(); }) &&
                     populateConfig.contains("fileType"))
                 {
                     lattice::logDebug << "Processing initial populate for widget: " << widgetChannel;
@@ -1071,7 +1091,6 @@ void CabbageProcessor::updateUI()
             msg["value"] = param.value;
             cabbage.setControlChannel(param.name, param.value);
             sendWebViewMessage(msg);
-            lattice::logDebug << "Widget sent via queue: " << msg.dump();
         }
     }
     webviewMessageQueue.clear();

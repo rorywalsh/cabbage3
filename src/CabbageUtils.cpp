@@ -646,75 +646,85 @@ std::pair<std::string, std::string> File::setupRootDirectory(const std::string& 
     std::string finalCsdPath;
     std::string rootPath;
 
+    // Determine the final CSD path
     if (!csdFile.empty() && lattice::File::exists(csdFile))
     {
-        rootPath = cabbage::File::getParentDirectory(csdFile);
         finalCsdPath = csdFile;
     }
     else
     {
         // Use default path lookup
         finalCsdPath = cabbage::File::getCsdFileAndPath();
-        rootPath = cabbage::File::getParentDirectory(cabbage::File::getParentDirectory(finalCsdPath));
     }
 
     // Set the initial CSD path
     setCsdFileAndPath(finalCsdPath);
 
-#ifdef CabbagePro
+#ifndef CabbagePro
+    // Non-Pro mode: root path is parent of CSD file
+    rootPath = cabbage::File::getParentDirectory(finalCsdPath);
+    return {rootPath, ""};
+#else
+    // Pro mode: root path is parent of parent of CSD file
+    rootPath = cabbage::File::getParentDirectory(cabbage::File::getParentDirectory(finalCsdPath));
+    
     // Check if this binary already has an extracted temp directory cached
     std::string binaryName = lattice::File::getBinaryFileName();
+    std::string cabzTempDir;
+    
     {
         auto lock = getLock();
         auto it = getCache().data.find(binaryName);
         if (it != getCache().data.end() && !it->second.tempDir.empty() && it->second.tempDirRefCount >= 0)
         {
             // Already extracted for this binary, reuse without incrementing here
-            lattice::logInfo << "Reusing existing temp dir for " << binaryName << ": " << it->second.tempDir 
+            cabzTempDir = it->second.tempDir;
+            lattice::logInfo << "Reusing existing temp dir for " << binaryName << ": " << cabzTempDir
                            << " (current ref count: " << it->second.tempDirRefCount << ")";
-            
-            // Override with the cached CSD path from the existing temp dir
-            finalCsdPath = it->second.tempDir + "/" + cabbage::File::getBinaryWithoutExtension() + ".ecsd";
-            setCsdFileAndPath(finalCsdPath);
-            
-            return {it->second.tempDir, it->second.tempDir}; // Return cached temp dir
         }
     }
 
-    // First time extraction for this binary
-    std::string cabzTempDir = cabbage::File::extractCabzArchive(rootPath);
     if (!cabzTempDir.empty())
     {
+        // Use cached temp directory
+        finalCsdPath = cabzTempDir + "/" + cabbage::File::getBinaryWithoutExtension() + ".ecsd";
+        setCsdFileAndPath(finalCsdPath);
+        return {cabzTempDir, cabzTempDir}; // Return temp dir as both root and temp dir
+    }
+    
+    // First time extraction for this binary
+    cabzTempDir = cabbage::File::extractCabzArchive(rootPath);
+    
+    if (!cabzTempDir.empty())
+    {
+        // Log extracted files for debugging
         auto files = lattice::File::getFilesOfType(cabzTempDir, "*");
-        for(auto &f : files)
+        for (auto& f : files)
         {
             lattice::logInfo << "File: " << f;
         }
 
-        // Store temp dir and set initial reference count to 0 (will be incremented by caller)
-        // Multiple instances of the same plugin will share this temp dir
+        // Store temp dir and set initial reference count
         {
             auto lock = getLock();
             auto& data = getCache().data[binaryName];
             data.tempDir = cabzTempDir;
             data.tempDirRefCount = 0; // Will be incremented by CabbageProcessor constructor
-            lattice::logInfo << "Set temp dir for " << binaryName << " to: " << cabzTempDir 
+            lattice::logInfo << "Set temp dir for " << binaryName << " to: " << cabzTempDir
                            << " (initial ref count: " << data.tempDirRefCount << ")";
         }
 
         // Override with the encrypted CSD file from the cabz archive
         finalCsdPath = cabzTempDir + "/" + cabbage::File::getBinaryWithoutExtension() + ".ecsd";
-        // Set the overridden CSD path
         setCsdFileAndPath(finalCsdPath);
 
         return {cabzTempDir, cabzTempDir}; // Return temp dir as both root and temp dir
     }
     else
     {
+        // No cabz archive found, return the calculated root path
         return {rootPath, ""}; // No temp dir used
     }
-#else
-    return {rootPath, ""}; // Free version never uses temp dirs
 #endif
 }
 
