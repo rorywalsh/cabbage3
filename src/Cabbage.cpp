@@ -29,10 +29,9 @@
 namespace cabbage
 {
 
-Engine::Engine(CabbageProcessor &p, std::string file)
-    : csdFile(file), processor(p)
+Engine::Engine(CabbageProcessor &p)
+    : processor(p)
 {
-    
 };
 
 Engine::~Engine()
@@ -89,6 +88,7 @@ void Engine::addOpcodes()
 
 bool Engine::setupCsound()
 {
+    const std::string csdFile = cabbage::File::getCsdFileAndPath();
     lattice::logDebug << csdFile;
     csound = std::make_unique<Csound>();
     csound->SetHostMIDIIO();
@@ -248,7 +248,7 @@ void Engine::initParameter(nlohmann::json &w)
 //===========================================================================================
 void Engine::setReservedChannels()
 {
-    auto path = cabbage::File::getCsdPath(csdFile);
+    auto path = cabbage::File::getParentDirectory(cabbage::File::getCsdFileAndPath());
     csound->SetStringChannel("CSD_PATH", (char *)path.c_str());
 
 #ifndef CabbageApp

@@ -110,8 +110,6 @@ public:
     static int getNumberOfOutputChannels(const std::string &csdFilePath);
     // Function to get the Cabbage section fo text from a csd file
     static std::string getCabbageSection(const std::string &csdFilePath);
-    // Return the csd path
-    static std::string getCsdPath(const std::string& file = "");
     // Extract widget properties from corresponding JS file
     static nlohmann::json extractPropsFromJS(const std::string &jsContent);
     // Returns path to Cabbage specific resources folder

@@ -564,31 +564,6 @@ std::string File::getCabbageResourceDir()
 #endif
 }
 
-std::string File::getCsdPath(const std::string& file)
-{
-    // If loading resources from plugin bundle..
-    if (usesBundledResources())
-        return getResourceDirFromBundle();
-    
-    // Otherwise figure out path to .csd file..
-    if (file.empty())
-    {
-        std::string resourceDir = getResourceDirFromBundle();
-        
-        std::string binaryFileName = getBinaryFileName();
-        size_t pos = binaryFileName.find_last_of(".");
-        if (pos != std::string::npos)
-            binaryFileName = binaryFileName.substr(0, pos);
-        const std::string newPath = joinPath(resourceDir, binaryFileName);
-        return newPath;
-    }
-    else
-    {
-        std::filesystem::path path(file);
-        return path.parent_path().string();
-    }
-}
-
 // Static cache for CSD file paths - keyed by binary name to support multiple plugin types
 // Each plugin binary (e.g., different .vst3 files) gets its own cached CSD path and temp dir data
 namespace {

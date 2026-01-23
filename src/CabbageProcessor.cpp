@@ -34,19 +34,15 @@ pluginType *LatticeProcessorPluginFactory::createPlugin(const clap_host *host)
 // =============================
 // DESIGN: Single Source of Truth for CSD File Path
 //
-// This constructor is responsible for determining the final CSD file path ONCE and setting
-// it via cabbage.setCsdFile(). All other code should use cabbage.getCsdFile() or rely on
-// the static cache in getCsdFileAndPath() instead of re-computing the path.
+// The CSD file path is cached in cabbage::File via setupRootDirectory().
+// All code should use cabbage::File::getCsdFileAndPath() to retrieve the path.
 //
 // Flow:
-// 1. Call setupRootDirectory() to determine root path, set CSD path, and handle cabz extraction
+// 1. Call setupRootDirectory() to determine root path, cache CSD path, and handle cabz extraction
 // 2. Set mount point based on cabz or root path
-// 3. Get final CSD path from cache and call setCsdFile() ONCE with the final path
-//    - This sets csdFile on the Engine instance
-//    - This calls setCsdFileAndPath() to populate the static cache
-// 4. All subsequent calls (WidgetDescriptors, parseCsdForWidgets, etc.) use the cached path
+// 3. All subsequent calls (WidgetDescriptors, parseCsdForWidgets, etc.) use the cached path
 //========================================================================================
-CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Processor(), cabbage(*this, "")
+CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Processor(), cabbage(*this)
 {
     // Setup root directory and handle cabz extraction
     auto [mountPoint, cabzTemp] = cabbage::File::setupRootDirectory(csdFile);
@@ -61,12 +57,6 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Pr
     }
 #endif
 
-    // Get the final CSD path from the cache
-    std::string finalCsdPath = cabbage::File::getCsdFileAndPath();
-
-    // Set the final CSD path once - this is the single source of truth
-    cabbage.setCsdFile(finalCsdPath);
-    
     if (!cabbage.setupCsound())
     {
         suspendProcessing();
@@ -135,8 +125,8 @@ CabbageProcessor::~CabbageProcessor()
 //========================================================================================
 void CabbageProcessor::addChannels(const std::string &config)
 {
-    // Use the CSD file path set in the constructor - single source of truth
-    auto file = cabbage.getCsdFile();
+    // Use the cached CSD file path - single source of truth
+    auto file = cabbage::File::getCsdFileAndPath();
 
     cabbage::Utils::check(lattice::File::exists(file), "Can't find csd file");
 
@@ -1281,8 +1271,7 @@ void CabbageProcessor::openFileDialog(const std::string &channel, const std::str
     std::string initialDir = directory;
     if (initialDir.empty() && openAtLastKnownLocation)
     {
-        initialDir = cabbage::File::getCsdPath(); // Use CSD directory as initial if no directory specified and
-                                                  // openAtLastKnownLocation is true
+        initialDir = cabbage::File::getParentDirectory(cabbage::File::getCsdFileAndPath());
     }
 
     std::string path = cabbage::File::browseForFile("Choose a file", initialDir, filters);

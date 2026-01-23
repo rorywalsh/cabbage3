@@ -64,7 +64,7 @@ class Engine
         bool init = true;
     };
 
-    Engine(CabbageProcessor &p, std::string file);
+    Engine(CabbageProcessor &p);
     ~Engine();
 
     // Get the Csound object
@@ -73,16 +73,6 @@ class Engine
     // Setup Csound
     bool setupCsound();
 
-    // Set the CSD file and update the static cache for widget descriptor lookups
-    void setCsdFile(std::string file)
-    {
-        csdFile = file;
-        // Update the static cache so WidgetDescriptors::get() can find widgets in cabz temp dirs
-        cabbage::File::setCsdFileAndPath(file);
-    }
-
-    // Get the CSD file
-    std::string getCsdFile() { return csdFile; }
 
     // Compile the CSD file
     void compileCsdFile(std::string csoundFile) { csCompileResult = csound->Compile(csoundFile.c_str()); }
@@ -270,7 +260,6 @@ class Engine
     MYFLT csScale = 0.0;
     MYFLT *csSpin = nullptr;
     double sampleRate = 44100;
-    std::string csdFile = {};
     std::string compileErrors;
     std::unique_ptr<Csound> csound;
     CabbageProcessor &processor;
