@@ -247,12 +247,29 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                                                   : std::string("valueChanged");
                     const bool isClickEvent = (event.find("mousePress") == 0) || (event.find("mouseRelease") == 0) ||
                                               (event.find("mouseClick") == 0);
+
+                    // For comboBox/optionButton, create default range based on items if not provided
+                    const std::string widgetType = w["type"].get<std::string>();
+                    if ((widgetType == "comboBox" || widgetType == "optionButton") && !ch.contains("range"))
+                    {
+                        size_t itemCount = (w.contains("items") && w["items"].is_array()) ? w["items"].size() : 3;
+                        bool hasIndexOffset =
+                            w.contains("indexOffset") && w["indexOffset"].is_boolean() && w["indexOffset"].get<bool>();
+                        ch["range"] = {
+                            {"min", hasIndexOffset ? 1 : 0},
+                            {"max", static_cast<int>(hasIndexOffset ? itemCount : itemCount - 1)},
+                            {"defaultValue", hasIndexOffset ? 1 : 0},
+                            {"increment", 1},
+                            {"skew", 1}
+                        };
+                    }
+
                     const float minVal = ch["range"]["min"].get<float>();
 
                     // Determine max value - widgets send denormalized index values for comboBox/optionButton
                     float maxVal = ch["range"]["max"].get<float>();
                     float minValAdjusted = minVal;
-                    if (w["type"].get<std::string>() == "comboBox" || w["type"].get<std::string>() == "optionButton")
+                    if (widgetType == "comboBox" || widgetType == "optionButton")
                     {
                         bool hasIndexOffset =
                             w.contains("indexOffset") && w["indexOffset"].is_boolean() && w["indexOffset"].get<bool>();
@@ -317,20 +334,38 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
         {
             if (w.contains("channels") && w["channels"].is_array())
             {
+                const std::string widgetType = w.contains("type") && w["type"].is_string()
+                    ? w["type"].get<std::string>() : "";
+
                 for (auto &ch : w["channels"])
                 {
                     if (!ch.contains("id") || !ch["id"].is_string())
                         continue;
 
                     const std::string channel = ch["id"].get<std::string>();
-                    
+
+                    // For comboBox/optionButton, create default range based on items if not provided
+                    if ((widgetType == "comboBox" || widgetType == "optionButton") && !ch.contains("range"))
+                    {
+                        size_t itemCount = (w.contains("items") && w["items"].is_array()) ? w["items"].size() : 3;
+                        bool hasIndexOffset =
+                            w.contains("indexOffset") && w["indexOffset"].is_boolean() && w["indexOffset"].get<bool>();
+                        ch["range"] = {
+                            {"min", hasIndexOffset ? 1 : 0},
+                            {"max", static_cast<int>(hasIndexOffset ? itemCount : itemCount - 1)},
+                            {"defaultValue", hasIndexOffset ? 1 : 0},
+                            {"increment", 1},
+                            {"skew", 1}
+                        };
+                    }
+
                     // Check channel type - default to "number" if not specified
                     std::string channelType = "number";
                     if (ch.contains("type") && ch["type"].is_string())
                     {
                         channelType = ch["type"].get<std::string>();
                     }
-                    
+
                     // Create appropriate channel type
                     if (channelType == "string")
                     {
@@ -340,9 +375,20 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                     }
                     else
                     {
-                        // For numeric channels, use default value from range
-                        const float defVal = ch["range"]["defaultValue"].get<float>();
+                        // For numeric channels, use default value from range (or 0 if no range)
+                        float defVal = 0.0f;
+                        if (ch.contains("range") && ch["range"].contains("defaultValue") && ch["range"]["defaultValue"].is_number())
+                        {
+                            defVal = ch["range"]["defaultValue"].get<float>();
+                        }
                         cabbage.setControlChannel(channel, defVal);
+
+                        // Also store value in range for state saving
+                        if (ch.contains("range"))
+                        {
+                            ch["range"]["value"] = defVal;
+                        }
+
                         lattice::logDebug << "Created numeric channel for non-automatable widget '" << channel
                                           << "' with default value " << defVal;
                     }
