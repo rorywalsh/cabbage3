@@ -167,7 +167,7 @@ void CabbageProcessor::addParameters()
         std::string widgetType = w.contains("type") ? w["type"].get<std::string>() : "unknown";
         bool hasChildren = w.contains("children");
         bool childrenIsArray = hasChildren && w["children"].is_array();
-        int childCount = childrenIsArray ? w["children"].size() : 0;
+    
 
         if (hasChildren && !childrenIsArray)
         {
@@ -245,8 +245,8 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                     const std::string event = ch.contains("event") && ch["event"].is_string()
                                                   ? ch["event"].get<std::string>()
                                                   : std::string("valueChanged");
-                    const bool isClickEvent = (event.find("mousePress") == 0) || (event.find("mouseRelease") == 0) ||
-                                              (event.find("mouseClick") == 0);
+//                    const bool isClickEvent = (event.find("mousePress") == 0) || (event.find("mouseRelease") == 0) ||
+//                                              (event.find("mouseClick") == 0);
 
                     // For comboBox/optionButton, create default range based on items if not provided
                     const std::string widgetType = w["type"].get<std::string>();
@@ -1295,18 +1295,18 @@ int CabbageProcessor::OpenMidiOutputDevice(CSOUND *csound, void **userData, cons
 // Write MIDI data to plugin's MIDI output. Each time Csound outputs a midi message this
 // method should be called. Note: you must have -Q set in your CsOptions
 //========================================================================================
-int CabbageProcessor::WriteMidiData(CSOUND * /*csound*/, void *_userData, const unsigned char * /*mbuf*/, int nbytes)
+int CabbageProcessor::WriteMidiData(CSOUND*, void *_userData, const unsigned char *mbuf, int nbytes)
 {
     auto *userData = static_cast<CabbageProcessor *>(_userData);
-
-    if (!userData)
-    {
-        cabbage::Utils::check(userData, "\n\nInvalid");
+    if (!userData || nbytes <= 0)
         return 0;
-    }
 
+    // Pass raw MIDI directly to host - no parsing needed
+    userData->sendRawMidi(mbuf, nbytes, 0);  // sampleOffset = 0 for immediate
+    
     return nbytes;
 }
+
 
 //========================================================================================
 // Open native file dialog for fileButton

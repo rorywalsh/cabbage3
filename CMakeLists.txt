@@ -8,18 +8,15 @@ set(CABBAGE_VERSION 0.0.100)
 # Build options
 option(CABBAGE_ENABLE_TESTS "Build tests in addition to main app" OFF)
 option(USER_LIB "Output AU plugins directly to ~/Library/Audio/Plug-Ins/Components without Debug subdirectory" OFF)
-option(CABBAGE_PRO_BUILD "Build Cabbage Pro version with encryption support" OFF)
+# CABBAGE_PRO_OPTION_PLACEHOLDER
 option(CABBAGE_USE_STATIC_RUNTIME "Use static MSVC runtime library (MT) instead of dynamic (MD)" OFF)
 
 # Enforce Xcode generator on macOS
 if(APPLE)
     set(VST3_FORMATS CLAP VST3)
     set(AU_FORMATS CLAP AUV2)
-    if(CABBAGE_PRO_BUILD)
-        set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "" FORCE)
-    else()
-        set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "" FORCE)
-    endif()
+    # CABBAGE_PRO_ARCH_PLACEHOLDER
+    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "" FORCE)
     if(NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
         set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS deployment target")
     endif()
@@ -72,7 +69,7 @@ set(PRO_EXTRA_LIBS "")
 # ----------------------------
 if(NOT DEFINED CABBAGE_BUILD_TARGET)
 
-    set(CABBAGE_BUILD_TARGETS CabbageApp CabbagePluginEffect CabbagePluginSynth CabbagePluginEffectAUv2 CabbagePluginSynthAUv2 CabbageTests)
+    set(CABBAGE_BUILD_TARGETS CabbageApp CabbagePluginEffect CabbagePluginSynth CabbagePluginEffectAUv2 CabbagePluginSynthAUv2 CabbagePluginMidiFxAUv2 CabbageTests)
     message(STATUS "No CABBAGE_BUILD_TARGET specified. Building all targets.")
 
 
@@ -115,9 +112,7 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
                 ${_OBJC_COMPILER_ARGS}
                 -DCMAKE_CXX_STANDARD=20
                 -DCMAKE_CXX_STANDARD_REQUIRED=ON
-                -DCABBAGE_PRO_BUILD=${CABBAGE_PRO_BUILD}
-                -DPRO_MASTER_KEY=${PRO_MASTER_KEY}
-                -DPRO_COMPANY_NAME=${PRO_COMPANY_NAME}
+                # CABBAGE_PRO_CMAKE_ARGS_PLACEHOLDER
                 -S ${CMAKE_SOURCE_DIR}
                 -G ${CMAKE_GENERATOR}
                 -B ${CMAKE_BINARY_DIR}/${target}
@@ -182,7 +177,11 @@ elseif (CabbagePluginEffectAUv2 STREQUAL "${CABBAGE_BUILD_TARGET}")
     set(FORMATS ${AU_FORMATS})
 elseif (CabbagePluginSynthAUv2 STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbagePluginSynthAUv2 LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
-    set(CABBAGE_AU_INSTRUMENT_TYPE aumi)
+    set(CABBAGE_AU_INSTRUMENT_TYPE aumf)
+    set(FORMATS ${AU_FORMATS})
+elseif (CabbagePluginMidiFxAUv2 STREQUAL "${CABBAGE_BUILD_TARGET}")
+    project(CabbagePluginMidiFxAUv2 LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
+    set(CABBAGE_AU_INSTRUMENT_TYPE aufx)
     set(FORMATS ${AU_FORMATS})
 elseif (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbageTests LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
@@ -253,10 +252,7 @@ else()
     list(APPEND CABBAGE_SOURCES "${CMAKE_SOURCE_DIR}/src/CabbageUtils_linux.cpp")
 endif()
 
-# Add decryption implementation for Pro builds
-if(CABBAGE_PRO_BUILD)
-    list(APPEND CABBAGE_SOURCES "${CMAKE_SOURCE_DIR}/src/decrypt_impl.cpp")
-endif()
+# CABBAGE_PRO_SOURCES_PLACEHOLDER
 
 # ----------------------------
 # Combine all source files
@@ -317,14 +313,7 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
         "${CABBAGE_BUILD_TARGET}"
     )
 
-    # Add CabbagePro definition if building Pro version
-    if(CABBAGE_PRO_BUILD)
-        target_compile_definitions(${PROJECT_NAME} PRIVATE
-            CabbagePro
-            PRO_MASTER_KEY="${PRO_MASTER_KEY}"
-            PRO_COMPANY_NAME="${PRO_COMPANY_NAME}"
-        )
-    endif()
+    # CABBAGE_PRO_DEFINITIONS_PLACEHOLDER
 
     if(WIN32)
         target_compile_definitions(${PROJECT_NAME} PRIVATE WIN32_LEAN_AND_MEAN)
@@ -395,19 +384,12 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
         CabbageApp
     )
 
-    # Add CabbagePro definition if building Pro version
-    if(CABBAGE_PRO_BUILD)
-        target_compile_definitions(${PROJECT_NAME} PRIVATE
-            CabbagePro
-            PRO_MASTER_KEY="${PRO_MASTER_KEY}"
-            PRO_COMPANY_NAME="${PRO_COMPANY_NAME}"
-        )
-    endif()
-    
+    # CABBAGE_PRO_DEFINITIONS_PLACEHOLDER
+
     if(WIN32)
         target_compile_definitions(${PROJECT_NAME} PRIVATE WIN32_LEAN_AND_MEAN)
     endif()
-    
+
     # Link libraries for test target
     target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/_deps/rtaudio-build)
     target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/_deps/rtmidi-build)
@@ -442,14 +424,7 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
         "${CABBAGE_VST_TYPE}"
     )
 
-    # Add CabbagePro definition if building Pro version
-    if(CABBAGE_PRO_BUILD)
-        target_compile_definitions(${PROJECT_NAME}-impl PRIVATE
-            CabbagePro
-            PRO_MASTER_KEY="${PRO_MASTER_KEY}"
-            PRO_COMPANY_NAME="${PRO_COMPANY_NAME}"
-        )
-    endif()
+    # CABBAGE_PRO_PLUGIN_DEFINITIONS_PLACEHOLDER
 
     # Platform-specific options
     if (WIN32)

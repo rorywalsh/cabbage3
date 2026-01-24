@@ -583,18 +583,12 @@ namespace {
     // Function to get the cache, ensuring lazy initialization
     Cache& getCache() {
         static Cache cache;
-        static bool useMutex = false;
-        useMutex = true; // Set after cache is initialized
         return cache;
     }
     
-    // Helper to get lock if safe
+    // Helper to get thread-safe lock for cache access
     std::unique_lock<std::mutex> getLock() {
-        static bool useMutex = false;
-        if (useMutex) {
-            return std::unique_lock<std::mutex>(getCache().mutex);
-        }
-        return std::unique_lock<std::mutex>(); // Empty lock
+        return std::unique_lock<std::mutex>(getCache().mutex);
     }
 }
 
@@ -650,7 +644,7 @@ std::pair<std::string, std::string> File::setupRootDirectory(const std::string& 
     {
         auto lock = getLock();
         auto it = getCache().data.find(binaryName);
-        if (it != getCache().data.end() && !it->second.tempDir.empty() && it->second.tempDirRefCount >= 0)
+        if (it != getCache().data.end() && !it->second.tempDir.empty())
         {
             // Already extracted for this binary, reuse without incrementing here
             cabzTempDir = it->second.tempDir;
@@ -1096,6 +1090,14 @@ std::string File::extractCabzArchive(const std::string &)
 }
 
 void File::cleanupCabzTempDir(const std::string &)
+{
+}
+
+void File::decrementTempDirRef(const std::string &)
+{
+}
+
+void File::incrementTempDirRef(const std::string &)
 {
 }
 #endif

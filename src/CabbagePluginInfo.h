@@ -95,6 +95,12 @@ namespace {
         CLAP_PLUGIN_FEATURE_STEREO,
         nullptr
     };
+#elif defined(CabbagePluginMidiFxAUv2)
+    static constexpr const char* features[] = {
+        CLAP_PLUGIN_FEATURE_NOTE_EFFECT,
+        CLAP_PLUGIN_FEATURE_INSTRUMENT,
+        nullptr
+    };
 #else
     static constexpr const char* features[] = {
         CLAP_PLUGIN_FEATURE_AUDIO_EFFECT,
@@ -107,6 +113,8 @@ namespace {
 #define LATTICE_AU_SUBTYPE "Cp47"
 #if defined(CabbagePluginEffectAUv2)
     #define LATTICE_AU_TYPE "aufx"
+#elif defined(CabbagePluginMidiFxAUv2)
+    #define LATTICE_AU_TYPE "aumf"
 #else
     #define LATTICE_AU_TYPE "aumu" //aumi is a midi processor...
 #endif
