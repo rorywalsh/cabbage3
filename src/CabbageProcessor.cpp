@@ -965,6 +965,37 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
             lattice::logError << "Failed to process fileOpen: " << e.what();
         }
     }
+    else if (command == "requestResize")
+    {
+        try
+        {
+            uint32_t width = incomingMessage.value("width", 0u);
+            uint32_t height = incomingMessage.value("height", 0u);
+
+            if (width == 0 || height == 0)
+            {
+                lattice::logError << "requestResize: invalid dimensions (width=" << width << ", height=" << height << ")";
+                return;
+            }
+
+            // Request resize from host via the callback
+            bool accepted = requestGuiResize(width, height);
+
+            // Send result back to webview
+            nlohmann::json response;
+            response["command"] = "resizeResponse";
+            response["accepted"] = accepted;
+            response["width"] = width;
+            response["height"] = height;
+            sendWebViewMessage(response);
+
+            lattice::logDebug << "requestResize: " << width << "x" << height << " -> " << (accepted ? "accepted" : "rejected");
+        }
+        catch (const nlohmann::json::exception &e)
+        {
+            lattice::logError << "Failed to process requestResize: " << e.what();
+        }
+    }
 }
 
 //========================================================================================
