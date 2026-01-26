@@ -1257,6 +1257,8 @@ void CabbageProcessor::setParameter(int paramId, double value)
 void CabbageProcessor::prepareToPlay(double sr, uint32_t /*minFrameCount*/, uint32_t /*maxFrameCount*/)
 {
     sampleRate = sr;
+    // Enable processing now that the plugin is fully initialized
+    processingEnabled.store(true, std::memory_order_release);
 }
 
 //========================================================================================
@@ -1334,7 +1336,7 @@ int CabbageProcessor::WriteMidiData(CSOUND*, void *_userData, const unsigned cha
 
     // Pass raw MIDI directly to host - no parsing needed
     userData->sendRawMidi(mbuf, nbytes, 0);  // sampleOffset = 0 for immediate
-    
+
     return nbytes;
 }
 

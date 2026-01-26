@@ -1528,8 +1528,8 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
             return false;
         }
 
-        // Extract value and gesture
-        double value = message.value("value", 0.0);
+        // Extract value - can be string or number
+        nlohmann::json valueJson = message["value"];
         std::string gesture = message.value("gesture", "complete");
 
         // Check if this channel has a parameterIndex (is automatable)
@@ -1563,24 +1563,51 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
 
         if (isAutomatable)
         {
-            // Route to parameter update for automatable channels
+            // For automatable channels, handle parameter update directly
+            // Create a parameterChange message format that handleParameterUpdate expects
             nlohmann::json paramMessage = {
-                {"command", "parameterChange"},
                 {"paramIdx", paramIdx},
                 {"channel", channel},
-                {"value", value},
+                {"value", valueJson},  // Pass the original value (string or number)
                 {"gesture", gesture}
             };
-            return false; // Let processor handle parameter changes
+
+            // Handle the parameter update directly in the Engine
+            std::string gestureResult = handleParameterUpdate(paramMessage);
+            if (!gestureResult.empty())
+            {
+                // Notify processor of the parameter change for DAW automation
+                processor.addParameterChange({paramIdx, processor.getParameters()[paramIdx].value,
+                                            gestureResult == "begin" ? lattice::ParamChangeType::GestureBegin :
+                                            gestureResult == "value" ? lattice::ParamChangeType::Value :
+                                            gestureResult == "end" ? lattice::ParamChangeType::GestureEnd :
+                                            lattice::ParamChangeType::Complete});
+            }
+            return true; // Handled
         }
         else
         {
-            // Route to channel data for non-automatable channels
+            // For non-automatable channels, route to channelData
             nlohmann::json channelMessage = {
                 {"command", "channelData"},
-                {"channel", channel},
-                {"floatData", value}
+                {"channel", channel}
             };
+
+            // Set appropriate data field based on value type
+            if (valueJson.is_string())
+            {
+                channelMessage["stringData"] = valueJson.get<std::string>();
+            }
+            else if (valueJson.is_number())
+            {
+                channelMessage["floatData"] = valueJson.get<double>();
+            }
+            else
+            {
+                lattice::logError << "controlData value must be string or number, got: " << valueJson.type_name();
+                return false;
+            }
+
             // Process channelData directly
             return processWebViewCommand(channelMessage);
         }
@@ -1669,35 +1696,6 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
         return true;
     }
 
-    // Handle parameterChange - needs processor interaction
-    else if (command == "parameterChange")
-    {
-        return false; // Let processor handle parameter changes
-    }
-
-    // Handle fileOpen - environment specific
-    else if (command == "fileOpen" || command == "fileOpenFromVSCode")
-    {
-        return false; // Environment-specific
-    }
-
-    // Handle stopAudio - CabbageApp specific
-    else if (command == "stopAudio")
-    {
-        return false; // CabbageApp-specific
-    }
-
-    // Handle onFileChanged - CabbageApp specific
-    else if (command == "onFileChanged")
-    {
-        return false; // CabbageApp-specific
-    }
-
-    // Handle initialiseWidgets - CabbageApp specific
-    else if (command == "initialiseWidgets")
-    {
-        return false; // CabbageApp-specific
-    }
 
     // Unknown command
     lattice::logDebug << "Unknown or unhandled command: " << command;

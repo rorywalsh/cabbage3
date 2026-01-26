@@ -95,7 +95,7 @@ class CabbageProcessor : public lattice::Processor
     void openFileDialog(const std::string &channel, const std::string &directory, const std::string &filters,
                         bool openAtLastKnownLocation);
     std::string generateErrorPageHtml(const std::string &errors);
-    std::atomic<bool> processingEnabled{true};
+    std::atomic<bool> processingEnabled{false};  // Start disabled, enabled in prepareToPlay()
     bool uiIsOpen = false;
     bool allowDequeuing = false;
     int sampleRate = 44100;
