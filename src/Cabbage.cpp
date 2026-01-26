@@ -1517,6 +1517,75 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
         return false; // Let processor handle this
     }
 
+    // Handle controlData - route based on whether channel is automatable
+    else if (command == "controlData")
+    {
+        // Extract channel
+        std::string channel = message.value("channel", "");
+        if (channel.empty())
+        {
+            lattice::logError << "controlData message missing channel";
+            return false;
+        }
+
+        // Extract value and gesture
+        double value = message.value("value", 0.0);
+        std::string gesture = message.value("gesture", "complete");
+
+        // Check if this channel has a parameterIndex (is automatable)
+        bool isAutomatable = false;
+        int paramIdx = -1;
+
+        // Look through all widgets to find this channel
+        for (auto &widget : getWidgets())
+        {
+            if (widget.contains("channels") && widget["channels"].is_array())
+            {
+                for (auto &ch : widget["channels"])
+                {
+                    if (ch.contains("id") && ch["id"].is_string() && ch["id"].get<std::string>() == channel)
+                    {
+                        // Found the channel, check if it has parameterIndex
+                        if (ch.contains("parameterIndex") && ch["parameterIndex"].is_number())
+                        {
+                            paramIdx = ch["parameterIndex"].get<int>();
+                            if (paramIdx >= 0)
+                            {
+                                isAutomatable = true;
+                            }
+                        }
+                        break;
+                    }
+                }
+                if (isAutomatable) break;
+            }
+        }
+
+        if (isAutomatable)
+        {
+            // Route to parameter update for automatable channels
+            nlohmann::json paramMessage = {
+                {"command", "parameterChange"},
+                {"paramIdx", paramIdx},
+                {"channel", channel},
+                {"value", value},
+                {"gesture", gesture}
+            };
+            return false; // Let processor handle parameter changes
+        }
+        else
+        {
+            // Route to channel data for non-automatable channels
+            nlohmann::json channelMessage = {
+                {"command", "channelData"},
+                {"channel", channel},
+                {"floatData", value}
+            };
+            // Process channelData directly
+            return processWebViewCommand(channelMessage);
+        }
+    }
+
     // Handle channelData
     else if (command == "channelData")
     {
