@@ -351,7 +351,7 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
                 lattice::logInfo << "Processor is null! Cannot process midiMessage.";
                 return;
             }
-
+            lattice::logDebug << "Note added to processor";
             processor->addNoteEventFromJson(jsonObj);
         }
 

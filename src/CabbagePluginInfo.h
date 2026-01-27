@@ -114,9 +114,9 @@ namespace {
 #if defined(CabbagePluginEffectAUv2)
     #define LATTICE_AU_TYPE "aufx"
 #elif defined(CabbagePluginMidiFxAUv2)
-    #define LATTICE_AU_TYPE "aumf"
+    #define LATTICE_AU_TYPE "aumi"
 #else
-    #define LATTICE_AU_TYPE "aumu" //aumi is a midi processor...
+    #define LATTICE_AU_TYPE "aumu"
 #endif
 #define LATTICE_MANUFACTURER_NAME "CabbageAudio"
 #define LATTICE_MANUFACTURER_CODE "Cabb"

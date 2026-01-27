@@ -20,6 +20,7 @@
 #include "CabbageProcessor.h"
 #include <iostream>
 #include <algorithm>
+#include <filesystem>
 #include "CabbageUtils.h"
 
 //========================================================================================
@@ -78,10 +79,69 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Pr
 
     addParameters();
     addChannels(config);
-    
-    
+
+
     if (auto json = cabbage::File::parseCabbageSection(cabbage::File::getCsdFileAndPath()))
     {
+#ifndef CabbageApp
+        // Configure logger if specified in form widget (plugins only)
+        auto loggerEnabled = cabbage::Utils::findPropertyInForm<bool>(*json, "logger.enabled");
+        if (loggerEnabled.has_value() && loggerEnabled.value())
+        {
+            auto logFile = cabbage::Utils::findPropertyInForm<std::string>(*json, "logger.file");
+            if (logFile.has_value() && !logFile->empty())
+            {
+                auto replace = cabbage::Utils::findPropertyInForm<bool>(*json, "logger.replace");
+
+                // Resolve log file path relative to CSD file if not absolute
+                std::string logFilePath = logFile.value();
+                std::filesystem::path fsPath(logFilePath);
+                if (!fsPath.is_absolute())
+                {
+                    auto csdDir = lattice::File::getParentDirectory(cabbage::File::getCsdFileAndPath());
+                    logFilePath = lattice::File::joinPath(csdDir, logFilePath);
+                }
+
+                // Ensure parent directory exists
+                std::filesystem::path logPath(logFilePath);
+                std::filesystem::path parentDir = logPath.parent_path();
+                if (!parentDir.empty() && !std::filesystem::exists(parentDir))
+                {
+                    try
+                    {
+                        std::filesystem::create_directories(parentDir);
+                    }
+                    catch (const std::exception& e)
+                    {
+                        std::cerr << "Failed to create log directory: " << parentDir << " - " << e.what() << std::endl;
+                    }
+                }
+
+                // If replace=true, delete existing log file before setting
+                if (replace.value_or(false) && lattice::File::exists(logFilePath))
+                {
+                    std::remove(logFilePath.c_str());
+                }
+
+                // Set log file with error handling
+                try
+                {
+                    lattice::Logger::getInstance().setLogFile(logFilePath);
+                    lattice::logInfo << "Logger configured: " << logFilePath
+                                     << " (replace=" << (replace.value_or(false) ? "true" : "false") << ")";
+                }
+                catch (const std::exception& e)
+                {
+                    std::cerr << "Failed to configure logger: " << e.what() << std::endl;
+                }
+            }
+            else
+            {
+                lattice::logInfo << "Logger enabled but no file path specified";
+            }
+        }
+#endif
+
         auto w = cabbage::Utils::findPropertyInForm<int>(*json, "size.width");
         auto h = cabbage::Utils::findPropertyInForm<int>(*json, "size.height");
         if (w.has_value() && h.has_value())
