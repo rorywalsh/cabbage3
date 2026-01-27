@@ -1287,6 +1287,10 @@ int CabbageProcessor::ReadMidiData(CSOUND * /*csound*/, void *userData, unsigned
     int cnt = 0;
     auto &noteEvents = pluginData->getProcessor().getNoteEvents();
 
+    if (!noteEvents.empty()) {
+        lattice::logDebug << "ReadMidiData: " << noteEvents.size() << " note events in queue";
+    }
+
     while (!noteEvents.empty() && cnt + 3 <= nbytes)
     {
         const auto &event = noteEvents.front(); // Get event
@@ -1330,12 +1334,20 @@ int CabbageProcessor::OpenMidiOutputDevice(CSOUND *csound, void **userData, cons
 //========================================================================================
 int CabbageProcessor::WriteMidiData(CSOUND*, void *_userData, const unsigned char *mbuf, int nbytes)
 {
-    auto *userData = static_cast<CabbageProcessor *>(_userData);
-    if (!userData || nbytes <= 0)
+    auto *engineData = static_cast<cabbage::Engine *>(_userData);
+    if (!engineData || nbytes <= 0)
         return 0;
 
+    // Get processor from engine to access MIDI output callback
+    auto& processor = engineData->getProcessor();
+
+    lattice::logDebug << "WriteMidiData: nbytes=" << nbytes
+                      << " status=0x" << std::hex << (int)mbuf[0] << std::dec
+                      << " engineData=" << engineData
+                      << " processor=" << &processor;
+
     // Pass raw MIDI directly to host - no parsing needed
-    userData->sendRawMidi(mbuf, nbytes, 0);  // sampleOffset = 0 for immediate
+    processor.sendRawMidi(mbuf, nbytes, 0);  // sampleOffset = 0 for immediate
 
     return nbytes;
 }

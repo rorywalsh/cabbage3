@@ -1,0 +1,144 @@
+diff --git a/src/detail/vst3/process.cpp b/src/detail/vst3/process.cpp
+index 64b382d..7d4f628 100644
+--- a/src/detail/vst3/process.cpp
++++ b/src/detail/vst3/process.cpp
+@@ -173,6 +173,9 @@ void ProcessAdapter::flush()
+ // this converts the ProcessContext data from VST to CLAP
+ void ProcessAdapter::process(Steinberg::Vst::ProcessData& data)
+ {
++  // Clear output MIDI events from previous process call
++  _output_events.clear();
++
+   // remember the ProcessData pointer during process
+   _vstdata = &data;
+
+@@ -444,6 +447,87 @@ void ProcessAdapter::process(Steinberg::Vst::ProcessData& data)
+
+ void ProcessAdapter::processOutputParams(Steinberg::Vst::ProcessData& data)
+ {
++  // Convert CLAP MIDI output events to VST3 format
++  if (data.outputEvents && !_output_events.empty())
++  {
++    for (const auto& clap_event : _output_events)
++    {
++      if (clap_event.header.type == CLAP_EVENT_MIDI)
++      {
++        uint8_t status = clap_event.midi.data[0];
++        uint8_t message_type = status & 0xF0;
++        uint8_t channel = status & 0x0F;
++
++        Steinberg::Vst::Event vst_event = {};
++        vst_event.sampleOffset = clap_event.midi.header.time;
++        vst_event.busIndex = 0;
++        vst_event.flags = 0;
++
++        // Decode MIDI message type
++        switch (message_type)
++        {
++          case 0x80:  // Note Off
++          case 0x90:  // Note On (with velocity 0 = note off)
++          {
++            // Check if it's actually a note off (status 0x80 or note-on with velocity 0)
++            bool is_note_off = (message_type == 0x80) ||
++                               (message_type == 0x90 && clap_event.midi.data[2] == 0);
++
++            vst_event.type = is_note_off ? Steinberg::Vst::Event::kNoteOffEvent
++                                         : Steinberg::Vst::Event::kNoteOnEvent;
++            vst_event.noteOn.channel = channel;
++            vst_event.noteOn.pitch = clap_event.midi.data[1];
++            vst_event.noteOn.velocity = clap_event.midi.data[2] / 127.0f;
++            vst_event.noteOn.noteId = -1;  // Unspecified
++            vst_event.noteOn.tuning = 0.0f;
++            break;
++          }
++
++          case 0xB0:  // Control Change
++          {
++            vst_event.type = Steinberg::Vst::Event::kLegacyMIDICCOutEvent;
++            vst_event.midiCCOut.controlNumber = clap_event.midi.data[1];
++            vst_event.midiCCOut.channel = channel;
++            vst_event.midiCCOut.value = clap_event.midi.data[2];
++            vst_event.midiCCOut.value2 = 0;
++            break;
++          }
++
++          case 0xE0:  // Pitch Bend
++          case 0xD0:  // Channel Pressure (Aftertouch)
++          case 0xA0:  // Polyphonic Key Pressure
++          case 0xC0:  // Program Change
++          default:
++          {
++            // Use legacy MIDI CC out for other message types
++            vst_event.type = Steinberg::Vst::Event::kLegacyMIDICCOutEvent;
++            vst_event.midiCCOut.controlNumber = status;
++            vst_event.midiCCOut.channel = channel;
++            vst_event.midiCCOut.value = clap_event.midi.data[1];
++            vst_event.midiCCOut.value2 = clap_event.midi.data[2];
++            break;
++          }
++        }
++
++        data.outputEvents->addEvent(vst_event);
++      }
++      else if (clap_event.header.type == CLAP_EVENT_MIDI_SYSEX)
++      {
++        // Convert CLAP SysEx to VST3 Data Event
++        Steinberg::Vst::Event vst_event = {};
++        vst_event.type = Steinberg::Vst::Event::kDataEvent;
++        vst_event.sampleOffset = clap_event.sysex.header.time;
++        vst_event.data.type = Steinberg::Vst::DataEvent::kMidiSysEx;
++        vst_event.data.bytes = (const uint8_t*)clap_event.sysex.buffer;
++        vst_event.data.size = clap_event.sysex.size;
++
++        data.outputEvents->addEvent(vst_event);
++      }
++    }
++  }
++
++  // Clear output events after processing
++  _output_events.clear();
+ }
+
+ uint32_t ProcessAdapter::input_events_size(const struct clap_input_events* list)
+@@ -808,8 +892,27 @@ bool ProcessAdapter::enqueueOutputEvent(const clap_event_header_t* event)
+       break;
+
+     case CLAP_EVENT_MIDI:
++    {
++      // Store MIDI output event for later processing
++      clap_multi_event_t n;
++      auto midi_event = (clap_event_midi_t*)event;
++      n.midi = *midi_event;
++      self->_output_events.push_back(n);
++      return true;
++    }
++      break;
+     case CLAP_EVENT_MIDI_SYSEX:
++    {
++      // Store SysEx output event for later processing
++      clap_multi_event_t n;
++      auto sysex_event = (clap_event_midi_sysex_t*)event;
++      n.sysex = *sysex_event;
++      self->_output_events.push_back(n);
++      return true;
++    }
++      break;
+     case CLAP_EVENT_MIDI2:
++      // MIDI2 not supported yet
+       return true;
+       break;
+     default:
+diff --git a/src/detail/vst3/process.h b/src/detail/vst3/process.h
+index d56e9a7..4449985 100644
+--- a/src/detail/vst3/process.h
++++ b/src/detail/vst3/process.h
+@@ -132,6 +132,9 @@ class ProcessAdapter
+   std::vector<clap_multi_event_t> _events;
+   std::vector<size_t> _eventindices;
+
++  // Storage for MIDI output events from plugin
++  std::vector<clap_multi_event_t> _output_events;
++
+   bool _supportsPolyPressure = false;
+   bool _supportsTuningNoteExpression = false;
+ };

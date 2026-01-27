@@ -95,6 +95,8 @@ bool Engine::setupCsound()
     csound->SetHostAudioIO();
     csound->SetHostData(this);
 
+    lattice::logInfo << "Csound SetHostData: enginePtr=" << this << " processorPtr=" << &processor;
+
     addOpcodes();
 
     csound->CreateMessageBuffer(0);

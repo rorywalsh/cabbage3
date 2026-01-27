@@ -81,14 +81,18 @@ FetchContent_Declare(
 
 
 
-# Include choc patches functionality
+# Include patch functionality
 include(${CMAKE_SOURCE_DIR}/cmake/ChocPatches.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/ClapWrapperPatches.cmake)
 
 # Make all dependencies available
 FetchContent_MakeAvailable(lattice readerwriterqueue)
 
 
-# Apply choc patches after lattice (which includes choc) is downloaded
+# Apply patches after dependencies are downloaded
 if(APPLE)
     apply_choc_patches()
 endif()
+
+# Apply clap-wrapper patches (needed for all platforms with VST3 support)
+apply_clap_wrapper_patches()
