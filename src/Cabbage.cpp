@@ -1512,13 +1512,6 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
         return true;
     }
 
-    // Handle midiMessage
-    else if (command == "midiMessage")
-    {
-        // MIDI messages need processor's addNoteEvent functionality
-        return false; // Let processor handle this
-    }
-
     // Handle controlData - route based on whether channel is automatable
     else if (command == "controlData")
     {

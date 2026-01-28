@@ -969,22 +969,7 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
     }
     else if (command == "parameterChange")
     {
-        std::string gesture = cabbage.handleParameterUpdate(incomingMessage);
-        if (gesture.empty())
-            return; // Validation failed, error already logged
-
-        // Engine updated the parameter, just handle gesture for DAW automation
-        int paramIdx = incomingMessage["paramIdx"].get<int>();
-        float normalizedValue = getParameters()[paramIdx].value;
-
-        if (gesture == "begin")
-            addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::GestureBegin});
-        else if (gesture == "value")
-            addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::Value});
-        else if (gesture == "end")
-            addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::GestureEnd});
-        else
-            addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::Complete});
+        lattice::logDebug << "WARNING: Something is using the old parameterChange message!!"
     }
     else if (command == "midiMessage")
     {
