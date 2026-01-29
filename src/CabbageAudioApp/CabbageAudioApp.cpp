@@ -351,7 +351,7 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
                 lattice::logInfo << "Processor is null! Cannot process midiMessage.";
                 return;
             }
-            lattice::logDebug << "Note added to processor";
+
             processor->addNoteEventFromJson(jsonObj);
         }
 
@@ -484,6 +484,9 @@ bool CabbageAudioApp::createCabbageProcessor()
         lattice::logDebug << "Coudn't compile Csound...";
         return false;
     }
+
+    // Prepare the processor for playback (sets processingEnabled = true)
+    processor->prepareToPlay(audioConfig.audioSR, bufferSize, bufferSize);
 
     lattice::logDebug << "Num widgets : " << processor->getCabbageEngine().getWidgets().size();
 
@@ -677,7 +680,6 @@ unsigned int CabbageAudioApp::getNumOutputChannels() const
 
 void CabbageAudioApp::midiCallback(double deltatime, std::vector<uint8_t> *msg, void *userData)
 {
-    // Cast userData to CabbageAudioApp* (or whatever your app class is)
     CabbageAudioApp *app = static_cast<CabbageAudioApp *>(userData);
 
     // Ensure the MIDI message is not empty

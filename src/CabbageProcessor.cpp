@@ -969,7 +969,7 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
     }
     else if (command == "parameterChange")
     {
-        lattice::logDebug << "WARNING: Something is using the old parameterChange message!!"
+        lattice::logDebug << "WARNING: Something is using the old parameterChange message!!";
     }
     else if (command == "midiMessage")
     {
@@ -1333,7 +1333,7 @@ int CabbageProcessor::ReadMidiData(CSOUND * /*csound*/, void *userData, unsigned
     auto &noteEvents = pluginData->getProcessor().getNoteEvents();
 
     if (!noteEvents.empty()) {
-        lattice::logDebug << "ReadMidiData: " << noteEvents.size() << " note events in queue";
+        //lattice::logDebug << "ReadMidiData: " << noteEvents.size() << " note events in queue";
     }
 
     while (!noteEvents.empty() && cnt + 3 <= nbytes)

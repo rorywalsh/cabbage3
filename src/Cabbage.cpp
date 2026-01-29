@@ -1687,10 +1687,14 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
             lattice::logError << "channelData message missing both stringData and floatData fields";
             return false;
         }
-        
+      
         return true;
     }
-
+    else if (command == "midiMessage")
+    {
+        //handled elsewhere..
+         return false;
+    }
 
     // Unknown command
     lattice::logDebug << "Unknown or unhandled command: " << command;
