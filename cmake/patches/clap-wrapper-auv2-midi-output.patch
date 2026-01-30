@@ -1,0 +1,74 @@
+diff --git a/src/wrapasauv2.cpp b/src/wrapasauv2.cpp
+index 1234567..abcdefg 100644
+--- a/src/wrapasauv2.cpp
++++ b/src/wrapasauv2.cpp
+@@ -1430,6 +1430,11 @@ void WrapAsAUV2::PostConstructor()
+     }
+     LOGINFO("[clap-wrapper] PostConstructor: Ins={} Outs={}", numAudioInputs, numAudioOutputs);
+   }
++
++  // Setup MIDI input and output ports
++  if (_plugin->_ext._noteports) {
++    setupMIDIBusses(_plugin->_plugin, _plugin->_ext._noteports);
++  }
+   // The else here would just set elements to 0,0 which is the default
+   // therefore leave it un-elsed
+ }
+@@ -1444,32 +1449,27 @@ UInt32 WrapAsAUV2::GetAudioChannelLayout(AudioUnitScope scope, AudioUnitElement
+
+ void WrapAsAUV2::send(const Clap::AUv2::clap_multi_event_t& event)
+ {
+-  // port index maps back to MIDI out
++  // AUv2 doesn't support multiple MIDI outputs like CLAP, so route all events to first port
+   auto type = event.header.type;
+   switch (type)
+   {
+     case CLAP_EVENT_NOTE_ON:
+     {
+-      auto portid = event.note.port_index;
+-      for (auto& i : _midi_outports)
++      // AUv2 doesn't support multiple MIDI outputs like CLAP, so send to first port
++      if (!_midi_outports.empty())
+       {
+-        if (i->_info.id == portid)
+-        {
+-          i->addNoteOn(event.note.channel, event.note.key, event.note.velocity * 127.f);
+-          break;
+-        }
++        _midi_outports[0]->addNoteOn(event.note.channel, event.note.key, event.note.velocity * 127.f);
+       }
+     }
+     break;
+     case CLAP_EVENT_NOTE_OFF:
+     {
+-      auto portid = event.note.port_index;
+-      for (auto& i : _midi_outports)
++      // AUv2 doesn't support multiple MIDI outputs like CLAP, so send to first port
++      if (!_midi_outports.empty())
+       {
+-        if (i->_info.id == portid)
+-        {
+-          i->addNoteOff(event.note.channel, event.note.key, event.note.velocity * 127.f);
+-          break;
+-        }
++        _midi_outports[0]->addNoteOff(event.note.channel, event.note.key, event.note.velocity * 127.f);
+       }
+     }
+     break;
+@@ -1477,13 +1477,11 @@ void WrapAsAUV2::send(const Clap::AUv2::clap_multi_event_t& event)
+     case CLAP_EVENT_MIDI:
+     {
+-      auto portid = event.midi.port_index;
+-      for (auto& i : _midi_outports)
++      // AUv2 doesn't support multiple MIDI outputs like CLAP, so send to first port
++      if (!_midi_outports.empty())
+       {
+-        if (i->_info.id == portid)
+-        {
+-          i->addMIDI3Byte(event.midi.data);
+-          break;
+-        }
++        _midi_outports[0]->addMIDI3Byte(event.midi.data);
+       }
+     }
+     break;
