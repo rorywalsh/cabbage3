@@ -975,7 +975,9 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
 
         // Engine updated the parameter, just handle gesture for DAW automation
         int paramIdx = incomingMessage["paramIdx"].get<int>();
-        float normalizedValue = getParameters()[paramIdx].value;
+        // Parameter.value now stores denormalized value, need to normalize for host communication
+        float denormalizedValue = getParameters()[paramIdx].value;
+        float normalizedValue = getParameter(paramIdx).toNormalised(denormalizedValue);
 
         if (gesture == "begin")
             addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::GestureBegin});
@@ -1243,11 +1245,20 @@ void CabbageProcessor::loadPluginState(nlohmann::json state)
 //========================================================================================
 void CabbageProcessor::setParameter(int paramId, double value)
 {
-    // Store the normalized value (value parameter is already normalized)
-    getParameters()[paramId].value = value;
+    // value parameter is normalized [0-1] from host
+    // Denormalize to actual range
+    float denormalValue = getParameter(paramId).fromNormalised(value);
 
-    // Calculate denormalized value for Csound channel
-    const float denormalValue = getParameter(paramId).fromNormalised(value);
+    // Quantize to increment if specified
+    const auto& param = getParameter(paramId);
+    if (param.increment > 0.0f) {
+        denormalValue = std::round(denormalValue / param.increment) * param.increment;
+        // Clamp to range after quantization to handle edge cases
+        denormalValue = std::max(param.min, std::min(param.max, denormalValue));
+    }
+
+    getParameters()[paramId].value = denormalValue;
+
     const auto channel = getParameters()[paramId].name;
 
     // cabbage2 -> cabbage3 combobox quirk
