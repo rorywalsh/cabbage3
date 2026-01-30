@@ -1512,13 +1512,6 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
         return true;
     }
 
-    // Handle midiMessage
-    else if (command == "midiMessage")
-    {
-        // MIDI messages need processor's addNoteEvent functionality
-        return false; // Let processor handle this
-    }
-
     // Handle controlData - route based on whether channel is automatable
     else if (command == "controlData")
     {
@@ -1694,10 +1687,14 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
             lattice::logError << "channelData message missing both stringData and floatData fields";
             return false;
         }
-        
+      
         return true;
     }
-
+    else if (command == "midiMessage")
+    {
+        //handled elsewhere..
+         return false;
+    }
 
     // Unknown command
     lattice::logDebug << "Unknown or unhandled command: " << command;
