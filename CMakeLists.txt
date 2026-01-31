@@ -173,17 +173,14 @@ elseif (CabbagePluginEffectAUv2 STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbagePluginEffectAUv2 LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
     set(CABBAGE_AU_INSTRUMENT_TYPE aufx)
     set(FORMATS ${AU_FORMATS})
-    set(COPY_AFTER_BUILD ON)
 elseif (CabbagePluginSynthAUv2 STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbagePluginSynthAUv2 LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
     set(CABBAGE_AU_INSTRUMENT_TYPE aumf)
-    set(COPY_AFTER_BUILD ON)
     set(FORMATS ${AU_FORMATS})
 elseif (CabbagePluginMidiFxAUv2 STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbagePluginMidiFxAUv2 LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
     set(CABBAGE_AU_INSTRUMENT_TYPE aumi)
     set(FORMATS ${AU_FORMATS})
-    set(COPY_AFTER_BUILD ON)
 elseif (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbageTests LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
 endif()
@@ -226,6 +223,8 @@ set(CABBAGE_OPCODE_SOURCES
     "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageStateOpcodes.h"
     "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageFileOpcodes.cpp"
     "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageFileOpcodes.h"
+    "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageSendMessageOpcode.cpp"
+    "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageSendMessageOpcode.h"
 )
 
 # ----------------------------
