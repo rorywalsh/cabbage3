@@ -79,7 +79,11 @@ void Engine::addOpcodes()
     
     csnd::plugin<CabbageSaveState>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSaveState", "", "S", csnd::thread::i);
     csnd::plugin<CabbageLoadState>((csnd::Csound *)getCsound()->GetCsound(), "cabbageLoadState", "", "S", csnd::thread::i);
+
+    csnd::plugin<CabbageSendMessage>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSendMessage", "", "S", csnd::thread::i);
+    csnd::plugin<CabbageSendMessage>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSendMessage", "", "kS", csnd::thread::k);
     
+
     csnd::plugin<CabbageGetFiles>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetFiles", "S[]", "SS", csnd::thread::i);
     csnd::plugin<CabbageCreateFileName>((csnd::Csound *)getCsound()->GetCsound(), "cabbageCreateFileName", "S", "SS", csnd::thread::i);
     csnd::plugin<CabbageJoinPath>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJoinPath", "S", "SW", csnd::thread::i);

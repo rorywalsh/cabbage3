@@ -40,7 +40,8 @@ struct CabbageOpcodeData
     {
         Value,
         Identifier,
-        Widget
+        Widget,
+        Generic
     };
 
     enum PassType

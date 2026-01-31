@@ -35,6 +35,7 @@
 #include "opcodes/CabbageCreateOpcode.h"
 #include "opcodes/CabbageStateOpcodes.h"
 #include "opcodes/CabbageFileOpcodes.h"
+#include "opcodes/CabbageSendMessageOpcode.h"
 
 class CabbageProcessor;
 struct CabbageOpcodeData;

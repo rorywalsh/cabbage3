@@ -714,6 +714,13 @@ void CabbageProcessor::onIdle()
 //========================================================================================
 void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
 {
+    // Handle generic messages from cabbageSendMessage - send directly to frontend
+    if (data.type == CabbageOpcodeData::MessageType::Generic)
+    {
+        sendWebViewMessage(data.cabbageJson);
+        return;
+    }
+
     // Handle batch updates from loadWidgetState
     if (data.channel == "BATCH-UPDATE-7f3d2a" && data.cabbageJson.contains("command") &&
         data.cabbageJson["command"] == "batchWidgetUpdate")
@@ -722,7 +729,7 @@ void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
         sendWebViewMessage(data.cabbageJson);
         return;
     }
-    
+
     // For value-only updates, update the channel's range.value (not top-level value)
     if (data.type == CabbageOpcodeData::MessageType::Value)
     {
