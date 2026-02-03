@@ -1247,7 +1247,10 @@ void CabbageProcessor::setParameter(int paramId, double value)
         denormalValue = std::max(param.min, std::min(param.max, denormalValue));
     }
 
-    getParameters()[paramId].value = denormalValue;
+    // After quantization, re-normalize for storage
+    float normalizedValue = getParameter(paramId).toNormalised(denormalValue);
+    getParameters()[paramId].value = normalizedValue;
+
 
     const auto channel = getParameters()[paramId].name;
 
