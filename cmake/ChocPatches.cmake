@@ -1,6 +1,6 @@
 # Function to apply patches to downloaded dependencies
 function(apply_choc_patches)
-    set(CHOC_SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/choc-src)
+    set(CHOC_SOURCE_DIR ${FETCHCONTENT_BASE_DIR}/choc-src)
     set(PATCH_DIR ${CMAKE_SOURCE_DIR}/cmake/patches)
     
     # Check if choc source exists

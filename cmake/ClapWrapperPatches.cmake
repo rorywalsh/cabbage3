@@ -1,7 +1,8 @@
 # Function to apply patches to clap-wrapper dependency
 function(apply_clap_wrapper_patches)
-    # Each CMake run has its own binary directory, so just check the current one
-    set(CLAP_WRAPPER_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/clap-wrapper-src")
+    # Use FETCHCONTENT_BASE_DIR which is shared across multi-target sub-builds,
+    # rather than CMAKE_BINARY_DIR which points to per-target subdirectories
+    set(CLAP_WRAPPER_SOURCE_DIR "${FETCHCONTENT_BASE_DIR}/clap-wrapper-src")
     set(PATCH_DIR ${CMAKE_SOURCE_DIR}/cmake/patches)
     set(VST3_MIDI_PATCH ${PATCH_DIR}/clap-wrapper-vst3-midi-output.patch)
     set(AUV2_MIDI_PATCH ${PATCH_DIR}/clap-wrapper-auv2-midi-output.patch)
