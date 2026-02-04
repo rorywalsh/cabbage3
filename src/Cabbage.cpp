@@ -1762,13 +1762,11 @@ std::string Engine::handleParameterUpdate(const nlohmann::json &message)
     double normalizedValue = param.toNormalised(denormValue);
 
     // Update parameter value (this will apply quantization if increment > 0)
+    // Note: setParameter already sends the denormalized value to Csound, so we don't need to do it here
     processor.setParameter(paramIdx, normalizedValue);
 
     // Get the quantized value from the parameter (setParameter may have quantized it)
     float quantizedValue = processor.getParameters()[paramIdx].value;
-
-    // Update Csound channel with quantized value
-    setControlChannel(channel, quantizedValue);
 
     // Update widget JSON - set channel.range.value for number channels
     updateWidget(channel, [&](nlohmann::json &j) {

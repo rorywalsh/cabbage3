@@ -1033,6 +1033,11 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
             // Request resize from host via the callback
             bool accepted = requestGuiResize(width, height);
 
+            // If host accepted, manually apply the resize since some hosts don't call guiSetSize back
+            if (accepted) {
+                applyGuiResize(width, height);
+            }
+
             // Send result back to webview
             nlohmann::json response;
             response["command"] = "resizeResponse";
