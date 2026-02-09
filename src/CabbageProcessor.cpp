@@ -1100,28 +1100,81 @@ void CabbageProcessor::updateUI()
     for (auto &w : cabbage.getWidgets())
     {
         std::string channelStr;
-        if (w.contains("id") && w["id"].is_string())
+        // All widgets use channels array - check that first
+        if (w.contains("channels") && w["channels"].is_array() && !w["channels"].empty() &&
+            w["channels"][0].contains("id") && w["channels"][0]["id"].is_string())
+        {
+            channelStr = w["channels"][0]["id"].get<std::string>();
+        }
+        // Fallback for legacy widgets (form, etc.)
+        else if (w.contains("id") && w["id"].is_string())
         {
             channelStr = w["id"].get<std::string>();
-        }
-        else if (w.contains("channel") && w["channel"].is_string())
-        {
-            channelStr = w["channel"].get<std::string>();
-        }
-        else if (w.contains("channel") && w["channel"].is_object() && w["channel"].contains("id"))
-        {
-            channelStr = w["channel"]["id"].get<std::string>();
         }
         else
         {
             lattice::logDebug << "Widget skipped - no valid channel identifier";
             continue;
         }
+
+        // Make a copy to avoid corrupting the original widget JSON
+        auto widgetCopy = w;
+
+        // Before sending, sync parameter values to widget JSON copy
+        // This ensures UI reflects current parameter state when window reopens
+        if (widgetCopy.contains("channels") && widgetCopy["channels"].is_array())
+        {
+            for (auto &channel : widgetCopy["channels"])
+            {
+                if (channel.contains("parameterIndex") && channel["parameterIndex"].is_number())
+                {
+                    int paramIdx = channel["parameterIndex"].get<int>();
+                    if (paramIdx >= 0 && paramIdx < static_cast<int>(getParameters().size()))
+                    {
+                        // Get normalized value from parameter
+                        float normalizedValue = getParameters()[paramIdx].value;
+
+                        // SAFETY CHECK: Normalized values must be in [0, 1] range
+                        // If not, the parameter system may not have initialized correctly
+                        if (normalizedValue < 0.0f || normalizedValue > 1.0f)
+                        {
+                            lattice::logError << "Parameter " << paramIdx << " (" << channelStr
+                                             << ") has invalid normalized value: " << normalizedValue
+                                             << " (expected 0-1). Using range default instead.";
+
+                            // Use default value from widget definition
+                            if (channel.contains("range") && channel["range"].contains("defaultValue"))
+                            {
+                                float defaultValue = channel["range"]["defaultValue"].get<float>();
+                                channel["range"]["value"] = defaultValue;
+
+                                // Also normalize and store back to parameter to fix it
+                                float fixedNormalized = getParameter(paramIdx).toNormalised(defaultValue);
+                                getParameters()[paramIdx].value = fixedNormalized;
+                                lattice::logInfo << "Fixed parameter " << paramIdx << " to normalized value: " << fixedNormalized;
+                            }
+                            continue; // Skip to next channel
+                        }
+
+                        // Denormalize to actual range for UI
+                        float denormalizedValue = getParameter(paramIdx).fromNormalised(normalizedValue);
+
+                        // Update the widget copy's range.value
+                        if (!channel.contains("range"))
+                        {
+                            channel["range"] = nlohmann::json::object();
+                        }
+                        channel["range"]["value"] = denormalizedValue;
+                    }
+                }
+            }
+        }
+
         // Send proper JSON message like CabbageApp does
         nlohmann::json msg;
         msg["command"] = "widgetUpdate";
         msg["id"] = channelStr;
-        msg["widgetJson"] = w.dump(); // Send as JSON string, like CabbageApp does
+        msg["widgetJson"] = widgetCopy.dump(); // Send as JSON string, like CabbageApp does
         if (uiIsOpen)
         {
             sendWebViewMessage(msg);
@@ -1409,13 +1462,6 @@ int CabbageProcessor::WriteMidiData(CSOUND*, void *_userData, const unsigned cha
 
     // Get processor from engine to access MIDI output callback
     auto& processor = engineData->getProcessor();
-
-    lattice::logDebug << "WriteMidiData: nbytes=" << nbytes
-                      << " status=0x" << std::hex << (int)mbuf[0] << std::dec
-                      << " engineData=" << engineData
-                      << " processor=" << &processor;
-
-    // Pass raw MIDI directly to host - no parsing needed
     processor.sendRawMidi(mbuf, nbytes, 0);  // sampleOffset = 0 for immediate
 
     return nbytes;
