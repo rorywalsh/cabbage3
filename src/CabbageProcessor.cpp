@@ -362,11 +362,19 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                         ch["range"]["value"] = defVal;
                     }
 
+                    // CRITICAL: Parameter value field must be NORMALIZED [0-1] for internal routing
+                    // We need to normalize the default value before passing to constructor
+                    float normalizedDefault = (defVal - minValAdjusted) / (maxVal - minValAdjusted);
+                    if (skewVal != 1.0f && normalizedDefault > 0.0f) {
+                        normalizedDefault = std::pow(normalizedDefault, 1.0f / skewVal);
+                    }
+
                     lattice::logInfo << "Creating parameter '" << channel << "': min=" << minValAdjusted
-                                     << ", max=" << maxVal << ", default=" << defVal << ", initial=" << initialValue
+                                     << ", max=" << maxVal << ", default=" << defVal
+                                     << ", normalizedDefault=" << normalizedDefault << ", initial=" << initialValue
                                      << ", inc=" << incVal << ", skew=" << skewVal;
 
-                    addParameter({channel, minValAdjusted, maxVal, defVal, incVal, skewVal});
+                    addParameter({channel, minValAdjusted, maxVal, normalizedDefault, incVal, skewVal});
 
                     // Set initial value in Csound using range.value (or defaultValue if not set)
                     cabbage.setControlChannel(channel, initialValue);
