@@ -1464,7 +1464,7 @@ int CabbageProcessor::OpenMidiOutputDevice(CSOUND *csound, void **userData, cons
 // Write MIDI data to plugin's MIDI output. Each time Csound outputs a midi message this
 // method should be called. Note: you must have -Q set in your CsOptions
 //========================================================================================
-int CabbageProcessor::WriteMidiData(CSOUND*, void *_userData, const unsigned char *mbuf, int nbytes)
+int CabbageProcessor::WriteMidiData(CSOUND* csound, void *_userData, const unsigned char *mbuf, int nbytes)
 {
     auto *engineData = static_cast<cabbage::Engine *>(_userData);
     if (!engineData || nbytes <= 0)
@@ -1485,8 +1485,8 @@ int CabbageProcessor::WriteMidiData(CSOUND*, void *_userData, const unsigned cha
     //                   << " engineData=" << engineData
     //                   << " processor=" << &processor;
 
-    // Pass raw MIDI directly to host - no parsing needed
-    processor.sendRawMidi(mbuf, nbytes, 0);  // sampleOffset = 0 for immediate
+    // Pass raw MIDI directly to host
+    processor.sendRawMidi(mbuf, nbytes, absSamplePos);  
 
     return nbytes;
 }
