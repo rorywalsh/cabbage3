@@ -513,6 +513,8 @@ void CabbageProcessor::process(float **inputs, float **outputs, std::size_t bloc
                 csndIndex = 0;
             }
 
+            // maintain an absolute sample counter so outgoing MIDI can be timestamped
+            cabbage.incrementTotalSamples();
             // In cases where we have the same number of inputs/outputs we can read
             // and write in the same loop. In cases where we have a different number
             // of inputs/outputs we first iterate over the inputs, and then the outputs.
@@ -1405,10 +1407,17 @@ int CabbageProcessor::WriteMidiData(CSOUND*, void *_userData, const unsigned cha
     // Get processor from engine to access MIDI output callback
     auto& processor = engineData->getProcessor();
 
-    lattice::logDebug << "WriteMidiData: nbytes=" << nbytes
-                      << " status=0x" << std::hex << (int)mbuf[0] << std::dec
-                      << " engineData=" << engineData
-                      << " processor=" << &processor;
+    double absSamplePos = 0.0;
+    try {
+        absSamplePos = double(csoundGetCurrentTimeSamples(csound) - engineData->getTotalSamples());
+    } catch (...) {
+        absSamplePos = 0.0;
+    }
+
+    // lattice::logDebug << "WriteMidiData: nbytes=" << nbytes
+    //                   << " status=0x" << std::hex << (int)mbuf[0] << std::dec
+    //                   << " engineData=" << engineData
+    //                   << " processor=" << &processor;
 
     // Pass raw MIDI directly to host - no parsing needed
     processor.sendRawMidi(mbuf, nbytes, 0);  // sampleOffset = 0 for immediate
