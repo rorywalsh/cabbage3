@@ -26,7 +26,7 @@
 //=====================================================================================
 // cabbageSendMessage "json string"
 //=====================================================================================
-int CabbageSendMessage::sendMessageInit(CabbageOpcodeData::PassType passType)
+int CabbageSendMessage::sendMessageInit(CabbageOpcodeData::PassType /*passType*/)
 {
     auto *hostData = static_cast<cabbage::Engine *>(csound->host_data());
 
@@ -62,7 +62,7 @@ int CabbageSendMessage::sendMessageInit(CabbageOpcodeData::PassType passType)
 //=====================================================================================
 // cabbageSendMessage kTrig, "json string"
 //=====================================================================================
-int CabbageSendMessage::sendMessagePerf(CabbageOpcodeData::PassType passType)
+int CabbageSendMessage::sendMessagePerf(CabbageOpcodeData::PassType /*passType*/)
 {
     auto *hostData = static_cast<cabbage::Engine *>(csound->host_data());
 

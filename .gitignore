@@ -2,5 +2,7 @@ _deps/
 build/
 src/webview/linux_process/build/
 packages/
+output/
+cabbage3/
 .DS_Store
 .vscode/

@@ -461,6 +461,51 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
         #     standalone "${PROJECT_NAME}" "your.reversed.domain.name.${PROJECT_NAME}"
     )
 
+    # Set Reaper as the debug executable for plugin targets
+    if(APPLE AND CMAKE_GENERATOR STREQUAL "Xcode")
+        # Adjust this path if Reaper is installed elsewhere
+        set(REAPER_PATH "/Applications/REAPER.app")
+        
+        # Apply to CLAP target
+        if(TARGET ${PROJECT_NAME}_clap)
+            set_target_properties(${PROJECT_NAME}_clap PROPERTIES
+                XCODE_SCHEME_EXECUTABLE "${REAPER_PATH}"
+            )
+        endif()
+        
+        # Apply to VST3 target
+        if(TARGET ${PROJECT_NAME}_vst3)
+            set_target_properties(${PROJECT_NAME}_vst3 PROPERTIES
+                XCODE_SCHEME_EXECUTABLE "${REAPER_PATH}"
+            )
+        endif()
+        
+        # Apply to AUv2 target (if it exists)
+        if(TARGET ${PROJECT_NAME}_auv2)
+            set_target_properties(${PROJECT_NAME}_auv2 PROPERTIES
+                XCODE_SCHEME_EXECUTABLE "${REAPER_PATH}"
+            )
+        endif()
+    elseif(WIN32)
+        # Adjust this path if Reaper is installed elsewhere
+        set(REAPER_PATH "C:/Program Files/REAPER/Reaper.exe")
+        
+        # Apply to CLAP target
+        if(TARGET ${PROJECT_NAME}_clap)
+            set_target_properties(${PROJECT_NAME}_clap PROPERTIES
+                VS_DEBUGGER_COMMAND "${REAPER_PATH}"
+            )
+        endif()
+        
+        # Apply to VST3 target
+        if(TARGET ${PROJECT_NAME}_vst3)
+            set_target_properties(${PROJECT_NAME}_vst3 PROPERTIES
+                VS_DEBUGGER_COMMAND "${REAPER_PATH}"
+            )
+        endif()
+
+    endif()
+
     if(TARGET ${PROJECT_NAME}_auv2)
         # If USER_LIB flag is set, override output directories to place plugins directly 
         # in ~/Library/Audio/Plug-Ins/Components without Debug/Release subdirectories
