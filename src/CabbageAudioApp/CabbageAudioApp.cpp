@@ -194,6 +194,7 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
         if (data.type == CabbageOpcodeData::MessageType::Value)
         {
             msg["value"] = j["value"].get<float>();
+            lattice::logDebug << msg.dump(4);
             sendJsonMessage(msg);
         }
         else if (data.type == CabbageOpcodeData::MessageType::Widget)
@@ -287,7 +288,7 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
         // Try to handle with Engine first (only if processor exists)
         if (processor && processor->getCabbageEngine().processWebViewCommand(jsonObj))
         {
-            lattice::logDebug << "Command handled by Engine: " << command;
+//            lattice::logDebug << "Command handled by Engine: " << command;
             return;
         }
 

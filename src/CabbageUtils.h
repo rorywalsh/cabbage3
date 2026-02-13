@@ -312,13 +312,13 @@ public:
         for (const auto &widgetPath : widgetPaths)
         {
             lattice::logDebug << "Checking widget path: " << widgetPath;
-            
+
             if (!std::filesystem::exists(widgetPath) || !std::filesystem::is_directory(widgetPath))
             {
                 lattice::logDebug << "Path does not exist or is not a directory: " << widgetPath;
                 continue;
             }
-            
+
             // Iterate through the directory and extract the filenames without the extension
             for (const auto &entry : std::filesystem::directory_iterator(widgetPath))
             {
@@ -326,14 +326,14 @@ public:
                 {
                     std::string filename = entry.path().filename().string();
                     std::string extension = entry.path().extension().string();
-                    
+
                     // Remove extension from filename
                     if (!extension.empty())
                     {
                         filename = filename.substr(0, filename.length() - extension.length());
                     }
-                    
-                    //lattice::logDebug << "Found widget type: " << filename;
+
+                    lattice::logDebug << "Found widget type: " << filename;
                     uniqueTypes.insert(filename); // Add to set (automatically deduplicates)
                 }
             }
@@ -416,21 +416,31 @@ public:
 #endif
         
         // Search all widget directories for the widget file
+        lattice::logDebug << "WidgetDescriptors::get - Searching for widget type: " << widgetType << " in " << widgetPaths.size() << " paths";
         for (const auto &widgetPath : widgetPaths)
         {
             std::string fullPath = widgetPath + "/" + widgetType + ".js";
-            //lattice::logDebug << "Searching " << widgetPath << " for widget classes..";
+            lattice::logDebug << "WidgetDescriptors::get - Checking path: " << fullPath;
             if (cabbage::File::exists(fullPath))
             {
+                lattice::logDebug << "WidgetDescriptors::get - File exists! Loading...";
                 auto jsFileContents = cabbage::File::loadJSFile(fullPath);
                 if (!jsFileContents.empty())
                 {
-                    //lattice::logDebug << "Found widget descriptor for '" << widgetType << "' in: " << widgetPath;
+                    lattice::logDebug << "Found widget descriptor for '" << widgetType << "' in: " << widgetPath;
                     return cabbage::File::extractPropsFromJS(jsFileContents);
                 }
+                else
+                {
+                    lattice::logDebug << "WidgetDescriptors::get - File loaded but empty!";
+                }
+            }
+            else
+            {
+                lattice::logDebug << "WidgetDescriptors::get - File does not exist at: " << fullPath;
             }
         }
-        
+
         lattice::logInfo << "Unknown widget type: " << widgetType << " - skipping widget";
         return {};
     }

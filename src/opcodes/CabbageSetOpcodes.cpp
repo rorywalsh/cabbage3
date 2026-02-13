@@ -245,7 +245,7 @@ int CabbageSetInitMYFLTArray::setIdentifier(int /*pass*/)
         return NOTOK;
     }
 
-    updateWidgetJson(data.cabbageJson, args, argIndex + 1, data.identifier, CabbageOpcodeData::ArgType::Scalar);
+    updateWidgetJson(data.cabbageJson, args, argIndex + 1, data.identifier, CabbageOpcodeData::ArgType::Array);
 
     // If updating the value identifier, also update the Csound channel
     if (data.identifier == "value")

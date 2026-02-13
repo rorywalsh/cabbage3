@@ -109,7 +109,6 @@ std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string &csdFil
     if (std::regex_search(content, cabbageMatch, cabbageRegex))
     {
         std::string cabbageContent = cabbageMatch[1].str();
-        lattice::logDebug << cabbageContent;
         std::regex formRegex(R"("type"\s*:\s*"form")");
         bool foundFormWidget = std::regex_search(cabbageContent, formRegex);
 
