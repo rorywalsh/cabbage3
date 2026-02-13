@@ -194,7 +194,6 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
         if (data.type == CabbageOpcodeData::MessageType::Value)
         {
             msg["value"] = j["value"].get<float>();
-            lattice::logDebug << msg.dump(4);
             sendJsonMessage(msg);
         }
         else if (data.type == CabbageOpcodeData::MessageType::Widget)
