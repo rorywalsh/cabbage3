@@ -238,6 +238,10 @@ class Engine
     // Returns gesture string for plugin automation, or empty string on failure/for standalone
     std::string handleParameterUpdate(const nlohmann::json &message);
 
+    // Manage total number of samples
+    long long getTotalSamples() const { return totalSamplesCounter.load(); }
+    void incrementTotalSamples(){   totalSamplesCounter.fetch_add(1);   }
+
   private:
     void addOpcodes();
     
@@ -266,5 +270,6 @@ class Engine
     CabbageProcessor &processor;
     std::unordered_map<std::string, CabbageOpcodeData> channelCache;
     std::unordered_set<std::string> dirtyChannels;
+    std::atomic<long long> totalSamplesCounter {0};
 };
 } // namespace cabbage

@@ -521,6 +521,8 @@ void CabbageProcessor::process(float **inputs, float **outputs, std::size_t bloc
                 csndIndex = 0;
             }
 
+            // maintain an absolute sample counter so outgoing MIDI can be timestamped
+            cabbage.incrementTotalSamples();
             // In cases where we have the same number of inputs/outputs we can read
             // and write in the same loop. In cases where we have a different number
             // of inputs/outputs we first iterate over the inputs, and then the outputs.
@@ -1462,7 +1464,7 @@ int CabbageProcessor::OpenMidiOutputDevice(CSOUND *csound, void **userData, cons
 // Write MIDI data to plugin's MIDI output. Each time Csound outputs a midi message this
 // method should be called. Note: you must have -Q set in your CsOptions
 //========================================================================================
-int CabbageProcessor::WriteMidiData(CSOUND*, void *_userData, const unsigned char *mbuf, int nbytes)
+int CabbageProcessor::WriteMidiData(CSOUND* csound, void *_userData, const unsigned char *mbuf, int nbytes)
 {
     auto *engineData = static_cast<cabbage::Engine *>(_userData);
     if (!engineData || nbytes <= 0)
@@ -1470,7 +1472,21 @@ int CabbageProcessor::WriteMidiData(CSOUND*, void *_userData, const unsigned cha
 
     // Get processor from engine to access MIDI output callback
     auto& processor = engineData->getProcessor();
-    processor.sendRawMidi(mbuf, nbytes, 0);  // sampleOffset = 0 for immediate
+
+    double absSamplePos = 0.0;
+    try {
+        absSamplePos = double(csoundGetCurrentTimeSamples(csound) - engineData->getTotalSamples());
+    } catch (...) {
+        absSamplePos = 0.0;
+    }
+
+    // lattice::logDebug << "WriteMidiData: nbytes=" << nbytes
+    //                   << " status=0x" << std::hex << (int)mbuf[0] << std::dec
+    //                   << " engineData=" << engineData
+    //                   << " processor=" << &processor;
+
+    // Pass raw MIDI directly to host
+    processor.sendRawMidi(mbuf, nbytes, absSamplePos);  
 
     return nbytes;
 }

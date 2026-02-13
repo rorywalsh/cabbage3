@@ -219,4 +219,5 @@ class CabbageProcessor : public lattice::Processor
         "</body>\n"
         "</html>\n"
         "";
+
 };
