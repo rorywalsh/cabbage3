@@ -49,7 +49,7 @@
  * The JSON can be any valid JSON object/array. It will be sent to the frontend
  * as-is, and the frontend developer is responsible for handling the message format.
  */
-struct CabbageSendMessage : csnd::InPlug<1>, CabbageOpcodes<1>
+struct CabbageSendMessage : csnd::InPlug<2>, CabbageOpcodes<2>
 {
     int init() { return sendMessageInit(CabbageOpcodeData::PassType::Init); };
     int kperf() { return sendMessagePerf(CabbageOpcodeData::PassType::Perf); };
