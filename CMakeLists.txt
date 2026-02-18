@@ -440,7 +440,7 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
         target_link_libraries(${PROJECT_NAME}-impl PUBLIC clap clap-helpers "-framework Cocoa" "-framework WebKit" ${CSOUND_FRAMEWORK} ${PRO_EXTRA_LIBS})
     elseif(WIN32)
         # On Windows, link against CSOUND and any extra Pro libraries
-        target_link_libraries(${PROJECT_NAME}-impl PUBLIC ${CSOUND_LIBRARY} ${PRO_EXTRA_LIBS})
+        target_link_libraries(${PROJECT_NAME}-impl PUBLIC ${CSOUND_LIBRARY} ${PRO_EXTRA_LIBS} ${LATTICE_LINK_LIBS})
     else()
         target_link_libraries(${PROJECT_NAME}-impl PUBLIC ${CSOUND_LIBRARY} ${PRO_EXTRA_LIBS})
     endif()
@@ -488,7 +488,7 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
         endif()
     elseif(WIN32)
         # Adjust this path if Reaper is installed elsewhere
-        set(REAPER_PATH "C:/Program Files/REAPER/Reaper.exe")
+        set(REAPER_PATH "C:/Program Files/REAPER (x64)/Reaper.exe")
         
         # Apply to CLAP target
         if(TARGET ${PROJECT_NAME}_clap)
