@@ -64,7 +64,7 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageGetValue>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "k", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValueString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "S", "S", csnd::thread::i);
     csnd::plugin<CabbageGetValueWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "kk", "S", csnd::thread::ik);
-    csnd::plugin<CabbageGetValueStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "Sk", "S", csnd::thread::ik);
+    csnd::plugin<CabbageGetValueStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "Sk", "S", csnd::thread::k);
 
     csnd::plugin<CabbageGetStringArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "S[]", "SS", csnd::thread::i);
     csnd::plugin<CabbageGetMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "k", "SW", csnd::thread::ik);

@@ -42,7 +42,7 @@ int CabbageSendMessage::sendMessageInit(CabbageOpcodeData::PassType /*passType*/
     // Create opcode data with the arbitrary JSON
     CabbageOpcodeData data;
     data.type = CabbageOpcodeData::MessageType::Generic;
-    data.channel = "cabbageSendMessage";  // Use generic channel name for arbitrary messages
+    data.channel = "cabbageSendMessageQ7mX2b";  // Use generic channel name for arbitrary messages
 
     // Try to parse the JSON to validate it
     try {
@@ -86,7 +86,7 @@ int CabbageSendMessage::sendMessagePerf(CabbageOpcodeData::PassType /*passType*/
     // Create opcode data with the arbitrary JSON
     CabbageOpcodeData data;
     data.type = CabbageOpcodeData::MessageType::Generic;
-    data.channel = "cabbageSendMessage";  // Use generic channel name for arbitrary messages
+    data.channel = "cabbageSendMessageQ7mX2b";  // Use generic channel name for arbitrary messages
 
     // Try to parse the JSON to validate it
     try {

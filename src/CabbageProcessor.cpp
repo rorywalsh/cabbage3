@@ -600,20 +600,35 @@ void CabbageProcessor::onIdle()
 
     if (allowDequeuing)
     {
-        // Dequeue all messages and deduplicate by channel
-        // This prevents processing redundant updates when multiple instances
-        // write to the same channel (e.g., multiple notes updating the same ADSR)
+        // Dequeue all messages. For most channels we deduplicate (keep latest),
+        // but for the special channel "cabbageSendMessageQ7mX2b" preserve every
+        // message and process them in FIFO order.
         std::unordered_map<std::string, CabbageOpcodeData> latestMessages;
+        std::vector<CabbageOpcodeData> preservedMessages;
 
         while (cabbage.opcodeData.try_dequeue(data))
         {
-            // For each channel, keep only the latest message
-            // Newer messages automatically overwrite older ones
-            latestMessages[data.channel] = data;
+            if (data.channel == "cabbageSendMessageQ7mX2b")
+            {
+                // Preserve every message for this unique channel
+                preservedMessages.push_back(data);
+            }
+            else
+            {
+                // For all other channels, keep only the latest message
+                latestMessages[data.channel] = data;
+            }
         }
 
-        // Now process only the latest message for each channel
-        for (const auto &[channel, latestData] : latestMessages)
+        // Build a processing list: first the preserved (FIFO), then the latest-per-channel
+        std::vector<CabbageOpcodeData> messagesToProcess;
+        messagesToProcess.reserve(preservedMessages.size() + latestMessages.size());
+        for (const auto &m : preservedMessages)
+            messagesToProcess.push_back(m);
+        for (const auto &kv : latestMessages)
+            messagesToProcess.push_back(kv.second);
+
+        for (const auto &latestData : messagesToProcess)
         {
             // Make an explicit copy to ensure deep copy of JSON data
             CabbageOpcodeData dataCopy = latestData;
