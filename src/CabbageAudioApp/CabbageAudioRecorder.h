@@ -13,9 +13,9 @@
 #include <memory>
 #include <string>
 #include <fstream>
-#include "../../build/CabbageApp/_deps/choc-src/choc/audio/choc_AudioFileFormat_WAV.h"
-#include "../../build/CabbageApp/_deps/choc-src/choc/containers/choc_SingleReaderSingleWriterFIFO.h"
-#include "../../build/CabbageApp/_deps/choc-src/choc/audio/choc_SampleBuffers.h"
+#include "choc/audio/choc_AudioFileFormat_WAV.h"
+#include "choc/containers/choc_SingleReaderSingleWriterFIFO.h"
+#include "choc/audio/choc_SampleBuffers.h"
 
 namespace cabbage
 {
