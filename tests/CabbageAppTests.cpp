@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_session.hpp>
 #include "../src/CabbageAudioApp/CabbageAudioApp.h"
+#include "../src/CabbageAudioApp/CabbageAudioRecorder.h"
 #include <memory>
 #include <chrono>
 #include <thread>

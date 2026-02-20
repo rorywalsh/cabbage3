@@ -293,6 +293,8 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/main.cpp"
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioApp.cpp"
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioApp.h"
+        "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioRecorder.cpp"
+        "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioRecorder.h"
     )
     list(APPEND SOURCE_FILES ${CABBAGE_SERVICE_APP_SOURCES})
     source_group("Cabbage Service App" FILES ${CABBAGE_SERVICE_APP_SOURCES})
@@ -366,6 +368,8 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
         ${LATTICE_SOURCE_FILES}
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioApp.cpp"
         "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioApp.h"
+        "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioRecorder.cpp"
+        "${CMAKE_SOURCE_DIR}/src/CabbageAudioApp/CabbageAudioRecorder.h"
         "${CMAKE_SOURCE_DIR}/tests/FileBrowseStub.cpp"
     )
     
