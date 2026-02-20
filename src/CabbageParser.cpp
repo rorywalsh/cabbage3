@@ -876,21 +876,44 @@ void Parser::assignDefaultRangesToChannels(nlohmann::json &jsonObj)
 {
     try
     {
+        // Get widget type and load defaults from JS
+        std::string widgetType = jsonObj.contains("type") && jsonObj["type"].is_string()
+            ? jsonObj["type"].get<std::string>() : "";
+
+        nlohmann::json widgetDefaults;
+        if (!widgetType.empty())
+        {
+            widgetDefaults = cabbage::WidgetDescriptors::get(widgetType);
+        }
+
         // Handle channels array case
         if (jsonObj.contains("channels") && jsonObj["channels"].is_array())
         {
             // Iterate through channels and ensure each has a complete range object
-            for (auto& channel : jsonObj["channels"])
+            for (size_t i = 0; i < jsonObj["channels"].size(); i++)
             {
+                auto& channel = jsonObj["channels"][i];
                 if (channel.is_object())
                 {
-                    // Determine interaction type based on widget type
-                    std::string widgetType = jsonObj.contains("type") && jsonObj["type"].is_string() 
-                        ? jsonObj["type"].get<std::string>() : "";
-                    
+                    // Try to get default channel properties from widget defaults
+                    nlohmann::json defaultChannel;
+                    if (!widgetDefaults.empty() &&
+                        widgetDefaults.contains("channels") &&
+                        widgetDefaults["channels"].is_array() &&
+                        i < widgetDefaults["channels"].size())
+                    {
+                        defaultChannel = widgetDefaults["channels"][i];
+                    }
+
+                    // If channel doesn't have a type, copy from defaults
+                    if (!channel.contains("type") && defaultChannel.contains("type"))
+                    {
+                        channel["type"] = defaultChannel["type"];
+                    }
+
                     // Default to 'drag' interaction, but use 'click' for certain widget types
                     std::string interaction = "drag";
-                    if (widgetType == "button" || widgetType == "checkbox" || widgetType == "optionButton" || 
+                    if (widgetType == "button" || widgetType == "checkbox" || widgetType == "optionButton" ||
                         widgetType == "radioGroup" || widgetType == "checkBox")
                     {
                         interaction = "click";

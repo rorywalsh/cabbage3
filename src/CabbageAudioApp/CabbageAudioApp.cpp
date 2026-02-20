@@ -262,6 +262,7 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
     {
         auto json = nlohmann::json::parse(message, nullptr, false);
         const std::string command = json["command"];
+
         nlohmann::json jsonObj;
 
         // Handle both old obj wrapper format and new direct properties format
@@ -273,6 +274,14 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
                 jsonObj = nlohmann::json::parse(json["obj"].get<std::string>());
             else
                 jsonObj = json["obj"];
+        }
+        else if (json.contains("text"))
+        {
+            // Handle "text" wrapper format (used by fileOpenFromVSCode and similar)
+            if (json["text"].is_string())
+                jsonObj = nlohmann::json::parse(json["text"].get<std::string>());
+            else
+                jsonObj = json["text"];
         }
         else
         {
@@ -321,6 +330,7 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
 
         else if (command == "fileOpenFromVSCode")
         {
+
             if (!processor)
             {
                 lattice::logInfo << "Processor is null! Cannot process fileOpenFromVSCode.";
@@ -328,16 +338,22 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
             }
 
             auto &cabbage = processor->getCabbageEngine();
-            if (jsonObj.contains("fileName"))
+            if (jsonObj.contains("fileName") && jsonObj.contains("channel"))
             {
-                cabbage.setStringChannel(jsonObj["channel"].get<std::string>(), jsonObj["fileName"].get<std::string>());
+                std::string channel = jsonObj["channel"].get<std::string>();
+                std::string fileName = jsonObj["fileName"].get<std::string>();
+                cabbage.setStringChannel(channel, fileName);
+            }
+            else
+            {
+                lattice::logInfo << "fileOpenFromVSCode missing required fields. Has fileName: "
+                                << jsonObj.contains("fileName") << ", Has channel: " << jsonObj.contains("channel");
             }
         }
 
         else if (command == "onFileChanged")
         {
-            lattice::logDebug << "Received onFileChanged message for file: "
-                              << json["lastSavedFileName"].get<std::string>();
+          
             csdFileAndPath = json["lastSavedFileName"].get<std::string>();
             if (lattice::File::exists(csdFileAndPath))
             {
@@ -368,6 +384,54 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
             // push this to FIFO queue on main thread..
             addMessageToQueue(CabbageAudioApp::CommandType::StopAudio);
             addMessageToQueue(CabbageAudioApp::CommandType::KillProcessor);
+        }
+
+        else if (command == "startRecording")
+        {
+            if (!recorder)
+            {
+                recorder = std::make_unique<cabbage::AudioRecorder>();
+            }
+
+            std::string filepath = jsonObj["filepath"];
+            std::string bitDepthStr = jsonObj.value("bitDepth", "float32");
+
+            // Parse bit depth (currently only supporting float32, but extensible)
+            choc::audio::BitDepth bitDepth = choc::audio::BitDepth::float32;
+            if (bitDepthStr == "int16")
+                bitDepth = choc::audio::BitDepth::int16;
+            else if (bitDepthStr == "int24")
+                bitDepth = choc::audio::BitDepth::int24;
+            else if (bitDepthStr == "int32")
+                bitDepth = choc::audio::BitDepth::int32;
+
+            if (recorder->startRecording(filepath, audioConfig.audioSR, numOutputChannels, bitDepth))
+            {
+                nlohmann::json response;
+                response["status"] = "recording";
+                response["filepath"] = filepath;
+                sendJsonMessage(response);
+            }
+            else
+            {
+                nlohmann::json response;
+                response["status"] = "error";
+                response["message"] = "Failed to start recording";
+                sendJsonMessage(response);
+                lattice::logError << "Failed to start recording to: " << filepath;
+            }
+        }
+
+        else if (command == "stopRecording")
+        {
+            if (recorder)
+            {
+                recorder->stopRecording();
+                recorder.reset();  // Destroy the recorder object completely
+                nlohmann::json response;
+                response["status"] = "stopped";
+                sendJsonMessage(response);
+            }
         }
 
         else
@@ -776,6 +840,13 @@ void CabbageAudioApp::onIdle()
             break;
 
         case CommandType::StopAudio:
+            // Stop recording if active
+            if (recorder && recorder->isRecording())
+            {
+                recorder->stopRecording();
+                recorder.reset();
+            }
+
             canProcessAudio.store(false);
 
             // If no audio device is running, set canDestroyProcessor to true immediately
@@ -793,11 +864,17 @@ void CabbageAudioApp::onIdle()
                 {
                     std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 }
+                if (!canDestroyProcessor.load())
+                {
+                    lattice::logError << "Timeout waiting for canDestroyProcessor!";
+                }
             }
 
             // ensure idle thread has stopped..
             if (processor)
+            {
                 processor->stopIdleThread();
+            }
 
             if (audioDevice)
             {
@@ -857,6 +934,12 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
     {
         app->canDestroyProcessor.store(true);
         app->processor->process(deinterleavedInput, deinterleavedOutput, nBufferFrames);
+
+        // Record processed output if recording is active
+        if (app->recorder && app->recorder->isRecording())
+        {
+            app->recorder->pushSamples(deinterleavedOutput, nBufferFrames, numOutputChannels);
+        }
     }
 
     // Interleave the processed output back into the RtAudio buffer

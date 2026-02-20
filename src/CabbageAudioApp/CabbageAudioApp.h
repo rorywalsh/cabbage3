@@ -33,6 +33,7 @@
 #include "choc/platform/choc_ReenableAllWarnings.h"
 
 #include "CabbageProcessor.h"
+#include "CabbageAudioRecorder.h"
 #include <readerwriterqueue.h>
 
 class CabbageAudioApp
@@ -176,6 +177,9 @@ class CabbageAudioApp
     std::unique_ptr<RtMidiOut> midiOutDevice = nullptr;
     int midiOutChannel = -1;
     int midiInChannel = -1;
+
+    // Audio recording
+    std::unique_ptr<cabbage::AudioRecorder> recorder = nullptr;
 
     unsigned int numOutputChannels = 2; // Number of audio channels
     unsigned int numInputChannels = 1;

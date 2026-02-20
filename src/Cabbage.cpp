@@ -373,6 +373,7 @@ void Engine::setControlChannel(const std::string channel, MYFLT value)
 
 void Engine::setStringChannel(const std::string channel, std::string data)
 {
+    lattice::logInfo << "setStringChannel[" << channel << "]: Setting to '" << data << "'";
     // update Csound channel
     csound->SetStringChannel(channel.c_str(), (char *)data.c_str());
 }
@@ -1701,7 +1702,6 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
     }
 
     // Unknown command
-    lattice::logDebug << "Unknown or unhandled command: " << command;
     return false;
 }
 

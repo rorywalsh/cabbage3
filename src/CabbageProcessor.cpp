@@ -273,6 +273,7 @@ void CabbageProcessor::addParameters()
 void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
 {
     std::string widgetType = w.contains("type") ? w["type"].get<std::string>() : "unknown";
+    std::string widgetId = w.contains("id") && w["id"].is_string() ? w["id"].get<std::string>() : "unknown";
 
     // Check for automatable - expect boolean true
     bool isAutomatable = w.contains("automatable") && w["automatable"].is_boolean() && w["automatable"].get<bool>();
@@ -283,11 +284,17 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
     // Check if channel type is numeric (default) or explicitly set to number
     bool isNumericChannel = true;
     if (w.contains("channels") && w["channels"].is_array() && !w["channels"].empty()) {
-        if (w["channels"][0].contains("type") && w["channels"][0]["type"].is_string()) {
-            isNumericChannel = (w["channels"][0]["type"].get<std::string>() == "number");
+        auto& firstChannel = w["channels"][0];
+
+        if (firstChannel.contains("type") && firstChannel["type"].is_string()) {
+            std::string channelType = firstChannel["type"].get<std::string>();
+            isNumericChannel = (channelType == "number");
         }
     }
-    
+
+    lattice::logInfo << "addParametersForWidget: type=" << widgetType << ", id=" << widgetId
+                     << ", automatable=" << isAutomatable << ", isNumericChannel=" << isNumericChannel;
+
     if (isAutomatable && isNumericChannel)
     {
         try
@@ -405,12 +412,15 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                 const std::string widgetType = w.contains("type") && w["type"].is_string()
                     ? w["type"].get<std::string>() : "";
 
+                lattice::logInfo << "Processing non-automatable widget type: " << widgetType;
+
                 for (auto &ch : w["channels"])
                 {
                     if (!ch.contains("id") || !ch["id"].is_string())
                         continue;
 
                     const std::string channel = ch["id"].get<std::string>();
+                    lattice::logInfo << "  Processing channel: " << channel << " in widget type: " << widgetType;
 
                     // For comboBox/optionButton, create default range based on items if not provided
                     if ((widgetType == "comboBox" || widgetType == "optionButton") && !ch.contains("range"))
@@ -429,8 +439,7 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
 
                     // Check channel type - default to "number" if not specified
                     std::string channelType = "number";
-                    if (ch.contains("type") && ch["type"].is_string())
-                    {
+                    if (ch.contains("type") && ch["type"].is_string()) {
                         channelType = ch["type"].get<std::string>();
                     }
 
@@ -439,7 +448,7 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                     {
                         // For string channels, set empty string as default
                         cabbage.getCsound()->SetStringChannel(channel.c_str(), "");
-                        lattice::logDebug << "Created string channel for non-automatable widget '" << channel << "'";
+                        lattice::logInfo << "    Created string channel for non-automatable widget '" << channel << "'";
                     }
                     else
                     {

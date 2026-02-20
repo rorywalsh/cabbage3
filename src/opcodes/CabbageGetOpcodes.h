@@ -79,7 +79,7 @@ struct CabbageGetValueString : csnd::Plugin<1, 1>
     int getValue(int init);
 };
 
-struct CabbageGetValueStringWithTrigger : csnd::Plugin<2, 2>
+struct CabbageGetValueStringWithTrigger : csnd::Plugin<2, 1>
 {
     char *currentString = {};
     MYFLT *value;

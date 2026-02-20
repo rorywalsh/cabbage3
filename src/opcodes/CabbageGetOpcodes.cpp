@@ -176,7 +176,6 @@ int CabbageGetValueStringWithTrigger::getValue(int rate)
 
         if (strcmp(currentString, ((STRINGDAT *)value)->data) != 0)
         {
-
             currentString = csound->strdup(((STRINGDAT *)value)->data);
             outargs[1] = 1;
         }
@@ -190,6 +189,10 @@ int CabbageGetValueStringWithTrigger::getValue(int rate)
 
         outargs.str_data(0).size = int(strlen(currentString)) + 1;
         outargs.str_data(0).data = currentString;
+    }
+    else
+    {
+        return NOTOK;
     }
 
     return IS_OK;
