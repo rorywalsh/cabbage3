@@ -832,7 +832,7 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
 
                 cabbage::Parser::mergeJsonProperties(jsonObj, data.cabbageJson);
 
-                auto soundfile = cabbage::File::readAudioFile<double>(jsonObj["file"].get<std::string>(), static_cast<int>(sampleRate));
+                auto soundfile = cabbage::File::readAudioFile<MYFLT>(jsonObj["file"].get<std::string>(), static_cast<int>(sampleRate));
                 auto samples = soundfile.audioData;
 
                 if (samples.size() == 0)
@@ -848,10 +848,10 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
     }
 }
 
-void Engine::setTableJSON(std::string /*channel*/, std::vector<double> samples, nlohmann::json &jsonObj)
+void Engine::setTableJSON(std::string /*channel*/, std::vector<MYFLT> samples, nlohmann::json &jsonObj)
 {
     // this is a condensed version of the sample data that is passed around between C++ and JS.
-    std::vector<double> widgetSampleData;
+    std::vector<MYFLT> widgetSampleData;
 
     // Ensure range object exists and set default y-axis range for waveform display
     if (!jsonObj.contains("range"))
@@ -909,7 +909,7 @@ void Engine::initialiseGenTableWidgets()
             try
             {
                 const int tableNumber = widget["tableNumber"].get<int>();
-                auto soundfile = cabbage::File::readAudioFile<double>(widget["file"].get<std::string>(), static_cast<int>(sampleRate));
+                auto soundfile = cabbage::File::readAudioFile<MYFLT>(widget["file"].get<std::string>(), static_cast<int>(sampleRate));
                 auto samples = soundfile.audioData;
 
                 if (samples.size() > 0)

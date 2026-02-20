@@ -161,7 +161,7 @@ class Engine
     // These two methods return combine with getWidgetIdentifierUpdateScript() to return a JS method
     // that packs samples for a given table
     void updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj);
-    static void setTableJSON(std::string channel, std::vector<double> samples, nlohmann::json &jsonObj);
+    static void setTableJSON(std::string channel, std::vector<MYFLT> samples, nlohmann::json &jsonObj);
 
     // Initialise genTable widgets by loading audio files specified in their file property
     void initialiseGenTableWidgets();
