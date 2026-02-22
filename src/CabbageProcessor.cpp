@@ -1312,7 +1312,8 @@ void CabbageProcessor::updateUI()
 nlohmann::json CabbageProcessor::savePluginState()
 {
     // Use the Engine utility function to save complete widget state
-    return cabbage.saveWidgetState();
+    // true = preset save (DAW), checks persistence.preset
+    return cabbage.saveWidgetState(true);
 }
 
 void CabbageProcessor::loadPluginState(nlohmann::json state)

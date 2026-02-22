@@ -43,7 +43,7 @@ int CabbageSaveState::writeDataToDisk()
     // Move ALL work to background thread - even getting the state and serializing it
     // This avoids blocking the audio thread with deep copies and JSON operations
     std::thread([hostData, stateFile]() {
-        nlohmann::json stateJson = hostData->saveWidgetState();
+        nlohmann::json stateJson = hostData->saveWidgetState(false); // false = session save (checks persistence.session)
         std::string jsonString = stateJson.dump(4);
         cabbage::File::writeToFile(stateFile, jsonString);
         

@@ -339,8 +339,9 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
     // Known boolean properties that may be encoded as numeric 1/0 by Csound.
     // We include both top-level keys and common nested property names (eg. "logarithmic").
     static const std::unordered_set<std::string> booleanProperties = {
-        "visible", "automatable", "active", "popup", "presetIgnore", "identChannel",
-        "svgElement", "valueTextBox", "moveBehind", "filmStrip", "logarithmic"
+        "visible", "automatable", "active", "popup",
+        "svgElement", "valueTextBox", "moveBehind", "filmStrip", "logarithmic",
+        "preset", "session"
     };
 
     // Iterate through incoming JSON properties
@@ -392,12 +393,12 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
                     {
                         jsonObj["populate"] = nlohmann::json::object();
                     }
-                    
+
                     for (auto &[popKey, popVal] : value.items())
                     {
                         jsonObj["populate"][popKey] = popVal;
                     }
-                    
+
                     // CRITICAL: Cannot do file I/O here - we're likely holding a mutex
                     // Just store the config, actual population happens elsewhere
 //                    lattice::logDebug << "Merged populate config (processing deferred to avoid blocking)";
@@ -405,6 +406,48 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
                 else
                 {
                     lattice::logDebug << "populate property must be an object for widget type: " << widgetType;
+                }
+            }
+            else if (key == "persistence")
+            {
+                if (value.is_object())
+                {
+                    // Initialize persistence object if it doesn't exist
+                    if (!jsonObj.contains("persistence") || !jsonObj["persistence"].is_object())
+                    {
+                        jsonObj["persistence"] = nlohmann::json::object();
+                    }
+
+                    // Merge persistence properties
+                    for (auto &[persKey, persVal] : value.items())
+                    {
+                        // Convert numeric 1/0 to boolean for preset/session
+                        if ((persKey == "preset" || persKey == "session") && persVal.is_number())
+                        {
+                            jsonObj["persistence"][persKey] = (persVal.get<double>() != 0);
+                        }
+                        else
+                        {
+                            jsonObj["persistence"][persKey] = persVal;
+                        }
+                    }
+
+                    // Auto-cascade logic: if preset is set to false and session wasn't explicitly provided,
+                    // automatically set session to false as well
+                    if (jsonObj["persistence"].contains("preset") &&
+                        jsonObj["persistence"]["preset"].is_boolean() &&
+                        jsonObj["persistence"]["preset"].get<bool>() == false)
+                    {
+                        // Only auto-set session to false if it wasn't explicitly provided in the incoming JSON
+                        if (!value.contains("session"))
+                        {
+                            jsonObj["persistence"]["session"] = false;
+                        }
+                    }
+                }
+                else
+                {
+                    lattice::logDebug << "persistence property must be an object for widget type: " << widgetType;
                 }
             }
             else if (key == "items")

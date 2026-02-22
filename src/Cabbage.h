@@ -221,7 +221,8 @@ class Engine
     //=====================================================================================
     
     // Save complete widget state to JSON
-    nlohmann::json saveWidgetState();
+    // isPresetSave: true for DAW preset saves (checks persistence.preset), false for session saves (checks persistence.session)
+    nlohmann::json saveWidgetState(bool isPresetSave = true);
     
     // Load complete widget state from JSON and update all systems
     void loadWidgetState(const nlohmann::json &state);

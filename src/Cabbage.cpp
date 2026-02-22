@@ -1193,7 +1193,7 @@ void Engine::flushChannelCache()
 // State Management Utilities - Used by both opcodes and CabbageProcessor
 //=====================================================================================
 
-nlohmann::json Engine::saveWidgetState()
+nlohmann::json Engine::saveWidgetState(bool isPresetSave)
 {
     // Make a quick copy of widgets to avoid holding mutex during filtering/serialization
     std::vector<nlohmann::json> widgetsCopy;
@@ -1201,24 +1201,46 @@ nlohmann::json Engine::saveWidgetState()
         std::lock_guard<std::mutex> lock(widgetsMutex);
         widgetsCopy = widgets;
     }
-    
+
     // Filter widgets without holding the mutex (avoid blocking audio thread)
     nlohmann::json state;
     nlohmann::json filteredWidgets = nlohmann::json::array();
-    
+
     for (auto widget : widgetsCopy)
     {
         if (widget.is_object())
         {
-            // Check if presetIgnore is set to true
-            bool shouldIgnore = false;
-            if (widget.contains("presetIgnore") && widget["presetIgnore"].is_boolean())
+            // Check persistence settings based on save type
+            bool shouldInclude = true;
+            if (widget.contains("persistence") && widget["persistence"].is_object())
             {
-                shouldIgnore = widget["presetIgnore"].get<bool>();
+                const auto& persistence = widget["persistence"];
+
+                if (isPresetSave)
+                {
+                    // For preset saves (DAW), check persistence.preset
+                    if (persistence.contains("preset") && persistence["preset"].is_boolean())
+                    {
+                        shouldInclude = persistence["preset"].get<bool>();
+                    }
+                }
+                else
+                {
+                    // For session saves (opcode), check persistence.session
+                    if (persistence.contains("session") && persistence["session"].is_boolean())
+                    {
+                        shouldInclude = persistence["session"].get<bool>();
+                    }
+                }
             }
-            
-            // Only add widget if it should NOT be ignored
-            if (!shouldIgnore)
+            // Legacy support: fall back to presetIgnore if persistence object doesn't exist
+            else if (widget.contains("presetIgnore") && widget["presetIgnore"].is_boolean())
+            {
+                shouldInclude = !widget["presetIgnore"].get<bool>();
+            }
+
+            // Only add widget if it should be included
+            if (shouldInclude)
             {
                 // Update channel range values from Csound channels before saving
                 if (widget.contains("channels") && widget["channels"].is_array())
