@@ -634,6 +634,15 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
     outputParameters.firstChannel = 0;
     numOutputChannels = outputParameters.nChannels;
 
+    // (Re-)initialise VU level atomics for the actual output channel count
+    vuPeakLevels = std::make_unique<std::atomic<float>[]>(numOutputChannels);
+    vuRmsLevels  = std::make_unique<std::atomic<float>[]>(numOutputChannels);
+    for (unsigned int ch = 0; ch < numOutputChannels; ++ch)
+    {
+        vuPeakLevels[ch].store(0.f, std::memory_order_relaxed);
+        vuRmsLevels[ch].store(0.f, std::memory_order_relaxed);
+    }
+
     // Set up input stream parameters
     RtAudio::StreamParameters inputParameters;
     const int inputDeviceId = getAudioDeviceId(audioConfig.audioInDev);
@@ -884,6 +893,23 @@ void CabbageAudioApp::onIdle()
             break;
         }
     }
+
+    // Send VU meter peak + RMS levels to the webview on every idle tick (~20 Hz)
+    if (canProcessAudio.load() && vuPeakLevels)
+    {
+        nlohmann::json vuMsg;
+        vuMsg["command"] = "vuMeter";
+        vuMsg["levels"] = nlohmann::json::array();
+        for (unsigned int ch = 0; ch < numOutputChannels; ++ch)
+            vuMsg["levels"].push_back(vuPeakLevels[ch].exchange(0.f, std::memory_order_relaxed));
+        if (vuRmsLevels)
+        {
+            vuMsg["rms"] = nlohmann::json::array();
+            for (unsigned int ch = 0; ch < numOutputChannels; ++ch)
+                vuMsg["rms"].push_back(vuRmsLevels[ch].load(std::memory_order_relaxed));
+        }
+        sendJsonMessage(vuMsg);
+    }
 }
 
 int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
@@ -934,6 +960,34 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
     {
         app->canDestroyProcessor.store(true);
         app->processor->process(deinterleavedInput, deinterleavedOutput, nBufferFrames);
+
+        // Update per-channel peak levels for the VU meter (lock-free atomic max)
+        if (app->vuPeakLevels)
+        {
+            for (unsigned int ch = 0; ch < numOutputChannels; ++ch)
+            {
+                float peak = 0.f;
+                for (unsigned int i = 0; i < nBufferFrames; ++i)
+                    peak = std::max(peak, std::abs(deinterleavedOutput[ch][i]));
+                float prev = app->vuPeakLevels[ch].load(std::memory_order_relaxed);
+                while (peak > prev &&
+                       !app->vuPeakLevels[ch].compare_exchange_weak(prev, peak, std::memory_order_relaxed))
+                { /* retry CAS */ }
+            }
+        }
+
+        // Compute per-channel RMS for the hold indicator
+        if (app->vuRmsLevels)
+        {
+            for (unsigned int ch = 0; ch < numOutputChannels; ++ch)
+            {
+                float sumSq = 0.f;
+                for (unsigned int i = 0; i < nBufferFrames; ++i)
+                    sumSq += deinterleavedOutput[ch][i] * deinterleavedOutput[ch][i];
+                app->vuRmsLevels[ch].store(std::sqrt(sumSq / static_cast<float>(nBufferFrames)),
+                                           std::memory_order_relaxed);
+            }
+        }
 
         // Record processed output if recording is active
         if (app->recorder && app->recorder->isRecording())

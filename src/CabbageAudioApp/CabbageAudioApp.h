@@ -200,6 +200,12 @@ class CabbageAudioApp
 
     static void midiCallback(double deltatime, std::vector<uint8_t> *pMsg, void *userData);
 
+    // VU meter: per-output-channel levels updated by the audio thread,
+    // read and reset by the idle thread. Sized to numOutputChannels in initialiseAudio().
+    std::unique_ptr<std::atomic<float>[]> vuPeakLevels; // atomic max per buffer
+    std::unique_ptr<std::atomic<float>[]> vuRmsLevels;  // latest RMS per buffer
+    int vuIdleCounter = 0;
+
     int portNumber = 0;
     std::string csdFileAndPath = "";
 };
