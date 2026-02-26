@@ -21,6 +21,9 @@
 
 #include "lattice/LatticeProcessor.h"
 #include "Cabbage.h"
+#include <condition_variable>
+#include <deque>
+#include <mutex>
 
 class CabbageProcessor : public lattice::Processor
 {
@@ -85,7 +88,15 @@ class CabbageProcessor : public lattice::Processor
     void stopIdleThread();
     bool isIdleThreadRunning() { return isIdleRunning.load(std::memory_order_acquire); }
 
+    // ARA analysis worker API (separate execution path from process block)
+    void enqueueAraAnalysisJobRequest(const lattice::AraAnalysisJob& job);
+    bool tryDequeueAraAnalysisResult(lattice::AraAnalysisResult& result);
+
   private:
+    void startAraAnalysisWorker();
+    void stopAraAnalysisWorker();
+    void runAraAnalysisWorker();
+
     void onIdle();
     void onIdleScheduler();
     void startOnIdle();
@@ -112,6 +123,14 @@ class CabbageProcessor : public lattice::Processor
     bool hasCompileErrors = false;
     std::string compileErrorHtml;
     std::string cabzTempDir;  // Temp directory for extracted .cabz archive (Pro builds only)
+
+    std::mutex araJobMutex;
+    std::condition_variable araJobCv;
+    std::deque<lattice::AraAnalysisJob> araPendingJobs;
+    std::mutex araResultMutex;
+    std::deque<lattice::AraAnalysisResult> araCompletedResults;
+    std::atomic<bool> araWorkerRunning{false};
+    std::thread araWorkerThread;
 
     std::string errorPageHtml =
         "<!DOCTYPE html>\n"

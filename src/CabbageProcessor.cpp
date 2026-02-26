@@ -155,6 +155,21 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Pr
     }
 
     startOnIdle();
+
+    // Route ARA analysis requests through a dedicated worker path that is not
+    // coupled to process() calls or transport state.
+    enqueueAraAnalysisJob = [this](const lattice::AraAnalysisJob& job)
+    {
+        enqueueAraAnalysisJobRequest(job);
+    };
+
+    publishAraAnalysisResult = [this](const lattice::AraAnalysisResult& result)
+    {
+        std::lock_guard<std::mutex> lock(araResultMutex);
+        araCompletedResults.push_back(result);
+    };
+
+    startAraAnalysisWorker();
 }
 
 CabbageProcessor::~CabbageProcessor()
@@ -170,6 +185,7 @@ CabbageProcessor::~CabbageProcessor()
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     stopIdleThread();
+    stopAraAnalysisWorker();
 
 #ifdef CabbagePro
     // Decrement reference count for temp directory - will clean up only if this is the last instance
@@ -178,6 +194,97 @@ CabbageProcessor::~CabbageProcessor()
         cabbage::File::decrementTempDirRef(cabzTempDir);
     }
 #endif
+}
+
+void CabbageProcessor::enqueueAraAnalysisJobRequest(const lattice::AraAnalysisJob& job)
+{
+    {
+        std::lock_guard<std::mutex> lock(araJobMutex);
+        araPendingJobs.push_back(job);
+    }
+    araJobCv.notify_one();
+}
+
+bool CabbageProcessor::tryDequeueAraAnalysisResult(lattice::AraAnalysisResult& result)
+{
+    std::lock_guard<std::mutex> lock(araResultMutex);
+    if (araCompletedResults.empty())
+    {
+        return false;
+    }
+
+    result = std::move(araCompletedResults.front());
+    araCompletedResults.pop_front();
+    return true;
+}
+
+void CabbageProcessor::startAraAnalysisWorker()
+{
+    if (araWorkerRunning.exchange(true, std::memory_order_acq_rel))
+    {
+        return;
+    }
+
+    araWorkerThread = std::thread(&CabbageProcessor::runAraAnalysisWorker, this);
+}
+
+void CabbageProcessor::stopAraAnalysisWorker()
+{
+    if (!araWorkerRunning.exchange(false, std::memory_order_acq_rel))
+    {
+        return;
+    }
+
+    araJobCv.notify_all();
+
+    if (araWorkerThread.joinable())
+    {
+        araWorkerThread.join();
+    }
+}
+
+void CabbageProcessor::runAraAnalysisWorker()
+{
+    while (araWorkerRunning.load(std::memory_order_acquire))
+    {
+        lattice::AraAnalysisJob job;
+
+        {
+            std::unique_lock<std::mutex> lock(araJobMutex);
+            araJobCv.wait(lock, [this]
+            {
+                return !araWorkerRunning.load(std::memory_order_acquire) || !araPendingJobs.empty();
+            });
+
+            if (!araWorkerRunning.load(std::memory_order_acquire) && araPendingJobs.empty())
+            {
+                break;
+            }
+
+            if (araPendingJobs.empty())
+            {
+                continue;
+            }
+
+            job = std::move(araPendingJobs.front());
+            araPendingJobs.pop_front();
+        }
+
+        // Placeholder implementation: scaffolds result delivery while full
+        // ARA sample retrieval + Csound analysis opcodes are added.
+        lattice::AraAnalysisResult result;
+        result.jobId = job.jobId;
+        result.sourceId = job.sourceId;
+        result.regionId = job.regionId;
+        result.analysisType = job.analysisType;
+        result.success = false;
+        result.errorMessage = "ARA analysis worker scaffold active: no Csound analysis opcode pipeline is wired yet.";
+
+        {
+            std::lock_guard<std::mutex> lock(araResultMutex);
+            araCompletedResults.push_back(std::move(result));
+        }
+    }
 }
 
 //========================================================================================
