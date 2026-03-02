@@ -69,7 +69,7 @@ set(PRO_EXTRA_LIBS "")
 # ----------------------------
 if(NOT DEFINED CABBAGE_BUILD_TARGET)
 
-    set(CABBAGE_BUILD_TARGETS CabbageApp CabbagePluginEffect CabbagePluginSynth CabbagePluginEffectAUv2 CabbagePluginSynthAUv2 CabbagePluginMidiFxAUv2 CabbageTests)
+    set(CABBAGE_BUILD_TARGETS CabbageApp CabbagePluginEffect CabbagePluginSynth CabbagePluginEffectARA CabbagePluginSynthARA CabbagePluginEffectAUv2 CabbagePluginSynthAUv2 CabbagePluginMidiFxAUv2 CabbageTests)
     message(STATUS "No CABBAGE_BUILD_TARGET specified. Building all targets.")
 
 
@@ -101,6 +101,12 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
             )
         endif()
 
+        # Enable ARA SDK for ARA targets
+        set(_ARA_ARGS)
+        if(target STREQUAL "CabbagePluginEffectARA" OR target STREQUAL "CabbagePluginSynthARA")
+            list(APPEND _ARA_ARGS -DLATTICE_ENABLE_ARA=ON)
+        endif()
+
         # Run CMake configuration for the current target - this needs to be a little verbose for GH actions
         execute_process(
             COMMAND ${CMAKE_COMMAND}
@@ -110,6 +116,7 @@ if(NOT DEFINED CABBAGE_BUILD_TARGET)
                 -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
                 -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
                 ${_OBJC_COMPILER_ARGS}
+                ${_ARA_ARGS}
                 -DCMAKE_CXX_STANDARD=20
                 -DCMAKE_CXX_STANDARD_REQUIRED=ON
                 # CABBAGE_PRO_CMAKE_ARGS_PLACEHOLDER
@@ -169,6 +176,14 @@ elseif (CabbagePluginSynth STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbagePluginSynth LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
     set(CABBAGE_VST_TYPE CabbagePluginSynthVST3)
     set(FORMATS ${VST3_FORMATS})
+elseif (CabbagePluginEffectARA STREQUAL "${CABBAGE_BUILD_TARGET}")
+    project(CabbagePluginEffectARA LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
+    set(CABBAGE_VST_TYPE CabbagePluginEffectARAVST3)
+    set(FORMATS ${VST3_FORMATS})
+elseif (CabbagePluginSynthARA STREQUAL "${CABBAGE_BUILD_TARGET}")
+    project(CabbagePluginSynthARA LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
+    set(CABBAGE_VST_TYPE CabbagePluginSynthARAVST3)
+    set(FORMATS ${VST3_FORMATS})
 elseif (CabbagePluginEffectAUv2 STREQUAL "${CABBAGE_BUILD_TARGET}")
     project(CabbagePluginEffectAUv2 LANGUAGES ${BUILD_LANGUAGES} VERSION 0.1)
     set(CABBAGE_AU_INSTRUMENT_TYPE aufx)
@@ -191,6 +206,12 @@ endif()
 # Include dependencies and modules
 # ----------------------------
 include(${CMAKE_SOURCE_DIR}/cmake/Dependencies.cmake)
+
+# Enable ARA SDK fetch for ARA targets (must be set before lattice Dependencies.cmake)
+if (CabbagePluginEffectARA STREQUAL "${CABBAGE_BUILD_TARGET}" OR CabbagePluginSynthARA STREQUAL "${CABBAGE_BUILD_TARGET}")
+    set(LATTICE_ENABLE_ARA ON CACHE BOOL "Enable ARA support" FORCE)
+endif()
+
 include(${lattice_SOURCE_DIR}/cmake/Dependencies.cmake)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
@@ -232,6 +253,7 @@ set(CABBAGE_OPCODE_SOURCES
 # ----------------------------
 set(CABBAGE_SOURCES
     "${CMAKE_SOURCE_DIR}/src/CabbageProcessor.cpp"
+    "${CMAKE_SOURCE_DIR}/src/CabbageARAProcessor.cpp"
     "${CMAKE_SOURCE_DIR}/src/CabbageProcessor.h"
     "${CMAKE_SOURCE_DIR}/src/Cabbage.cpp"
     "${CMAKE_SOURCE_DIR}/src/Cabbage.h"
@@ -348,6 +370,7 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
     # Create test-specific source list (exclude platform-specific files)
     set(CABBAGE_TEST_SOURCES
         "${CMAKE_SOURCE_DIR}/src/CabbageProcessor.cpp"
+        "${CMAKE_SOURCE_DIR}/src/CabbageARAProcessor.cpp"
         "${CMAKE_SOURCE_DIR}/src/CabbageProcessor.h"
         "${CMAKE_SOURCE_DIR}/src/Cabbage.cpp"
         "${CMAKE_SOURCE_DIR}/src/Cabbage.h"
@@ -427,6 +450,18 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
         "${CABBAGE_BUILD_TARGET}"
         "${CABBAGE_VST_TYPE}"
     )
+
+    # Enable ARA for ARA plugin targets
+    if (CabbagePluginEffectARA STREQUAL "${CABBAGE_BUILD_TARGET}" OR CabbagePluginSynthARA STREQUAL "${CABBAGE_BUILD_TARGET}")
+        target_compile_definitions(${PROJECT_NAME}-impl PRIVATE
+            LATTICE_ENABLE_ARA=1
+            LATTICE_PLUGIN_PROVIDES_ARA_FACTORY=1
+        )
+        # ARA SDK library sources are not merged into LATTICE_SOURCE_FILES automatically
+        if(LATTICE_ARA_LIBRARY_SOURCE_FILES)
+            target_sources(${PROJECT_NAME}-impl PRIVATE ${LATTICE_ARA_LIBRARY_SOURCE_FILES})
+        endif()
+    endif()
 
     # CABBAGE_PRO_PLUGIN_DEFINITIONS_PLACEHOLDER
 

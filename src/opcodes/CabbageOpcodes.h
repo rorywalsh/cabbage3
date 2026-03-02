@@ -255,6 +255,16 @@ struct CabbageOpcodes
         std::vector<MYFLT> array;
         auto j = parseAndFormatJson(identifier);
         auto it = j.begin();
+        if (it == j.end())
+        {
+            // parseAndFormatJson returned an empty object — identifier was blank or
+            // unparseable (e.g. a channel value that hasn't been set yet).  Bail
+            // out cleanly rather than dereferencing a past-the-end iterator, which
+            // would fire an nlohmann assert() and abort() the host process.
+            lattice::logWarning << "cabbageSet: empty or unresolvable identifier '" << identifier
+                                << "' for channel '" << name << "' — no update applied";
+            return;
+        }
         if (it.value().is_null())
         {
             if (identifier.find(".") == std::string::npos)

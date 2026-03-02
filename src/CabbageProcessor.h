@@ -19,13 +19,15 @@
 
 #pragma once
 
-#include "lattice/LatticeProcessor.h"
+#include "lattice/LatticeAraProcessor.h"
 #include "Cabbage.h"
-#include <condition_variable>
-#include <deque>
-#include <mutex>
+#include <set>
 
+#if LATTICE_HAS_ARA
+class CabbageProcessor : public lattice::AraProcessor<CabbageProcessor>
+#else
 class CabbageProcessor : public lattice::Processor
+#endif
 {
 
   public:
@@ -88,21 +90,68 @@ class CabbageProcessor : public lattice::Processor
     void stopIdleThread();
     bool isIdleThreadRunning() { return isIdleRunning.load(std::memory_order_acquire); }
 
-    // ARA analysis worker API (separate execution path from process block)
-    void enqueueAraAnalysisJobRequest(const lattice::AraAnalysisJob& job);
-    bool tryDequeueAraAnalysisResult(lattice::AraAnalysisResult& result);
+#if LATTICE_HAS_ARA || defined(CabbageApp)
+    // A channel declared in the <CabbageARA> section of the .ara.csd file.
+    struct AraChannelDef
+    {
+        std::string id;
+        std::string type; // "number" | "string"
+    };
 
-  private:
-    void startAraAnalysisWorker();
-    void stopAraAnalysisWorker();
-    void runAraAnalysisWorker();
+#if LATTICE_HAS_ARA
+    static lattice::AraPluginInfo getStaticAraInfo() noexcept;
+    void araAudioSourceContentUpdated(ARA::PlugIn::AudioSource* source, ARA::ContentUpdateScopes scopes) override;
+    void araDidEnableSamplesAccess(ARA::PlugIn::AudioSource* source, bool enable) override;
+#endif
+#endif // LATTICE_HAS_ARA || CabbageApp
 
+private:
+#if LATTICE_HAS_ARA
+    void startAraWorker();
+    void stopAraWorker();
+    void runAraWorker();
+    void performAraAnalysis(ARA::PlugIn::AudioSource* source);
+    void enqueueAraSource(ARA::PlugIn::AudioSource* source);
+    std::condition_variable araCv;
+    std::deque<ARA::PlugIn::AudioSource*> araPendingSources;
+    std::set<ARA::PlugIn::AudioSource*>  araAccessibleSources; // sources with sample access enabled
+    std::set<ARA::PlugIn::AudioSource*>  araAnalysedSources;   // sources already enqueued for analysis
+    std::atomic<bool>       araWorkerRunning{false};
+    std::thread             araWorkerThread;
+#endif
+#if LATTICE_HAS_ARA || defined(CabbageApp)
+    static nlohmann::json parseAraCsdSection(const std::string& csdPath);
+    nlohmann::json runAraCsdWithPcm(const std::vector<std::vector<float>>& pcm, int numChannels,
+                          double sr, int64_t totalSamples, const std::string& sourceName,
+                          std::atomic<bool>* runningFlag);
+    struct AraSourceResult {
+        std::string sourceName;
+        double samples = 0, channels = 0, sr = 0, duration = 0;
+        nlohmann::json data;  // declared <CabbageARA> channel results
+    };
+    struct AraForwardPayload {
+        std::vector<AraSourceResult> results;
+        int currentIdx = -1;
+    };
+    void forwardAllChannelsToProcessor(const AraForwardPayload& payload);
+    std::vector<AraSourceResult> araSourceResults;  // one entry per analysed source, guarded by araMutex
+    int araCurrentSourceIndex = -1;                 // index of this instance's own source
+    moodycamel::ReaderWriterQueue<AraForwardPayload> araForwardQueue{8};
+    int araUpdateCounter = 0;                       // incremented each forward; use as trigger in Csound
+    std::vector<AraChannelDef> araChannelDefs;
+    std::mutex araMutex;  // protects araSourceResults / araPendingSources
+#ifdef CabbageApp
+    void performAraAnalysisFromFile(const std::string& filePath);
+    std::thread araTestThread;
+#endif
+#endif // LATTICE_HAS_ARA || CabbageApp
     void onIdle();
     void onIdleScheduler();
     void startOnIdle();
     void stopOnIdle();
     void updateWidgetData(const CabbageOpcodeData &data);
     void addParametersForWidget(nlohmann::json &w);
+    void configureLogger(const nlohmann::json& json);
     void openFileDialog(const std::string &channel, const std::string &directory, const std::string &filters,
                         bool openAtLastKnownLocation);
     std::string generateErrorPageHtml(const std::string &errors);
@@ -124,13 +173,12 @@ class CabbageProcessor : public lattice::Processor
     std::string compileErrorHtml;
     std::string cabzTempDir;  // Temp directory for extracted .cabz archive (Pro builds only)
 
-    std::mutex araJobMutex;
-    std::condition_variable araJobCv;
-    std::deque<lattice::AraAnalysisJob> araPendingJobs;
-    std::mutex araResultMutex;
-    std::deque<lattice::AraAnalysisResult> araCompletedResults;
-    std::atomic<bool> araWorkerRunning{false};
-    std::thread araWorkerThread;
+#if LATTICE_HAS_ARA || defined(CabbageApp)
+    std::string araCsdPath;   // Path to companion .ara.csd file (if present)
+#endif
+#if LATTICE_HAS_ARA
+    std::mutex  araSourcesMutex; // protects araAccessibleSources
+#endif
 
     std::string errorPageHtml =
         "<!DOCTYPE html>\n"

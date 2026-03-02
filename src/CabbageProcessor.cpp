@@ -21,6 +21,8 @@
 #include <iostream>
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
+#include <thread>
 #include "CabbageUtils.h"
 
 //========================================================================================
@@ -43,7 +45,13 @@ pluginType *LatticeProcessorPluginFactory::createPlugin(const clap_host *host)
 // 2. Set mount point based on cabz or root path
 // 3. All subsequent calls (WidgetDescriptors, parseCsdForWidgets, etc.) use the cached path
 //========================================================================================
-CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Processor(), cabbage(*this)
+CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
+#if LATTICE_HAS_ARA
+    : lattice::AraProcessor<CabbageProcessor>()
+#else
+    : lattice::Processor()
+#endif
+    , cabbage(*this)
 {
     // Setup root directory and handle cabz extraction
     auto [mountPoint, cabzTemp] = cabbage::File::setupRootDirectory(csdFile);
@@ -75,7 +83,7 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Pr
     }
 
     // All message to webview will be wrapped in window.postMessage()
-    setWebViewSendFunctionName("window.postMessage");
+    setWebViewSendFunctionName("postMessage");
 
     addParameters();
     addChannels(config);
@@ -84,62 +92,7 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Pr
     if (auto json = cabbage::File::parseCabbageSection(cabbage::File::getCsdFileAndPath()))
     {
 #ifndef CabbageApp
-        // Configure logger if specified in form widget (plugins only)
-        auto loggerEnabled = cabbage::Utils::findPropertyInForm<bool>(*json, "logger.enabled");
-        if (loggerEnabled.has_value() && loggerEnabled.value())
-        {
-            auto logFile = cabbage::Utils::findPropertyInForm<std::string>(*json, "logger.file");
-            if (logFile.has_value() && !logFile->empty())
-            {
-                auto replace = cabbage::Utils::findPropertyInForm<bool>(*json, "logger.replace");
-
-                // Resolve log file path relative to CSD file if not absolute
-                std::string logFilePath = logFile.value();
-                std::filesystem::path fsPath(logFilePath);
-                if (!fsPath.is_absolute())
-                {
-                    auto csdDir = lattice::File::getParentDirectory(cabbage::File::getCsdFileAndPath());
-                    logFilePath = lattice::File::joinPath(csdDir, logFilePath);
-                }
-
-                // Ensure parent directory exists
-                std::filesystem::path logPath(logFilePath);
-                std::filesystem::path parentDir = logPath.parent_path();
-                if (!parentDir.empty() && !std::filesystem::exists(parentDir))
-                {
-                    try
-                    {
-                        std::filesystem::create_directories(parentDir);
-                    }
-                    catch (const std::exception& e)
-                    {
-                        std::cerr << "Failed to create log directory: " << parentDir << " - " << e.what() << std::endl;
-                    }
-                }
-
-                // If replace=true, delete existing log file before setting
-                if (replace.value_or(false) && lattice::File::exists(logFilePath))
-                {
-                    std::remove(logFilePath.c_str());
-                }
-
-                // Set log file with error handling
-                try
-                {
-                    lattice::Logger::getInstance().setLogFile(logFilePath);
-                    lattice::logInfo << "Logger configured: " << logFilePath
-                                     << " (replace=" << (replace.value_or(false) ? "true" : "false") << ")";
-                }
-                catch (const std::exception& e)
-                {
-                    std::cerr << "Failed to configure logger: " << e.what() << std::endl;
-                }
-            }
-            else
-            {
-                lattice::logInfo << "Logger enabled but no file path specified";
-            }
-        }
+        configureLogger(*json);
 #endif
 
         auto w = cabbage::Utils::findPropertyInForm<int>(*json, "size.width");
@@ -156,20 +109,55 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config) : Pr
 
     startOnIdle();
 
-    // Route ARA analysis requests through a dedicated worker path that is not
-    // coupled to process() calls or transport state.
-    enqueueAraAnalysisJob = [this](const lattice::AraAnalysisJob& job)
+#if LATTICE_HAS_ARA
     {
-        enqueueAraAnalysisJobRequest(job);
-    };
+        std::filesystem::path csd(cabbage::File::getCsdFileAndPath());
+        auto candidate = (csd.parent_path() / (csd.stem().string() + ".ara.csd")).string();
+        if (lattice::File::exists(candidate))
+        {
+            araCsdPath = candidate;
+            lattice::logInfo << "ARA companion found: " << araCsdPath;
+            {
+                auto araSection = parseAraCsdSection(araCsdPath);
+                for (const auto& ch : araSection.value("channels", nlohmann::json::array()))
+                    if (ch.contains("id") && ch.contains("type"))
+                        araChannelDefs.push_back({ch["id"].get<std::string>(), ch["type"].get<std::string>()});
+            }
+            lattice::logInfo << "ARA: " << araChannelDefs.size() << " output channel(s) declared in <CabbageARA>";
+        }
+    }
+    startAraWorker();
+#endif
 
-    publishAraAnalysisResult = [this](const lattice::AraAnalysisResult& result)
+#ifdef CabbageApp
     {
-        std::lock_guard<std::mutex> lock(araResultMutex);
-        araCompletedResults.push_back(result);
-    };
-
-    startAraAnalysisWorker();
+        std::filesystem::path csd(cabbage::File::getCsdFileAndPath());
+        auto candidate = (csd.parent_path() / (csd.stem().string() + ".ara.csd")).string();
+        if (lattice::File::exists(candidate))
+        {
+            araCsdPath = candidate;
+            auto araSection = parseAraCsdSection(araCsdPath);
+            for (const auto& ch : araSection.value("channels", nlohmann::json::array()))
+                if (ch.contains("id") && ch.contains("type"))
+                    araChannelDefs.push_back({ch["id"].get<std::string>(), ch["type"].get<std::string>()});
+            lattice::logInfo << "ARA standalone: companion found: " << araCsdPath;
+            lattice::logInfo << "ARA standalone: " << araChannelDefs.size() << " output channel(s) declared";
+            const std::string testFile = araSection.value("testFile", std::string{});
+            if (!testFile.empty())
+            {
+                lattice::logInfo << "ARA standalone: test file: " << testFile;
+                araTestThread = std::thread([this, testFile]() {
+                    performAraAnalysisFromFile(testFile);
+                });
+            }
+            else
+            {
+                lattice::logInfo << "ARA standalone: no testFile in <CabbageARA> — "
+                                    "add \"testFile\": \"/path/to/audio.wav\" to trigger analysis";
+            }
+        }
+    }
+#endif
 }
 
 CabbageProcessor::~CabbageProcessor()
@@ -185,7 +173,15 @@ CabbageProcessor::~CabbageProcessor()
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     stopIdleThread();
-    stopAraAnalysisWorker();
+
+#if LATTICE_HAS_ARA
+    stopAraWorker();
+#endif
+
+#ifdef CabbageApp
+    if (araTestThread.joinable())
+        araTestThread.join();
+#endif
 
 #ifdef CabbagePro
     // Decrement reference count for temp directory - will clean up only if this is the last instance
@@ -196,94 +192,59 @@ CabbageProcessor::~CabbageProcessor()
 #endif
 }
 
-void CabbageProcessor::enqueueAraAnalysisJobRequest(const lattice::AraAnalysisJob& job)
+//========================================================================================
+// Configure logger from the form widget JSON (plugin mode only)
+//========================================================================================
+void CabbageProcessor::configureLogger(const nlohmann::json& json)
 {
-    {
-        std::lock_guard<std::mutex> lock(araJobMutex);
-        araPendingJobs.push_back(job);
-    }
-    araJobCv.notify_one();
-}
+    auto loggerEnabled = cabbage::Utils::findPropertyInForm<bool>(json, "logger.enabled");
+    if (!loggerEnabled.has_value() || !loggerEnabled.value())
+        return;
 
-bool CabbageProcessor::tryDequeueAraAnalysisResult(lattice::AraAnalysisResult& result)
-{
-    std::lock_guard<std::mutex> lock(araResultMutex);
-    if (araCompletedResults.empty())
+    auto logFile = cabbage::Utils::findPropertyInForm<std::string>(json, "logger.file");
+    if (!logFile.has_value() || logFile->empty())
     {
-        return false;
-    }
-
-    result = std::move(araCompletedResults.front());
-    araCompletedResults.pop_front();
-    return true;
-}
-
-void CabbageProcessor::startAraAnalysisWorker()
-{
-    if (araWorkerRunning.exchange(true, std::memory_order_acq_rel))
-    {
+        lattice::logInfo << "Logger enabled but no file path specified";
         return;
     }
 
-    araWorkerThread = std::thread(&CabbageProcessor::runAraAnalysisWorker, this);
-}
+    auto replace = cabbage::Utils::findPropertyInForm<bool>(json, "logger.replace");
 
-void CabbageProcessor::stopAraAnalysisWorker()
-{
-    if (!araWorkerRunning.exchange(false, std::memory_order_acq_rel))
+    // Resolve log file path relative to CSD file if not absolute
+    std::string logFilePath = logFile.value();
+    if (!std::filesystem::path(logFilePath).is_absolute())
     {
-        return;
+        auto csdDir = lattice::File::getParentDirectory(cabbage::File::getCsdFileAndPath());
+        logFilePath = lattice::File::joinPath(csdDir, logFilePath);
     }
 
-    araJobCv.notify_all();
-
-    if (araWorkerThread.joinable())
+    // Ensure parent directory exists
+    std::filesystem::path parentDir = std::filesystem::path(logFilePath).parent_path();
+    if (!parentDir.empty() && !std::filesystem::exists(parentDir))
     {
-        araWorkerThread.join();
+        try
+        {
+            std::filesystem::create_directories(parentDir);
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Failed to create log directory: " << parentDir << " - " << e.what() << std::endl;
+        }
     }
-}
 
-void CabbageProcessor::runAraAnalysisWorker()
-{
-    while (araWorkerRunning.load(std::memory_order_acquire))
+    // If replace=true, delete existing log file before setting
+    if (replace.value_or(false) && lattice::File::exists(logFilePath))
+        std::remove(logFilePath.c_str());
+
+    try
     {
-        lattice::AraAnalysisJob job;
-
-        {
-            std::unique_lock<std::mutex> lock(araJobMutex);
-            araJobCv.wait(lock, [this]
-            {
-                return !araWorkerRunning.load(std::memory_order_acquire) || !araPendingJobs.empty();
-            });
-
-            if (!araWorkerRunning.load(std::memory_order_acquire) && araPendingJobs.empty())
-            {
-                break;
-            }
-
-            if (araPendingJobs.empty())
-            {
-                continue;
-            }
-
-            job = std::move(araPendingJobs.front());
-            araPendingJobs.pop_front();
-        }
-
-        // Placeholder implementation: scaffolds result delivery while full
-        // ARA sample retrieval + Csound analysis opcodes are added.
-        lattice::AraAnalysisResult result;
-        result.jobId = job.jobId;
-        result.sourceId = job.sourceId;
-        result.regionId = job.regionId;
-        result.analysisType = job.analysisType;
-        result.success = false;
-        result.errorMessage = "ARA analysis worker scaffold active: no Csound analysis opcode pipeline is wired yet.";
-
-        {
-            std::lock_guard<std::mutex> lock(araResultMutex);
-            araCompletedResults.push_back(std::move(result));
-        }
+        lattice::Logger::getInstance().setLogFile(logFilePath);
+        lattice::logInfo << "Logger configured: " << logFilePath
+                         << " (replace=" << (replace.value_or(false) ? "true" : "false") << ")";
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "Failed to configure logger: " << e.what() << std::endl;
     }
 }
 
@@ -693,7 +654,52 @@ void CabbageProcessor::onIdle()
     if (!isIdleThreadRunning())
         return;
 
+#if LATTICE_HAS_ARA
+    // Retry pending sources that were accessible but not yet analysed.
+    // Use isMyAudioSource() first to avoid analysing sources from other instances
+    // (araAccessibleSources is populated by the shared document controller, so it
+    // can contain sources from every track that has this plugin). Fall back to
+    // all unanalysed sources only when isMyAudioSource() finds nothing (hosts
+    // that don't assign a PlaybackRenderer role).
+    if (uiIsOpen)
+    {
+        std::vector<ARA::PlugIn::AudioSource*> toAnalyse;
+        {
+            std::lock_guard<std::mutex> lk(araSourcesMutex);
+            for (auto* src : araAccessibleSources)
+            {
+                if (araAnalysedSources.count(src) == 0 && isMyAudioSource(src))
+                    toAnalyse.push_back(src);
+            }
+            // Fallback: no PlaybackRenderer role assigned by host.
+            if (toAnalyse.empty())
+            {
+                for (auto* src : araAccessibleSources)
+                {
+                    if (araAnalysedSources.count(src) == 0)
+                        toAnalyse.push_back(src);
+                }
+            }
+            for (auto* src : toAnalyse)
+                araAnalysedSources.insert(src);
+        }
+        for (auto* src : toAnalyse)
+        {
+            lattice::logInfo << "ARA: onIdle retry — queuing source='" << (src ? src->getName() : "null") << "'";
+            enqueueAraSource(src);
+        }
+    }
+#endif
+
     cabbage.processCsoundMessages();
+
+#if LATTICE_HAS_ARA || defined(CabbageApp)
+    {
+        AraForwardPayload araPayload;
+        while (araForwardQueue.try_dequeue(araPayload))
+            forwardAllChannelsToProcessor(araPayload);
+    }
+#endif
 
 #ifndef CabbageApp
     if (uiIsOpen)
@@ -1023,6 +1029,8 @@ void CabbageProcessor::stopIdleThread()
 //========================================================================================
 void CabbageProcessor::onWebViewIsReady()
 {
+    lattice::logDebug << "onWebViewIsReady() called — thread: " << std::this_thread::get_id();
+
     // If there were compile errors, display the error page
     if (hasCompileErrors)
     {
@@ -1043,6 +1051,13 @@ void CabbageProcessor::onWebViewIsReady()
     // For plugins, update UI immediately when webview is ready
     updateUI();
 #endif
+
+#if LATTICE_HAS_ARA
+    // Call the base class to complete the ARA webview handshake.
+    lattice::logDebug << "onWebViewIsReady() calling AraProcessor base";
+    AraProcessor<CabbageProcessor>::onWebViewIsReady();
+    lattice::logDebug << "onWebViewIsReady() base class call done";
+#endif
 }
 
 void CabbageProcessor::setCabbageIsReady()
@@ -1056,6 +1071,57 @@ void CabbageProcessor::setCabbageIsReady()
     lattice::logDebug << "Calling updateUI() from setCabbageIsReady()";
     updateUI();
     lattice::logDebug << "updateUI() call completed";
+#endif
+
+#if LATTICE_HAS_ARA
+    // The document controller may have enabled sample access for sources before
+    // this (the UI) instance had its window open, so those events were skipped
+    // in araDidEnableSamplesAccess.  Trigger deferred analysis for any source
+    // that still has access enabled now that the UI is ready.
+    //
+    // Prefer isMyAudioSource() to restrict analysis to sources that belong to
+    // this instance. Some ARA hosts assign the plugin without a PlaybackRenderer
+    // role, in which case getPlaybackRegions() returns empty and isMyAudioSource()
+    // yields nothing — only then do we fall back to analysing all unanalysed
+    // accessible sources (safe because uiIsOpen means this is always the UI
+    // instance, never a background renderer).
+    {
+        std::vector<ARA::PlugIn::AudioSource*> toAnalyse;
+        {
+            std::lock_guard<std::mutex> lk(araSourcesMutex);
+            lattice::logInfo << "ARA setCabbageIsReady: araAccessibleSources.size()=" << araAccessibleSources.size();
+
+            // First pass: collect only sources that belong to this instance.
+            for (auto* src : araAccessibleSources)
+            {
+                const bool mine     = isMyAudioSource(src);
+                const bool analysed = araAnalysedSources.count(src) > 0;
+                lattice::logInfo << "ARA setCabbageIsReady: source='" << (src ? src->getName() : "null")
+                                 << "' isMyAudioSource=" << mine
+                                 << " alreadyAnalysed=" << analysed;
+                if (!analysed && mine)
+                    toAnalyse.push_back(src);
+            }
+
+            // Fallback: if isMyAudioSource() identified nothing (host didn't
+            // assign a PlaybackRenderer), queue all unanalysed sources.
+            if (toAnalyse.empty())
+            {
+                lattice::logInfo << "ARA setCabbageIsReady: isMyAudioSource() found no matches — falling back to all unanalysed sources";
+                for (auto* src : araAccessibleSources)
+                {
+                    if (araAnalysedSources.count(src) == 0)
+                        toAnalyse.push_back(src);
+                }
+            }
+        }
+        for (auto* src : toAnalyse)
+        {
+            lattice::logInfo << "ARA: queuing deferred analysis from setCabbageIsReady for source='" << (src ? src->getName() : "null") << "'";
+            araAnalysedSources.insert(src);
+            enqueueAraSource(src);
+        }
+    }
 #endif
 }
 

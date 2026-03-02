@@ -121,6 +121,14 @@ namespace {
 #define LATTICE_MANUFACTURER_NAME "CabbageAudio"
 #define LATTICE_MANUFACTURER_CODE "Cabb"
 
+// ARA identity constants
+#define CABBAGE_ARA_FACTORY_ID       "com.cabbageaudio.cabbage.factory"
+#define CABBAGE_ARA_PLUGIN_NAME      "CabbageARA"
+#define CABBAGE_ARA_MANUFACTURER     "Cabbage Audio"
+#define CABBAGE_ARA_INFO_URL         "https://cabbageaudio.com"
+#define CABBAGE_ARA_VERSION          "1.0.0"
+#define CABBAGE_ARA_DOCUMENT_ARCHIVE "com.cabbageaudio.cabbage.document.v1"
+
 
 // Function to safely access the descriptor (ensures initialization order)
 inline const clap_plugin_descriptor* getDescriptor() {
