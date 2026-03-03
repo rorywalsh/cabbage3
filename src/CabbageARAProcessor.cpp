@@ -409,13 +409,6 @@ void CabbageProcessor::forwardAllChannelsToProcessor(const AraForwardPayload& pa
     };
 
     // Helper: allocate/update a 1-D S-array channel on the main Csound instance.
-    // csoundSetArrayData is unreliable for S-arrays (it copies STRINGDAT structs
-    // Helper: allocate/update a 1-D S-array channel on the main Csound instance.
-    // STRINGDAT has three fields: char* data, size_t size, int64_t timestamp.
-    // Csound's chnget:S[] uses timestamp comparison to decide whether to copy data
-    // into the local instrument variable — if timestamp==0 (the channel default),
-    // chnget sees no update and returns empty strings.  We must set timestamp to
-    // the current sample position so chnget treats the slot as freshly written.
     auto setStrArray = [&](const char* name, const std::vector<std::string>& strs)
     {
         int32_t sz = ARA_MAX_SOURCES;
@@ -425,34 +418,15 @@ void CabbageProcessor::forwardAllChannelsToProcessor(const AraForwardPayload& pa
             lattice::logError << "ARA: csoundInitArrayChannel returned null for S-array '" << name << "'";
             return;
         }
-
-        const int64_t now = csoundGetCurrentTimeSamples(cs);
-
-        lattice::logDebug << "ARA: setStrArray '" << name << "'"
-                          << " arrayMemberSize=" << arr->arrayMemberSize
-                          << " sizeof(STRINGDAT)=" << sizeof(STRINGDAT)
-                          << " arr->sizes[0]=" << (arr->sizes ? arr->sizes[0] : -1)
-                          << " strs.size()=" << strs.size()
-                          << " now=" << now;
-        
-
         const int32_t slots_n = arr->sizes ? arr->sizes[0] : sz;
         std::vector<STRINGDAT> sd(static_cast<size_t>(slots_n));
         for (int32_t i = 0; i < slots_n; ++i)
         {
             const std::string& s = (i < static_cast<int32_t>(strs.size())) ? strs[static_cast<size_t>(i)] : "";
-            sd[static_cast<size_t>(i)].data      = cs->Strdup(cs, s.c_str());
-            sd[static_cast<size_t>(i)].size      = static_cast<int32_t>(s.size()) + 1;
-            sd[static_cast<size_t>(i)].timestamp = now;
-            if (i < static_cast<int32_t>(strs.size()))
-                lattice::logDebug << "ARA: setStrArray '" << name << "'[" << i << "] = '" << s << "'";
+            sd[static_cast<size_t>(i)].data = cs->Strdup(cs, s.c_str());
+            sd[static_cast<size_t>(i)].size = static_cast<int32_t>(s.size()) + 1;
         }
         csoundSetArrayData(arr, sd.data());
-        // Verify: read back slot 0 to confirm memcpy landed in arr->data
-        STRINGDAT* verify = reinterpret_cast<STRINGDAT*>(arr->data);
-        lattice::logDebug << "ARA: setStrArray '" << name << "' post-write verify[0].data='"
-                          << (verify[0].data ? verify[0].data : "(null)") << "'"
-                          << " verify[0].size=" << verify[0].size;
     };
 
     // Numeric source metadata → k-array channels.
@@ -472,12 +446,10 @@ void CabbageProcessor::forwardAllChannelsToProcessor(const AraForwardPayload& pa
     }
 
     // Source names → S-array channel.
-    {
-        std::vector<std::string> names(static_cast<size_t>(count));
-        for (int i = 0; i < count; ++i)
-            names[static_cast<size_t>(i)] = results[i].sourceName;
-        setStrArray("ARA_SOURCE_NAMES", names);
-    }
+    std::vector<std::string> names(static_cast<size_t>(count));
+    for (int i = 0; i < count; ++i)
+        names[static_cast<size_t>(i)] = results[i].sourceName;
+    setStrArray("ARA_SOURCE_NAMES", names);
 
     // Declared <CabbageARA> channels.
     for (const auto& ch : araChannelDefs)
@@ -502,16 +474,62 @@ void CabbageProcessor::forwardAllChannelsToProcessor(const AraForwardPayload& pa
         }
     }
 
+    // Derive the current source for THIS plugin instance.
+    //
+    // Strategy:
+    //  1. Primary: iterate araAnalysedSources and call isMyAudioSource() at forward
+    //     time (idle thread). By the time analysis completes the playback renderer
+    //     usually has regions assigned even when it didn't at queue time — so this
+    //     correctly distinguishes instances that share the fallback analysis path.
+    //  2. Fallback: if isMyAudioSource() still finds nothing (host has no
+    //     PlaybackRenderer role), use payload.currentIdx with a name-match to
+    //     keep the index consistent with the ARA_SOURCE_NAMES array.
+    int verifiedIdx = currentIdx;
+    std::string currentName;
+    {
+        std::lock_guard<std::mutex> lk(araSourcesMutex);
+        for (auto* src : araAnalysedSources)
+        {
+            if (src && src->getName() && isMyAudioSource(src))
+            {
+                const std::string sname = static_cast<const char*>(src->getName());
+                auto it = std::find(names.begin(), names.end(), sname);
+                if (it != names.end())
+                {
+                    verifiedIdx = static_cast<int>(std::distance(names.begin(), it));
+                    currentName = sname;
+                    lattice::logDebug << "ARA: forwardAllChannels — own source identified via isMyAudioSource: '"
+                                      << currentName << "' idx=" << verifiedIdx;
+                    break;
+                }
+            }
+        }
+    }
+    // Fallback: isMyAudioSource found nothing — derive by name-matching payload.currentIdx.
+    if (currentName.empty())
+    {
+        if (currentIdx >= 0 && currentIdx < count)
+            currentName = results[static_cast<size_t>(currentIdx)].sourceName;
+        if (!currentName.empty())
+        {
+            auto it = std::find(names.begin(), names.end(), currentName);
+            if (it != names.end())
+                verifiedIdx = static_cast<int>(std::distance(names.begin(), it));
+        }
+        lattice::logDebug << "ARA: forwardAllChannels — own source via fallback: '"
+                          << currentName << "' idx=" << verifiedIdx;
+    }
+
     // Write count/index LAST so the Csound instrument never sees a non-zero count
     // before the arrays are fully populated.
     cabbage.setControlChannel("ARA_SOURCE_COUNT",         static_cast<float>(count));
-    cabbage.setControlChannel("ARA_CURRENT_SOURCE_INDEX", static_cast<float>(currentIdx));
+    cabbage.setControlChannel("ARA_CURRENT_SOURCE_INDEX", static_cast<float>(verifiedIdx));
 
     // Convenience scalar: name of the currently-indexed source so .csd code can
     // read it with a plain  Sname chnget "ARA_CURRENT_SOURCE_NAME"  (S-array chnget
     // at k-rate is not supported by Csound's channel system).
-    if (currentIdx >= 0 && currentIdx < count)
-        cabbage.setStringChannel("ARA_CURRENT_SOURCE_NAME", results[static_cast<size_t>(currentIdx)].sourceName);
+    if (!currentName.empty())
+        cabbage.setStringChannel("ARA_CURRENT_SOURCE_NAME", currentName);
 
     // Increment ARA_UPDATE so Csound code can use it as a trigger / change-detection signal.
     // Example usage in .csd:
