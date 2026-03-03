@@ -345,17 +345,17 @@ nlohmann::json CabbageProcessor::runAraCsdWithPcm(const std::vector<std::vector<
 // ---------------------------------------------------------------------------
 // Forward all accumulated source results to the main Csound instance.
 //
-// Numeric metadata channels (ARA_SOURCE_SAMPLES, ARA_SOURCE_SR, etc.) and
+// Numeric metadata channels (ARA_SOURCE_SAMPLES, ARA_SOURCE_SRS, etc.) and
 // all declared <CabbageARA> number channels are set as Csound k-array
 // channels so users can index by source:
 //
 //   kRMS[]   chnget "ara_rms"
 //   kMyRms = kRMS[chnget("ARA_CURRENT_SOURCE_INDEX")]
 //
-// String channels (ARA_SOURCE_NAME and declared string channels) are set as
+// String channels (ARA_SOURCE_NAMES and declared string channels) are set as
 // Csound S-arrays so users can index by source:
 //
-//   SNames[]   chnget "ARA_SOURCE_NAME"
+//   SNames[]   chnget "ARA_SOURCE_NAMES"
 //   SSrcName = SNames[chnget("ARA_CURRENT_SOURCE_INDEX")]
 //
 // Bare scalar convenience channels are also set for this instance's own
@@ -465,10 +465,10 @@ void CabbageProcessor::forwardAllChannelsToProcessor(const AraForwardPayload& pa
             srs[i]       = static_cast<MYFLT>(results[i].sr);
             durations[i] = static_cast<MYFLT>(results[i].duration);
         }
-        setKArray("ARA_SOURCE_SAMPLES",  samples);
-        setKArray("ARA_SOURCE_CHANNELS", channels);
-        setKArray("ARA_SOURCE_SR",       srs);
-        setKArray("ARA_SOURCE_DURATION", durations);
+        setKArray("ARA_SOURCE_SAMPLES",   samples);
+        setKArray("ARA_SOURCE_CHANNELS",  channels);
+        setKArray("ARA_SOURCE_SRS",       srs);
+        setKArray("ARA_SOURCE_DURATIONS", durations);
     }
 
     // Source names → S-array channel.
@@ -476,7 +476,7 @@ void CabbageProcessor::forwardAllChannelsToProcessor(const AraForwardPayload& pa
         std::vector<std::string> names(static_cast<size_t>(count));
         for (int i = 0; i < count; ++i)
             names[static_cast<size_t>(i)] = results[i].sourceName;
-        setStrArray("ARA_SOURCE_NAME", names);
+        setStrArray("ARA_SOURCE_NAMES", names);
     }
 
     // Declared <CabbageARA> channels.
