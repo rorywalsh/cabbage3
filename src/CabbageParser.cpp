@@ -160,34 +160,54 @@ std::string Parser::parseContent(const std::string &content, std::vector<nlohman
     std::string errorMessage;
     try
     {
-        auto jsonArray = nlohmann::json::parse(content);
-        if (jsonArray.is_array())
+        auto jsonRoot = nlohmann::json::parse(content);
+
+        // Support both old array format and new object format with "widgets" key
+        nlohmann::json widgetsArray;
+        if (jsonRoot.is_array())
         {
-            for (auto &item : jsonArray)
+            // Legacy format: root is array
+            widgetsArray = jsonRoot;
+            lattice::logInfo << "Parsing Cabbage JSON using legacy array format";
+        }
+        else if (jsonRoot.is_object() && jsonRoot.contains("widgets") && jsonRoot["widgets"].is_array())
+        {
+            // New format: root is object with "widgets" key
+            widgetsArray = jsonRoot["widgets"];
+            lattice::logInfo << "Parsing Cabbage JSON using new object format with 'widgets' key";
+        }
+        else
+        {
+            errorMessage = "Invalid Cabbage JSON structure: Expected either an array of widgets or an object with a 'widgets' array";
+            lattice::logError << errorMessage;
+            return errorMessage;
+        }
+
+        // Process widgets array
+        for (auto &item : widgetsArray)
+        {
+            if (item.is_object())
             {
-                if (item.is_object())
+                // Check if "type" field exists and is a string
+                if (!item.contains("type") || !item["type"].is_string())
                 {
-                    // Check if "type" field exists and is a string
-                    if (!item.contains("type") || !item["type"].is_string())
-                    {
-                        lattice::logError << "Widget is missing valid 'type' field - Skipping this widget and continuing...";
-                        lattice::logDebug << "Invalid widget JSON: " << item.dump();
-                        continue;
-                    }
-                    
-                    std::string widgetType = item["type"].get<std::string>();
-                    auto j = WidgetDescriptors::get(widgetType);
-                    if (!j.is_null())
-                    {
-                        initialiseWidgetJson(j, item, widgets.size());
-                        widgets.push_back(j);                        
-                    }
-                    else
-                    {
-                        lattice::logError << "Widget type is not valid: " << widgetType 
-                                         << " - Skipping this widget and continuing...";
-                        // Continue processing other widgets instead of crashing
-                    }
+                    lattice::logError << "Widget is missing valid 'type' field - Skipping this widget and continuing...";
+                    lattice::logDebug << "Invalid widget JSON: " << item.dump();
+                    continue;
+                }
+
+                std::string widgetType = item["type"].get<std::string>();
+                auto j = WidgetDescriptors::get(widgetType);
+                if (!j.is_null())
+                {
+                    initialiseWidgetJson(j, item, widgets.size());
+                    widgets.push_back(j);
+                }
+                else
+                {
+                    lattice::logError << "Widget type is not valid: " << widgetType
+                                     << " - Skipping this widget and continuing...";
+                    // Continue processing other widgets instead of crashing
                 }
             }
         }

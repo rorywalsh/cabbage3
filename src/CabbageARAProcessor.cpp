@@ -487,6 +487,7 @@ void CabbageProcessor::forwardAllChannelsToProcessor(const AraForwardPayload& pa
     int verifiedIdx = currentIdx;
     std::string currentName;
     {
+#if LATTICE_HAS_ARA
         std::lock_guard<std::mutex> lk(araSourcesMutex);
         for (auto* src : araAnalysedSources)
         {
@@ -504,6 +505,7 @@ void CabbageProcessor::forwardAllChannelsToProcessor(const AraForwardPayload& pa
                 }
             }
         }
+#endif
     }
     // Fallback: isMyAudioSource found nothing — derive by name-matching payload.currentIdx.
     if (currentName.empty())

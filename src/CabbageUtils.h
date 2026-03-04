@@ -55,7 +55,7 @@ public:
         }
     }
     
-    // Quickly find a property defined in a user's "form" object - sppourts flat and nested properties
+    // Quickly find a property defined in a user's "form" object - supports flat and nested properties
     template <typename T>
     static std::optional<T> findPropertyInForm(const nlohmann::json &json, const std::string &propertyName)
     {
@@ -76,7 +76,24 @@ public:
             return current;
         };
 
-        for (const auto &item : json)
+        // Support both old array format and new object format with "widgets" key
+        const nlohmann::json* widgetsArray = nullptr;
+        if (json.is_array())
+        {
+            // Legacy format: root is array
+            widgetsArray = &json;
+        }
+        else if (json.is_object() && json.contains("widgets") && json["widgets"].is_array())
+        {
+            // New format: root is object with "widgets" key
+            widgetsArray = &json["widgets"];
+        }
+        else
+        {
+            return std::nullopt; // Invalid format
+        }
+
+        for (const auto &item : *widgetsArray)
         {
             if (item.contains("type") && item["type"] == "form")
             {

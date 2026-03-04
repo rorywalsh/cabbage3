@@ -230,6 +230,15 @@ bool CabbageAudioApp::initialiseStdioConnection()
 {
     lattice::logDebug << "Initializing stdin/stdout communication with VS Code";
 
+#ifdef CabbageTests
+    // In unit tests there is no VS Code stdin pipe to close, so a blocking
+    // std::getline thread can hang shutdown. Skip stdin thread creation.
+    if (!csdFileAndPath.empty())
+    {
+        sendWidgetDataToVscode();
+    }
+    return true;
+#else
     // Start a thread to read from stdin
     stdinThread = std::thread(
         [this]()
@@ -251,6 +260,7 @@ bool CabbageAudioApp::initialiseStdioConnection()
     }
 
     return true;
+#endif
 }
 
 //==============================================================================
