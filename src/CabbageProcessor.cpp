@@ -145,9 +145,18 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
             const std::string testFile = araSection.value("testFile", std::string{});
             if (!testFile.empty())
             {
-                lattice::logInfo << "ARA standalone: test file: " << testFile;
-                araTestThread = std::thread([this, testFile]() {
-                    performAraAnalysisFromFile(testFile);
+                std::filesystem::path resolvedTestFile = std::filesystem::path(testFile);
+                if (resolvedTestFile.is_relative())
+                {
+                    resolvedTestFile = std::filesystem::path(araCsdPath).parent_path() / resolvedTestFile;
+                }
+                resolvedTestFile = resolvedTestFile.lexically_normal();
+
+                lattice::logInfo << "ARA standalone: test file: " << testFile
+                                 << " -> resolved: " << resolvedTestFile.string();
+
+                araTestThread = std::thread([this, resolvedTestFile]() {
+                    performAraAnalysisFromFile(resolvedTestFile.string());
                 });
             }
             else
