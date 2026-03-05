@@ -178,6 +178,9 @@ class Engine
     // Setup reserved channel
     void setReservedChannels();
 
+    // Build a Csound UDS struct definition and global instance for all reserved channels
+    std::string createGlobalStruct();
+
     // Get full range value from widget
     static float remap(double n, double start1, double stop1, double start2, double stop2);
     float getFullRangeValue(std::string channel, float normalValue);

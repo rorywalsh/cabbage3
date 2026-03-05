@@ -145,11 +145,30 @@ bool Engine::setupCsound()
         else
         {
             // Regular unencrypted CSD file
-            csCompileResult = csound->Compile(csdFile.c_str());
+            const auto globalStruct = createGlobalStruct();
+            if(csound->CompileOrc(globalStruct.c_str()) == CSOUND_SUCCESS)
+            {
+                csCompileResult = csound->Compile(csdFile.c_str());
+            }
+            else
+            {
+                lattice::logDebug << "Failed to compile global struct for Cabbage reserved channels.";
+                csCompileResult = -1;
+            }
         }
 #else
         // Free version: Only handle unencrypted files
-        csCompileResult = csound->Compile(csdFile.c_str());
+        const auto globalStruct = createGlobalStruct();
+        if(csound->CompileOrc(globalStruct.c_str()) == CSOUND_SUCCESS)
+        {
+            csCompileResult = csound->Compile(csdFile.c_str());
+        }
+        else
+        {
+            lattice::logDebug << "Failed to compile global struct for Cabbage reserved channels.";
+            csCompileResult = -1;
+        }   
+
 #endif
         setReservedChannels();
         // No check for i-time errors and instr0 issues
@@ -302,6 +321,54 @@ void Engine::setReservedChannels()
 
     csound->SetStringChannel("GLOBAL_APPLICATIONS_DIRECTORY",
         (char *)std::filesystem::path(lattice::File::getSpecialLocation("GLOBAL_APPLICATIONS_DIRECTORY")).generic_string().c_str());
+}
+
+//===========================================================================================
+std::string Engine::createGlobalStruct()
+{
+    // Struct member declarations — order must match the init values below
+    std::string structDef = "struct CabbageStruct ";
+    structDef += "csdPath:S, araUpdate:k, isAPlugin:k, araPlugin:k";
+    structDef += ", userHomeDirectory:S, userDocumentsDirectory:S, userDesktopDirectory:S";
+    structDef += ", userMusicDirectory:S, userMoviesDirectory:S, userPicturesDirectory:S";
+    structDef += ", userApplicationDataDirectory:S, commonApplicationDataDirectory:S";
+    structDef += ", commonDocumentsDirectory:S, windowsSystemDirectory:S, globalApplicationsDirectory:S";
+    structDef += "\n";
+
+    auto getDir = [](const std::string &key) {
+        return std::filesystem::path(lattice::File::getSpecialLocation(key)).generic_string();
+    };
+
+    auto csdPath = cabbage::File::getParentDirectory(cabbage::File::getCsdFileAndPath());
+
+#ifndef CabbageApp
+    const int isAPlugin = 1;
+#else
+    const int isAPlugin = 0;
+#endif
+
+    std::string initLine = "cabbage@global:CabbageStruct init ";
+    initLine += "\"" + csdPath + "\", ";
+    initLine += "0, ";
+    initLine += std::to_string(isAPlugin);
+#ifdef LATTICE_HAS_ARA
+    initLine += ", 1";
+#else
+    initLine += ", 0";
+#endif
+    initLine += ", \"" + getDir("USER_HOME_DIRECTORY") + "\"";
+    initLine += ", \"" + getDir("USER_DOCUMENTS_DIRECTORY") + "\"";
+    initLine += ", \"" + getDir("USER_DESKTOP_DIRECTORY") + "\"";
+    initLine += ", \"" + getDir("USER_MUSIC_DIRECTORY") + "\"";
+    initLine += ", \"" + getDir("USER_MOVIES_DIRECTORY") + "\"";
+    initLine += ", \"" + getDir("USER_PICTURES_DIRECTORY") + "\"";
+    initLine += ", \"" + getDir("USER_APPLICATION_DATA_DIRECTORY") + "\"";
+    initLine += ", \"" + getDir("COMMON_APPLICATION_DATA_DIRECTORY") + "\"";
+    initLine += ", \"" + getDir("COMMON_DOCUMENTS_DIRECTORY") + "\"";
+    initLine += ", \"" + getDir("WINDOWS_SYSTEM_DIRECTORY") + "\"";
+    initLine += ", \"" + getDir("GLOBAL_APPLICATIONS_DIRECTORY") + "\"";
+
+    return structDef + initLine;
 }
 
 //===========================================================================================
