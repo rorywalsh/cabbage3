@@ -272,6 +272,8 @@ class Engine
     std::string compileErrors;
     std::unique_ptr<Csound> csound;
     CabbageProcessor &processor;
+    std::atomic<bool> shuttingDown {false};
+    mutable std::mutex channelCacheMutex;
     std::unordered_map<std::string, CabbageOpcodeData> channelCache;
     std::unordered_set<std::string> dirtyChannels;
     std::atomic<long long> totalSamplesCounter {0};

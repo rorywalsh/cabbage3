@@ -66,14 +66,6 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
     }
 #endif
 
-    // addChannels must be called BEFORE setupCsound so that getChannelConfig() returns
-    // the correct nchnls/nchnls_i when setupCsound passes --nchnls= to Csound.
-    // If addChannels is called after setupCsound, getChannelConfig() returns 0 channels
-    // (no buses added yet), causing --nchnls=0 to be passed to Csound. With nchnls=0,
-    // Csound allocates a zero-size spout buffer, and the outs opcode writes past its end,
-    // corrupting the heap (detected as STATUS_HEAP_CORRUPTION in Csound::~Csound()).
-    addChannels(config);
-
     if (!cabbage.setupCsound())
     {
         suspendProcessing();
@@ -89,6 +81,11 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
 
         return;
     }
+
+    // Configure processor buses after Csound initialises. setupCsound() now guards against
+    // zero-channel startup by falling back to CSD channel declarations when bus config
+    // has not yet been added.
+    addChannels(config);
 
     // All message to webview will be wrapped in window.postMessage()
     setWebViewSendFunctionName("postMessage");

@@ -25,6 +25,7 @@
 #include "CabbageProcessor.h"
 
 #include <choc/text/choc_StringUtilities.h>
+#include <algorithm>
 
 namespace cabbage
 {
@@ -36,6 +37,14 @@ Engine::Engine(CabbageProcessor &p)
 
 Engine::~Engine()
 {
+    shuttingDown.store(true, std::memory_order_release);
+
+    {
+        std::lock_guard<std::mutex> lock(channelCacheMutex);
+        channelCache.clear();
+        dirtyChannels.clear();
+    }
+
     if (csound)
     {
         csCompileResult = false;
@@ -113,10 +122,26 @@ bool Engine::setupCsound()
     csound->SetOption((char *)"-d");
     csound->SetOption((char *)"-b0");
     csound->SetOption(std::string("--sample-rate=" + std::to_string(processor.getSampleRate())).c_str());
-    csound->SetOption(
-        std::string("--nchnls=" + std::to_string(processor.getChannelConfig().getTotalNumOutputChannels())).c_str());
-    csound->SetOption(
-        std::string("--nchnls_i=" + std::to_string(processor.getChannelConfig().getTotalNumInputChannels())).c_str());
+
+    int numOutputs = static_cast<int>(processor.getChannelConfig().getTotalNumOutputChannels());
+    int numInputs = static_cast<int>(processor.getChannelConfig().getTotalNumInputChannels());
+
+    // If buses are not configured yet (e.g., during processor construction), fall back to
+    // channel declarations in the CSD. This prevents passing --nchnls=0 to Csound.
+    if (numOutputs <= 0)
+        numOutputs = cabbage::File::getNumberOfOutputChannels(csdFile);
+
+    if (numInputs <= 0)
+        numInputs = cabbage::File::getNumberOfInputChannels(csdFile);
+
+    if (numInputs <= 0)
+        numInputs = numOutputs;
+
+    numOutputs = std::max(1, numOutputs);
+    numInputs = std::max(1, numInputs);
+
+    csound->SetOption(std::string("--nchnls=" + std::to_string(numOutputs)).c_str());
+    csound->SetOption(std::string("--nchnls_i=" + std::to_string(numInputs)).c_str());
 
     // csdFile should already be set by CabbageProcessor constructor - single source of truth
     if (csdFile.empty())
@@ -1172,6 +1197,11 @@ bool Engine::hasChannel(const nlohmann::json &widget, const std::string &channel
 
 void Engine::updateChannelCache(const CabbageOpcodeData &data)
 {
+    if (shuttingDown.load(std::memory_order_acquire))
+        return;
+
+    std::lock_guard<std::mutex> lock(channelCacheMutex);
+
     if (channelCache.find(data.channel) != channelCache.end())
     {
         // For value-only updates, don't merge - just update the value field
@@ -1200,6 +1230,11 @@ void Engine::updateChannelCache(const CabbageOpcodeData &data)
 
 bool Engine::isValueDifferent(const CabbageOpcodeData &data)
 {
+    if (shuttingDown.load(std::memory_order_acquire))
+        return false;
+
+    std::lock_guard<std::mutex> lock(channelCacheMutex);
+
     if (channelCache.find(data.channel) == channelCache.end())
     {
         return true;
@@ -1240,6 +1275,11 @@ bool Engine::isValueDifferent(const CabbageOpcodeData &data)
 
 void Engine::flushChannelCache()
 {
+    if (shuttingDown.load(std::memory_order_acquire))
+        return;
+
+    std::lock_guard<std::mutex> lock(channelCacheMutex);
+
     for (const auto &channel : dirtyChannels)
     {
         const auto &cachedData = channelCache[channel];

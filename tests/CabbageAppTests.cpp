@@ -544,6 +544,69 @@ TEST_CASE("CabbageAudioApp command line parsing", "[CabbageAudioApp]") {
     std::cout << "\n==================== END TEST: CabbageAudioApp command line parsing ====================\n";
 }
 
+//==============================================================================
+// TEST 8: File Resave — InitCabbage on a live session
+//
+// This reproduces the crash that occurred when a CSD file was saved while
+// CabbageAudioApp already had a running processor/audio stream.  The resave
+// path queues a bare InitCabbage command (no preceding StopAudio/KillProcessor),
+// which calls createCabbageProcessor() on a live session.  That sequence must:
+//   1. Stop the old stream without opening a new one first
+//   2. Free the old emptyInputBuffer before the new stream fires its first cb
+//   3. Fully destroy the old Csound instance (joining all threads) before the
+//      new one is constructed, avoiding concurrent Csound global-state access
+//      that caused STATUS_HEAP_CORRUPTION (0xC0000374) on Windows.
+//==============================================================================
+TEST_CASE("File resave — InitCabbage on live session does not crash", "[CabbageApp]")
+{
+    ensureValidSettingsFileExists();
+
+    std::cout << "\n==================== BEGIN TEST: File resave InitCabbage ====================\n";
+
+    const char* args[] = {"CabbageApp"};
+    auto app = std::make_unique<CabbageAudioApp>(1, const_cast<char**>(args));
+    REQUIRE(app != nullptr);
+
+    // Write a simple CSD to disk so createCabbageProcessor() has a real file.
+    std::filesystem::path tempPath =
+        std::filesystem::temp_directory_path() /
+        ("test_resave_" + std::to_string(std::time(nullptr)) + ".csd");
+    {
+        std::ofstream f(tempPath);
+        f << TestCsdFiles::basicOscillator;
+    }
+
+    app->setCsoundFile(tempPath.string());
+    REQUIRE(std::filesystem::exists(tempPath));
+
+    // First load — equivalent to the initial "onFileChanged" from VS Code.
+    REQUIRE_NOTHROW(app->initialiseCabbage());
+
+    // Let the processor and audio stream settle briefly.
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    // Simulate a file resave: VS Code sends a second InitCabbage while the
+    // session is already live.  This must not crash or corrupt the heap.
+    for (int resave = 0; resave < 3; ++resave)
+    {
+        app->addMessageToQueue(CabbageAudioApp::CommandType::InitCabbage);
+        REQUIRE_NOTHROW(app->onIdle());
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    }
+
+    // Verify the processor is still functional after resaves.
+    REQUIRE(app->processor != nullptr);
+    REQUIRE(app->processor->getCabbageEngine().csdCompiledWithoutError());
+
+    // Clean teardown.
+    app->addMessageToQueue(CabbageAudioApp::CommandType::StopAudio);
+    app->addMessageToQueue(CabbageAudioApp::CommandType::KillProcessor);
+    REQUIRE_NOTHROW(app->onIdle());
+
+    std::filesystem::remove(tempPath);
+    std::cout << "\n==================== END TEST: File resave InitCabbage ====================\n";
+}
+
 void ensureValidSettingsFileExists() {
     std::string settingsPath = cabbage::File::getSettingsFile();
     if(std::filesystem::exists(settingsPath))
