@@ -79,6 +79,7 @@ void CabbageAudioApp::closeAudioDevice()
         }
 
         delete[] emptyInputBuffer;
+        emptyInputBufferInitialised = false;
     }
 }
 
@@ -548,12 +549,35 @@ bool CabbageAudioApp::createCabbageProcessor()
 {
     canProcessAudio.store(false);
     canDestroyProcessor.store(false);
+
+    // Capture old channel count before anything changes so we can free
+    // the old emptyInputBuffer using the correct size.
+    const unsigned int prevNumInputChannels = numInputChannels;
+
     numInputChannels = cabbage::File::getNumberOfInputChannels(csdFileAndPath);
     numOutputChannels = cabbage::File::getNumberOfOutputChannels(csdFileAndPath);
 
-    // Init audio and MIDI
-    initialiseAudio(true);
+    // Phase 1: stop the existing stream (if any) WITHOUT starting a new one.
+    // Passing false skips openStream/startStream, so the callback cannot run
+    // while we free the old buffer and destroy the old Csound instance.
+    initialiseAudio(false);
     initialiseMidi();
+
+    // Stream is now guaranteed stopped — safe to free the old input buffer.
+    if (emptyInputBufferInitialised)
+    {
+        for (unsigned int ch = 0; ch < prevNumInputChannels; ++ch)
+            delete[] emptyInputBuffer[ch];
+        delete[] emptyInputBuffer;
+        emptyInputBuffer = nullptr;
+        emptyInputBufferInitialised = false;
+    }
+
+    // Fully destroy the old processor (and its Csound instance) before creating
+    // a new one. Csound has process-global state; overlapping two instances
+    // causes STATUS_HEAP_CORRUPTION on Windows. reset() joins all threads
+    // (idle + araTestThread) and destroys Csound so we start clean.
+    processor.reset();
 
     std::stringstream config;
     config << std::to_string(getNumInputChannels()) << "-" << std::to_string(getNumOutputChannels());
@@ -571,18 +595,27 @@ bool CabbageAudioApp::createCabbageProcessor()
 
     lattice::logDebug << "Num widgets : " << processor->getCabbageEngine().getWidgets().size();
 
-    // Preallocate the empty input buffer in case of no input device
+    // Register callback - will be triggered from CabbageProcessor
+    processor->hostCallback = [&](CabbageOpcodeData data) { hostCallback(data); };
+
+    // Phase 2: open and start the new stream. openStream may negotiate a
+    // different buffer size than requested (e.g. WASAPI format negotiation),
+    // so we must call it BEFORE allocating emptyInputBuffer so that bufferSize
+    // reflects the actual hardware value.  canProcessAudio is still false here,
+    // so the callback cannot call process() and will not dereference the buffer.
+    initialiseAudio(true);
+
+    // Allocate emptyInputBuffer using the actual bufferSize that openStream
+    // confirmed (updated inside initialiseAudio).  The callback may already be
+    // running at this point but it only reads this buffer when canProcessAudio
+    // is true (set below), so there is no race.
     emptyInputBuffer = new float *[numInputChannels];
     for (unsigned int ch = 0; ch < numInputChannels; ++ch)
     {
         emptyInputBuffer[ch] = new float[bufferSize];
-        std::fill(emptyInputBuffer[ch], emptyInputBuffer[ch] + bufferSize, 0.0f); // Initialize with zeros
+        std::fill(emptyInputBuffer[ch], emptyInputBuffer[ch] + bufferSize, 0.0f);
     }
-
     emptyInputBufferInitialised = true;
-
-    // Register callback - will be triggered from CabbageProcessor
-    processor->hostCallback = [&](CabbageOpcodeData data) { hostCallback(data); };
 
     canProcessAudio.store(true);
 
@@ -613,11 +646,10 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
     }
     else
     {
-        // Optionally stop/close existing stream before reusing
-        //        if (audioDevice->isStreamRunning())
-        //            audioDevice->stopStream();
-        //        if (audioDevice->isStreamOpen())
-        //            audioDevice->closeStream();
+        if (audioDevice->isStreamRunning())
+            audioDevice->stopStream();
+        if (audioDevice->isStreamOpen())
+            audioDevice->closeStream();
     }
 
     auto settingsFilePath = cabbage::File::getSettingsFile();
@@ -683,6 +715,10 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
             audioDevice->openStream(&outputParameters, inputParameters.nChannels == 0 ? nullptr : &inputParameters,
                                     RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &CabbageAudioApp::audioCallback,
                                     this); // Pass 'this' as userData
+
+            // RtAudio / WASAPI may negotiate a different buffer size than requested.
+            // Sync the member so emptyInputBuffer is always sized correctly.
+            bufferSize = bufferFrames;
 
             audioDevice->startStream();
         }
@@ -955,6 +991,7 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
         // Use the preallocated empty input buffer
         deinterleavedInput = app->getEmptyInputBuffer();
     }
+
 
     // Deinterleave the output buffer into separate channels
     float **deinterleavedOutput = new float *[numOutputChannels];

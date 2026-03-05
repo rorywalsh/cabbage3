@@ -159,6 +159,7 @@ bool Engine::setupCsound()
 #else
         // Free version: Only handle unencrypted files
         const auto globalStruct = createGlobalStruct();
+        lattice::logDebug << globalStruct;
         if(csound->CompileOrc(globalStruct.c_str()) == CSOUND_SUCCESS)
         {
             csCompileResult = csound->Compile(csdFile.c_str());
@@ -328,7 +329,7 @@ std::string Engine::createGlobalStruct()
 {
     // Struct member declarations — order must match the init values below
     std::string structDef = "struct CabbageStruct ";
-    structDef += "csdPath:S, araUpdate:k, isAPlugin:k, araPlugin:k";
+    structDef += "csdPath:S, araUpdate:k, isAPlugin:i, araPlugin:i";
     structDef += ", userHomeDirectory:S, userDocumentsDirectory:S, userDesktopDirectory:S";
     structDef += ", userMusicDirectory:S, userMoviesDirectory:S, userPicturesDirectory:S";
     structDef += ", userApplicationDataDirectory:S, commonApplicationDataDirectory:S";
@@ -339,7 +340,7 @@ std::string Engine::createGlobalStruct()
         return std::filesystem::path(lattice::File::getSpecialLocation(key)).generic_string();
     };
 
-    auto csdPath = cabbage::File::getParentDirectory(cabbage::File::getCsdFileAndPath());
+    auto csdPath = std::filesystem::path(cabbage::File::getParentDirectory(cabbage::File::getCsdFileAndPath())).generic_string();
 
 #ifndef CabbageApp
     const int isAPlugin = 1;
