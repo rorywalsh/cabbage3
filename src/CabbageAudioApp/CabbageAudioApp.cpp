@@ -1073,35 +1073,76 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
 //============================================================================================
 void CabbageAudioApp::addDevicesToSettings(const std::string &settingsPath)
 {
-    std::ifstream file(settingsPath);
-    if (!file)
+    nlohmann::json settingsJson;
+
+    // Ensure the directory exists
+    try
     {
-        lattice::logDebug << "Error: Could not open settings file: " << settingsPath;
+        std::filesystem::path filePath(settingsPath);
+        std::filesystem::path dirPath = filePath.parent_path();
+        if (!dirPath.empty() && !std::filesystem::exists(dirPath))
+        {
+            std::filesystem::create_directories(dirPath);
+            lattice::logDebug << "Created settings directory: " << dirPath.string();
+        }
+    }
+    catch (const std::filesystem::filesystem_error &e)
+    {
+        lattice::logDebug << "Error creating settings directory: " << e.what();
         return;
     }
 
-    nlohmann::json settingsJson;
-
-    // Check if file is empty before parsing
-    if (file.peek() != std::ifstream::traits_type::eof())
+    // Try to open existing file
+    std::ifstream file(settingsPath);
+    if (file)
     {
-        try
+        // File exists, try to parse it
+        if (file.peek() != std::ifstream::traits_type::eof())
         {
-            file >> settingsJson; // Parse existing JSON
+            try
+            {
+                file >> settingsJson; // Parse existing JSON
+            }
+            catch (nlohmann::json::exception &e)
+            {
+                lattice::logDebug << "Error parsing existing JSON (file may be corrupted): " << e.what();
+                lattice::logDebug << "Starting with a fresh JSON object.";
+                settingsJson = nlohmann::json::object(); // Start fresh with empty JSON object
+            }
         }
-        catch (nlohmann::json::exception &e)
+        else
         {
-            lattice::logDebug << "Error parsing JSON: " << e.what();
-            file.close();
-            return;
+            lattice::logDebug << "Settings file is empty. Starting with a blank JSON object.";
         }
+        file.close();
     }
     else
     {
-        lattice::logDebug << "Settings file is empty. Starting with a blank JSON object.";
+        // File doesn't exist, create a new one with default structure
+        lattice::logDebug << "Settings file not found. Creating new settings file: " << settingsPath;
+        settingsJson = {
+            {"currentConfig", {
+                {"audio", {
+                    {"driver", 0},
+                    {"inputDevice", "Built-in Input"},
+                    {"outputDevice", "Built-in Output"},
+                    {"in1", 1},
+                    {"in2", 2},
+                    {"out1", 1},
+                    {"out2", 2},
+                    {"bufferSize", 512},
+                    {"sr", 44100}
+                }},
+                {"midi", {
+                    {"inputDevice", "no input"},
+                    {"outputDevice", "no output"},
+                    {"inChan", 0},
+                    {"outChan", 0}
+                }},
+                {"jsSourceDir", "add path to JS src directory"}
+            }}
+        };
     }
-
-    file.close(); // Close read mode
 
     try
     {
@@ -1148,19 +1189,31 @@ void CabbageAudioApp::addDevicesToSettings(const std::string &settingsPath)
 #endif
 
         // Write updated JSON back to file
-        std::ofstream outFile(settingsPath);
-        if (!outFile)
+        // Use nested scope to ensure file is closed via RAII even if exception occurs
         {
-            lattice::logDebug << "Error: Could not open settings file for writing: " << settingsPath;
-            return;
-        }
-        outFile << std::setw(4) << settingsJson;
-        outFile.close();
+            std::ofstream outFile(settingsPath);
+            if (!outFile)
+            {
+                lattice::logDebug << "Error: Could not open settings file for writing: " << settingsPath;
+                return;
+            }
+            outFile << std::setw(4) << settingsJson;
+            outFile.flush();
+            if (!outFile.good())
+            {
+                lattice::logDebug << "Error: Failed to write settings file: " << settingsPath;
+                return;
+            }
+        } // File is automatically closed here via RAII
 
         lattice::logDebug << "Devices successfully added to settings file.";
     }
     catch (nlohmann::json::exception &e)
     {
         lattice::logDebug << "Error processing JSON: " << e.what();
+    }
+    catch (std::exception &e)
+    {
+        lattice::logDebug << "Error adding devices to settings: " << e.what();
     }
 }
