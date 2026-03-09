@@ -185,15 +185,15 @@ bool Engine::setupCsound()
         // Free version: Only handle unencrypted files
         const auto globalStruct = createGlobalStruct();
         lattice::logDebug << globalStruct;
-        if(csound->CompileOrc(globalStruct.c_str()) == CSOUND_SUCCESS)
-        {
+//        if(csound->CompileOrc(globalStruct.c_str()) == CSOUND_SUCCESS)
+//        {
             csCompileResult = csound->Compile(csdFile.c_str());
-        }
-        else
-        {
-            lattice::logDebug << "Failed to compile global struct for Cabbage reserved channels.";
-            csCompileResult = -1;
-        }   
+//        }
+//        else
+//        {
+//            lattice::logDebug << "Failed to compile global struct for Cabbage reserved channels.";
+//            csCompileResult = -1;
+//        }   
 
 #endif
         setReservedChannels();
