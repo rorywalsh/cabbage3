@@ -573,6 +573,16 @@ bool CabbageAudioApp::createCabbageProcessor()
         emptyInputBufferInitialised = false;
     }
 
+    // Clear the hostCallback before destroying the processor to prevent
+    // the idle thread from calling it during shutdown. The idle thread might
+    // still be executing onIdle() even after isIdleRunning is set to false,
+    // and if it calls hostCallback while the processor is being destroyed,
+    // it will try to access destroyed members (cabbage.widgetsMutex) causing a crash.
+    if (processor)
+    {
+        processor->hostCallback = nullptr;
+    }
+
     // Fully destroy the old processor (and its Csound instance) before creating
     // a new one. Csound has process-global state; overlapping two instances
     // causes STATUS_HEAP_CORRUPTION on Windows. reset() joins all threads
