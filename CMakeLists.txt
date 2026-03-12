@@ -473,6 +473,12 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
         target_compile_options(${PROJECT_NAME}-impl PRIVATE -Wall -Wextra -pedantic)
     endif()
 
+    # On Linux, WebViewProcess must finish building (and generate webview_binary.h)
+    # before LatticeClapPlugin.cpp can be compiled
+    if(LINUX AND TARGET WebViewProcess)
+        add_dependencies(${PROJECT_NAME}-impl WebViewProcess)
+    endif()
+
 
     if (APPLE)
         # Add WebKit and Cocoa frameworks for choc::ui::WebView support

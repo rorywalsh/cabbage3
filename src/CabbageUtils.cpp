@@ -33,7 +33,8 @@
 #include <ctime>
 #endif
 
-namespace cabbage {
+namespace cabbage
+{
 
 std::string File::getManufacturerName()
 {
@@ -43,7 +44,7 @@ std::string File::getManufacturerName()
 std::string Utils::sanitisePath(const std::string &path)
 {
     std::string sanitisedPath = path;
-    
+
     // Remove trailing backslashes
     while (!sanitisedPath.empty() && sanitisedPath.back() == '\\')
     {
@@ -77,20 +78,20 @@ bool Utils::validateChannelConfig(const std::string &channelConfig, int maxInput
 {
     std::istringstream ss(channelConfig);
     std::string pair;
-    
+
     while (ss >> pair)
     {
         size_t dashPos = pair.find('-');
         size_t dotPos = pair.find('.');
-        
+
         int inputs = 0;
         int outputs = 0;
-        
+
         if (dotPos != std::string::npos)
         {
             std::string inputPart = pair.substr(0, dashPos);
             std::string outputPart = pair.substr(dashPos + 1);
-            
+
             inputs = std::stoi(inputPart.substr(0, dotPos)) + std::stoi(inputPart.substr(dotPos + 1));
             outputs = std::stoi(outputPart);
         }
@@ -99,16 +100,16 @@ bool Utils::validateChannelConfig(const std::string &channelConfig, int maxInput
             inputs = std::stoi(pair.substr(0, dashPos));
             outputs = std::stoi(pair.substr(dashPos + 1));
         }
-        
+
         if (inputs > maxInputs || outputs > maxOutputs)
         {
             std::cout << "Error: Channel configuration exceeds the maximum limits. Inputs: " << inputs
-            << ", MaxInputs: " << maxInputs << ", Outputs: " << outputs << ", MaxOutputs: " << maxOutputs
-            << std::endl;
+                      << ", MaxInputs: " << maxInputs << ", Outputs: " << outputs << ", MaxOutputs: " << maxOutputs
+                      << std::endl;
             return false; // Invalid configuration
         }
     }
-    
+
     return true; // Valid configuration
 }
 
@@ -119,13 +120,13 @@ std::string Utils::getJsonWithLineNumbers(const nlohmann::json &j)
     std::string line;
     int line_number = 1;
     std::ostringstream result;
-    
+
     while (std::getline(stream, line))
     {
         result << line_number << ": " << line << "\n";
         line_number++;
     }
-    
+
     return result.str();
 }
 
@@ -143,13 +144,13 @@ std::string Utils::getJsonWithLineNumbers(const std::string &json_str)
         std::istringstream json_stream(json_str);
         std::string line;
         int line_number = 1;
-        
+
         while (std::getline(json_stream, line))
         {
             error_output << line_number << ": " << line << "\n";
             line_number++;
         }
-        
+
         return error_output.str();
     }
 }
@@ -179,9 +180,7 @@ bool File::writeToFile(const std::string &filePath, const std::string &content)
 void File::writeToFileAsync(const std::string &filePath, const std::string &content)
 {
     // Launch detached thread for true fire-and-forget (no blocking on destruction)
-    std::thread([filePath, content]() {
-        writeToFile(filePath, content);
-    }).detach();
+    std::thread([filePath, content]() { writeToFile(filePath, content); }).detach();
 }
 
 std::string File::readFromFile(const std::string &filePath)
@@ -206,27 +205,26 @@ std::string File::readFromFile(const std::string &filePath)
     }
 }
 
-void File::readFromFileAsync(const std::string &filePath, std::function<void(const std::string&)> callback)
+void File::readFromFileAsync(const std::string &filePath, std::function<void(const std::string &)> callback)
 {
     // Static vector to keep futures alive (prevents immediate blocking)
     static std::vector<std::future<void>> activeFutures;
-    
+
     // Clean up completed futures to avoid unbounded growth
-    activeFutures.erase(
-        std::remove_if(activeFutures.begin(), activeFutures.end(),
-            [](std::future<void>& f) {
-                return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
-            }),
-        activeFutures.end()
-    );
-    
+    activeFutures.erase(std::remove_if(activeFutures.begin(), activeFutures.end(), [](std::future<void> &f)
+                                       { return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready; }),
+                        activeFutures.end());
+
     // Launch async with explicit policy to ensure new thread
-    activeFutures.push_back(std::async(std::launch::async, [filePath, callback]() {
-        std::string content = readFromFile(filePath);
-        if (callback) {
-            callback(content);
-        }
-    }));
+    activeFutures.push_back(std::async(std::launch::async,
+                                       [filePath, callback]()
+                                       {
+                                           std::string content = readFromFile(filePath);
+                                           if (callback)
+                                           {
+                                               callback(content);
+                                           }
+                                       }));
 }
 
 //======================================================================================================
@@ -270,7 +268,9 @@ std::string File::findCabbageJSWidgetPath()
         std::ifstream file(getSettingsFile(), std::ios::binary);
         if (file.is_open())
         {
-            std::ostringstream oss; oss << file.rdbuf(); file.close();
+            std::ostringstream oss;
+            oss << file.rdbuf();
+            file.close();
             auto jsonData = nlohmann::json::parse(oss.str());
             std::vector<std::string> dirs;
             if (jsonData.contains("currentConfig") && jsonData["currentConfig"].contains("jsSourceDir"))
@@ -279,7 +279,8 @@ std::string File::findCabbageJSWidgetPath()
                 if (val.is_array())
                 {
                     for (auto &v : val)
-                        if (v.is_string()) dirs.emplace_back(v.get<std::string>());
+                        if (v.is_string())
+                            dirs.emplace_back(v.get<std::string>());
                 }
                 else if (val.is_string())
                 {
@@ -368,11 +369,13 @@ std::string File::getCabbageSection(const std::string &csdFilePath)
     // Pro version: Check if file is encrypted
     if (Decrypt::isEncrypted(csdFile))
     {
-        try {
+        try
+        {
             csdText = Decrypt::getCsdText(csdFile);
             lattice::logDebug << "Successfully decrypted CSD file for Cabbage section extraction";
         }
-        catch (const std::exception& e) {
+        catch (const std::exception &e)
+        {
             lattice::logError << "Failed to decrypt CSD file: " << e.what();
             return "";
         }
@@ -380,34 +383,38 @@ std::string File::getCabbageSection(const std::string &csdFilePath)
     else
     {
         // Regular unencrypted CSD file
-        try {
+        try
+        {
             csdText = choc::file::loadFileAsString(csdFile);
         }
-        catch (const choc::file::Error& e) {
-            lattice::logDebug << "Couldn't parse "<< csdFile << " file for text";
+        catch (const choc::file::Error &e)
+        {
+            lattice::logDebug << "Couldn't parse " << csdFile << " file for text";
             return "";
         }
     }
 #else
     // Free version: Only handle unencrypted files
-    try {
+    try
+    {
         csdText = choc::file::loadFileAsString(csdFile);
     }
-    catch (const choc::file::Error& e) {
-        lattice::logDebug << "Couldn't parse "<< csdFile << " file for text";
+    catch (const choc::file::Error &e)
+    {
+        lattice::logDebug << "Couldn't parse " << csdFile << " file for text";
         return "";
     }
 #endif
-    
+
     std::regex cabbageRegex(R"(<Cabbage>([\s\S]*?)</Cabbage>)");
     std::smatch match;
-    
+
     // Search for the content using the regex
     if (std::regex_search(csdText, match, cabbageRegex) && match.size() > 1)
     {
         return match[1].str(); // Return the captured group
     }
-    
+
     return "";
 }
 
@@ -418,7 +425,7 @@ std::optional<nlohmann::json> File::parseCabbageSection(const std::string &csdFi
     {
         // Get the cabbage section from the file
         const std::string cabbageContents = cabbage::File::getCabbageSection(csdFile);
-        
+
         // Parse the cabbageContents as a JSON object
         return nlohmann::json::parse(cabbageContents);
     }
@@ -427,7 +434,7 @@ std::optional<nlohmann::json> File::parseCabbageSection(const std::string &csdFi
         // Handle JSON parsing error
         std::cerr << "Error parsing JSON: " << e.what() << std::endl;
     }
-    
+
     return std::nullopt; // Return empty optional on failure
 }
 
@@ -441,42 +448,48 @@ int File::getNumberOfInputChannels(const std::string &csdFile)
     // Pro version: Check if file is encrypted
     if (Decrypt::isEncrypted(csdFilePath))
     {
-        try {
+        try
+        {
             input = Decrypt::getCsdText(csdFilePath);
         }
-        catch (const std::exception& e) {
+        catch (const std::exception &e)
+        {
             lattice::logError << "Failed to decrypt CSD file: " << e.what();
             return 2;
         }
     }
     else
     {
-        try {
+        try
+        {
             input = choc::file::loadFileAsString(csdFilePath);
         }
-        catch (const choc::file::Error& e) {
+        catch (const choc::file::Error &e)
+        {
             lattice::logDebug << "Couldn't parse " << csdFilePath << " file for text";
             return 2;
         }
     }
 #else
-    try {
+    try
+    {
         input = choc::file::loadFileAsString(csdFilePath);
     }
-    catch (const choc::file::Error& e) {
+    catch (const choc::file::Error &e)
+    {
         lattice::logDebug << "Couldn't parse " << csdFilePath << " file for text";
         return 2;
     }
 #endif
-    
+
     // Define the regex for inputs (nchnls_i)
     std::regex inputRegex(R"(^\s*nchnls_i\s*=\s*(\d+)\s*$)", std::regex_constants::icase);
     std::smatch match;
-    
+
     // Search for each line individually using regex
     std::istringstream stream(input);
     std::string line;
-    
+
     while (std::getline(stream, line))
     {
         if (std::regex_match(line, match, inputRegex))
@@ -485,7 +498,7 @@ int File::getNumberOfInputChannels(const std::string &csdFile)
             return std::stoi(match[1].str());
         }
     }
-    
+
     // return number of output channels if nchnls_i is not found
     return getNumberOfOutputChannels(csdFile);
 }
@@ -500,42 +513,48 @@ int File::getNumberOfOutputChannels(const std::string &csdFile)
     // Pro version: Check if file is encrypted
     if (Decrypt::isEncrypted(csdFilePath))
     {
-        try {
+        try
+        {
             input = Decrypt::getCsdText(csdFilePath);
         }
-        catch (const std::exception& e) {
+        catch (const std::exception &e)
+        {
             lattice::logError << "Failed to decrypt CSD file: " << e.what();
             return 2;
         }
     }
     else
     {
-        try {
+        try
+        {
             input = choc::file::loadFileAsString(csdFilePath);
         }
-        catch (const choc::file::Error& e) {
+        catch (const choc::file::Error &e)
+        {
             lattice::logDebug << "Couldn't parse " << csdFilePath << " file for text";
             return 2;
         }
     }
 #else
-    try {
+    try
+    {
         input = choc::file::loadFileAsString(csdFilePath);
     }
-    catch (const choc::file::Error& e) {
+    catch (const choc::file::Error &e)
+    {
         lattice::logDebug << "Couldn't parse " << csdFilePath << " file for text";
         return 2;
     }
 #endif
-    
+
     // Define the regex for outputs (nchnls)
     std::regex outputRegex(R"(^\s*nchnls\s*=\s*(\d+)\s*$)", std::regex_constants::icase);
     std::smatch match;
-    
+
     // Search for each line individually using regex
     std::istringstream stream(input);
     std::string line;
-    
+
     while (std::getline(stream, line))
     {
         if (std::regex_match(line, match, outputRegex))
@@ -544,7 +563,7 @@ int File::getNumberOfOutputChannels(const std::string &csdFile)
             return std::stoi(match[1].str());
         }
     }
-    
+
     return 2;
 }
 
@@ -552,7 +571,7 @@ std::string File::getCabbageResourceDir()
 {
     if (lattice::File::usesBundledResources())
         return lattice::File::getResourceDirFromBundle();
-    
+
 #if defined(_WIN32)
     return getWindowsProgramDataDir();
 #elif defined(__APPLE__)
@@ -566,41 +585,46 @@ std::string File::getCabbageResourceDir()
 
 // Static cache for CSD file paths - keyed by binary name to support multiple plugin types
 // Each plugin binary (e.g., different .vst3 files) gets its own cached CSD path and temp dir data
-namespace {
-    // Struct to hold all cached data for a plugin binary
-    struct CachedPluginData {
-        std::string csdPath;           // The cached CSD file path
-        std::string tempDir;           // Temp directory path (empty if no extraction)
-        int tempDirRefCount;           // Reference count for temp dir (0 if tempDir.empty())
-    };
-    
-    // Cache struct to hold the map and mutex
-    struct Cache {
-        std::unordered_map<std::string, CachedPluginData> data;
-        std::mutex mutex;
-    };
-    
-    // Function to get the cache, ensuring lazy initialization
-    Cache& getCache() {
-        static Cache cache;
-        return cache;
-    }
-    
-    // Helper to get thread-safe lock for cache access
-    std::unique_lock<std::mutex> getLock() {
-        return std::unique_lock<std::mutex>(getCache().mutex);
-    }
+namespace
+{
+// Struct to hold all cached data for a plugin binary
+struct CachedPluginData
+{
+    std::string csdPath; // The cached CSD file path
+    std::string tempDir; // Temp directory path (empty if no extraction)
+    int tempDirRefCount; // Reference count for temp dir (0 if tempDir.empty())
+};
+
+// Cache struct to hold the map and mutex
+struct Cache
+{
+    std::unordered_map<std::string, CachedPluginData> data;
+    std::mutex mutex;
+};
+
+// Function to get the cache, ensuring lazy initialization
+Cache &getCache()
+{
+    static Cache cache;
+    return cache;
 }
 
-void File::setCsdFileAndPath(const std::string& csdFile)
+// Helper to get thread-safe lock for cache access
+std::unique_lock<std::mutex> getLock()
 {
-    auto lock = getLock(); // Thread-safe access to global cache
+    return std::unique_lock<std::mutex>(getCache().mutex);
+}
+} // namespace
+
+void File::setCsdFileAndPath(const std::string &csdFile)
+{
+    auto lock = getLock();                                       // Thread-safe access to global cache
     std::string binaryName = lattice::File::getBinaryFileName(); // Get unique key for this plugin binary
-    
-    if(!csdFile.empty() && lattice::File::exists(csdFile))
+
+    if (!csdFile.empty() && lattice::File::exists(csdFile))
     {
         // Get or create the cached data for this binary
-        auto& data = getCache().data[binaryName];
+        auto &data = getCache().data[binaryName];
         data.csdPath = csdFile; // Cache CSD path
         lattice::logInfo << "setCsdFileAndPath: Set CSD path for " << binaryName << " to: " << csdFile;
     }
@@ -610,7 +634,7 @@ void File::setCsdFileAndPath(const std::string& csdFile)
     }
 }
 
-std::pair<std::string, std::string> File::setupRootDirectory(const std::string& csdFile)
+std::pair<std::string, std::string> File::setupRootDirectory(const std::string &csdFile)
 {
     std::string finalCsdPath;
     std::string rootPath;
@@ -636,11 +660,11 @@ std::pair<std::string, std::string> File::setupRootDirectory(const std::string& 
 #else
     // Pro mode: root path is parent of parent of CSD file
     rootPath = cabbage::File::getParentDirectory(cabbage::File::getParentDirectory(finalCsdPath));
-    
+
     // Check if this binary already has an extracted temp directory cached
     std::string binaryName = lattice::File::getBinaryFileName();
     std::string cabzTempDir;
-    
+
     {
         auto lock = getLock();
         auto it = getCache().data.find(binaryName);
@@ -649,7 +673,7 @@ std::pair<std::string, std::string> File::setupRootDirectory(const std::string& 
             // Already extracted for this binary, reuse without incrementing here
             cabzTempDir = it->second.tempDir;
             lattice::logInfo << "Reusing existing temp dir for " << binaryName << ": " << cabzTempDir
-                           << " (current ref count: " << it->second.tempDirRefCount << ")";
+                             << " (current ref count: " << it->second.tempDirRefCount << ")";
         }
     }
 
@@ -660,15 +684,15 @@ std::pair<std::string, std::string> File::setupRootDirectory(const std::string& 
         setCsdFileAndPath(finalCsdPath);
         return {cabzTempDir, cabzTempDir}; // Return temp dir as both root and temp dir
     }
-    
+
     // First time extraction for this binary
     cabzTempDir = cabbage::File::extractCabzArchive(rootPath);
-    
+
     if (!cabzTempDir.empty())
     {
         // Log extracted files for debugging
         auto files = lattice::File::getFilesOfType(cabzTempDir, "*");
-        for (auto& f : files)
+        for (auto &f : files)
         {
             lattice::logInfo << "File: " << f;
         }
@@ -676,11 +700,11 @@ std::pair<std::string, std::string> File::setupRootDirectory(const std::string& 
         // Store temp dir and set initial reference count
         {
             auto lock = getLock();
-            auto& data = getCache().data[binaryName];
+            auto &data = getCache().data[binaryName];
             data.tempDir = cabzTempDir;
             data.tempDirRefCount = 0; // Will be incremented by CabbageProcessor constructor
             lattice::logInfo << "Set temp dir for " << binaryName << " to: " << cabzTempDir
-                           << " (initial ref count: " << data.tempDirRefCount << ")";
+                             << " (initial ref count: " << data.tempDirRefCount << ")";
         }
 
         // Override with the encrypted CSD file from the cabz archive
@@ -705,45 +729,46 @@ std::string File::getCsdFileAndPath(std::string csdFile)
     // All subsequent calls for the same binary use the cached value.
     // This ensures cabz temp directories work correctly and supports multiple plugin types.
 
-    auto lock = getLock(); // Thread-safe access
+    auto lock = getLock();                                       // Thread-safe access
     std::string binaryName = lattice::File::getBinaryFileName(); // Get unique key for this plugin binary
 
     // If csdFile is provided and exists, return it (but don't cache - use setCsdFileAndPath for that)
-    if(!csdFile.empty() && lattice::File::exists(csdFile))
+    if (!csdFile.empty() && lattice::File::exists(csdFile))
     {
         return csdFile;
     }
 
     // Use the cached path for this binary
     auto it = getCache().data.find(binaryName);
-    if(it != getCache().data.end() && !it->second.csdPath.empty() && lattice::File::exists(it->second.csdPath))
+    if (it != getCache().data.end() && !it->second.csdPath.empty() && lattice::File::exists(it->second.csdPath))
     {
-        lattice::logDebug << "getCsdFileAndPath: Using cached CSD path for " << binaryName << ": " << it->second.csdPath;
+        lattice::logDebug << "getCsdFileAndPath: Using cached CSD path for " << binaryName << ": "
+                          << it->second.csdPath;
         return it->second.csdPath;
     }
 
     std::string resourceDir = lattice::File::getResourceDirFromBundle();
     std::string binaryFileName = lattice::File::getBinaryFileName();
     size_t pos = binaryFileName.find_last_of(".");
-    
+
     if (pos != std::string::npos)
         binaryFileName = binaryFileName.substr(0, pos);
-    
+
     if (usesBundledResources())
     {
         const std::string newPath = joinPath(resourceDir, binaryFileName + std::string(".csd"));
         return newPath;
     }
-    
+
     const std::string newPath = joinPath(resourceDir, binaryFileName);
-    
-    if(!lattice::File::exists(newPath))
+
+    if (!lattice::File::exists(newPath))
     {
-        auto fullPath = lattice::File::joinPath(cabbage::File::getCabbageResourceDir(), binaryFileName, binaryFileName + std::string(".csd"));
+        auto fullPath = lattice::File::joinPath(cabbage::File::getCabbageResourceDir(), binaryFileName,
+                                                binaryFileName + std::string(".csd"));
         return fullPath;
     }
-    
-    
+
     return joinPath(newPath, binaryFileName + ".csd");
 }
 
@@ -755,7 +780,7 @@ nlohmann::json File::extractPropsFromJS(const std::string &jsContent)
 {
     std::string propsKey = "this.props =";
     size_t propsPos = jsContent.find(propsKey);
-    
+
     if (propsPos != std::string::npos)
     {
         // Start of the actual props object (after "this.props =")
@@ -765,11 +790,11 @@ nlohmann::json File::extractPropsFromJS(const std::string &jsContent)
             std::cerr << "No opening brace for props found." << std::endl;
             return {};
         }
-        
+
         // Manual brace matching
         int braceCount = 1;
         size_t end = start + 1;
-        
+
         while (end < jsContent.size() && braceCount > 0)
         {
             if (jsContent[end] == '{')
@@ -782,17 +807,17 @@ nlohmann::json File::extractPropsFromJS(const std::string &jsContent)
             }
             ++end;
         }
-        
+
         // If we exited and braceCount is not zero, something went wrong
         if (braceCount != 0)
         {
             std::cerr << "Mismatched braces in the props object." << std::endl;
             return {};
         }
-        
+
         // Extract the props object string
         std::string propsString = jsContent.substr(start, end - start);
-        
+
         // Parse the props string into a JSON object using nlohmann::json
         try
         {
@@ -801,7 +826,7 @@ nlohmann::json File::extractPropsFromJS(const std::string &jsContent)
         catch (const nlohmann::json::parse_error &e)
         {
             lattice::logInfo << "JSON parse error: " << e.what() << "\nOffending JSON:\n"
-            << cabbage::Utils::getJsonWithLineNumbers(propsString);
+                             << cabbage::Utils::getJsonWithLineNumbers(propsString);
             return {};
         }
     }
@@ -809,7 +834,7 @@ nlohmann::json File::extractPropsFromJS(const std::string &jsContent)
     {
         std::cerr << "No props object found in the JavaScript file." << std::endl;
     }
-    
+
     return {};
 }
 
@@ -824,17 +849,15 @@ std::string File::getSettingsFile()
         settingsPath << path << "\\Cabbage\\settings.json";
         return settingsPath.str();
     }
-    
+
 #elif defined __APPLE__
     settingsPath << getenv("HOME") << "/Library/Application Support/Cabbage/settings.json";
     return settingsPath.str();
 #else
-    cabbage::Utils::check(false, "fix this");
-    iniPath.SetFormatted(2048, "%s/.config/%s/", getenv("HOME"), "Cabbage");
-    iniPath.Append("settings.json"); // add file name to path
-    return iniPath.Get();
+    settingsPath << getenv("HOME") << "/.config/Cabbage/settings.json";
+    return settingsPath.str();
 #endif
-    
+
     return {};
 }
 
@@ -847,16 +870,16 @@ std::string File::getSettingsProperty(const std::string &section, const std::str
         std::cerr << "Error: Could not open the file " << getSettingsFile() << std::endl;
         return "";
     }
-    
+
     // Read file contents
     std::ostringstream oss;
     oss << file.rdbuf();
     std::string fileContent = oss.str();
     file.close();
-    
+
     // Parse JSON data
     nlohmann::json jsonData;
-    
+
     try
     {
         jsonData = nlohmann::json::parse(fileContent);
@@ -866,19 +889,18 @@ std::string File::getSettingsProperty(const std::string &section, const std::str
         lattice::logInfo << "Parse error : " << e.what() << " at byte position " << e.byte;
         return "";
     }
-    
+
     // Validate section and key existence
     if (jsonData.contains(section) && jsonData[section].contains(key))
     {
         return jsonData[section][key].get<std::string>();
     }
-    
+
     lattice::logInfo << "Error: Section '" << section << "' or key '" << key << "' not found.";
     return "";
 }
 
-
-std::string File::getCsOptions(const std::string& csdFilePath)
+std::string File::getCsOptions(const std::string &csdFilePath)
 {
     std::string content;
 
@@ -886,10 +908,12 @@ std::string File::getCsOptions(const std::string& csdFilePath)
     // Pro version: Check if file is encrypted
     if (Decrypt::isEncrypted(csdFilePath))
     {
-        try {
+        try
+        {
             content = Decrypt::getCsdText(csdFilePath);
         }
-        catch (const std::exception& e) {
+        catch (const std::exception &e)
+        {
             throw std::runtime_error("Failed to decrypt CSD file: " + std::string(e.what()));
         }
     }
@@ -900,8 +924,7 @@ std::string File::getCsOptions(const std::string& csdFilePath)
         {
             throw std::runtime_error("Failed to open file: " + csdFilePath);
         }
-        content = std::string((std::istreambuf_iterator<char>(file)),
-                              std::istreambuf_iterator<char>());
+        content = std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     }
 #else
     std::ifstream file(csdFilePath);
@@ -909,18 +932,17 @@ std::string File::getCsOptions(const std::string& csdFilePath)
     {
         throw std::runtime_error("Failed to open file: " + csdFilePath);
     }
-    content = std::string((std::istreambuf_iterator<char>(file)),
-                          std::istreambuf_iterator<char>());
+    content = std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 #endif
-    
+
     size_t startPos = content.find("<CsOptions>");
     size_t endPos = content.find("</CsOptions>");
-    
+
     if (startPos == std::string::npos || endPos == std::string::npos)
     {
         return ""; // No CsOptions tag found
     }
-    
+
     startPos += 11; // Move past "<CsOptions>"
     return content.substr(startPos, endPos - startPos);
 }
@@ -961,7 +983,7 @@ std::string File::extractCabzArchive(const std::string &resourceDir)
         file.seekg(0, std::ios::beg);
 
         std::vector<uint8_t> encryptedData(fileSize);
-        file.read(reinterpret_cast<char*>(encryptedData.data()), fileSize);
+        file.read(reinterpret_cast<char *>(encryptedData.data()), fileSize);
         file.close();
 
         lattice::logInfo << "Read encrypted archive: " << fileSize << " bytes";
@@ -981,9 +1003,7 @@ std::string File::extractCabzArchive(const std::string &resourceDir)
 
         // Create an input stream from decrypted zip data
         auto zipStream = std::make_shared<std::istringstream>(
-            std::string(reinterpret_cast<const char*>(zipData.data()), zipData.size()),
-            std::ios::binary
-        );
+            std::string(reinterpret_cast<const char *>(zipData.data()), zipData.size()), std::ios::binary);
 
         // Extract zip archive using choc
         choc::zip::ZipFile archive(zipStream);
@@ -1001,7 +1021,7 @@ std::string File::extractCabzArchive(const std::string &resourceDir)
         lattice::logInfo << "Successfully extracted .cabz archive to: " << tempDir;
         return tempDir;
     }
-    catch (const std::exception& e)
+    catch (const std::exception &e)
     {
         lattice::logError << "Failed to extract .cabz archive: " << e.what();
         return "";
@@ -1018,7 +1038,7 @@ void File::cleanupCabzTempDir(const std::string &tempDir)
         std::filesystem::remove_all(tempDir);
         lattice::logInfo << "Cleaned up temp directory: " << tempDir;
     }
-    catch (const std::exception& e)
+    catch (const std::exception &e)
     {
         lattice::logError << "Failed to cleanup temp directory: " << e.what();
     }
@@ -1026,60 +1046,60 @@ void File::cleanupCabzTempDir(const std::string &tempDir)
 
 // Decrement reference count for temp directory and clean up if no more references
 // Called by CabbageProcessor destructor to ensure temp dirs are cleaned up when last instance is destroyed
-void File::decrementTempDirRef(const std::string& tempDir)
+void File::decrementTempDirRef(const std::string &tempDir)
 {
     if (tempDir.empty())
         return;
 
     auto lock = getLock(); // Thread-safe access
-    
+
     // Find the binary that has this temp dir
-    for (auto& pair : getCache().data)
+    for (auto &pair : getCache().data)
     {
-        auto& data = pair.second;
+        auto &data = pair.second;
         if (data.tempDir == tempDir)
         {
             data.tempDirRefCount--; // Decrement reference count
-            lattice::logInfo << "Decremented ref count for temp dir: " << tempDir 
-                           << " (binary: " << pair.first << ") to " << data.tempDirRefCount;
-            
+            lattice::logInfo << "Decremented ref count for temp dir: " << tempDir << " (binary: " << pair.first
+                             << ") to " << data.tempDirRefCount;
+
             if (data.tempDirRefCount <= 0)
             {
                 // No more references, safe to clean up
                 std::string tempDirToClean = data.tempDir;
-                data.tempDir.clear(); // Clear the temp dir path
-                data.tempDirRefCount = 0; // Reset count
+                data.tempDir.clear();               // Clear the temp dir path
+                data.tempDirRefCount = 0;           // Reset count
                 cleanupCabzTempDir(tempDirToClean); // Actually remove the directory
             }
             return; // Found and handled
         }
     }
-    
+
     lattice::logWarning << "Attempted to decrement ref count for unknown temp dir: " << tempDir;
 }
 
 // Increment reference count for temp directory
 // Called by CabbageProcessor constructor after setupRootDirectory
-void File::incrementTempDirRef(const std::string& tempDir)
+void File::incrementTempDirRef(const std::string &tempDir)
 {
     if (tempDir.empty())
         return;
 
     auto lock = getLock(); // Thread-safe access
-    
+
     // Find the binary that has this temp dir
-    for (auto& pair : getCache().data)
+    for (auto &pair : getCache().data)
     {
-        auto& data = pair.second;
+        auto &data = pair.second;
         if (data.tempDir == tempDir)
         {
             data.tempDirRefCount++; // Increment reference count
-            lattice::logInfo << "Incremented ref count for temp dir: " << tempDir 
-                           << " (binary: " << pair.first << ") to " << data.tempDirRefCount;
+            lattice::logInfo << "Incremented ref count for temp dir: " << tempDir << " (binary: " << pair.first
+                             << ") to " << data.tempDirRefCount;
             return; // Found and handled
         }
     }
-    
+
     lattice::logWarning << "Attempted to increment ref count for unknown temp dir: " << tempDir;
 }
 #else
@@ -1102,4 +1122,4 @@ void File::incrementTempDirRef(const std::string &)
 }
 #endif
 
-} // end of namespace
+} // namespace cabbage

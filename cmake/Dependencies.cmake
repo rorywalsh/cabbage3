@@ -67,6 +67,7 @@ endif()
 
 # Lattice and ReaderWriterQueue Dependencies
 set(LATTICE_BUILD_EXAMPLES OFF)
+set(FETCHCONTENT_UPDATES_DISCONNECTED_LATTICE ON)
 FetchContent_Declare(
     lattice
     GIT_REPOSITORY https://github.com/rorywalsh/lattice.git
