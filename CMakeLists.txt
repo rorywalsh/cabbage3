@@ -359,6 +359,10 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
         CXX_STANDARD_REQUIRED ON
     )
 
+    if(LINUX AND TARGET WebViewProcess)
+        add_dependencies(${PROJECT_NAME} WebViewProcess)
+    endif()
+
 endif()
 
 # ----------------------------

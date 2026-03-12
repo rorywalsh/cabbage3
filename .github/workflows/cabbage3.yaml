@@ -2,8 +2,9 @@ name: cabbage3-build
 
 #Current Csound7 release...
 env:
-  CSOUND_MAC_URL: "https://github.com/csound/csound/releases/download/7.0.0-beta.12/csound-macos-7.0.0-beta.12.zip"
-  CSOUND_WIN_URL: "https://github.com/csound/csound/releases/download/7.0.0-beta.12/csound-windows-7.0.0-beta.12.zip"
+  CSOUND_MAC_URL: "https://github.com/csound/csound/releases/download/7.0.0-beta.15/csound-macos-7.0.0-beta.15.zip"
+  CSOUND_WIN_URL: "https://github.com/csound/csound/releases/download/7.0.0-beta.15/csound-windows-7.0.0-beta.15.zip"
+  CSOUND_LINUX_TAG: "7.0.0-beta.15"
 
 
 on:
@@ -120,6 +121,80 @@ jobs:
         uses: actions/upload-artifact@v4
         with: 
           name: CabbageBundle-macos
+          path: build/CabbageBundle.zip
+
+  linux_build:
+    name: Linux build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libx11-dev libxext-dev \
+            libasound2-dev libjack-jackd2-dev libpulse-dev
+
+      - name: Cache Csound install
+        id: cache-csound
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/csound-install
+          key: csound-linux-${{ env.CSOUND_LINUX_TAG }}
+
+      - name: Build and install Csound
+        if: steps.cache-csound.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get install -y \
+            libsndfile1-dev libportaudio2 portaudio19-dev libportmidi-dev \
+            libpulse-dev swig liblua5.1-0-dev default-jdk \
+            libfltk1.1-dev libfluidsynth-dev liblo-dev fluid \
+            ladspa-sdk libpng-dev dssi-dev libstk0-dev libgmm++-dev \
+            bison flex libportsmf-dev libeigen3-dev libcunit1-dev \
+            gettext libsamplerate0-dev
+          git clone --depth 1 --branch ${{ env.CSOUND_LINUX_TAG }} \
+            https://github.com/csound/csound.git csound-src
+          cmake -G Ninja -B csound-src/build -S csound-src \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/csound-install
+          cmake --build csound-src/build
+          cmake --install csound-src/build
+
+      - name: Add Csound to path
+        run: |
+          echo "${{ github.workspace }}/csound-install/bin" >> $GITHUB_PATH
+          echo "CMAKE_PREFIX_PATH=${{ github.workspace }}/csound-install" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=${{ github.workspace }}/csound-install/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+
+      - name: Configure CMake
+        run: |
+          cmake -G Ninja -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_ALL_TARGETS=ON \
+            -DCMAKE_PREFIX_PATH="${{ github.workspace }}/csound-install"
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Zip Linux artifacts
+        run: |
+          cd build
+          zip -r CabbageBundle.zip \
+            CabbagePluginEffect/CabbagePluginEffect_assets/CabbagePluginEffect.vst3 \
+            CabbagePluginSynth/CabbagePluginSynth_assets/CabbagePluginSynth.vst3 \
+            CabbageApp/CabbageApp
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CabbageBundle-linux
           path: build/CabbageBundle.zip
 
   windows_build:

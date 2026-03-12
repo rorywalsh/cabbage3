@@ -164,10 +164,11 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
     if (data.channel == "BATCH-UPDATE-7f3d2a" && data.cabbageJson.contains("command") &&
         data.cabbageJson["command"] == "batchWidgetUpdate" && data.cabbageJson.contains("widgets"))
     {
-        lattice::logInfo << "Processing batch widget update with " << data.cabbageJson["widgets"].size() << " widgets in standalone mode";
+        lattice::logInfo << "Processing batch widget update with " << data.cabbageJson["widgets"].size()
+                         << " widgets in standalone mode";
 
         // Send individual widgetUpdate messages for each widget in the batch
-        for (const auto& widget : data.cabbageJson["widgets"])
+        for (const auto &widget : data.cabbageJson["widgets"])
         {
             if (widget.contains("id") && widget.contains("widgetJson"))
             {
@@ -307,7 +308,7 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
         // Try to handle with Engine first (only if processor exists)
         if (processor && processor->getCabbageEngine().processWebViewCommand(jsonObj))
         {
-//            lattice::logDebug << "Command handled by Engine: " << command;
+            //            lattice::logDebug << "Command handled by Engine: " << command;
             return;
         }
 
@@ -358,13 +359,13 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
             else
             {
                 lattice::logInfo << "fileOpenFromVSCode missing required fields. Has fileName: "
-                                << jsonObj.contains("fileName") << ", Has channel: " << jsonObj.contains("channel");
+                                 << jsonObj.contains("fileName") << ", Has channel: " << jsonObj.contains("channel");
             }
         }
 
         else if (command == "onFileChanged")
         {
-          
+
             csdFileAndPath = json["lastSavedFileName"].get<std::string>();
             if (lattice::File::exists(csdFileAndPath))
             {
@@ -438,7 +439,7 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
             if (recorder)
             {
                 recorder->stopRecording();
-                recorder.reset();  // Destroy the recorder object completely
+                recorder.reset(); // Destroy the recorder object completely
                 nlohmann::json response;
                 response["status"] = "stopped";
                 sendJsonMessage(response);
@@ -472,7 +473,7 @@ void CabbageAudioApp::sendWidgetDataToVscode()
         {
             continue;
         }
-        
+
         nlohmann::json msg;
         msg["command"] = "widgetUpdate";
         // Use id if available, otherwise fallback to channel
@@ -493,7 +494,7 @@ void CabbageAudioApp::sendWidgetDataToVscode()
         sendJsonMessage(msg);
     }
 
-    // Note: Don't call setCabbageIsReady() here. 
+    // Note: Don't call setCabbageIsReady() here.
     // It should only be called when webview explicitly sends cabbageIsReadyToLoad,
     // otherwise queued messages (like table data) will be sent before webview is connected.
 }
@@ -505,7 +506,11 @@ void CabbageAudioApp::initialiseMidi()
 {
     try
     {
+#if defined(LATTICE_LINUX)
+        midiInDevice = std::make_unique<RtMidiIn>(RtMidi::LINUX_ALSA);
+#else
         midiInDevice = std::make_unique<RtMidiIn>();
+#endif
     }
     catch (RtMidiError &error)
     {
@@ -516,7 +521,11 @@ void CabbageAudioApp::initialiseMidi()
 
     try
     {
+#if defined(LATTICE_LINUX)
+        midiOutDevice = std::make_unique<RtMidiOut>(RtMidi::LINUX_ALSA);
+#else
         midiOutDevice = std::make_unique<RtMidiOut>();
+#endif
     }
     catch (RtMidiError &error)
     {
@@ -651,7 +660,13 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
 #elif defined LATTICE_MACOS
         audioDevice = std::make_unique<RtAudio>(RtAudio::Api::MACOSX_CORE, errorCallback);
 #else
-        audioDevice = std::make_unique<RtAudio>(RtAudio::LINUX_ALSA);
+        // Linux driver order matches {"Pulse", "Alsa", "Jack"} in settings
+        if (audioConfig.audioDriverType == 0)
+            audioDevice = std::make_unique<RtAudio>(RtAudio::LINUX_PULSE, errorCallback);
+        else if (audioConfig.audioDriverType == 2)
+            audioDevice = std::make_unique<RtAudio>(RtAudio::UNIX_JACK, errorCallback);
+        else
+            audioDevice = std::make_unique<RtAudio>(RtAudio::LINUX_ALSA, errorCallback);
 #endif
     }
     else
@@ -688,7 +703,7 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
 
     // (Re-)initialise VU level atomics for the actual output channel count
     vuPeakLevels = std::make_unique<std::atomic<float>[]>(numOutputChannels);
-    vuRmsLevels  = std::make_unique<std::atomic<float>[]>(numOutputChannels);
+    vuRmsLevels = std::make_unique<std::atomic<float>[]>(numOutputChannels);
     for (unsigned int ch = 0; ch < numOutputChannels; ++ch)
     {
         vuPeakLevels[ch].store(0.f, std::memory_order_relaxed);
@@ -1002,7 +1017,6 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
         deinterleavedInput = app->getEmptyInputBuffer();
     }
 
-
     // Deinterleave the output buffer into separate channels
     float **deinterleavedOutput = new float *[numOutputChannels];
     for (unsigned int ch = 0; ch < numOutputChannels; ++ch)
@@ -1029,7 +1043,8 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
                 float prev = app->vuPeakLevels[ch].load(std::memory_order_relaxed);
                 while (peak > prev &&
                        !app->vuPeakLevels[ch].compare_exchange_weak(prev, peak, std::memory_order_relaxed))
-                { /* retry CAS */ }
+                { /* retry CAS */
+                }
             }
         }
 
@@ -1131,27 +1146,19 @@ void CabbageAudioApp::addDevicesToSettings(const std::string &settingsPath)
         // File doesn't exist, create a new one with default structure
         lattice::logDebug << "Settings file not found. Creating new settings file: " << settingsPath;
         settingsJson = {
-            {"currentConfig", {
-                {"audio", {
-                    {"driver", 0},
-                    {"inputDevice", "Built-in Input"},
-                    {"outputDevice", "Built-in Output"},
-                    {"in1", 1},
-                    {"in2", 2},
-                    {"out1", 1},
-                    {"out2", 2},
-                    {"bufferSize", 512},
-                    {"sr", 44100}
-                }},
-                {"midi", {
-                    {"inputDevice", "no input"},
-                    {"outputDevice", "no output"},
-                    {"inChan", 0},
-                    {"outChan", 0}
-                }},
-                {"jsSourceDir", "add path to JS src directory"}
-            }}
-        };
+            {"currentConfig",
+             {{"audio",
+               {{"driver", 0},
+                {"inputDevice", "Built-in Input"},
+                {"outputDevice", "Built-in Output"},
+                {"in1", 1},
+                {"in2", 2},
+                {"out1", 1},
+                {"out2", 2},
+                {"bufferSize", 512},
+                {"sr", 44100}}},
+              {"midi", {{"inputDevice", "no input"}, {"outputDevice", "no output"}, {"inChan", 0}, {"outChan", 0}}},
+              {"jsSourceDir", "add path to JS src directory"}}}};
     }
 
     try

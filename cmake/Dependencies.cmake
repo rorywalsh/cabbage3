@@ -50,12 +50,12 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}" OR CabbageTests STREQUAL "${CA
     # Make all dependencies available
     FetchContent_MakeAvailable(rtaudio rtmidi)
 
-    if (APPLE)
-        target_compile_features(rtmidi PRIVATE cxx_std_20)
-        target_compile_features(rtaudio PRIVATE cxx_std_20)      
-    else()
+    if (WIN32)
         target_compile_options(rtmidi PRIVATE /std:c++20)
         target_compile_options(rtaudio PRIVATE /std:c++20)
+    else()
+        target_compile_features(rtmidi PRIVATE cxx_std_20)
+        target_compile_features(rtaudio PRIVATE cxx_std_20)
     endif()
 
     # Only make catch2 available when building tests
