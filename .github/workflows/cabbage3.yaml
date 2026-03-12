@@ -156,8 +156,8 @@ jobs:
           sudo apt-get install -y \
             libsndfile1-dev libportaudio2 portaudio19-dev libportmidi-dev \
             libpulse-dev swig liblua5.1-0-dev default-jdk \
-            libfltk1.1-dev libfluidsynth-dev liblo-dev fluid \
-            ladspa-sdk libpng-dev dssi-dev libstk0-dev libgmm++-dev \
+            libfluidsynth-dev liblo-dev fluid \
+            ladspa-sdk libpng-dev dssi-dev libgmm++-dev \
             bison flex libportsmf-dev libeigen3-dev libcunit1-dev \
             gettext libsamplerate0-dev
           git clone --depth 1 --branch ${{ env.CSOUND_LINUX_TAG }} \
