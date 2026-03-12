@@ -173,6 +173,8 @@ jobs:
           cmake -G Ninja -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_ALL_TARGETS=ON \
+            -DCMAKE_C_COMPILER=$(which gcc) \
+            -DCMAKE_CXX_COMPILER=$(which g++) \
             -DCMAKE_PREFIX_PATH="${{ github.workspace }}/csound-install"
 
       - name: Build
