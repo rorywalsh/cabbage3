@@ -220,6 +220,11 @@ bool Engine::setupCsound()
         std::string jsonError;
         widgets = cabbage::Parser::parseCsdForWidgets(csdFile, &jsonError);
 
+        hasCsoundOutputWidget = std::any_of(widgets.begin(), widgets.end(), [](const nlohmann::json &widget) {
+            return widget.contains("type") && widget["type"].is_string() &&
+                   widget["type"].get<std::string>() == "csoundOutput";
+        });
+
         // If there was a JSON parse error, add it to compileErrors and return false
         if (!jsonError.empty())
         {
@@ -508,6 +513,16 @@ void Engine::processCsoundMessages()
         {
             csound->PopFirstMessage();
             continue;
+        }
+
+        if (hasCsoundOutputWidget)
+        {
+            CabbageOpcodeData data;
+            data.type = CabbageOpcodeData::MessageType::Generic;
+            data.channel = "csoundOutput";
+            data.cabbageJson["command"] = "csoundOutputUpdate";
+            data.cabbageJson["text"] = message;
+            opcodeData.enqueue(data);
         }
 
         lattice::logInfo << message; // Log the message

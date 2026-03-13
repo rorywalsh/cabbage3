@@ -277,5 +277,6 @@ class Engine
     std::unordered_map<std::string, CabbageOpcodeData> channelCache;
     std::unordered_set<std::string> dirtyChannels;
     std::atomic<long long> totalSamplesCounter {0};
+    bool hasCsoundOutputWidget = false;
 };
 } // namespace cabbage
