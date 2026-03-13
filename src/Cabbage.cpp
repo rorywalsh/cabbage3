@@ -220,10 +220,27 @@ bool Engine::setupCsound()
         std::string jsonError;
         widgets = cabbage::Parser::parseCsdForWidgets(csdFile, &jsonError);
 
-        hasCsoundOutputWidget = std::any_of(widgets.begin(), widgets.end(), [](const nlohmann::json &widget) {
-            return widget.contains("type") && widget["type"].is_string() &&
-                   widget["type"].get<std::string>() == "csoundOutput";
-        });
+std::function<bool(const nlohmann::json&)> containsCsoundOutput =
+            [&](const nlohmann::json& widget) -> bool
+        {
+            if (!widget.is_object())
+                return false;
+
+            if (widget.contains("type") && widget["type"].is_string() &&
+                choc::text::trim(widget["type"].get<std::string>()) == "csoundOutput")
+                return true;
+
+            if (widget.contains("children") && widget["children"].is_array())
+            {
+                for (const auto& child : widget["children"])
+                {
+                    if (containsCsoundOutput(child))
+                        return true;
+                }
+            }
+
+            return false;
+        };
 
         // If there was a JSON parse error, add it to compileErrors and return false
         if (!jsonError.empty())

@@ -370,23 +370,6 @@ public:
     static nlohmann::json get(const std::string &widgetType)
     {
         std::vector<std::string> widgetPaths;
-
-        auto trim = [](const std::string &s) -> std::string
-        {
-            const auto start = std::find_if_not(s.begin(), s.end(), [](unsigned char c) { return std::isspace(c); });
-            const auto end = std::find_if_not(s.rbegin(), s.rend(), [](unsigned char c) { return std::isspace(c); }).base();
-            return (start < end) ? std::string(start, end) : std::string();
-        };
-
-        auto toLower = [](std::string value) -> std::string
-        {
-            std::transform(value.begin(), value.end(), value.begin(),
-                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-            return value;
-        };
-
-        const std::string canonicalType = trim(widgetType);
-        const std::string lowerType = toLower(canonicalType);
         
 #ifndef CabbageApp
         // In plugin mode, look for widgets relative to the CSD file
@@ -452,63 +435,32 @@ public:
 #endif
         
         // Search all widget directories for the widget file
-        lattice::logDebug << "WidgetDescriptors::get - Searching for widget type: " << canonicalType << " in " << widgetPaths.size() << " paths";
+        lattice::logDebug << "WidgetDescriptors::get - Searching for widget type: " << widgetType << " in " << widgetPaths.size() << " paths";
         for (const auto &widgetPath : widgetPaths)
         {
-            std::vector<std::string> namesToTry;
-            namesToTry.push_back(canonicalType);
-            if (lowerType == "csoundoutput" && canonicalType != "csoundOutput")
-                namesToTry.push_back("csoundOutput");
-
-            for (const auto &name : namesToTry)
+            std::string fullPath = widgetPath + "/" + widgetType + ".js";
+            lattice::logDebug << "WidgetDescriptors::get - Checking path: " << fullPath;
+            if (cabbage::File::exists(fullPath))
             {
-                std::string fullPath = widgetPath + "/" + name + ".js";
-                lattice::logDebug << "WidgetDescriptors::get - Checking path: " << fullPath;
-                if (cabbage::File::exists(fullPath))
+                lattice::logDebug << "WidgetDescriptors::get - File exists! Loading...";
+                auto jsFileContents = cabbage::File::loadJSFile(fullPath);
+                if (!jsFileContents.empty())
                 {
-                    lattice::logDebug << "WidgetDescriptors::get - File exists! Loading...";
-                    auto jsFileContents = cabbage::File::loadJSFile(fullPath);
-                    if (!jsFileContents.empty())
-                    {
-                        lattice::logDebug << "Found widget descriptor for '" << canonicalType << "' in: " << widgetPath;
-                        return cabbage::File::extractPropsFromJS(jsFileContents);
-                    }
-                    else
-                    {
-                        lattice::logDebug << "WidgetDescriptors::get - File loaded but empty!";
-                    }
+                    lattice::logDebug << "Found widget descriptor for '" << widgetType << "' in: " << widgetPath;
+                    return cabbage::File::extractPropsFromJS(jsFileContents);
                 }
                 else
                 {
-                    lattice::logDebug << "WidgetDescriptors::get - File does not exist at: " << fullPath;
+                    lattice::logDebug << "WidgetDescriptors::get - File loaded but empty!";
                 }
             }
-
-            // Case-insensitive fallback: match any widget filename with the same stem (lowercased)
-            if (std::filesystem::exists(widgetPath) && std::filesystem::is_directory(widgetPath))
+            else
             {
-                for (const auto &entry : std::filesystem::directory_iterator(widgetPath))
-                {
-                    if (!entry.is_regular_file() || entry.path().extension() != ".js")
-                        continue;
-
-                    const auto stemLower = toLower(entry.path().stem().string());
-                    if (stemLower == lowerType)
-                    {
-                        const std::string fullPath = entry.path().string();
-                        lattice::logDebug << "WidgetDescriptors::get - Case-insensitive match found at: " << fullPath;
-                        auto jsFileContents = cabbage::File::loadJSFile(fullPath);
-                        if (!jsFileContents.empty())
-                        {
-                            lattice::logDebug << "Found widget descriptor for '" << canonicalType << "' in: " << widgetPath;
-                            return cabbage::File::extractPropsFromJS(jsFileContents);
-                        }
-                    }
-                }
+                lattice::logDebug << "WidgetDescriptors::get - File does not exist at: " << fullPath;
             }
         }
 
-        lattice::logInfo << "Unknown widget type: " << canonicalType << " - skipping widget";
+        lattice::logInfo << "Unknown widget type: " << widgetType << " - skipping widget";
         return {};
     }
 };
