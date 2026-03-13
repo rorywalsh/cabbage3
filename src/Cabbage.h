@@ -248,6 +248,8 @@ class Engine
 
   private:
     void addOpcodes();
+
+    bool hasCsoundOutputWidget() const;
     
     // Helper function that handles the actual searching (internal use only)
     std::optional<std::reference_wrapper<nlohmann::json>> findWidgetInArray(nlohmann::json &jsonArray,
@@ -277,6 +279,6 @@ class Engine
     std::unordered_map<std::string, CabbageOpcodeData> channelCache;
     std::unordered_set<std::string> dirtyChannels;
     std::atomic<long long> totalSamplesCounter {0};
-    bool hasCsoundOutputWidget = false;
+    bool csoundOutputEnabled = false;
 };
 } // namespace cabbage

@@ -219,28 +219,8 @@ bool Engine::setupCsound()
         widgets.clear();
         std::string jsonError;
         widgets = cabbage::Parser::parseCsdForWidgets(csdFile, &jsonError);
-
-std::function<bool(const nlohmann::json&)> containsCsoundOutput =
-            [&](const nlohmann::json& widget) -> bool
-        {
-            if (!widget.is_object())
-                return false;
-
-            if (widget.contains("type") && widget["type"].is_string() &&
-                choc::text::trim(widget["type"].get<std::string>()) == "csoundOutput")
-                return true;
-
-            if (widget.contains("children") && widget["children"].is_array())
-            {
-                for (const auto& child : widget["children"])
-                {
-                    if (containsCsoundOutput(child))
-                        return true;
-                }
-            }
-
-            return false;
-        };
+        csoundOutputEnabled = hasCsoundOutputWidget();
+        lattice::logDebug << "hasCsoundOutputWidget: " << (csoundOutputEnabled ? "true" : "false");
 
         // If there was a JSON parse error, add it to compileErrors and return false
         if (!jsonError.empty())
@@ -532,8 +512,12 @@ void Engine::processCsoundMessages()
             continue;
         }
 
-        if (hasCsoundOutputWidget)
+        if (csoundOutputEnabled)
         {
+            // Engine does not own the frontend transport (webview/stdout).
+            // Queue a Generic opcode message and let the wrapper layer forward it:
+            // - Plugin mode: CabbageProcessor::updateWidgetData() -> sendWebViewMessage()
+            // - CabbageApp: CabbageAudioApp::hostCallback() -> sendJsonMessage()
             CabbageOpcodeData data;
             data.type = CabbageOpcodeData::MessageType::Generic;
             data.channel = "csoundOutput";
@@ -545,6 +529,41 @@ void Engine::processCsoundMessages()
         lattice::logInfo << message; // Log the message
         csound->PopFirstMessage();   // Remove from queue
     }
+}
+
+bool Engine::hasCsoundOutputWidget() const
+{
+    std::lock_guard<std::mutex> lock(widgetsMutex);
+
+    std::function<bool(const nlohmann::json &)> containsCsoundOutput =
+        [&](const nlohmann::json &widget) -> bool
+    {
+        if (!widget.is_object())
+            return false;
+
+        if (widget.contains("type") && widget["type"].is_string() &&
+            choc::text::trim(widget["type"].get<std::string>()) == "csoundOutput")
+            return true;
+
+        if (widget.contains("children") && widget["children"].is_array())
+        {
+            for (const auto &child : widget["children"])
+            {
+                if (containsCsoundOutput(child))
+                    return true;
+            }
+        }
+
+        return false;
+    };
+
+    for (const auto &widget : widgets)
+    {
+        if (containsCsoundOutput(widget))
+            return true;
+    }
+
+    return false;
 }
 
 //===========================================================================================

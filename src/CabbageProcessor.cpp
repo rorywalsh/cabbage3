@@ -731,21 +731,22 @@ void CabbageProcessor::onIdle()
     }
 #endif
 
-    CabbageOpcodeData data;
+     CabbageOpcodeData data;
 
     if (allowDequeuing)
     {
         // Dequeue all messages. For most channels we deduplicate (keep latest),
-        // but for the special channel "cabbageSendMessageQ7mX2b" preserve every
-        // message and process them in FIFO order.
+        // but preserve Generic messages and the special channel
+        // "cabbageSendMessageQ7mX2b" in FIFO order.
         std::unordered_map<std::string, CabbageOpcodeData> latestMessages;
         std::vector<CabbageOpcodeData> preservedMessages;
 
         while (cabbage.opcodeData.try_dequeue(data))
         {
-            if (data.channel == "cabbageSendMessageQ7mX2b")
+            if (data.type == CabbageOpcodeData::MessageType::Generic ||
+                data.channel == "cabbageSendMessageQ7mX2b")
             {
-                // Preserve every message for this unique channel
+                // Preserve every Generic/message-queue event in arrival order
                 preservedMessages.push_back(data);
             }
             else
@@ -767,6 +768,21 @@ void CabbageProcessor::onIdle()
         {
             // Make an explicit copy to ensure deep copy of JSON data
             CabbageOpcodeData dataCopy = latestData;
+
+            // Generic messages are forwarded directly to the frontend and should
+            // not be merged into widget state.
+            if (dataCopy.type == CabbageOpcodeData::MessageType::Generic)
+            {
+#ifdef CabbageApp
+                if (hostCallback) {
+                    hostCallback(dataCopy);
+                }
+#else
+                cabbage.processCsoundMessages();
+                updateWidgetData(dataCopy);
+#endif
+                continue;
+            }
 
             // Check if this message contains a populate update AND should be processed
             bool hasPopulateUpdate = dataCopy.cabbageJson.contains("populate") && !dataCopy.skipPopulateProcessing;
@@ -856,6 +872,7 @@ void CabbageProcessor::onIdle()
                     }
                 }
             }
+
 
 #ifdef CabbageApp
             if (hostCallback) {
