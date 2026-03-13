@@ -196,7 +196,7 @@ std::string Parser::parseContent(const std::string &content, std::vector<nlohman
                     continue;
                 }
 
-                std::string widgetType = item["type"].get<std::string>();
+                std::string widgetType = choc::text::trim(item["type"].get<std::string>());
                 auto j = WidgetDescriptors::get(widgetType);
                 if (!j.is_null())
                 {
