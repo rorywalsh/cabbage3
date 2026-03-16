@@ -51,30 +51,28 @@ namespace {
                 const std::string cabbageJson(cabbage::File::getCabbageSection(cabbage::File::getCsdFileAndPath()));
                 if (nlohmann::json::accept(cabbageJson))
                 {
-                    auto jsonArray = nlohmann::json::parse(cabbageJson);
-                    for (const auto& obj : jsonArray)
+                    auto json = nlohmann::json::parse(cabbageJson);
+
+                    // New format: {"widgets": [...], "pluginId": "..."}
+                    if (json.is_object())
                     {
-                        if (obj.contains("type") && obj["type"] == "form")
+                        std::string pluginId = json.value("pluginId", "");
+                        if (!pluginId.empty())
                         {
-                            std::string pluginId = obj.value("pluginId", "");
-                            if (!pluginId.empty())
+                            // If pluginId is only 4 chars, assume it's a short code and prepend domain
+                            if (pluginId.length() == 4)
                             {
-                                // If pluginId is only 4 chars, assume it's a short code and prepend domain
-                                if (pluginId.length() == 4)
-                                {
-                                    return "com.cabbageaudio." + pluginId;
-                                }
-                                // If more than 4 chars, assume it's already a valid reversed domain
-                                else if (pluginId.length() > 4)
-                                {
-                                    return pluginId;
-                                }
+                                return "com.cabbageaudio." + pluginId;
                             }
-                            // Fallback to default
-                            return "com.cabbageaudio." + name;
+                            // If more than 4 chars, assume it's already a valid reversed domain
+                            else if (pluginId.length() > 4)
+                            {
+                                return pluginId;
+                            }
                         }
                     }
                 }
+                // Fallback to default
                 return "com.cabbageaudio." + name;
             } catch (...) {
                 return "com.cabbageaudio." + name;

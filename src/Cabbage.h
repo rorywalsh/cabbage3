@@ -145,6 +145,9 @@ class Engine
     // Return the channel config string, e.g., '2-2'
     static const std::string getIOChannalConfig(const std::string &csdFile);
 
+    // Parse channelConfig object format into a config string
+    static std::string parseChannelConfigObject(const nlohmann::json& configObj);
+
     // Return a vector pair contining input and output buses
     static std::pair<std::vector<int>, std::vector<int>> parseBusConfiguration(const std::string &config);
 
@@ -250,7 +253,10 @@ class Engine
     void addOpcodes();
 
     bool hasCsoundOutputWidget() const;
-    
+
+    // Determine the number of input and output channels from channelConfig or CSD file
+    std::pair<int, int> determineChannelConfiguration(const std::string& csdFile);
+
     // Helper function that handles the actual searching (internal use only)
     std::optional<std::reference_wrapper<nlohmann::json>> findWidgetInArray(nlohmann::json &jsonArray,
                                                                             const std::string &channel);
