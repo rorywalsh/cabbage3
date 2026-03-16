@@ -159,7 +159,7 @@ endif()
 if(APPLE)
     set(BUILD_LANGUAGES CXX OBJCXX)
 else()
-    set(BUILD_LANGUAGES CXX)
+    set(BUILD_LANGUAGES C CXX)
 endif()
 
 # ----------------------------
