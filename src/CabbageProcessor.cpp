@@ -99,8 +99,8 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
         configureLogger(*json);
 #endif
 
-        auto w = cabbage::Utils::findPropertyInForm<int>(*json, "size.width");
-        auto h = cabbage::Utils::findPropertyInForm<int>(*json, "size.height");
+        auto w = cabbage::Utils::getFormProperty<int>(*json, "size.width");
+        auto h = cabbage::Utils::getFormProperty<int>(*json, "size.height");
         if (w.has_value() && h.has_value())
         {
             setEditorSize(w.value(), h.value());
@@ -206,22 +206,22 @@ CabbageProcessor::~CabbageProcessor()
 }
 
 //========================================================================================
-// Configure logger from the form widget JSON (plugin mode only)
+// Configure logger from the top-level JSON (plugin mode only)
 //========================================================================================
 void CabbageProcessor::configureLogger(const nlohmann::json& json)
 {
-    auto loggerEnabled = cabbage::Utils::findPropertyInForm<bool>(json, "logger.enabled");
+    auto loggerEnabled = cabbage::Utils::getTopLevelProperty<bool>(json, "logger.enabled");
     if (!loggerEnabled.has_value() || !loggerEnabled.value())
         return;
 
-    auto logFile = cabbage::Utils::findPropertyInForm<std::string>(json, "logger.file");
+    auto logFile = cabbage::Utils::getTopLevelProperty<std::string>(json, "logger.file");
     if (!logFile.has_value() || logFile->empty())
     {
         lattice::logInfo << "Logger enabled but no file path specified";
         return;
     }
 
-    auto replace = cabbage::Utils::findPropertyInForm<bool>(json, "logger.replace");
+    auto replace = cabbage::Utils::getTopLevelProperty<bool>(json, "logger.replace");
 
     // Resolve log file path relative to CSD file if not absolute
     std::string logFilePath = logFile.value();

@@ -57,9 +57,10 @@ public:
         }
     }
     
-    // Quickly find a property defined in a user's "form" object - supports flat and nested properties
+    // Get a property from the top-level JSON object
+    // Supports nested properties using dot notation (e.g., "logger.enabled", "size.width")
     template <typename T>
-    static std::optional<T> findPropertyInForm(const nlohmann::json &json, const std::string &propertyName)
+    static std::optional<T> getTopLevelProperty(const nlohmann::json &json, const std::string &propertyName)
     {
         auto getNestedValue = [](const nlohmann::json &jsonObj,
                                  const std::string &path) -> std::optional<nlohmann::json>
@@ -78,16 +79,48 @@ public:
             return current;
         };
 
-        // Support both old array format and new object format with "widgets" key
-        const nlohmann::json* widgetsArray = nullptr;
-        if (json.is_array())
+        // Only works with new object format: {"widgets": [...], "property": value}
+        if (!json.is_object())
         {
-            // Legacy format: root is array
-            widgetsArray = &json;
+            return std::nullopt; // Invalid format
         }
-        else if (json.is_object() && json.contains("widgets") && json["widgets"].is_array())
+
+        // Search for the property at the top level
+        auto value = getNestedValue(json, propertyName);
+        if (value.has_value())
         {
-            // New format: root is object with "widgets" key
+            return value->template get<T>();
+        }
+
+        return std::nullopt; // Property not found
+    }
+
+    // Get a property from the form widget (for form-specific properties like size, caption)
+    // Supports nested properties using dot notation (e.g., "size.width")
+    template <typename T>
+    static std::optional<T> getFormProperty(const nlohmann::json &json, const std::string &propertyName)
+    {
+        auto getNestedValue = [](const nlohmann::json &jsonObj,
+                                 const std::string &path) -> std::optional<nlohmann::json>
+        {
+            nlohmann::json current = jsonObj;
+            std::stringstream ss(path);
+            std::string segment;
+
+            // Split on '.' to navigate through nested properties
+            while (std::getline(ss, segment, '.'))
+            {
+                if (!current.contains(segment))
+                    return std::nullopt;
+                current = current[segment];
+            }
+            return current;
+        };
+
+        // Find the widgets array
+        const nlohmann::json* widgetsArray = nullptr;
+        if (json.is_object() && json.contains("widgets") && json["widgets"].is_array())
+        {
             widgetsArray = &json["widgets"];
         }
         else
@@ -95,6 +128,7 @@ public:
             return std::nullopt; // Invalid format
         }
 
+        // Search for the form widget
         for (const auto &item : *widgetsArray)
         {
             if (item.contains("type") && item["type"] == "form")
@@ -104,7 +138,8 @@ public:
                     return valueOpt->template get<T>();
             }
         }
-        return std::nullopt; // Return empty optional if not found
+
+        return std::nullopt; // Property not found in form widget
     }
 
     

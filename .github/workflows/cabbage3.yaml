@@ -160,8 +160,8 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/csound-install \
             -DINSTALL_PYTHON_INTERFACE=OFF
           cmake --build csound-src/build
-          cmake --install csound-src/build
-
+          cd build
+          make install
       - name: Add Csound to path
         run: |
           echo "${{ github.workspace }}/csound-install/bin" >> $GITHUB_PATH

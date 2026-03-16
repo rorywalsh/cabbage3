@@ -65,7 +65,7 @@ std::string Utils::getChannelConfig(const std::string &csdFile)
 {
     if (auto json = cabbage::File::parseCabbageSection(csdFile))
     {
-        if (auto channelConfig = cabbage::Utils::findPropertyInForm<std::string>(*json, "channelConfig"))
+        if (auto channelConfig = cabbage::Utils::getTopLevelProperty<std::string>(*json, "channelConfig"))
         {
             return *channelConfig;
         }
