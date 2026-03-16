@@ -49,15 +49,25 @@ elseif(WIN32)
         HINTS 
             "c:\\Program Files\\Csound7\\lib")
 
-else() # LINUX 
+else() # LINUX
 
     find_path(CSOUND_INCLUDE_DIR csound.h
-        HINTS "/usr/local/include/csound"
-        ${CSOUND_INCLUDE_DIR_HINT}
+        HINTS
+            ${CMAKE_PREFIX_PATH}/include/csound
+            ${CMAKE_PREFIX_PATH}/include
+            /usr/local/include/csound
+            /usr/include/csound
+            ${CSOUND_INCLUDE_DIR_HINT}
     )
 
-    find_library(CSOUND_LIBRARY NAMES csound64)
-        
+    find_library(CSOUND_LIBRARY
+        NAMES csound64
+        HINTS
+            ${CMAKE_PREFIX_PATH}/lib
+            /usr/local/lib
+            /usr/lib
+    )
+
     find_library(LIBSNDFILE_LIBRARY NAMES sndfile libsndfile-1 libsndfile)
 
 endif()

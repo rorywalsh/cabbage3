@@ -157,16 +157,10 @@ jobs:
           git clone --depth 1 --branch ${{ env.CSOUND_TAG }} \
             https://github.com/csound/csound.git csound-src
           cmake -G "Unix Makefiles" -B csound-src/build -S csound-src \
-            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/csound-install \
             -DINSTALL_PYTHON_INTERFACE=OFF
           cd csound-src/build
           make
-          make install
-      - name: Add Csound to path
-        run: |
-          echo "${{ github.workspace }}/csound-install/bin" >> $GITHUB_PATH
-          echo "CMAKE_PREFIX_PATH=${{ github.workspace }}/csound-install" >> $GITHUB_ENV
-          echo "LD_LIBRARY_PATH=${{ github.workspace }}/csound-install/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          sudo make install
 
       - name: Configure CMake
         run: |
@@ -174,8 +168,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_ALL_TARGETS=ON \
             -DCMAKE_C_COMPILER=$(which gcc) \
-            -DCMAKE_CXX_COMPILER=$(which g++) \
-            -DCMAKE_PREFIX_PATH="${{ github.workspace }}/csound-install"
+            -DCMAKE_CXX_COMPILER=$(which g++)
 
       - name: Build
         run: cmake --build build
