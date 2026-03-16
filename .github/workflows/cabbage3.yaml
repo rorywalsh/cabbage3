@@ -156,7 +156,7 @@ jobs:
             gettext libsamplerate0-dev
           git clone --depth 1 --branch ${{ env.CSOUND_TAG }} \
             https://github.com/csound/csound.git csound-src
-          cmake -G Ninja -B csound-src/build -S csound-src \
+          cmake -G "Unix Makefiles" -B csound-src/build -S csound-src \
             -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/csound-install \
             -DINSTALL_PYTHON_INTERFACE=OFF
           cd csound-src/build
