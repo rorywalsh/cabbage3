@@ -159,8 +159,8 @@ jobs:
           cmake -G Ninja -B csound-src/build -S csound-src \
             -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/csound-install \
             -DINSTALL_PYTHON_INTERFACE=OFF
-          cmake --build csound-src/build
-          cd csound-src/build
+          cd --build csound-src/build
+          make
           make install
       - name: Add Csound to path
         run: |
