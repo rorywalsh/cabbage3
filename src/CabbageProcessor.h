@@ -89,6 +89,7 @@ class CabbageProcessor : public lattice::Processor
     void suspendProcessing() { processingEnabled.store(false); }
     void stopIdleThread();
     bool isIdleThreadRunning() { return isIdleRunning.load(std::memory_order_acquire); }
+    void startOnIdle();  // Public for CabbageApp initialization
 
 #if LATTICE_HAS_ARA || defined(CabbageApp)
     // A channel declared in the <CabbageARA> section of the .ara.csd file.
@@ -147,7 +148,6 @@ private:
 #endif // LATTICE_HAS_ARA || CabbageApp
     void onIdle();
     void onIdleScheduler();
-    void startOnIdle();
     void stopOnIdle();
     void updateWidgetData(const CabbageOpcodeData &data);
     void addParametersForWidget(nlohmann::json &w);

@@ -603,14 +603,37 @@ bool CabbageAudioApp::createCabbageProcessor()
 
     processor = std::make_unique<CabbageProcessor>(csdFileAndPath, config.str());
 
-    if (!processor->getCabbageEngine().csdCompiledWithoutError())
+    // CRITICAL: Set sample rate BEFORE setupCsound() so Csound compiles with correct SR
+    processor->prepareToPlay(audioConfig.audioSR, bufferSize, bufferSize);
+
+    // Now setup and initialize Csound with the correct sample rate
+    if (!processor->getCabbageEngine().setupCsound())
     {
-        lattice::logDebug << "Coudn't compile Csound...";
+        lattice::logDebug << "Couldn't compile Csound...";
         return false;
     }
 
-    // Prepare the processor for playback (sets processingEnabled = true)
-    processor->prepareToPlay(audioConfig.audioSR, bufferSize, bufferSize);
+    // Configure processor buses and parameters (normally done in constructor for plugins)
+    processor->addChannels(config.str());
+    processor->addParameters();
+
+    // Set screen/window dimensions from Cabbage section
+    if (auto json = cabbage::File::parseCabbageSection(cabbage::File::getCsdFileAndPath()))
+    {
+        auto w = cabbage::Utils::getFormProperty<int>(*json, "size.width");
+        auto h = cabbage::Utils::getFormProperty<int>(*json, "size.height");
+        if (w.has_value() && h.has_value())
+        {
+            processor->setEditorSize(w.value(), h.value());
+            processor->getCabbageEngine().setControlChannel("SCREEN_WIDTH", w.value());
+            processor->getCabbageEngine().setControlChannel("WINDOW_WIDTH", w.value());
+            processor->getCabbageEngine().setControlChannel("WINDOW_HEIGHT", h.value());
+            processor->getCabbageEngine().setControlChannel("SCREEN_HEIGHT", h.value());
+        }
+    }
+
+    // Start idle thread for processing opcodes
+    processor->startOnIdle();
 
     lattice::logDebug << "Num widgets : " << processor->getCabbageEngine().getWidgets().size();
 

@@ -66,6 +66,12 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
     }
 #endif
 
+    // For CabbageApp, initialization is deferred until after prepareToPlay() sets sample rate
+#ifdef CabbageApp
+    // Skip initialization - will be done explicitly in CabbageAudioApp.cpp
+    return;
+#endif
+
     if (!cabbage.setupCsound())
     {
         suspendProcessing();
@@ -91,7 +97,6 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
     setWebViewSendFunctionName("postMessage");
 
     addParameters();
-
 
     if (auto json = cabbage::File::parseCabbageSection(cabbage::File::getCsdFileAndPath()))
     {
