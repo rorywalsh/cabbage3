@@ -65,9 +65,43 @@ std::string Utils::getChannelConfig(const std::string &csdFile)
 {
     if (auto json = cabbage::File::parseCabbageSection(csdFile))
     {
-        if (auto channelConfig = cabbage::Utils::getTopLevelProperty<std::string>(*json, "channelConfig"))
+        if (json->contains("channelConfig"))
         {
-            return *channelConfig;
+            const auto& channelConfig = (*json)["channelConfig"];
+
+            if (channelConfig.is_object())
+            {
+                // Handle new object format: {"inputs": ["2", "1"], "outputs": ["2"]}
+                try
+                {
+                    const auto& inputs = channelConfig["inputs"];
+                    const auto& outputs = channelConfig["outputs"];
+
+                    std::string inputPart;
+                    for (size_t i = 0; i < inputs.size(); i++)
+                    {
+                        if (i > 0) inputPart += ".";
+                        inputPart += inputs[i].get<std::string>();
+                    }
+
+                    std::string outputPart;
+                    for (size_t i = 0; i < outputs.size(); i++)
+                    {
+                        if (i > 0) outputPart += ".";
+                        outputPart += outputs[i].get<std::string>();
+                    }
+
+                    return inputPart + "-" + outputPart;
+                }
+                catch (const std::exception&)
+                {
+                    return "2-2";
+                }
+            }
+            else if (channelConfig.is_string())
+            {
+                return channelConfig.get<std::string>();
+            }
         }
     }
     // Default value if not found or error occurs
