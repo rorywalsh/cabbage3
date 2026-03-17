@@ -65,7 +65,7 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}" OR CabbageTests STREQUAL "${CA
 
 endif()
 
-# Lattice and ReaderWriterQueue Dependencies
+# Lattice and ConcurrentQueue Dependencies
 set(LATTICE_BUILD_EXAMPLES OFF)
 set(FETCHCONTENT_UPDATES_DISCONNECTED_LATTICE ON)
 FetchContent_Declare(
@@ -75,9 +75,9 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
-    readerwriterqueue
-    GIT_REPOSITORY https://github.com/rorywalsh/readerwriterqueue.git
-    GIT_TAG ab2082837bda45e8a1a2d6934b211212ae3e2d1b
+    concurrentqueue
+    GIT_REPOSITORY https://github.com/cameron314/concurrentqueue.git
+    GIT_TAG master
 )
 
 
@@ -87,7 +87,7 @@ include(${CMAKE_SOURCE_DIR}/cmake/ChocPatches.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/ClapWrapperPatches.cmake)
 
 # Make all dependencies available
-FetchContent_MakeAvailable(lattice readerwriterqueue)
+FetchContent_MakeAvailable(lattice concurrentqueue)
 
 
 # Apply patches after dependencies are downloaded

@@ -299,7 +299,7 @@ include_directories(
     ${lattice_SOURCE_DIR}/src
     ${choc_SOURCE_DIR}
     ${catch2_SOURCE_DIR}
-    ${readerwriterqueue_SOURCE_DIR}
+    ${concurrentqueue_SOURCE_DIR}
     ${LATTICE_INCLUDE_DIRS}
     ${CSOUND_INCLUDE_DIR}
 )

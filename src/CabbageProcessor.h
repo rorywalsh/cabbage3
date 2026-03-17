@@ -136,7 +136,7 @@ private:
     void forwardAllChannelsToProcessor(const AraForwardPayload& payload);
     std::vector<AraSourceResult> araSourceResults;  // one entry per analysed source, guarded by araMutex
     int araCurrentSourceIndex = -1;                 // index of this instance's own source
-    moodycamel::ReaderWriterQueue<AraForwardPayload> araForwardQueue{8};
+    moodycamel::ConcurrentQueue<AraForwardPayload> araForwardQueue;
     int araUpdateCounter = 0;                       // incremented each forward; use as trigger in Csound
     std::vector<AraChannelDef> araChannelDefs;
     std::mutex araMutex;  // protects araSourceResults / araPendingSources

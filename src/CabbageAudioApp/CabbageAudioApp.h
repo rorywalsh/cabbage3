@@ -34,7 +34,7 @@
 
 #include "CabbageProcessor.h"
 #include "CabbageAudioRecorder.h"
-#include <readerwriterqueue.h>
+#include <concurrentqueue.h>
 
 class CabbageAudioApp
 {
@@ -164,7 +164,7 @@ class CabbageAudioApp
     std::atomic<bool> shouldStopStdinThread{false};
     std::mutex stdoutMutex; // Protect stdout writes
 
-    moodycamel::ReaderWriterQueue<CabbageAudioApp::CommandType> messageQueue;
+    moodycamel::ConcurrentQueue<CabbageAudioApp::CommandType> messageQueue;
 
     // Return a valid device ID for a given device name
     int getAudioDeviceId(const std::string &deviceName) const;

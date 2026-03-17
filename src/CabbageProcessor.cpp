@@ -644,8 +644,10 @@ void CabbageProcessor::process(float **inputs, float **outputs, std::size_t bloc
                     outputs[outputChannel][i] = cabbage.getSpOut(outputChannel + pos);
                 }
             }
-            cabbage.flushChannelCache();
         }
+
+        // Flush channel cache once per audio block (not per sample!)
+        cabbage.flushChannelCache();
     }
     else
     {

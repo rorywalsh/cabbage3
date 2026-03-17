@@ -29,7 +29,7 @@
 #include "CabbageUtils.h"
 #include "csound.hpp"
 #include "CabbageParser.h"
-#include <readerwriterqueue.h>
+#include <concurrentqueue.h>
 #include "opcodes/CabbageSetOpcodes.h"
 #include "opcodes/CabbageGetOpcodes.h"
 #include "opcodes/CabbageCreateOpcode.h"
@@ -191,7 +191,7 @@ class Engine
     // Check if a widget has a specific channel (searches id then channels array)
     static bool hasChannel(const nlohmann::json &widget, const std::string &channel);
 
-    moodycamel::ReaderWriterQueue<CabbageOpcodeData> opcodeData;
+    moodycamel::ConcurrentQueue<CabbageOpcodeData> opcodeData;
 
     //=====================================================================================
     // Updates the channel cache with new data. This is called by the opcodes.
