@@ -52,6 +52,18 @@ Engine::~Engine()
     }
 }
 
+void Engine::teardownCsound()
+{
+    if (csound)
+    {
+        csCompileResult = -1;
+        csSpin = nullptr;
+        csdKsmps = 0;
+        csScale = 0.0;
+        csound.reset();
+    }
+}
+
 void Engine::addOpcodes()
 {
     // The order in which these are registered is important!
@@ -100,153 +112,48 @@ void Engine::addOpcodes()
 }
 
 //========================================================================================
-// Parse channelConfig object format into a config string
-// Expects: {"inputs": ["2", "1"], "outputs": ["2"]}
-// Returns: "2.1-2" (inputs joined by dots, dash, outputs joined by dots)
-//========================================================================================
-std::string Engine::parseChannelConfigObject(const nlohmann::json& configObj)
-{
-    if (!configObj.contains("inputs") || !configObj.contains("outputs"))
-    {
-        throw std::invalid_argument("channelConfig object must contain 'inputs' and 'outputs' arrays");
-    }
-
-    const auto& inputs = configObj["inputs"];
-    const auto& outputs = configObj["outputs"];
-
-    if (!inputs.is_array() || !outputs.is_array())
-    {
-        throw std::invalid_argument("'inputs' and 'outputs' must be arrays");
-    }
-
-    if (inputs.empty() || outputs.empty())
-    {
-        throw std::invalid_argument("'inputs' and 'outputs' arrays cannot be empty");
-    }
-
-    // Build input part by joining array elements with dots
-    std::string inputPart;
-    for (size_t i = 0; i < inputs.size(); i++)
-    {
-        if (!inputs[i].is_string())
-        {
-            throw std::invalid_argument("All elements in 'inputs' array must be strings");
-        }
-
-        if (i > 0)
-            inputPart += ".";
-        inputPart += inputs[i].get<std::string>();
-    }
-
-    // Build output part by joining array elements with dots
-    std::string outputPart;
-    for (size_t i = 0; i < outputs.size(); i++)
-    {
-        if (!outputs[i].is_string())
-        {
-            throw std::invalid_argument("All elements in 'outputs' array must be strings");
-        }
-
-        if (i > 0)
-            outputPart += ".";
-        outputPart += outputs[i].get<std::string>();
-    }
-
-    // Return as "inputs-outputs" format
-    return inputPart + "-" + outputPart;
-}
-
-//========================================================================================
-// Determine the number of input and output channels from channelConfig or CSD file
-// Returns a pair of (numInputs, numOutputs)
+// Determine the number of input and output channels from channelConfig or CSD file.
+// Uses the first entry in the channelConfig array; falls back to CSD nchnls declarations.
 //========================================================================================
 std::pair<int, int> Engine::determineChannelConfiguration(const std::string& csdFile)
 {
-    int numOutputs = 0;
-    int numInputs = 0;
+    // On re-init the processor's configs vector is already populated and
+    // activeConfigIndex reflects the host's selectAudioPortsConfig() call.
+    // Use those counts directly so the correct Csound channel count is set.
+    const auto& cfg = processor.getChannelConfig();
+    if (!cfg.isEmpty())
+        return {cfg.getTotalNumInputChannels(), cfg.getTotalNumOutputChannels()};
 
-    // First, try to get channel config from the JSON (top-level channelConfig property)
-    // This allows channelConfig to override nchnls/nchnls_i from the CSD file
-    bool hasChannelConfig = false;
+    // First init: configs not yet registered — read the first entry from the JSON array.
     if (auto json = cabbage::File::parseCabbageSection(csdFile))
     {
-        // Check if channelConfig is present
-        if (json->contains("channelConfig"))
+        if (json->contains("channelConfig") && (*json)["channelConfig"].is_array())
         {
-            const auto& channelConfig = (*json)["channelConfig"];
-
-            // Handle object format: {"inputs": ["2", "1"], "outputs": ["2"]}
-            if (channelConfig.is_object())
+            const auto& cfgArray = (*json)["channelConfig"];
+            if (!cfgArray.empty())
             {
-                hasChannelConfig = true;
-                try
-                {
-                    std::string configStr = parseChannelConfigObject(channelConfig);
-                    auto [inputBuses, outputBuses] = parseBusConfiguration(configStr);
+                const auto& first = cfgArray[0];
+                const std::string ins  = first.value("ins",  "2");
+                const std::string outs = first.value("outs", "2");
 
-                    // Calculate total inputs and outputs from bus configuration
-                    for (int bus : inputBuses)
-                        numInputs += bus;
-                    for (int bus : outputBuses)
-                        numOutputs += bus;
+                // Sum '+'-separated bus counts (e.g. "2+1" → 3)
+                auto sumBuses = [](const std::string& part) -> int {
+                    int total = 0;
+                    std::istringstream ss(part);
+                    std::string token;
+                    while (std::getline(ss, token, '+'))
+                        if (!token.empty()) total += std::stoi(token);
+                    return total;
+                };
 
-                    lattice::logInfo << "Using channelConfig object, generated '" << configStr << "': "
-                                   << numInputs << " inputs, " << numOutputs << " outputs";
-                }
-                catch (const std::exception& e)
-                {
-                    lattice::logError << "Failed to parse channelConfig object: " << e.what();
-                    hasChannelConfig = false;
-                    numOutputs = 0;
-                    numInputs = 0;
-                }
-            }
-            // Handle string format: "2.1-2"
-            else if (channelConfig.is_string())
-            {
-                hasChannelConfig = true;
-                try
-                {
-                    std::string configStr = channelConfig.get<std::string>();
-                    auto [inputBuses, outputBuses] = parseBusConfiguration(configStr);
-
-                    // Calculate total inputs and outputs from bus configuration
-                    for (int bus : inputBuses)
-                        numInputs += bus;
-                    for (int bus : outputBuses)
-                        numOutputs += bus;
-
-                    lattice::logInfo << "Using channelConfig '" << configStr << "': "
-                                   << numInputs << " inputs, " << numOutputs << " outputs";
-                }
-                catch (const std::exception& e)
-                {
-                    lattice::logError << "Failed to parse channelConfig '" << channelConfig.get<std::string>() << "': " << e.what();
-                    hasChannelConfig = false;
-                    numOutputs = 0;
-                    numInputs = 0;
-                }
+                return {std::max(1, sumBuses(ins)), std::max(1, sumBuses(outs))};
             }
         }
     }
 
-    // Fall back to CSD channel declarations if channelConfig wasn't present or valid
-    if (!hasChannelConfig)
-    {
-        if (numOutputs <= 0)
-            numOutputs = cabbage::File::getNumberOfOutputChannels(csdFile);
-
-        if (numInputs <= 0)
-            numInputs = cabbage::File::getNumberOfInputChannels(csdFile);
-    }
-
-    if (numInputs <= 0)
-        numInputs = numOutputs;
-
-    numOutputs = std::max(1, numOutputs);
-    numInputs = std::max(1, numInputs);
-
-    return {numInputs, numOutputs};
+    // No channelConfig in JSON — default to stereo in/out.
+    // nchnls from the CSD is never used to determine routing.
+    return {2, 2};
 }
 
 bool Engine::setupCsound()
@@ -537,46 +444,12 @@ int Engine::getNumberOfParameters(const std::string &csdFile)
 
 const std::string Engine::getIOChannalConfig(const std::string &csdFile)
 {
-    // get channel config from JSON
-    const std::string channelConfig = cabbage::Utils::getChannelConfig(csdFile);
-    // get channel config defined in Csd file
-    const int numOutputs = cabbage::File::getNumberOfOutputChannels(csdFile);
-    const int numInputs = cabbage::File::getNumberOfInputChannels(csdFile) == -1
-                              ? numOutputs
-                              : cabbage::File::getNumberOfInputChannels(csdFile);
-
-    if (cabbage::Utils::validateChannelConfig(channelConfig, numInputs, numOutputs))
-        return channelConfig;
-    else
-        return "2-2";
+    // channelConfig in the JSON is authoritative — it drives the channel count,
+    // so validating it against nchnls (which it is meant to override) is wrong.
+    // getChannelConfig() already returns "Stereo:2|2" as a safe fallback.
+    return cabbage::Utils::getChannelConfig(csdFile);
 }
 
-std::pair<std::vector<int>, std::vector<int>> Engine::parseBusConfiguration(const std::string &config)
-{
-    auto splitAndParse = [](const std::string &str) -> std::vector<int>
-    {
-        std::vector<int> buses;
-        std::stringstream ss(str);
-        std::string segment;
-
-        while (std::getline(ss, segment, '.'))
-            buses.push_back(std::stoi(segment)); // Convert to int and store
-
-        return buses;
-    };
-
-    size_t dashPos = config.find('-');
-    if (dashPos == std::string::npos)
-        throw std::invalid_argument("Invalid format. Expected '-' in input.");
-
-    std::string inputPart = config.substr(0, dashPos);
-    std::string outputPart = config.substr(dashPos + 1);
-
-    std::vector<int> inputBuses = splitAndParse(inputPart);
-    std::vector<int> outputBuses = splitAndParse(outputPart);
-
-    return {inputBuses, outputBuses};
-}
 //===========================================================================================
 
 void Engine::setControlChannel(const std::string channel, MYFLT value)

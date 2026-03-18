@@ -74,6 +74,11 @@ class Engine
     // Setup Csound
     bool setupCsound();
 
+    // Tear down Csound without destroying the Engine (used when SR changes)
+    void teardownCsound();
+
+    // Returns true if the Csound engine has been successfully initialised
+    bool isEngineRunning() const { return csound != nullptr; }
 
     // Compile the CSD file
     void compileCsdFile(std::string csoundFile) { csCompileResult = csound->Compile(csoundFile.c_str()); }
@@ -142,14 +147,8 @@ class Engine
     // Returns the current number of parameters registered
     int getCurrentParameterCount();
 
-    // Return the channel config string, e.g., '2-2'
+    // Return the channel config string, e.g., 'Stereo:2|2'
     static const std::string getIOChannalConfig(const std::string &csdFile);
-
-    // Parse channelConfig object format into a config string
-    static std::string parseChannelConfigObject(const nlohmann::json& configObj);
-
-    // Return a vector pair contining input and output buses
-    static std::pair<std::vector<int>, std::vector<int>> parseBusConfiguration(const std::string &config);
 
     // Utility script to remove control characters from string - needed to santise Cabbage code going to JS
     static std::string removeControlCharacters(const std::string &input);

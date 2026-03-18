@@ -53,6 +53,8 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
 #endif
     , cabbage(*this)
 {
+    channelConfig = config;
+
     // Setup root directory and handle cabz extraction
     auto [mountPoint, cabzTemp] = cabbage::File::setupRootDirectory(csdFile);
     setMountPoint(mountPoint);
@@ -66,116 +68,153 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
     }
 #endif
 
-    // For CabbageApp, initialization is deferred until after prepareToPlay() sets sample rate
-#ifdef CabbageApp
-    // Skip initialization - will be done explicitly in CabbageAudioApp.cpp
-    return;
+#ifndef CabbageApp
+    initialiseAudioEngine();
 #endif
+    initialiseAraCompanion();
+}
+
+//========================================================================================
+// Discovers the companion .ara.csd file, parses its channel declarations, and (for
+// plugin builds) starts the ARA worker thread. For standalone builds it also launches
+// any test-file analysis thread declared in the <CabbageARA> section.
+// No-op when neither LATTICE_HAS_ARA nor CabbageApp is defined.
+//========================================================================================
+void CabbageProcessor::initialiseAraCompanion()
+{
+#if LATTICE_HAS_ARA || defined(CabbageApp)
+    std::filesystem::path csd(cabbage::File::getCsdFileAndPath());
+    auto candidate = (csd.parent_path() / (csd.stem().string() + ".ara.csd")).string();
+    if (lattice::File::exists(candidate))
+    {
+        araCsdPath = candidate;
+        auto araSection = parseAraCsdSection(araCsdPath);
+        for (const auto& ch : araSection.value("channels", nlohmann::json::array()))
+            if (ch.contains("id") && ch.contains("type"))
+                araChannelDefs.push_back({ch["id"].get<std::string>(), ch["type"].get<std::string>()});
+
+#if LATTICE_HAS_ARA
+        lattice::logInfo << "ARA companion found: " << araCsdPath;
+        lattice::logInfo << "ARA: " << araChannelDefs.size() << " output channel(s) declared in <CabbageARA>";
+#endif
+
+#ifdef CabbageApp
+        lattice::logInfo << "ARA standalone: companion found: " << araCsdPath;
+        lattice::logInfo << "ARA standalone: " << araChannelDefs.size() << " output channel(s) declared";
+        const std::string testFile = araSection.value("testFile", std::string{});
+        if (!testFile.empty())
+        {
+            std::filesystem::path resolvedTestFile = std::filesystem::path(testFile);
+            if (resolvedTestFile.is_relative())
+                resolvedTestFile = std::filesystem::path(araCsdPath).parent_path() / resolvedTestFile;
+            resolvedTestFile = resolvedTestFile.lexically_normal();
+            lattice::logInfo << "ARA standalone: test file: " << testFile
+                             << " -> resolved: " << resolvedTestFile.string();
+            araTestThread = std::thread([this, resolvedTestFile]() {
+                performAraAnalysisFromFile(resolvedTestFile.string());
+            });
+        }
+        else
+        {
+            lattice::logInfo << "ARA standalone: no testFile in <CabbageARA> — "
+                                "add \"testFile\": \"/path/to/audio.wav\" to trigger analysis";
+        }
+#endif
+    }
+
+#if LATTICE_HAS_ARA
+    startAraWorker();
+#endif
+#endif // LATTICE_HAS_ARA || CabbageApp
+}
+
+//========================================================================================
+// Initialise (or re-initialise) the Csound engine.
+// On first call: sets up Csound, buses, parameters, editor size, and idle thread.
+// On SR change:  saves UI state, tears down Csound, rebuilds it with the new rate,
+//               then restores UI state so the user never sees a reset.
+// NOTE: Must be called while audioEngineMutex is held exclusively (i.e. from prepareToPlay).
+//========================================================================================
+void CabbageProcessor::initialiseAudioEngine()
+{
+    const bool isReinit = cabbage.isEngineRunning();
+    nlohmann::json savedState;
+
+    // On re-init, detect a config change by comparing the active Lattice channel
+    // counts against our stored totals.  The host has already called
+    // selectAudioPortsConfig(id) so getChannelConfig() reflects the new selection.
+    const bool configChanged = isReinit &&
+        (getChannelConfig().getTotalNumInputChannels()  != totalNumInputs ||
+         getChannelConfig().getTotalNumOutputChannels() != totalNumOutputs);
+
+    if (isReinit)
+    {
+        // Snapshot all live Csound channel values before we destroy the engine
+        savedState = cabbage.saveWidgetState(false);
+        // Stop the idle thread — it accesses Csound state and must not run during teardown
+        stopIdleThread();
+        cabbage.teardownCsound();
+    }
 
     if (!cabbage.setupCsound())
     {
-        suspendProcessing();
-
-        // Store error HTML to be displayed when webview is ready
         auto errors = cabbage.getCompileErrors();
         lattice::logInfo << "COMPILE ERRORS:\n" << errors;
         compileErrorHtml = generateErrorPageHtml(errors);
         hasCompileErrors = true;
         lattice::logDebug << "Generated error HTML, length: " << compileErrorHtml.length();
-
         setEditorSize(550, 350);
-
         return;
     }
 
-    // Configure processor buses after Csound initialises. setupCsound() now guards against
-    // zero-channel startup by falling back to CSD channel declarations when bus config
-    // has not yet been added.
-    addChannels(config);
-
-    // All message to webview will be wrapped in window.postMessage()
-    setWebViewSendFunctionName("postMessage");
-
-    addParameters();
-
-    if (auto json = cabbage::File::parseCabbageSection(cabbage::File::getCsdFileAndPath()))
+    // Register named audio port configs on first init only.
+    // On re-init the host has already called selectAudioPortsConfig(id); the
+    // configs vector is still intact — re-calling addChannels() would duplicate them.
+    // addParameters() is also first-init-only (host-facing, must not repeat).
+    if (!isReinit)
     {
-#ifndef CabbageApp
-        configureLogger(*json);
-#endif
+        addChannels(channelConfig);
+    }
+    else if (configChanged)
+    {
+        // The host switched to a different config — sync our stored totals.
+        auto ioConfig = getChannelConfig();
+        totalNumInputs  = ioConfig.getTotalNumInputChannels();
+        totalNumOutputs = ioConfig.getTotalNumOutputChannels();
+        matchingNumInputsOutputs = totalNumInputs == totalNumOutputs;
+    }
 
-        auto w = cabbage::Utils::getFormProperty<int>(*json, "size.width");
-        auto h = cabbage::Utils::getFormProperty<int>(*json, "size.height");
-        if (w.has_value() && h.has_value())
+    if (!isReinit)
+    {
+        // One-time setup: parameters and UI metadata (host-facing, must not repeat).
+        setWebViewSendFunctionName("postMessage");
+        addParameters();
+
+        if (auto json = cabbage::File::parseCabbageSection(cabbage::File::getCsdFileAndPath()))
         {
-            setEditorSize(w.value(), h.value());
-            cabbage.setControlChannel("SCREEN_WIDTH", w.value());
-            cabbage.setControlChannel("WINDOW_WIDTH", w.value());
-            cabbage.setControlChannel("WINDOW_HEIGHT", h.value());
-            cabbage.setControlChannel("SCREEN_HEIGHT", h.value());
+#ifndef CabbageApp
+            configureLogger(*json);
+#endif
+            auto w = cabbage::Utils::getFormProperty<int>(*json, "size.width");
+            auto h = cabbage::Utils::getFormProperty<int>(*json, "size.height");
+            if (w.has_value() && h.has_value())
+            {
+                setEditorSize(w.value(), h.value());
+                cabbage.setControlChannel("SCREEN_WIDTH", w.value());
+                cabbage.setControlChannel("WINDOW_WIDTH", w.value());
+                cabbage.setControlChannel("WINDOW_HEIGHT", h.value());
+                cabbage.setControlChannel("SCREEN_HEIGHT", h.value());
+            }
         }
+
+    }
+    else if (!savedState.is_null())
+    {
+        // SR reinit: restore all channel values so the UI is unchanged from the user's perspective
+        cabbage.loadWidgetState(savedState);
     }
 
     startOnIdle();
-
-#if LATTICE_HAS_ARA
-    {
-        std::filesystem::path csd(cabbage::File::getCsdFileAndPath());
-        auto candidate = (csd.parent_path() / (csd.stem().string() + ".ara.csd")).string();
-        if (lattice::File::exists(candidate))
-        {
-            araCsdPath = candidate;
-            lattice::logInfo << "ARA companion found: " << araCsdPath;
-            {
-                auto araSection = parseAraCsdSection(araCsdPath);
-                for (const auto& ch : araSection.value("channels", nlohmann::json::array()))
-                    if (ch.contains("id") && ch.contains("type"))
-                        araChannelDefs.push_back({ch["id"].get<std::string>(), ch["type"].get<std::string>()});
-            }
-            lattice::logInfo << "ARA: " << araChannelDefs.size() << " output channel(s) declared in <CabbageARA>";
-        }
-    }
-    startAraWorker();
-#endif
-
-#ifdef CabbageApp
-    {
-        std::filesystem::path csd(cabbage::File::getCsdFileAndPath());
-        auto candidate = (csd.parent_path() / (csd.stem().string() + ".ara.csd")).string();
-        if (lattice::File::exists(candidate))
-        {
-            araCsdPath = candidate;
-            auto araSection = parseAraCsdSection(araCsdPath);
-            for (const auto& ch : araSection.value("channels", nlohmann::json::array()))
-                if (ch.contains("id") && ch.contains("type"))
-                    araChannelDefs.push_back({ch["id"].get<std::string>(), ch["type"].get<std::string>()});
-            lattice::logInfo << "ARA standalone: companion found: " << araCsdPath;
-            lattice::logInfo << "ARA standalone: " << araChannelDefs.size() << " output channel(s) declared";
-            const std::string testFile = araSection.value("testFile", std::string{});
-            if (!testFile.empty())
-            {
-                std::filesystem::path resolvedTestFile = std::filesystem::path(testFile);
-                if (resolvedTestFile.is_relative())
-                {
-                    resolvedTestFile = std::filesystem::path(araCsdPath).parent_path() / resolvedTestFile;
-                }
-                resolvedTestFile = resolvedTestFile.lexically_normal();
-
-                lattice::logInfo << "ARA standalone: test file: " << testFile
-                                 << " -> resolved: " << resolvedTestFile.string();
-
-                araTestThread = std::thread([this, resolvedTestFile]() {
-                    performAraAnalysisFromFile(resolvedTestFile.string());
-                });
-            }
-            else
-            {
-                lattice::logInfo << "ARA standalone: no testFile in <CabbageARA> — "
-                                    "add \"testFile\": \"/path/to/audio.wav\" to trigger analysis";
-            }
-        }
-    }
-#endif
 }
 
 CabbageProcessor::~CabbageProcessor()
@@ -271,32 +310,34 @@ void CabbageProcessor::configureLogger(const nlohmann::json& json)
 //========================================================================================
 void CabbageProcessor::addChannels(const std::string &config)
 {
-    // Use the cached CSD file path - single source of truth
     auto file = cabbage::File::getCsdFileAndPath();
-
     cabbage::Utils::check(lattice::File::exists(file), "Can't find csd file");
 
-    auto channelConfig = config.empty() ? cabbage::Engine::getIOChannalConfig(file) : config;
-    auto [inputBuses, outputBuses] = cabbage.parseBusConfiguration(channelConfig);
+    // Get the semicolon-separated config string: "Name:ins|outs;Name2:ins2|outs2"
+    const auto configStr = config.empty()
+        ? cabbage::Engine::getIOChannalConfig(file)
+        : config;
 
-    int inputBusIndex = 1;
-    for (int bus : inputBuses)
+    // Parse and register each named config with the Lattice audio ports API
+    std::istringstream ss(configStr);
+    std::string entry;
+    while (std::getline(ss, entry, ';'))
     {
-        addInputBus("Input Bus" + std::to_string(inputBusIndex), bus, lattice::ChannelLayout(bus));
-        inputBusIndex++;
+        auto colon = entry.find(':');
+        if (colon == std::string::npos) continue;
+        const std::string name = entry.substr(0, colon);
+        const std::string io   = entry.substr(colon + 1);
+        auto pipe = io.find('|');
+        if (pipe == std::string::npos) continue;
+        addAudioPortsConfig(name, io.substr(0, pipe), io.substr(pipe + 1));
     }
 
-    int outputBusIndex = 1;
-    for (int bus : outputBuses)
-    {
-        addOutputBus("Output Bus" + std::to_string(outputBusIndex), bus, lattice::ChannelLayout(bus));
-        outputBusIndex++;
-    }
+    activeChannelConfig = configStr;
 
+    // Update totals from the now-active (first/default) config
     auto ioConfig = getChannelConfig();
-    totalNumInputs = ioConfig.getTotalNumInputChannels();
+    totalNumInputs  = ioConfig.getTotalNumInputChannels();
     totalNumOutputs = ioConfig.getTotalNumOutputChannels();
-
     matchingNumInputsOutputs = totalNumInputs == totalNumOutputs;
 }
 
@@ -588,9 +629,14 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
 void CabbageProcessor::process(float **inputs, float **outputs, std::size_t blockSize)
 {
     if (!processingEnabled.load(std::memory_order_relaxed))
-    {
         return;
-    }
+
+    // Try to acquire a shared lock without blocking. If prepareToPlay() holds the
+    // exclusive lock (rebuilding Csound due to an SR change) we must not touch any
+    // Csound state — return silence for this block and try again next time.
+    std::shared_lock lock(audioEngineMutex, std::try_to_lock);
+    if (!lock.owns_lock())
+        return;
 
     // Get transport info from host and update Csound channels
     auto transport = getTransportInfo();
@@ -1278,7 +1324,8 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
             bool accepted = requestGuiResize(width, height);
 
             // If host accepted, manually apply the resize since some hosts don't call guiSetSize back
-            if (accepted) {
+            if (accepted)
+            {
                 applyGuiResize(width, height);
             }
 
@@ -1623,8 +1670,22 @@ void CabbageProcessor::setParameter(int paramId, double value)
 
 void CabbageProcessor::prepareToPlay(double sr, uint32_t /*minFrameCount*/, uint32_t /*maxFrameCount*/)
 {
+    // Acquire exclusive ownership: blocks until any in-flight process() block finishes,
+    // then prevents process() from entering while we set up / rebuild Csound.
+    std::unique_lock lock(audioEngineMutex);
+
+    const bool needsInit = !cabbage.isEngineRunning();
+    const bool srChanged = !needsInit && std::abs(sr - sampleRate) > 0.01;
+    // Config change: the host called selectAudioPortsConfig(id) before prepareToPlay(),
+    // so the active Lattice config already reflects the new selection.
+    const bool configChanged = !needsInit &&
+        (getChannelConfig().getTotalNumInputChannels()  != totalNumInputs ||
+         getChannelConfig().getTotalNumOutputChannels() != totalNumOutputs);
     sampleRate = sr;
-    // Enable processing now that the plugin is fully initialized
+
+    if (needsInit || srChanged || configChanged)
+        initialiseAudioEngine();
+
     processingEnabled.store(true, std::memory_order_release);
 }
 

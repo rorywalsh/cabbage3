@@ -22,6 +22,7 @@
 #include "lattice/LatticeAraProcessor.h"
 #include "Cabbage.h"
 #include <set>
+#include <shared_mutex>
 
 #if LATTICE_HAS_ARA
 class CabbageProcessor : public lattice::AraProcessor<CabbageProcessor>
@@ -149,6 +150,8 @@ private:
     void onIdle();
     void onIdleScheduler();
     void stopOnIdle();
+    void initialiseAudioEngine();
+    void initialiseAraCompanion();
     void updateWidgetData(const CabbageOpcodeData &data);
     void addParametersForWidget(nlohmann::json &w);
     void configureLogger(const nlohmann::json& json);
@@ -156,9 +159,12 @@ private:
                         bool openAtLastKnownLocation);
     std::string generateErrorPageHtml(const std::string &errors);
     std::atomic<bool> processingEnabled{false};  // Start disabled, enabled in prepareToPlay()
+    std::shared_mutex audioEngineMutex;           // Shared: process() readers; Exclusive: prepareToPlay() writer
     bool uiIsOpen = false;
     bool allowDequeuing = false;
     int sampleRate = 44100;
+    std::string channelConfig;       // Channel config string stored for SR-change reinit
+    std::string activeChannelConfig;  // Effective config last passed to addChannels(); used for change detection
     cabbage::Engine cabbage;
     bool matchingNumInputsOutputs = true;
     int csndIndex = 0;

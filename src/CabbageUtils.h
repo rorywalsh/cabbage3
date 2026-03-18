@@ -117,10 +117,16 @@ public:
             return current;
         };
 
-        // Find the widgets array
+        // Find the widgets array - support both legacy array format and new object format
         const nlohmann::json* widgetsArray = nullptr;
-        if (json.is_object() && json.contains("widgets") && json["widgets"].is_array())
+        if (json.is_array())
         {
+            // Legacy format: root is array of widgets
+            widgetsArray = &json;
+        }
+        else if (json.is_object() && json.contains("widgets") && json["widgets"].is_array())
+        {
+            // New format: root is object with "widgets" key
             widgetsArray = &json["widgets"];
         }
         else

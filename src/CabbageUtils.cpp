@@ -69,82 +69,110 @@ std::string Utils::getChannelConfig(const std::string &csdFile)
         {
             const auto& channelConfig = (*json)["channelConfig"];
 
-            if (channelConfig.is_object())
+            // New format: array of named configs
+            //   [{"name":"Stereo","ins":"2","outs":"2"}, ...]
+            if (channelConfig.is_array())
             {
-                // Handle new object format: {"inputs": ["2", "1"], "outputs": ["2"]}
                 try
                 {
-                    const auto& inputs = channelConfig["inputs"];
+                    std::string result;
+                    for (size_t i = 0; i < channelConfig.size(); ++i)
+                    {
+                        if (i > 0) result += ";";
+                        const auto& cfg = channelConfig[i];
+                        std::string name = cfg.value("name", "Config " + std::to_string(i));
+                        std::string ins  = cfg.value("ins",  "2");
+                        std::string outs = cfg.value("outs", "2");
+                        result += name + ":" + ins + "|" + outs;
+                    }
+                    return result.empty() ? "Stereo:2|2" : result;
+                }
+                catch (const std::exception&) { return "Stereo:2|2"; }
+            }
+
+            // Legacy format: object with "inputs" / "outputs" arrays
+            //   {"inputs":["2"],"outputs":["2"]}
+            if (channelConfig.is_object() &&
+                channelConfig.contains("inputs") && channelConfig.contains("outputs"))
+            {
+                try
+                {
+                    const auto& inputs  = channelConfig["inputs"];
                     const auto& outputs = channelConfig["outputs"];
 
-                    std::string inputPart;
-                    for (size_t i = 0; i < inputs.size(); i++)
+                    std::string insPart;
+                    for (size_t i = 0; i < inputs.size(); ++i)
                     {
-                        if (i > 0) inputPart += ".";
-                        inputPart += inputs[i].get<std::string>();
+                        if (i > 0) insPart += "+";
+                        insPart += inputs[i].get<std::string>();
                     }
-
-                    std::string outputPart;
-                    for (size_t i = 0; i < outputs.size(); i++)
+                    std::string outsPart;
+                    for (size_t i = 0; i < outputs.size(); ++i)
                     {
-                        if (i > 0) outputPart += ".";
-                        outputPart += outputs[i].get<std::string>();
+                        if (i > 0) outsPart += "+";
+                        outsPart += outputs[i].get<std::string>();
                     }
-
-                    return inputPart + "-" + outputPart;
+                    return "Default:" + insPart + "|" + outsPart;
                 }
-                catch (const std::exception&)
-                {
-                    return "2-2";
-                }
+                catch (const std::exception&) { return "Stereo:2|2"; }
             }
-            else if (channelConfig.is_string())
+
+            // Legacy format: plain string e.g. "2-2"
+            if (channelConfig.is_string())
             {
-                return channelConfig.get<std::string>();
+                // Convert old "N-M" format to new "Default:N|M"
+                std::string s = channelConfig.get<std::string>();
+                auto dash = s.find('-');
+                if (dash != std::string::npos)
+                    return "Default:" + s.substr(0, dash) + "|" + s.substr(dash + 1);
+                return "Default:" + s + "|" + s;
             }
         }
     }
-    // Default value if not found or error occurs
-    return "2-2";
+    return "Stereo:2|2";
 }
 
 bool Utils::validateChannelConfig(const std::string &channelConfig, int maxInputs, int maxOutputs)
 {
+    // Expected wire format: "Name:ins|outs;Name2:ins2|outs2"
+    // ins/outs may be '+'-separated bus counts, e.g. "2+1"
+    if (channelConfig.empty()) return false;
+
+    auto sumBuses = [](const std::string& part) -> int {
+        int total = 0;
+        std::istringstream ss(part);
+        std::string token;
+        while (std::getline(ss, token, '+'))
+        {
+            if (token.empty()) return -1; // malformed
+            for (char c : token) if (!std::isdigit(c)) return -1;
+            total += std::stoi(token);
+        }
+        return total;
+    };
+
     std::istringstream ss(channelConfig);
-    std::string pair;
-
-    while (ss >> pair)
+    std::string entry;
+    while (std::getline(ss, entry, ';'))
     {
-        size_t dashPos = pair.find('-');
-        size_t dotPos = pair.find('.');
+        auto colon = entry.find(':');
+        if (colon == std::string::npos) return false;
+        const std::string io = entry.substr(colon + 1);
+        auto pipe = io.find('|');
+        if (pipe == std::string::npos) return false;
 
-        int inputs = 0;
-        int outputs = 0;
-
-        if (dotPos != std::string::npos)
-        {
-            std::string inputPart = pair.substr(0, dashPos);
-            std::string outputPart = pair.substr(dashPos + 1);
-
-            inputs = std::stoi(inputPart.substr(0, dotPos)) + std::stoi(inputPart.substr(dotPos + 1));
-            outputs = std::stoi(outputPart);
-        }
-        else
-        {
-            inputs = std::stoi(pair.substr(0, dashPos));
-            outputs = std::stoi(pair.substr(dashPos + 1));
-        }
-
+        int inputs  = sumBuses(io.substr(0, pipe));
+        int outputs = sumBuses(io.substr(pipe + 1));
+        if (inputs < 0 || outputs < 0) return false;
         if (inputs > maxInputs || outputs > maxOutputs)
         {
-            std::cout << "Error: Channel configuration exceeds the maximum limits. Inputs: " << inputs
-                      << ", MaxInputs: " << maxInputs << ", Outputs: " << outputs << ", MaxOutputs: " << maxOutputs
-                      << std::endl;
-            return false; // Invalid configuration
+            lattice::logError << "Channel config exceeds limits: ins=" << inputs
+                              << " (max " << maxInputs << "), outs=" << outputs
+                              << " (max " << maxOutputs << ")";
+            return false;
         }
     }
-
-    return true; // Valid configuration
+    return true;
 }
 
 std::string Utils::getJsonWithLineNumbers(const nlohmann::json &j)
