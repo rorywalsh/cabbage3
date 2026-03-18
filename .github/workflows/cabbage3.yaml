@@ -110,6 +110,8 @@ jobs:
           zip -r CabbageBundle.zip \
             CabbagePluginSynth/CabbagePluginSynth_assets/Release/CabbagePluginSynth.vst3 \
             CabbagePluginEffect/CabbagePluginEffect_assets/Release/CabbagePluginEffect.vst3 \
+            CabbagePluginSynthARA/CabbagePluginSynthARA_assets/Release/CabbagePluginSynthARA.vst3 \
+            CabbagePluginEffectARA/CabbagePluginEffectARA_assets/Release/CabbagePluginEffectARA.vst3 \
             CabbagePluginSynthAUv2/CabbagePluginSynthAUv2_assets/Release/CabbagePluginSynthAUv2.component \
             CabbagePluginEffectAUv2/CabbagePluginEffectAUv2_assets/Release/CabbagePluginEffectAUv2.component \
             CabbageApp/Release/CabbageApp
@@ -176,6 +178,8 @@ jobs:
           zip -r CabbageBundle.zip \
             CabbagePluginEffect/CabbagePluginEffect_assets/CabbagePluginEffect.vst3 \
             CabbagePluginSynth/CabbagePluginSynth_assets/CabbagePluginSynth.vst3 \
+            CabbagePluginEffectARA/CabbagePluginEffectARA_assets/CabbagePluginEffectARA.vst3 \
+            CabbagePluginSynthARA/CabbagePluginSynthARA_assets/CabbagePluginSynthARA.vst3 \
             CabbageApp/CabbageApp
 
       - name: Upload Linux artifact
@@ -234,6 +238,8 @@ jobs:
           Compress-Archive -Path @(
             "CabbagePluginEffect/CabbagePluginEffect_assets/VST3/Release/CabbagePluginEffect.vst3",
             "CabbagePluginSynth/CabbagePluginSynth_assets/VST3/Release/CabbagePluginSynth.vst3",
+            "CabbagePluginEffectARA/CabbagePluginEffectARA_assets/VST3/Release/CabbagePluginEffectARA.vst3",
+            "CabbagePluginSynthARA/CabbagePluginSynthARA_assets/VST3/Release/CabbagePluginSynthARA.vst3",
             "CabbageApp/Release/CabbageApp.exe"
           ) -DestinationPath CabbageBundle.zip
 
