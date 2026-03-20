@@ -599,7 +599,7 @@ bool CabbageAudioApp::createCabbageProcessor()
     processor.reset();
 
     std::stringstream config;
-    config << std::to_string(getNumInputChannels()) << "-" << std::to_string(getNumOutputChannels());
+    config << "Default:" << std::to_string(getNumInputChannels()) << "|" << std::to_string(getNumOutputChannels());
 
     processor = std::make_unique<CabbageProcessor>(csdFileAndPath, config.str());
 

@@ -69,7 +69,7 @@ std::string Utils::getChannelConfig(const std::string &csdFile)
         {
             const auto& channelConfig = (*json)["channelConfig"];
 
-            // New format: array of named configs
+            // Format: array of named configs
             //   [{"name":"Stereo","ins":"2","outs":"2"}, ...]
             if (channelConfig.is_array())
             {
@@ -88,44 +88,6 @@ std::string Utils::getChannelConfig(const std::string &csdFile)
                     return result.empty() ? "Stereo:2|2" : result;
                 }
                 catch (const std::exception&) { return "Stereo:2|2"; }
-            }
-
-            // Legacy format: object with "inputs" / "outputs" arrays
-            //   {"inputs":["2"],"outputs":["2"]}
-            if (channelConfig.is_object() &&
-                channelConfig.contains("inputs") && channelConfig.contains("outputs"))
-            {
-                try
-                {
-                    const auto& inputs  = channelConfig["inputs"];
-                    const auto& outputs = channelConfig["outputs"];
-
-                    std::string insPart;
-                    for (size_t i = 0; i < inputs.size(); ++i)
-                    {
-                        if (i > 0) insPart += "+";
-                        insPart += inputs[i].get<std::string>();
-                    }
-                    std::string outsPart;
-                    for (size_t i = 0; i < outputs.size(); ++i)
-                    {
-                        if (i > 0) outsPart += "+";
-                        outsPart += outputs[i].get<std::string>();
-                    }
-                    return "Default:" + insPart + "|" + outsPart;
-                }
-                catch (const std::exception&) { return "Stereo:2|2"; }
-            }
-
-            // Legacy format: plain string e.g. "2-2"
-            if (channelConfig.is_string())
-            {
-                // Convert old "N-M" format to new "Default:N|M"
-                std::string s = channelConfig.get<std::string>();
-                auto dash = s.find('-');
-                if (dash != std::string::npos)
-                    return "Default:" + s.substr(0, dash) + "|" + s.substr(dash + 1);
-                return "Default:" + s + "|" + s;
             }
         }
     }
