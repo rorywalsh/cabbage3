@@ -563,8 +563,30 @@ bool CabbageAudioApp::createCabbageProcessor()
     // the old emptyInputBuffer using the correct size.
     const unsigned int prevNumInputChannels = numInputChannels;
 
-    numInputChannels = cabbage::File::getNumberOfInputChannels(csdFileAndPath);
-    numOutputChannels = cabbage::File::getNumberOfOutputChannels(csdFileAndPath);
+    // Channel counts are authoritative from the channelConfig JSON property,
+    // not from nchnls/nchnls_i in the CSD orchestra section.
+    const auto channelConfigStr = cabbage::Utils::getChannelConfig(csdFileAndPath);
+    {
+        // Parse the first entry "Name:ins|outs" to get the RtAudio stream width.
+        // ins/outs may be '+'-separated bus counts (e.g. "2+1" → 3).
+        const auto colon = channelConfigStr.find(':');
+        const auto semi  = channelConfigStr.find(';');
+        const auto io    = (colon != std::string::npos)
+                           ? channelConfigStr.substr(colon + 1,
+                               semi == std::string::npos ? std::string::npos : semi - colon - 1)
+                           : std::string("2|2");
+        const auto pipe  = io.find('|');
+        auto sumBuses = [](const std::string& part) -> unsigned int {
+            unsigned int total = 0;
+            std::istringstream ss(part);
+            std::string tok;
+            while (std::getline(ss, tok, '+'))
+                if (!tok.empty()) total += static_cast<unsigned int>(std::stoi(tok));
+            return total > 0 ? total : 2u;
+        };
+        numInputChannels  = (pipe != std::string::npos) ? sumBuses(io.substr(0, pipe)) : 2u;
+        numOutputChannels = (pipe != std::string::npos) ? sumBuses(io.substr(pipe + 1)) : 2u;
+    }
 
     // Phase 1: stop the existing stream (if any) WITHOUT starting a new one.
     // Passing false skips openStream/startStream, so the callback cannot run
@@ -598,10 +620,7 @@ bool CabbageAudioApp::createCabbageProcessor()
     // (idle + araTestThread) and destroys Csound so we start clean.
     processor.reset();
 
-    std::stringstream config;
-    config << "Default:" << std::to_string(getNumInputChannels()) << "|" << std::to_string(getNumOutputChannels());
-
-    processor = std::make_unique<CabbageProcessor>(csdFileAndPath, config.str());
+    processor = std::make_unique<CabbageProcessor>(csdFileAndPath, channelConfigStr);
 
     // CRITICAL: Set sample rate BEFORE setupCsound() so Csound compiles with correct SR.
     // prepareToPlay() calls initialiseAudioEngine() internally, which runs setupCsound(),
@@ -686,7 +705,7 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
     // Check if audio devices are available
     if (audioDevice->getDeviceCount() < 1)
     {
-        lattice::logError << "No audio devices found!";
+        lattice::logInfo << "No audio devices found - audio unavailable.";
         return;
     }
 
