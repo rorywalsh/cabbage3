@@ -116,3 +116,13 @@ struct CabbageGetStringWithTrigger : csnd::Plugin<2, 2>, CabbageOpcodes<2>
     int kperf() { return getIdentifier(CabbageOpcodeData::PassType::Perf); };
     int getIdentifier(int init);
 };
+
+// iHasKey cabbageHasKey "channel", "key"
+// Returns 1 if the widget identified by "channel" has the given JSON property key, 0 otherwise.
+// Supports dot-notation for nested keys, e.g. "bounds.left".
+struct CabbageWidgetHasKey : csnd::Plugin<1, 2>, CabbageOpcodes<2>
+{
+    int init() { return check(); };
+    int kperf() { return check(); };
+    int check();
+};

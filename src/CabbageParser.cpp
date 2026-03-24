@@ -160,7 +160,13 @@ std::string Parser::parseContent(const std::string &content, std::vector<nlohman
     std::string errorMessage;
     try
     {
-        auto jsonRoot = nlohmann::json::parse(content);
+        auto jsonRoot = nlohmann::json::parse(content, nullptr, /*allow_exceptions=*/false);
+        if (jsonRoot.is_discarded())
+        {
+            errorMessage = "JSON Parse Error: invalid or malformed Cabbage JSON";
+            lattice::logError << errorMessage;
+            return errorMessage;
+        }
 
         // Support both old array format and new object format with "widgets" key
         nlohmann::json widgetsArray;

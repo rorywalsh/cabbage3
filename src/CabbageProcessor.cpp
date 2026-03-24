@@ -147,6 +147,16 @@ void CabbageProcessor::initialiseAudioEngine()
         (getChannelConfig().getTotalNumInputChannels()  != totalNumInputs ||
          getChannelConfig().getTotalNumOutputChannels() != totalNumOutputs);
 
+    // Register named audio port configs on first init only, BEFORE setupCsound().
+    // This ensures the host can query audioPortsCount() even if Csound fails to
+    // compile (which would cause an early return below, leaving configs empty).
+    // On re-init the host has already called selectAudioPortsConfig(id); the
+    // configs vector is still intact — re-calling addChannels() would duplicate them.
+    if (!isReinit)
+    {
+        addChannels(channelConfig);
+    }
+
     if (isReinit)
     {
         // Snapshot all live Csound channel values before we destroy the engine
@@ -167,15 +177,7 @@ void CabbageProcessor::initialiseAudioEngine()
         return;
     }
 
-    // Register named audio port configs on first init only.
-    // On re-init the host has already called selectAudioPortsConfig(id); the
-    // configs vector is still intact — re-calling addChannels() would duplicate them.
-    // addParameters() is also first-init-only (host-facing, must not repeat).
-    if (!isReinit)
-    {
-        addChannels(channelConfig);
-    }
-    else if (configChanged)
+    if (configChanged)
     {
         // The host switched to a different config — sync our stored totals.
         auto ioConfig = getChannelConfig();
@@ -1260,7 +1262,11 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
     {
         lattice::logInfo << "CabbageProcessor: Calling queueGenTableUpdates() for webview reconnection";
         setCabbageIsReady();
+        // Note: setCabbageIsReady() already calls updateUI() in plugin mode (#ifndef CabbageApp).
+        // For CabbageApp mode, call it here since setCabbageIsReady() skips it.
+#ifdef CabbageApp
         updateUI();
+#endif
         // Re-queue table data for the reconnected webview
         cabbage.queueGenTableUpdates();
     }

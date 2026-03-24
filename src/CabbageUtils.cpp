@@ -445,21 +445,22 @@ std::string File::getCabbageSection(const std::string &csdFilePath)
 // Reads and parses the cabbage section from the file
 std::optional<nlohmann::json> File::parseCabbageSection(const std::string &csdFile)
 {
-    try
-    {
-        // Get the cabbage section from the file
-        const std::string cabbageContents = cabbage::File::getCabbageSection(csdFile);
+    // Get the cabbage section from the file
+    const std::string cabbageContents = cabbage::File::getCabbageSection(csdFile);
 
-        // Parse the cabbageContents as a JSON object
-        return nlohmann::json::parse(cabbageContents);
-    }
-    catch (const nlohmann::json::parse_error &e)
+    if (cabbageContents.empty())
+        return std::nullopt;
+
+    // Parse without throwing — invalid JSON returns a discarded value instead of raising
+    // a parse_error exception (which would cause debuggers to break on first-chance throws).
+    auto result = nlohmann::json::parse(cabbageContents, nullptr, /*allow_exceptions=*/false);
+    if (result.is_discarded())
     {
-        // Handle JSON parsing error
-        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+        std::cerr << "Error parsing Cabbage JSON section in: " << csdFile << std::endl;
+        return std::nullopt;
     }
 
-    return std::nullopt; // Return empty optional on failure
+    return result;
 }
 
 // Function to get the number of input channels (nchnls_i)

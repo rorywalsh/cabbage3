@@ -94,6 +94,9 @@ void Engine::addOpcodes()
     
     csnd::plugin<CabbageGetStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "Sk", "SS", csnd::thread::k);
 
+    csnd::plugin<CabbageWidgetHasKey>((csnd::Csound *)getCsound()->GetCsound(), "cabbageHasKey", "i", "SS", csnd::thread::i);
+    csnd::plugin<CabbageWidgetHasKey>((csnd::Csound *)getCsound()->GetCsound(), "cabbageHasKey", "k", "SW", csnd::thread::ik);
+
     csnd::plugin<CabbageCreate>((csnd::Csound *)getCsound()->GetCsound(), "cabbageCreate", "", "S", csnd::thread::i);
     csnd::plugin<CabbageDump>((csnd::Csound *)getCsound()->GetCsound(), "cabbageDump", "", "So", csnd::thread::i);
     csnd::plugin<CabbageDumpWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageDump", "", "kSo", csnd::thread::ik);
@@ -108,6 +111,8 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageGetFiles>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetFiles", "S[]", "SS", csnd::thread::i);
     csnd::plugin<CabbageCreateFileName>((csnd::Csound *)getCsound()->GetCsound(), "cabbageCreateFileName", "S", "SS", csnd::thread::i);
     csnd::plugin<CabbageJoinPath>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJoinPath", "S", "SW", csnd::thread::i);
+
+    csnd::plugin<CabbageGetWidgets>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetWidgets", "S[]", "", csnd::thread::i);
 
 }
 
@@ -850,7 +855,9 @@ std::string Engine::getUpdatedWidgetJsonStr(const std::string &channel, std::str
     if (includeValue)
     {
         // Parse the data to extract the value from channels[0].range.value
-        nlohmann::json widgetJson = nlohmann::json::parse(data);
+        auto widgetJson = nlohmann::json::parse(data, nullptr, /*allow_exceptions=*/false);
+        if (widgetJson.is_discarded())
+            return result;
         float value = 0.0f;
 
         // Read from channels[0].range.value (new architecture)

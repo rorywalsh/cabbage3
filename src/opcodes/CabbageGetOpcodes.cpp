@@ -214,8 +214,18 @@ int CabbageGetMYFLT::getIdentifier(int /*init*/)
         {
             if (cabbage::Engine::hasChannel(widget, data.channel))
             {
-                // EvaluateJavaScript << data.identifierText << ":" << widget[data.identifierText].get<float>();
-                outargs[0] = getJsonValue(widget, data.identifier).get<MYFLT>();
+                auto val = getJsonValue(widget, data.identifier);
+                if (val.is_null())
+                {
+                    csound->message("cabbageGet: property '" + data.identifier + "' not found on channel '" + data.channel + "'");
+                    return NOTOK;
+                }
+                try { outargs[0] = val.get<MYFLT>(); }
+                catch (const nlohmann::json::exception &e)
+                {
+                    csound->message(std::string("cabbageGet: type error for property '") + data.identifier + "': " + e.what());
+                    return NOTOK;
+                }
             }
         }
     }
@@ -256,9 +266,23 @@ int CabbageGetString::getIdentifier(int /*init*/)
         {
             if (cabbage::Engine::hasChannel(widget, data.channel))
             {
-                auto output = getJsonValue(widget, data.identifier).get<std::string>();
-                outargs.str_data(0).size = int(strlen(output.c_str()) + 1);
-                outargs.str_data(0).data = csound->strdup(output.data());
+                auto val = getJsonValue(widget, data.identifier);
+                if (val.is_null())
+                {
+                    csound->message("cabbageGet: property '" + data.identifier + "' not found on channel '" + data.channel + "'");
+                    return NOTOK;
+                }
+                try
+                {
+                    auto output = val.get<std::string>();
+                    outargs.str_data(0).size = int(strlen(output.c_str()) + 1);
+                    outargs.str_data(0).data = csound->strdup(output.data());
+                }
+                catch (const nlohmann::json::exception &e)
+                {
+                    csound->message(std::string("cabbageGet: type error for property '") + data.identifier + "': " + e.what());
+                    return NOTOK;
+                }
             }
         }
     }
@@ -280,7 +304,19 @@ int CabbageGetStringArray::getIdentifier(int /*init*/)
         {
             if (cabbage::Engine::hasChannel(widget, data.channel))
             {
-                auto items = getJsonValue(widget, data.identifier).get<std::vector<std::string>>();
+                auto val = getJsonValue(widget, data.identifier);
+                if (val.is_null())
+                {
+                    csound->message("cabbageGet: property '" + data.identifier + "' not found on channel '" + data.channel + "'");
+                    return NOTOK;
+                }
+                std::vector<std::string> items;
+                try { items = val.get<std::vector<std::string>>(); }
+                catch (const nlohmann::json::exception &e)
+                {
+                    csound->message(std::string("cabbageGet: type error for property '") + data.identifier + "': " + e.what());
+                    return NOTOK;
+                }
                 csnd::Vector<STRINGDAT>& out = outargs.vector_data<STRINGDAT>(0);
                 out.init(csound, static_cast<int>(items.size()), this->insdshead);
                 int index = 0;
@@ -310,7 +346,19 @@ int CabbageGetStringWithTrigger::getIdentifier(int /*init*/)
         {
             if (cabbage::Engine::hasChannel(widget, data.channel))
             {
-                auto str = getJsonValue(widget, data.identifier).get<std::string>();
+                auto val = getJsonValue(widget, data.identifier);
+                if (val.is_null())
+                {
+                    csound->message("cabbageGet: property '" + data.identifier + "' not found on channel '" + data.channel + "'");
+                    return NOTOK;
+                }
+                std::string str;
+                try { str = val.get<std::string>(); }
+                catch (const nlohmann::json::exception &e)
+                {
+                    csound->message(std::string("cabbageGet: type error for property '") + data.identifier + "': " + e.what());
+                    return NOTOK;
+                }
 
                 if (currentString != str)
                 {
@@ -323,6 +371,47 @@ int CabbageGetStringWithTrigger::getIdentifier(int /*init*/)
                 outargs.str_data(0).size = int(strlen(str.c_str()) + 1);
                 outargs.str_data(0).data = csound->strdup(str.data());
             }
+        }
+    }
+
+    return IS_OK;
+}
+
+//=========================================================================================
+// iHasKey cabbageHasKey "channel", "key"
+// kHasKey cabbageHasKey "channel", "key"
+// Returns 1 if the named widget has the given property key (dot-notation supported), 0 otherwise.
+//=========================================================================================
+int CabbageWidgetHasKey::check()
+{
+    auto *hostData = static_cast<cabbage::Engine *>(csound->host_data());
+    outargs[0] = 0;
+
+    if (in_count() != 2)
+        return IS_OK;
+
+    CabbageOpcodeData data = getIdentData(csound, inargs, true, 0, 1);
+
+    for (auto &widget : hostData->getWidgets())
+    {
+        if (cabbage::Engine::hasChannel(widget, data.channel))
+        {
+            // Traverse dot-notation path to check existence
+            auto keys = split(data.identifier, '.');
+            const nlohmann::json *current = &widget;
+            bool found = true;
+            for (const auto &key : keys)
+            {
+                if (current->contains(key))
+                    current = &(*current)[key];
+                else
+                {
+                    found = false;
+                    break;
+                }
+            }
+            outargs[0] = found ? 1 : 0;
+            return IS_OK;
         }
     }
 

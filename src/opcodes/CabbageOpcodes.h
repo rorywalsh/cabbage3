@@ -226,7 +226,7 @@ struct CabbageOpcodes
             if (jsonObj.contains(jsonString))
                 return jsonObj[jsonString];
 
-            return jsonObj;
+            return nullptr; // Return null if the key does not exist
         }
 
         //        _log(jsonObj.dump(4));
