@@ -37,6 +37,11 @@ struct CabbageSaveState : csnd::InPlug<1>
     int writeDataToDisk();
 };
 
+struct CabbageSaveStateSelected : csnd::InPlug<2>
+{
+    int init();
+};
+
 struct CabbageLoadState : csnd::InPlug<1>
 {
     int init();

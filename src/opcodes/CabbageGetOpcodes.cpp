@@ -220,7 +220,12 @@ int CabbageGetMYFLT::getIdentifier(int /*init*/)
                     csound->message("cabbageGet: property '" + data.identifier + "' not found on channel '" + data.channel + "'");
                     return NOTOK;
                 }
-                try { outargs[0] = val.get<MYFLT>(); }
+                try {
+                    if (val.is_boolean())
+                        outargs[0] = val.get<bool>() ? 1.0 : 0.0;
+                    else
+                        outargs[0] = val.get<MYFLT>();
+                }
                 catch (const nlohmann::json::exception &e)
                 {
                     csound->message(std::string("cabbageGet: type error for property '") + data.identifier + "': " + e.what());

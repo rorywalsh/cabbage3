@@ -39,24 +39,40 @@ int CabbageSaveState::writeDataToDisk()
 {
     const std::string stateFile = args.str_data(0).data;
     auto *hostData = static_cast<cabbage::Engine *>(csound->host_data());
-    
-    // Move ALL work to background thread - even getting the state and serializing it
-    // This avoids blocking the audio thread with deep copies and JSON operations
-    std::thread([hostData, stateFile]() {
-        nlohmann::json stateJson = hostData->saveWidgetState(false); // false = session save (checks persistence.session)
-        std::string jsonString = stateJson.dump(4);
-        cabbage::File::writeToFile(stateFile, jsonString);
-        
-        // After file is written, send a message to trigger UI updates
-        // This is important for populate widgets that need to refresh their file lists
-        lattice::logInfo << "Widget state saved successfully to: " << stateFile;
-        
-    }).detach();
-    
-    return IS_OK;
 
+    std::thread([hostData, stateFile]() {
+        nlohmann::json stateJson = hostData->saveWidgetStateValuesOnly({}, true);
+        cabbage::File::writeToFile(stateFile, stateJson.dump(4));
+        lattice::logInfo << "Widget state (values only) saved to: " << stateFile;
+    }).detach();
+
+    return IS_OK;
 }
 
+
+//=====================================================================================
+int CabbageSaveStateSelected::init()
+{
+    const std::string stateFile = args.str_data(0).data;
+    auto *hostData = static_cast<cabbage::Engine *>(csound->host_data());
+
+    // Extract widget IDs from the string array argument (those that get full JSON stored)
+    std::unordered_set<std::string> fullJsonIds;
+    csnd::Vector<STRINGDAT>& idArray = args.template vector_data<STRINGDAT>(1);
+    for (size_t i = 0; i < idArray.len(); ++i)
+    {
+        if (idArray[i].data != nullptr && idArray[i].data[0] != '\0')
+            fullJsonIds.insert(std::string(idArray[i].data));
+    }
+
+    std::thread([hostData, stateFile, fullJsonIds]() {
+        nlohmann::json stateJson = hostData->saveWidgetStateValuesOnly(fullJsonIds, false);
+        cabbage::File::writeToFile(stateFile, stateJson.dump(4));
+        lattice::logInfo << "Widget state saved to: " << stateFile;
+    }).detach();
+
+    return IS_OK;
+}
 
 //=====================================================================================
 int CabbageLoadState::init()

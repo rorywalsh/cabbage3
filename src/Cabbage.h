@@ -229,7 +229,11 @@ class Engine
     // Save complete widget state to JSON
     // isPresetSave: true for DAW preset saves (checks persistence.preset), false for session saves (checks persistence.session)
     nlohmann::json saveWidgetState(bool isPresetSave = true);
-    
+
+    // Save widget state where widgets in valueOnlyIds (or all widgets if allValuesOnly=true)
+    // are stored as value-only entries. Widget identity uses top-level "id" if present, else first channel id.
+    nlohmann::json saveWidgetStateValuesOnly(const std::unordered_set<std::string>& valueOnlyIds, bool allValuesOnly);
+
     // Load complete widget state from JSON and update all systems
     void loadWidgetState(const nlohmann::json &state);
 

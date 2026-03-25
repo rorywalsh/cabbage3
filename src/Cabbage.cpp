@@ -102,6 +102,7 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageDumpWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageDump", "", "kSo", csnd::thread::ik);
     
     csnd::plugin<CabbageSaveState>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSaveState", "", "S", csnd::thread::i);
+    csnd::plugin<CabbageSaveStateSelected>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSaveState", "", "SS[]", csnd::thread::i);
     csnd::plugin<CabbageLoadState>((csnd::Csound *)getCsound()->GetCsound(), "cabbageLoadState", "", "S", csnd::thread::i);
 
     csnd::plugin<CabbageSendMessage>((csnd::Csound *)getCsound()->GetCsound(), "cabbageSendMessage", "", "S", csnd::thread::i);
@@ -1451,6 +1452,100 @@ nlohmann::json Engine::saveWidgetState(bool isPresetSave)
     return state;
 }
 
+nlohmann::json Engine::saveWidgetStateValuesOnly(const std::unordered_set<std::string>& valueOnlyIds, bool allValuesOnly)
+{
+    std::vector<nlohmann::json> widgetsCopy;
+    {
+        std::lock_guard<std::mutex> lock(widgetsMutex);
+        widgetsCopy = widgets;
+    }
+
+    nlohmann::json state;
+    nlohmann::json filteredWidgets = nlohmann::json::array();
+
+    for (auto widget : widgetsCopy)
+    {
+        if (!widget.is_object())
+            continue;
+
+        // Check persistence.session (same as existing opcode save behaviour)
+        bool shouldInclude = true;
+        if (widget.contains("persistence") && widget["persistence"].is_object())
+        {
+            const auto& persistence = widget["persistence"];
+            if (persistence.contains("session") && persistence["session"].is_boolean())
+                shouldInclude = persistence["session"].get<bool>();
+        }
+        else if (widget.contains("presetIgnore") && widget["presetIgnore"].is_boolean())
+        {
+            shouldInclude = !widget["presetIgnore"].get<bool>();
+        }
+
+        if (!shouldInclude)
+            continue;
+
+        // Determine widget match ID: top-level "id" if present, else first channel id
+        std::string matchId;
+        if (widget.contains("id") && widget["id"].is_string())
+            matchId = widget["id"].get<std::string>();
+        else if (widget.contains("channels") && widget["channels"].is_array() &&
+                 !widget["channels"].empty())
+        {
+            const auto& firstChannel = widget["channels"][0];
+            if (firstChannel.is_object() && firstChannel.contains("id") &&
+                firstChannel["id"].is_string())
+                matchId = firstChannel["id"].get<std::string>();
+        }
+
+        // When valueOnlyIds is non-empty it lists widgets that should have their FULL JSON stored;
+        // everything else gets value-only storage.  When allValuesOnly is set, all are value-only.
+        const bool isValueOnly = allValuesOnly || (valueOnlyIds.empty() ? false : valueOnlyIds.count(matchId) == 0);
+
+        // Update channel values from Csound for all widgets
+        if (widget.contains("channels") && widget["channels"].is_array())
+        {
+            for (auto& channel : widget["channels"])
+            {
+                if (channel.is_object() && channel.contains("id") && channel["id"].is_string())
+                {
+                    const std::string channelId = channel["id"].get<std::string>();
+                    MYFLT* channelPtr = nullptr;
+                    if (csoundGetChannelPtr(csound->GetCsound(), (void**)&channelPtr, channelId.c_str(),
+                                           CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS
+                        && channelPtr != nullptr)
+                    {
+                        if (channel.contains("range") && channel["range"].is_object())
+                            channel["range"]["value"] = *channelPtr;
+                    }
+                }
+            }
+        }
+
+        if (isValueOnly)
+        {
+            // Value-only entry: channels array + optional top-level id
+            nlohmann::json entry = nlohmann::json::object();
+            if (widget.contains("id") && widget["id"].is_string())
+                entry["id"] = widget["id"];
+            if (widget.contains("channels"))
+                entry["channels"] = widget["channels"];
+            filteredWidgets.push_back(entry);
+        }
+        else
+        {
+            // Full JSON entry (same as saveWidgetState)
+            if (widget.contains("value"))
+                widget.erase("value");
+            if (widget.contains("populate"))
+                widget.erase("populate");
+            filteredWidgets.push_back(widget);
+        }
+    }
+
+    state["cabbageWidgetsState"] = filteredWidgets;
+    return state;
+}
+
 void Engine::loadWidgetState(const nlohmann::json &state)
 {
     // Check if we have the widget state
@@ -1465,56 +1560,61 @@ void Engine::loadWidgetState(const nlohmann::json &state)
         return;
     }
     
-    // Instead of replacing widgets, we'll merge the channel values from the loaded state
+    // Instead of replacing widgets, we'll merge the channel values from the loaded state.
+    // Full-JSON entries (those with a "type" key) also have all their properties merged back.
     std::unordered_map<std::string, std::unordered_map<std::string, double>> channelUpdates;
-    
+    std::unordered_map<std::string, nlohmann::json> fullJsonUpdates;
+
     try {
         for (const auto& savedWidget : state["cabbageWidgetsState"]) {
             if (!savedWidget.is_object()) {
                 lattice::logError << "Invalid state: found non-object widget in state, aborting load";
                 return;
             }
-            
-            // Extract widget ID to match with existing widgets
+
             std::string widgetId;
-            if (savedWidget.contains("id") && savedWidget["id"].is_string()) {
+            if (savedWidget.contains("id") && savedWidget["id"].is_string())
                 widgetId = cabbage::Parser::removeQuotes(savedWidget["id"]);
+
+            std::string firstChannelId;
+            if (savedWidget.contains("channels") && savedWidget["channels"].is_array() &&
+                !savedWidget["channels"].empty())
+            {
+                const auto& ch0 = savedWidget["channels"][0];
+                if (ch0.is_object() && ch0.contains("id") && ch0["id"].is_string())
+                    firstChannelId = cabbage::Parser::removeQuotes(ch0["id"]);
             }
-            
-            // For widgets with channels array, extract channel values
+            const std::string matchId = widgetId.empty() ? firstChannelId : widgetId;
+
+            // Full-JSON entry: has a "type" field
+            if (savedWidget.contains("type") && !matchId.empty())
+                fullJsonUpdates[matchId] = savedWidget;
+
+            // Extract channel values from all entries
             if (savedWidget.contains("channels") && savedWidget["channels"].is_array())
             {
                 for (const auto& channel : savedWidget["channels"])
                 {
                     if (!channel.is_object())
                         continue;
-                        
+
                     std::string channelId;
-                    if (channel.contains("id") && channel["id"].is_string()) {
+                    if (channel.contains("id") && channel["id"].is_string())
                         channelId = cabbage::Parser::removeQuotes(channel["id"]);
-                    }
-                    
-                    // Get the value from range.value
+
                     if (channel.contains("range") && channel["range"].is_object() &&
                         channel["range"].contains("value"))
                     {
                         double value = 0.0;
-                        
-                        // Get value, defaulting to 0 if null
-                        if (channel["range"]["value"].is_number()) {
+                        if (channel["range"]["value"].is_number())
                             value = channel["range"]["value"].get<double>();
-                        }
-                        else if (channel["range"]["value"].is_null()) {
-                            // Use defaultValue if present
-                            if (channel["range"].contains("defaultValue") && 
-                                channel["range"]["defaultValue"].is_number()) {
-                                value = channel["range"]["defaultValue"].get<double>();
-                            }
-                        }
-                        
-                        if (!channelId.empty()) {
-                            channelUpdates[channelId][widgetId] = value;
-                        }
+                        else if (channel["range"]["value"].is_null() &&
+                                 channel["range"].contains("defaultValue") &&
+                                 channel["range"]["defaultValue"].is_number())
+                            value = channel["range"]["defaultValue"].get<double>();
+
+                        if (!channelId.empty())
+                            channelUpdates[channelId][matchId] = value;
                     }
                 }
             }
@@ -1524,49 +1624,71 @@ void Engine::loadWidgetState(const nlohmann::json &state)
         lattice::logError << "Exception during widget state preparation: " << e.what();
         return;
     }
-    
-    // Apply channel value updates to existing widgets (quick operation with mutex)
+
+    // Runtime-only keys that must never be overwritten from saved state
+    static const std::unordered_set<std::string> runtimeKeys = {
+        "parameterIndex", "value", "origBounds", "groupBaseBounds"
+    };
+
+    // Merge all updates into the live widgets array (mutex held for entire merge)
     {
         std::lock_guard<std::mutex> lock(widgetsMutex);
-        
-        lattice::logDebug << "Merging " << channelUpdates.size() << " channel updates into existing widgets (preserving widget properties like populate)";
-        
+
+        lattice::logDebug << "Merging " << channelUpdates.size() << " channel updates and "
+                          << fullJsonUpdates.size() << " full-JSON updates into existing widgets";
+
         for (auto& widget : widgets)
         {
             if (!widget.is_object())
                 continue;
-                
+
+            // Resolve match ID for this widget (mirrors save-side logic)
             std::string widgetId;
-            if (widget.contains("id") && widget["id"].is_string()) {
+            if (widget.contains("id") && widget["id"].is_string())
                 widgetId = cabbage::Parser::removeQuotes(widget["id"]);
+
+            std::string firstChannelId;
+            if (widget.contains("channels") && widget["channels"].is_array() &&
+                !widget["channels"].empty())
+            {
+                const auto& ch0 = widget["channels"][0];
+                if (ch0.is_object() && ch0.contains("id") && ch0["id"].is_string())
+                    firstChannelId = cabbage::Parser::removeQuotes(ch0["id"]);
             }
-            
-            // Update channels array values
+            const std::string matchId = widgetId.empty() ? firstChannelId : widgetId;
+
+            // Apply full-JSON properties if this widget has a saved full-JSON entry
+            if (!matchId.empty() && fullJsonUpdates.count(matchId) > 0)
+            {
+                const auto& savedFull = fullJsonUpdates[matchId];
+                for (auto it = savedFull.begin(); it != savedFull.end(); ++it)
+                {
+                    // Skip runtime-only keys that should never be overwritten
+                    if (runtimeKeys.count(it.key()) > 0)
+                        continue;
+                    widget[it.key()] = it.value();
+                }
+            }
+
+            // Apply channel value updates
             if (widget.contains("channels") && widget["channels"].is_array())
             {
                 for (auto& channel : widget["channels"])
                 {
                     if (!channel.is_object())
                         continue;
-                        
+
                     std::string channelId;
-                    if (channel.contains("id") && channel["id"].is_string()) {
+                    if (channel.contains("id") && channel["id"].is_string())
                         channelId = cabbage::Parser::removeQuotes(channel["id"]);
-                    }
-                    
-                    // Check if we have an update for this channel
+
                     if (!channelId.empty() && channelUpdates.count(channelId) > 0)
                     {
                         auto& updates = channelUpdates[channelId];
-                        
-                        // Update the range.value with loaded state
-                        if (!channel.contains("range")) {
+                        if (!channel.contains("range"))
                             channel["range"] = nlohmann::json::object();
-                        }
-                        
-                        if (updates.count(widgetId) > 0) {
-                            channel["range"]["value"] = updates[widgetId];
-                        }
+                        if (updates.count(matchId) > 0)
+                            channel["range"]["value"] = updates[matchId];
                     }
                 }
             }
@@ -1583,6 +1705,21 @@ void Engine::loadWidgetState(const nlohmann::json &state)
     
     for (const auto &widget : widgetsCopy)
     {
+        // Skip widgets excluded from preset restore via persistence.preset or legacy presetIgnore
+        bool shouldInclude = true;
+        if (widget.contains("persistence") && widget["persistence"].is_object())
+        {
+            const auto &persistence = widget["persistence"];
+            if (persistence.contains("preset") && persistence["preset"].is_boolean())
+                shouldInclude = persistence["preset"].get<bool>();
+        }
+        else if (widget.contains("presetIgnore") && widget["presetIgnore"].is_boolean())
+        {
+            shouldInclude = !widget["presetIgnore"].get<bool>();
+        }
+        if (!shouldInclude)
+            continue;
+
         if (widget.contains("channels") && widget["channels"].is_array())
         {
             for (const auto &channel : widget["channels"])
@@ -1629,11 +1766,20 @@ void Engine::loadWidgetState(const nlohmann::json &state)
     
     int widgetCount = 0;
     for (const auto &widget : widgetsCopy) {
-        // Skip widgets with presetIgnore=true
-        if (widget.contains("presetIgnore") && widget["presetIgnore"].is_boolean() && 
-            widget["presetIgnore"].get<bool>()) {
-            continue;
+        // Skip widgets excluded from preset restore via persistence.preset or legacy presetIgnore
+        bool shouldInclude = true;
+        if (widget.contains("persistence") && widget["persistence"].is_object())
+        {
+            const auto &persistence = widget["persistence"];
+            if (persistence.contains("preset") && persistence["preset"].is_boolean())
+                shouldInclude = persistence["preset"].get<bool>();
         }
+        else if (widget.contains("presetIgnore") && widget["presetIgnore"].is_boolean())
+        {
+            shouldInclude = !widget["presetIgnore"].get<bool>();
+        }
+        if (!shouldInclude)
+            continue;
         
         std::string channelId;
         if (widget.contains("id") && widget["id"].is_string()) {
