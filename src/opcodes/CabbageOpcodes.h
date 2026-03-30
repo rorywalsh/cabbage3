@@ -289,12 +289,12 @@ struct CabbageOpcodes
                         csnd::Vector<STRINGDAT>& arrayArgs = args.template vector_data<STRINGDAT>(argIndex);
                         std::vector<std::string> array;
                         array.reserve(arrayArgs.len());
-                        for (size_t i = 0; i < arrayArgs.len(); ++i) {
+                        for (const auto& strdat : arrayArgs) {
                             // Use strnlen to find actual string length
                             // Allow for null terminator at position size
-                            size_t maxLen = arrayArgs[i].size + 1;
-                            size_t len = strnlen(arrayArgs[i].data, maxLen);
-                            array.push_back(std::string(arrayArgs[i].data, len));
+                            size_t maxLen = static_cast<size_t>(strdat.size) + 1;
+                            size_t len = strnlen(strdat.data, maxLen);
+                            array.push_back(std::string(strdat.data, len));
                         }
                         jsonObj[identifier] = array;
                     }
@@ -331,12 +331,12 @@ struct CabbageOpcodes
                         csnd::Vector<STRINGDAT>& arrayArgs = args.template vector_data<STRINGDAT>(argIndex);
                         std::vector<std::string> array;
                         array.reserve(arrayArgs.len());
-                        for (size_t i = 0; i < arrayArgs.len(); ++i) {
+                        for (const auto& strdat : arrayArgs) {
                             // Use strnlen to find actual string length
                             // Allow for null terminator at position size
-                            size_t maxLen = arrayArgs[i].size + 1;
-                            size_t len = strnlen(arrayArgs[i].data, maxLen);
-                            array.push_back(std::string(arrayArgs[i].data, len));
+                            size_t maxLen = static_cast<size_t>(strdat.size) + 1;
+                            size_t len = strnlen(strdat.data, maxLen);
+                            array.push_back(std::string(strdat.data, len));
                         }
                         setJsonValue(jsonObj, getSafeString(args, argIndex - 1), array);
                     }

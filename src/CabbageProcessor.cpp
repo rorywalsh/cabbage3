@@ -160,7 +160,7 @@ void CabbageProcessor::initialiseAudioEngine()
     if (isReinit)
     {
         // Snapshot all live Csound channel values before we destroy the engine
-        savedState = cabbage.saveWidgetState(false);
+        savedState = cabbage.saveWidgetJsonData(false);
         // Stop the idle thread — it accesses Csound state and must not run during teardown
         stopIdleThread();
         cabbage.teardownCsound();
@@ -213,7 +213,8 @@ void CabbageProcessor::initialiseAudioEngine()
     else if (!savedState.is_null())
     {
         // SR reinit: restore all channel values so the UI is unchanged from the user's perspective
-        cabbage.loadWidgetState(savedState);
+        // false = session load, checks persistence.session
+        cabbage.loadWidgetState(savedState, false);
     }
 
     startOnIdle();
@@ -1574,16 +1575,17 @@ void CabbageProcessor::updateUI()
 //========================================================================================
 nlohmann::json CabbageProcessor::savePluginState()
 {
-    // Use the Engine utility function to save complete widget state
+    // Use the Engine utility function to save complete widget JSON data
     // false = session save (DAW), checks persistence.session
-    return cabbage.saveWidgetState(false);
+    return cabbage.saveWidgetJsonData(false);
 }
 
 void CabbageProcessor::loadPluginState(nlohmann::json state)
 {
     // Use the Engine utility function to load complete widget state
     // This handles: widgets array, Csound channels, parameters, and UI updates
-    cabbage.loadWidgetState(state);
+    // false = session load (DAW), checks persistence.session (matches savePluginState)
+    cabbage.loadWidgetState(state, false);
 }
 
 //========================================================================================

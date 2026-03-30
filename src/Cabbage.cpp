@@ -1352,7 +1352,7 @@ void Engine::flushChannelCache()
 // State Management Utilities - Used by both opcodes and CabbageProcessor
 //=====================================================================================
 
-nlohmann::json Engine::saveWidgetState(bool isPresetSave)
+nlohmann::json Engine::saveWidgetJsonData(bool isPresetSave)
 {
     // Make a quick copy of widgets to avoid holding mutex during filtering/serialization
     std::vector<nlohmann::json> widgetsCopy;
@@ -1452,7 +1452,7 @@ nlohmann::json Engine::saveWidgetState(bool isPresetSave)
     return state;
 }
 
-nlohmann::json Engine::saveWidgetStateValuesOnly(const std::unordered_set<std::string>& valueOnlyIds, bool allValuesOnly)
+nlohmann::json Engine::saveWidgetChannelData(const std::unordered_set<std::string>& fullJsonIds, bool allChannelDataOnly)
 {
     std::vector<nlohmann::json> widgetsCopy;
     {
@@ -1497,9 +1497,9 @@ nlohmann::json Engine::saveWidgetStateValuesOnly(const std::unordered_set<std::s
                 matchId = firstChannel["id"].get<std::string>();
         }
 
-        // When valueOnlyIds is non-empty it lists widgets that should have their FULL JSON stored;
-        // everything else gets value-only storage.  When allValuesOnly is set, all are value-only.
-        const bool isValueOnly = allValuesOnly || (valueOnlyIds.empty() ? false : valueOnlyIds.count(matchId) == 0);
+        // Widgets in fullJsonIds get full JSON; others get channel data only.
+        // When allChannelDataOnly is set, all widgets get channel data only.
+        const bool isChannelDataOnly = allChannelDataOnly || (fullJsonIds.empty() ? false : fullJsonIds.count(matchId) == 0);
 
         // Update channel values from Csound for all widgets
         if (widget.contains("channels") && widget["channels"].is_array())
@@ -1521,9 +1521,9 @@ nlohmann::json Engine::saveWidgetStateValuesOnly(const std::unordered_set<std::s
             }
         }
 
-        if (isValueOnly)
+        if (isChannelDataOnly)
         {
-            // Value-only entry: channels array + optional top-level id
+            // Channel data only: id + channels array (contains range.value)
             nlohmann::json entry = nlohmann::json::object();
             if (widget.contains("id") && widget["id"].is_string())
                 entry["id"] = widget["id"];
@@ -1533,7 +1533,7 @@ nlohmann::json Engine::saveWidgetStateValuesOnly(const std::unordered_set<std::s
         }
         else
         {
-            // Full JSON entry (same as saveWidgetState)
+            // Full JSON entry (same as saveWidgetJsonData)
             if (widget.contains("value"))
                 widget.erase("value");
             if (widget.contains("populate"))
@@ -1546,7 +1546,7 @@ nlohmann::json Engine::saveWidgetStateValuesOnly(const std::unordered_set<std::s
     return state;
 }
 
-void Engine::loadWidgetState(const nlohmann::json &state)
+void Engine::loadWidgetState(const nlohmann::json &state, bool isPresetLoad)
 {
     // Check if we have the widget state
     if (!state.contains("cabbageWidgetsState")) {
@@ -1705,13 +1705,23 @@ void Engine::loadWidgetState(const nlohmann::json &state)
     
     for (const auto &widget : widgetsCopy)
     {
-        // Skip widgets excluded from preset restore via persistence.preset or legacy presetIgnore
+        // Skip widgets excluded from restore based on persistence settings
         bool shouldInclude = true;
         if (widget.contains("persistence") && widget["persistence"].is_object())
         {
             const auto &persistence = widget["persistence"];
-            if (persistence.contains("preset") && persistence["preset"].is_boolean())
-                shouldInclude = persistence["preset"].get<bool>();
+            if (isPresetLoad)
+            {
+                // For preset loads, check persistence.preset
+                if (persistence.contains("preset") && persistence["preset"].is_boolean())
+                    shouldInclude = persistence["preset"].get<bool>();
+            }
+            else
+            {
+                // For session loads, check persistence.session
+                if (persistence.contains("session") && persistence["session"].is_boolean())
+                    shouldInclude = persistence["session"].get<bool>();
+            }
         }
         else if (widget.contains("presetIgnore") && widget["presetIgnore"].is_boolean())
         {
@@ -1766,13 +1776,23 @@ void Engine::loadWidgetState(const nlohmann::json &state)
     
     int widgetCount = 0;
     for (const auto &widget : widgetsCopy) {
-        // Skip widgets excluded from preset restore via persistence.preset or legacy presetIgnore
+        // Skip widgets excluded from restore based on persistence settings
         bool shouldInclude = true;
         if (widget.contains("persistence") && widget["persistence"].is_object())
         {
             const auto &persistence = widget["persistence"];
-            if (persistence.contains("preset") && persistence["preset"].is_boolean())
-                shouldInclude = persistence["preset"].get<bool>();
+            if (isPresetLoad)
+            {
+                // For preset loads, check persistence.preset
+                if (persistence.contains("preset") && persistence["preset"].is_boolean())
+                    shouldInclude = persistence["preset"].get<bool>();
+            }
+            else
+            {
+                // For session loads, check persistence.session
+                if (persistence.contains("session") && persistence["session"].is_boolean())
+                    shouldInclude = persistence["session"].get<bool>();
+            }
         }
         else if (widget.contains("presetIgnore") && widget["presetIgnore"].is_boolean())
         {

@@ -226,16 +226,17 @@ class Engine
     // State Management Utilities - Used by both opcodes and CabbageProcessor
     //=====================================================================================
     
-    // Save complete widget state to JSON
+    // Save complete widget JSON data to state
     // isPresetSave: true for DAW preset saves (checks persistence.preset), false for session saves (checks persistence.session)
-    nlohmann::json saveWidgetState(bool isPresetSave = true);
+    nlohmann::json saveWidgetJsonData(bool isPresetSave = true);
 
-    // Save widget state where widgets in valueOnlyIds (or all widgets if allValuesOnly=true)
-    // are stored as value-only entries. Widget identity uses top-level "id" if present, else first channel id.
-    nlohmann::json saveWidgetStateValuesOnly(const std::unordered_set<std::string>& valueOnlyIds, bool allValuesOnly);
+    // Save widget channel data (id + channels array with range.value) for compact state storage
+    // Widgets in fullJsonIds get full JSON; others get channel data only. If allChannelDataOnly=true, all get channel data.
+    nlohmann::json saveWidgetChannelData(const std::unordered_set<std::string>& fullJsonIds, bool allChannelDataOnly);
 
     // Load complete widget state from JSON and update all systems
-    void loadWidgetState(const nlohmann::json &state);
+    // isPresetLoad: true for DAW preset loads (checks persistence.preset), false for session loads (checks persistence.session)
+    void loadWidgetState(const nlohmann::json &state, bool isPresetLoad = true);
 
     //=====================================================================================
     // WebView Command Processing - Central handler for UI messages

@@ -41,9 +41,9 @@ int CabbageSaveState::writeDataToDisk()
     auto *hostData = static_cast<cabbage::Engine *>(csound->host_data());
 
     std::thread([hostData, stateFile]() {
-        nlohmann::json stateJson = hostData->saveWidgetStateValuesOnly({}, true);
+        nlohmann::json stateJson = hostData->saveWidgetChannelData({}, true);
         cabbage::File::writeToFile(stateFile, stateJson.dump(4));
-        lattice::logInfo << "Widget state (values only) saved to: " << stateFile;
+        lattice::logInfo << "Widget channel data saved to: " << stateFile;
     }).detach();
 
     return IS_OK;
@@ -66,7 +66,7 @@ int CabbageSaveStateSelected::init()
     }
 
     std::thread([hostData, stateFile, fullJsonIds]() {
-        nlohmann::json stateJson = hostData->saveWidgetStateValuesOnly(fullJsonIds, false);
+        nlohmann::json stateJson = hostData->saveWidgetChannelData(fullJsonIds, false);
         cabbage::File::writeToFile(stateFile, stateJson.dump(4));
         lattice::logInfo << "Widget state saved to: " << stateFile;
     }).detach();
@@ -103,7 +103,8 @@ int CabbageLoadState::readDataFromDisk()
             
             // Use the utility function to load the widget state
             // This handles: widgets array update, Csound channels, parameters, and UI queue
-            hostData->loadWidgetState(stateJson);
+            // false = session load, checks persistence.session
+            hostData->loadWidgetState(stateJson, false);
             
             lattice::logInfo << "State loaded successfully from: " << stateFile;
             
