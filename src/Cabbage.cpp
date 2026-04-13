@@ -195,6 +195,7 @@ bool Engine::setupCsound()
     // csdFile should already be set by CabbageProcessor constructor - single source of truth
     if (csdFile.empty())
     {
+        compileErrors = "No CSD file path was provided to this plugin instance.";
         lattice::logError << "setupCsound: csdFile is empty! Should be set by CabbageProcessor constructor.";
         return false;
     }
@@ -267,7 +268,13 @@ bool Engine::setupCsound()
         return true;
     }
     else
+    {
+        compileErrors = "CSD file not found: " + csdFile
+                        + "\n\nPlease check that the file exists and that the plugin is pointing "
+                          "to the correct location.";
+        lattice::logError << "setupCsound: " << compileErrors;
         return false;
+    }
 }
 
 //===========================================================================================
@@ -1409,20 +1416,39 @@ nlohmann::json Engine::saveWidgetJsonData(bool isPresetSave)
                         if (channel.is_object() && channel.contains("id") && channel["id"].is_string())
                         {
                             std::string channelId = channel["id"].get<std::string>();
-                            
-                            // Read current value from Csound channel
-                            MYFLT* channelPtr = nullptr;
-                            if (csoundGetChannelPtr(csound->GetCsound(), (void**)&channelPtr, channelId.c_str(),
-                                                     CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
+
+                            // Check if this is a string channel
+                            bool isStringChannel = channel.contains("type") &&
+                                                   channel["type"].is_string() &&
+                                                   channel["type"].get<std::string>() == "string";
+
+                            if (isStringChannel)
                             {
-                                if (channelPtr != nullptr)
+                                // For string channels, the stringValue is already in the widget JSON
+                                // (set by processWebViewCommand when the UI sends the value)
+                                // Just log it for debugging
+                                if (channel.contains("stringValue") && channel["stringValue"].is_string())
                                 {
-                                    MYFLT currentValue = *channelPtr;
-                                    
-                                    // Update the range.value with the current channel value
-                                    if (channel.contains("range") && channel["range"].is_object())
+                                    lattice::logDebug << "Saved string channel '" << channelId
+                                                      << "' value: " << channel["stringValue"].get<std::string>();
+                                }
+                            }
+                            else
+                            {
+                                // Read current value from Csound control channel
+                                MYFLT* channelPtr = nullptr;
+                                if (csoundGetChannelPtr(csound->GetCsound(), (void**)&channelPtr, channelId.c_str(),
+                                                         CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
+                                {
+                                    if (channelPtr != nullptr)
                                     {
-                                        channel["range"]["value"] = currentValue;
+                                        MYFLT currentValue = *channelPtr;
+
+                                        // Update the range.value with the current channel value
+                                        if (channel.contains("range") && channel["range"].is_object())
+                                        {
+                                            channel["range"]["value"] = currentValue;
+                                        }
                                     }
                                 }
                             }
@@ -1442,12 +1468,29 @@ nlohmann::json Engine::saveWidgetJsonData(bool isPresetSave)
                 {
                     widget.erase("populate");
                 }
-                
+
                 filteredWidgets.push_back(widget);
             }
         }
     }
-    
+
+    // Debug: log string channel values in saved state
+    for (const auto& w : filteredWidgets)
+    {
+        if (w.contains("channels") && w["channels"].is_array())
+        {
+            for (const auto& ch : w["channels"])
+            {
+                if (ch.contains("stringValue"))
+                {
+                    std::string chId = ch.value("id", "unknown");
+                    lattice::logInfo << "saveWidgetJsonData: String channel '" << chId
+                                     << "' stringValue: " << ch["stringValue"].dump();
+                }
+            }
+        }
+    }
+
     state["cabbageWidgetsState"] = filteredWidgets;
     return state;
 }
@@ -1548,6 +1591,26 @@ nlohmann::json Engine::saveWidgetChannelData(const std::unordered_set<std::strin
 
 void Engine::loadWidgetState(const nlohmann::json &state, bool isPresetLoad)
 {
+    // Debug: log incoming state for string channels
+    if (state.contains("cabbageWidgetsState") && state["cabbageWidgetsState"].is_array())
+    {
+        for (const auto& w : state["cabbageWidgetsState"])
+        {
+            if (w.contains("channels") && w["channels"].is_array())
+            {
+                for (const auto& ch : w["channels"])
+                {
+                    if (ch.contains("stringValue"))
+                    {
+                        std::string chId = ch.value("id", "unknown");
+                        lattice::logInfo << "loadWidgetState: Incoming state has string channel '"
+                                         << chId << "' stringValue: " << ch["stringValue"].dump();
+                    }
+                }
+            }
+        }
+    }
+
     // Check if we have the widget state
     if (!state.contains("cabbageWidgetsState")) {
         lattice::logError << "Invalid state: missing 'cabbageWidgetsState' key";
@@ -1738,16 +1801,36 @@ void Engine::loadWidgetState(const nlohmann::json &state, bool isPresetLoad)
                     continue;
                     
                 std::string channelId = channel["id"].get<std::string>();
-                
+
+                // Check if this is a string channel
+                bool isStringChannel = channel.contains("type") &&
+                                       channel["type"].is_string() &&
+                                       channel["type"].get<std::string>() == "string";
+
+                if (isStringChannel)
+                {
+                    // Get string value from channel.stringValue
+                    if (channel.contains("stringValue") && channel["stringValue"].is_string())
+                    {
+                        std::string stringValue = channel["stringValue"].get<std::string>();
+                        lattice::logDebug << "Loading string channel '" << channelId << "' value: " << stringValue;
+                        // Update Csound string channel
+                        setStringChannel(channelId, stringValue);
+                    }
+                    else
+                    {
+                        lattice::logDebug << "String channel '" << channelId << "' has no stringValue in saved state";
+                    }
+                }
                 // Get value from channel.range.value (proper location for multi-channel widgets)
-                if (channel.contains("range") && channel["range"].is_object() &&
+                else if (channel.contains("range") && channel["range"].is_object() &&
                     channel["range"].contains("value") && channel["range"]["value"].is_number())
                 {
                     float value = channel["range"]["value"].get<float>();
-                    
+
                     // Update Csound control channel
                     setControlChannel(channelId, value);
-                    
+
                     // If this is an automatable parameter, update it for the host
                     if (channel.contains("parameterIndex") && channel["parameterIndex"].is_number())
                     {
@@ -1757,7 +1840,7 @@ void Engine::loadWidgetState(const nlohmann::json &state, bool isPresetLoad)
                             auto &param = processor.getParameters()[paramIdx];
                             float normalizedValue = param.toNormalised(value);
                             param.value = normalizedValue;
-                            
+
                             // Notify host of parameter change
                             processor.addParameterChange({paramIdx, normalizedValue, lattice::ParamChangeType::Value});
                         }
@@ -2013,7 +2096,16 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
         {
             std::string stringData = message.value("stringData", "");
             // Set the Csound string channel
-            getCsound()->SetChannel(channel.c_str(), stringData.c_str());
+            setStringChannel(channel, stringData);
+
+            // Update the widget JSON - set channel.stringValue for string channels
+            updateWidget(channel, [&](nlohmann::json &j) {
+                if (j.contains("channels") && j["channels"].is_array() && !j["channels"].empty())
+                {
+                    auto& firstChannel = j["channels"][0];
+                    firstChannel["stringValue"] = stringData;
+                }
+            });
         }
         else if (message.contains("floatData"))
         {

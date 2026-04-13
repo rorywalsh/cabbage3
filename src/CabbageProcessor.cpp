@@ -314,7 +314,18 @@ void CabbageProcessor::configureLogger(const nlohmann::json& json)
 void CabbageProcessor::addChannels(const std::string &config)
 {
     auto file = cabbage::File::getCsdFileAndPath();
-    cabbage::Utils::check(lattice::File::exists(file), "Can't find csd file");
+    if (!lattice::File::exists(file))
+    {
+        lattice::logError << "addChannels: CSD file not found: '" << file
+                          << "' — falling back to default stereo I/O";
+        // Add a default stereo config so the host can at least instantiate the plugin.
+        // setupCsound() will subsequently fail and display an error page.
+        addAudioPortsConfig("Stereo", "2", "2");
+        totalNumInputs  = 2;
+        totalNumOutputs = 2;
+        matchingNumInputsOutputs = true;
+        return;
+    }
 
     // Get the semicolon-separated config string: "Name:ins|outs;Name2:ins2|outs2"
     const auto configStr = config.empty()
