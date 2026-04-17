@@ -174,6 +174,7 @@ private:
     std::atomic<bool> isIdleRunning;
     std::thread idleThread;
     int idleCounter = 0;
+    std::vector<std::string> parameterChannelIds;  // Maps parameter index → channel ID for fast lookup during automation
     std::vector<lattice::Parameter> webviewMessageQueue;
     bool hasCompileErrors = false;
     std::string compileErrorHtml;

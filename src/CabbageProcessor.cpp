@@ -450,6 +450,10 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                         continue;
 
                     const std::string channel = ch["id"].get<std::string>();
+                    // Use label for DAW display if provided, otherwise fall back to channel id
+                    const std::string paramLabel = ch.contains("label") && ch["label"].is_string()
+                                                       ? ch["label"].get<std::string>()
+                                                       : channel;
                     const std::string event = ch.contains("event") && ch["event"].is_string()
                                                   ? ch["event"].get<std::string>()
                                                   : std::string("valueChanged");
@@ -517,20 +521,22 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                         normalizedDefault = std::pow(normalizedDefault, 1.0f / skewVal);
                     }
 
-                    lattice::logInfo << "Creating parameter '" << channel << "': min=" << minValAdjusted
+                    lattice::logInfo << "Creating parameter '" << paramLabel << "' (channel: " << channel << "): min=" << minValAdjusted
                                      << ", max=" << maxVal << ", default=" << defVal
                                      << ", normalizedDefault=" << normalizedDefault << ", initial=" << initialValue
                                      << ", inc=" << incVal << ", skew=" << skewVal;
 
-                    addParameter({channel, minValAdjusted, maxVal, normalizedDefault, incVal, skewVal});
+                    // Use label for DAW display, store channel ID separately for Csound lookup
+                    addParameter({paramLabel, minValAdjusted, maxVal, normalizedDefault, incVal, skewVal});
+                    parameterChannelIds.push_back(channel);
 
                     // Set initial value in Csound using range.value (or defaultValue if not set)
                     cabbage.setControlChannel(channel, initialValue);
 
                     // Store parameterIndex in each channel object
                     ch["parameterIndex"] = currentIndex;
-                    lattice::logDebug << "Added parameter for channel '" << channel << "' with parameterIndex "
-                                      << currentIndex << " and default value of : " << defVal;
+                    lattice::logDebug << "Added parameter for channel '" << channel << "' (label: '" << paramLabel
+                                      << "') with parameterIndex " << currentIndex << " and default value of : " << defVal;
                     currentIndex++;
                 }
 
@@ -1621,7 +1627,9 @@ void CabbageProcessor::setParameter(int paramId, double value)
     getParameters()[paramId].value = normalizedValue;
 
 
-    const auto channel = getParameters()[paramId].name;
+    // Use parameterChannelIds for fast O(1) lookup of actual Csound channel ID
+    // (parameter name may be a human-readable label for DAW display)
+    const auto channel = parameterChannelIds[paramId];
 
     // cabbage2 -> cabbage3 combobox quirk
     auto widgetOpt = std::optional<std::reference_wrapper<nlohmann::json>>();
@@ -1679,12 +1687,12 @@ void CabbageProcessor::setParameter(int paramId, double value)
                 }
             }
             
-            cabbage.setControlChannel(getParameters()[paramId].name, index);
+            cabbage.setControlChannel(channel, index);
             return;
         }
     }
 
-    cabbage.setControlChannel(getParameters()[paramId].name, denormalValue);
+    cabbage.setControlChannel(channel, denormalValue);
 }
 
 void CabbageProcessor::prepareToPlay(double sr, uint32_t /*minFrameCount*/, uint32_t /*maxFrameCount*/)
