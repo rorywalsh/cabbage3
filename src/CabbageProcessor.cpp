@@ -450,10 +450,15 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                         continue;
 
                     const std::string channel = ch["id"].get<std::string>();
-                    // Use label for DAW display if provided, otherwise fall back to channel id
-                    const std::string paramLabel = ch.contains("label") && ch["label"].is_string()
-                                                       ? ch["label"].get<std::string>()
+                    // Use label.name for DAW display if provided, otherwise fall back to channel id.
+                    const bool hasLabelObj = ch.contains("label") && ch["label"].is_object();
+                    const std::string paramLabel = (hasLabelObj && ch["label"].contains("name") && ch["label"]["name"].is_string())
+                                                       ? ch["label"]["name"].get<std::string>()
                                                        : channel;
+                    const std::string paramPrefix = (hasLabelObj && ch["label"].contains("prefix") && ch["label"]["prefix"].is_string())
+                                                        ? ch["label"]["prefix"].get<std::string>() : std::string{};
+                    const std::string paramSuffix = (hasLabelObj && ch["label"].contains("suffix") && ch["label"]["suffix"].is_string())
+                                                        ? ch["label"]["suffix"].get<std::string>() : std::string{};
                     const std::string event = ch.contains("event") && ch["event"].is_string()
                                                   ? ch["event"].get<std::string>()
                                                   : std::string("valueChanged");
@@ -527,7 +532,7 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                                      << ", inc=" << incVal << ", skew=" << skewVal;
 
                     // Use label for DAW display, store channel ID separately for Csound lookup
-                    addParameter({paramLabel, minValAdjusted, maxVal, normalizedDefault, incVal, skewVal});
+                    addParameter({paramLabel, minValAdjusted, maxVal, normalizedDefault, incVal, skewVal, paramPrefix, paramSuffix});
                     parameterChannelIds.push_back(channel);
 
                     // Set initial value in Csound using range.value (or defaultValue if not set)
