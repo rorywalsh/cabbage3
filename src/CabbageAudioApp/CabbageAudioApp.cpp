@@ -645,6 +645,11 @@ bool CabbageAudioApp::createCabbageProcessor()
     // so the callback cannot call process() and will not dereference the buffer.
     initialiseAudio(true);
 
+    // After initialiseAudio, numInputChannels/numOutputChannels reflect the actual
+    // hardware capabilities. Update the processor to use these clamped values so
+    // process() doesn't try to access more channels than are in the buffers.
+    processor->setActualChannelCounts(numInputChannels, numOutputChannels);
+
     // Allocate emptyInputBuffer using the actual bufferSize that openStream
     // confirmed (updated inside initialiseAudio).  The callback may already be
     // running at this point but it only reads this buffer when canProcessAudio
@@ -930,6 +935,8 @@ void CabbageAudioApp::onIdle()
                 // so that queued genTable updates are sent
                 processor->setCabbageIsReady();
                 sendWidgetDataToVscode();
+                // Signal that signal handlers need re-registration (Csound overwrites them)
+                needsSignalHandlerReset.store(true);
             }
             else
             {

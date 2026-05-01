@@ -1700,6 +1700,31 @@ void CabbageProcessor::setParameter(int paramId, double value)
     cabbage.setControlChannel(channel, denormalValue);
 }
 
+#ifdef CabbageApp
+//========================================================================================
+// Update actual channel counts for standalone mode when audio device has fewer channels
+// than configured. This prevents buffer overruns when channelConfig specifies more
+// channels than the audio device supports. This method can only REDUCE channel counts,
+// never increase them.
+//========================================================================================
+void CabbageProcessor::setActualChannelCounts(int inputs, int outputs)
+{
+    if (inputs < totalNumInputs)
+    {
+        lattice::logInfo << "Reducing input channels from " << totalNumInputs << " to " << inputs
+                         << " (audio device limitation)";
+        totalNumInputs = inputs;
+    }
+    if (outputs < totalNumOutputs)
+    {
+        lattice::logInfo << "Reducing output channels from " << totalNumOutputs << " to " << outputs
+                         << " (audio device limitation)";
+        totalNumOutputs = outputs;
+    }
+    matchingNumInputsOutputs = totalNumInputs == totalNumOutputs;
+}
+#endif
+
 void CabbageProcessor::prepareToPlay(double sr, uint32_t /*minFrameCount*/, uint32_t /*maxFrameCount*/)
 {
     // Acquire exclusive ownership: blocks until any in-flight process() block finishes,

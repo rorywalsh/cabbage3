@@ -84,11 +84,27 @@ int main(int argc, char* argv[]) {
     appInstance->initialiseCabbage();
     appInstance->initialiseStdioConnection();
 
+    // Re-register signal handlers after Csound initialization, since Csound
+    // installs its own signal handlers that override ours
+    std::signal(SIGTERM, signalHandler);
+    std::signal(SIGINT, signalHandler);
+    std::signal(SIGABRT, signalHandler);
+
    
     // Keep the program running until termination is requested
     while (!terminateRequested)
     {
         appInstance->onIdle();
+
+        // Re-register signal handlers if Csound was (re)initialized
+        // (Csound installs its own handlers that override ours)
+        if (appInstance->needsSignalHandlerReset.exchange(false))
+        {
+            std::signal(SIGTERM, signalHandler);
+            std::signal(SIGINT, signalHandler);
+            std::signal(SIGABRT, signalHandler);
+        }
+
         std::this_thread::sleep_for(std::chrono::milliseconds(50)); // Sleep to avoid busy-waiting
     }
 

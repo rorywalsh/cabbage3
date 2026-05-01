@@ -69,6 +69,13 @@ class CabbageProcessor : public lattice::Processor
 
     int getSampleRate() { return sampleRate; }
 
+#ifdef CabbageApp
+    // Update the actual channel counts based on available hardware (for standalone mode only).
+    // This allows the processor to use fewer channels than configured if the audio device
+    // doesn't support the requested number of channels.
+    void setActualChannelCounts(int inputs, int outputs);
+#endif
+
     // Triggered by CabbageApp whenever websocket connection is established
     void setCabbageIsReady();
 

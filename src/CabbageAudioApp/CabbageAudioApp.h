@@ -151,6 +151,10 @@ class CabbageAudioApp
 
     void hostCallback(CabbageOpcodeData data);
 
+    // Flag set after Csound initialization to signal that signal handlers need re-registration
+    // (Csound installs its own handlers that override ours)
+    std::atomic<bool> needsSignalHandlerReset{false};
+
   private:
     void sendJsonMessage(const nlohmann::json &msg);
     void processIncomingMessage(const std::string &message);
