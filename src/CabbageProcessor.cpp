@@ -450,21 +450,15 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                         continue;
 
                     const std::string channel = ch["id"].get<std::string>();
-                    // Use label.name for DAW display if provided, otherwise fall back to channel id
-                    std::string paramLabel = channel;
-                    std::string paramPrefix;
-                    std::string paramSuffix;
-                    if (ch.contains("label") && ch["label"].is_object()) {
-                        const auto& lbl = ch["label"];
-                        if (lbl.contains("name") && lbl["name"].is_string())
-                            paramLabel = lbl["name"].get<std::string>();
-                        if (lbl.contains("prefix") && lbl["prefix"].is_string())
-                            paramPrefix = lbl["prefix"].get<std::string>();
-                        if (lbl.contains("suffix") && lbl["suffix"].is_string())
-                            paramSuffix = lbl["suffix"].get<std::string>();
-                    } else if (ch.contains("label") && ch["label"].is_string()) {
-                        paramLabel = ch["label"].get<std::string>();
-                    }
+                    // Use label.name for DAW display if provided, otherwise fall back to channel id.
+                    const bool hasLabelObj = ch.contains("label") && ch["label"].is_object();
+                    const std::string paramLabel = (hasLabelObj && ch["label"].contains("name") && ch["label"]["name"].is_string())
+                                                       ? ch["label"]["name"].get<std::string>()
+                                                       : channel;
+                    const std::string paramPrefix = (hasLabelObj && ch["label"].contains("prefix") && ch["label"]["prefix"].is_string())
+                                                        ? ch["label"]["prefix"].get<std::string>() : std::string{};
+                    const std::string paramSuffix = (hasLabelObj && ch["label"].contains("suffix") && ch["label"]["suffix"].is_string())
+                                                        ? ch["label"]["suffix"].get<std::string>() : std::string{};
                     const std::string event = ch.contains("event") && ch["event"].is_string()
                                                   ? ch["event"].get<std::string>()
                                                   : std::string("valueChanged");
