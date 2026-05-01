@@ -450,10 +450,21 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                         continue;
 
                     const std::string channel = ch["id"].get<std::string>();
-                    // Use label for DAW display if provided, otherwise fall back to channel id
-                    const std::string paramLabel = ch.contains("label") && ch["label"].is_string()
-                                                       ? ch["label"].get<std::string>()
-                                                       : channel;
+                    // Use label.name for DAW display if provided, otherwise fall back to channel id
+                    std::string paramLabel = channel;
+                    std::string paramPrefix;
+                    std::string paramSuffix;
+                    if (ch.contains("label") && ch["label"].is_object()) {
+                        const auto& lbl = ch["label"];
+                        if (lbl.contains("name") && lbl["name"].is_string())
+                            paramLabel = lbl["name"].get<std::string>();
+                        if (lbl.contains("prefix") && lbl["prefix"].is_string())
+                            paramPrefix = lbl["prefix"].get<std::string>();
+                        if (lbl.contains("suffix") && lbl["suffix"].is_string())
+                            paramSuffix = lbl["suffix"].get<std::string>();
+                    } else if (ch.contains("label") && ch["label"].is_string()) {
+                        paramLabel = ch["label"].get<std::string>();
+                    }
                     const std::string event = ch.contains("event") && ch["event"].is_string()
                                                   ? ch["event"].get<std::string>()
                                                   : std::string("valueChanged");
@@ -527,7 +538,7 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                                      << ", inc=" << incVal << ", skew=" << skewVal;
 
                     // Use label for DAW display, store channel ID separately for Csound lookup
-                    addParameter({paramLabel, minValAdjusted, maxVal, normalizedDefault, incVal, skewVal});
+                    addParameter({paramLabel, minValAdjusted, maxVal, normalizedDefault, incVal, skewVal, paramPrefix, paramSuffix});
                     parameterChannelIds.push_back(channel);
 
                     // Set initial value in Csound using range.value (or defaultValue if not set)

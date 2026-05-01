@@ -157,9 +157,15 @@ std::pair<int, int> Engine::determineChannelConfiguration(const std::string& csd
         }
     }
 
-    // No channelConfig in JSON — default to stereo in/out.
+    // No channelConfig in JSON — fall back to nchnls/nchnls_i declared in the CSD orchestra.
+    const int ins  = cabbage::File::getNumberOfInputChannels(csdFile);
+    const int outs = cabbage::File::getNumberOfOutputChannels(csdFile);
+    if (ins > 0 && outs > 0)
+        return {ins, outs};
+
+    // Ultimate fallback — default to 1 in / 2 out (safer than stereo in/out).
     // nchnls from the CSD is never used to determine routing.
-    return {2, 2};
+    return {1, 2};
 }
 
 bool Engine::setupCsound()

@@ -91,7 +91,17 @@ std::string Utils::getChannelConfig(const std::string &csdFile)
             }
         }
     }
-    return "Stereo:2|2";
+
+    // No channelConfig in JSON — fall back to nchnls/nchnls_i declared in the CSD orchestra.
+    // This handles cases such as nchnls_i 1 / nchnls 2 without requiring the user to add
+    // an explicit channelConfig to their Cabbage section.
+    {
+        const int ins  = cabbage::File::getNumberOfInputChannels(csdFile);
+        const int outs = cabbage::File::getNumberOfOutputChannels(csdFile);
+        if (ins > 0 && outs > 0)
+            return "Stereo:" + std::to_string(ins) + "|" + std::to_string(outs);
+    }
+    return "Stereo:1|2";
 }
 
 bool Utils::validateChannelConfig(const std::string &channelConfig, int maxInputs, int maxOutputs)
