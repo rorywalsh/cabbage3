@@ -461,6 +461,7 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
     if (CabbagePluginEffectARA STREQUAL "${CABBAGE_BUILD_TARGET}" OR CabbagePluginSynthARA STREQUAL "${CABBAGE_BUILD_TARGET}")
         target_compile_definitions(${PROJECT_NAME}-impl PRIVATE
             LATTICE_ENABLE_ARA=1
+            LATTICE_HAS_ARA=1
             LATTICE_PLUGIN_PROVIDES_ARA_FACTORY=1
         )
         # ARA SDK library sources are not merged into LATTICE_SOURCE_FILES automatically
