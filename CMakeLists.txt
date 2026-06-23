@@ -248,6 +248,8 @@ set(CABBAGE_OPCODE_SOURCES
     "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageSendMessageOpcode.h"
     "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageGetWidgesOpcodes.h"
     "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageGetWidgesOpcodes.cpp"
+    "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageARAOpcodes.h"
+    "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageARAOpcodes.cpp"
 )
 
 # ----------------------------
