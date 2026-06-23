@@ -75,57 +75,34 @@ CabbageProcessor::CabbageProcessor(std::string csdFile, std::string config)
 }
 
 //========================================================================================
-// Discovers the companion .ara.csd file, parses its channel declarations, and (for
-// plugin builds) starts the ARA worker thread. For standalone builds it also launches
-// any test-file analysis thread declared in the <CabbageARA> section.
+// Starts the ARA worker thread (plugin builds) or launches standalone analysis.
 // No-op when neither LATTICE_HAS_ARA nor CabbageApp is defined.
 //========================================================================================
 void CabbageProcessor::initialiseAraCompanion()
 {
-#if LATTICE_HAS_ARA || defined(CabbageApp)
-    std::filesystem::path csd(cabbage::File::getCsdFileAndPath());
-    auto candidate = (csd.parent_path() / (csd.stem().string() + ".ara.csd")).string();
-    if (lattice::File::exists(candidate))
-    {
-        araCsdPath = candidate;
-        auto araSection = parseAraCsdSection(araCsdPath);
-        for (const auto& ch : araSection.value("channels", nlohmann::json::array()))
-            if (ch.contains("id") && ch.contains("type"))
-                araChannelDefs.push_back({ch["id"].get<std::string>(), ch["type"].get<std::string>()});
-
-#if LATTICE_HAS_ARA
-        lattice::logInfo << "ARA companion found: " << araCsdPath;
-        lattice::logInfo << "ARA: " << araChannelDefs.size() << " output channel(s) declared in <CabbageARA>";
-#endif
-
-#ifdef CabbageApp
-        lattice::logInfo << "ARA standalone: companion found: " << araCsdPath;
-        lattice::logInfo << "ARA standalone: " << araChannelDefs.size() << " output channel(s) declared";
-        const std::string testFile = araSection.value("testFile", std::string{});
-        if (!testFile.empty())
-        {
-            std::filesystem::path resolvedTestFile = std::filesystem::path(testFile);
-            if (resolvedTestFile.is_relative())
-                resolvedTestFile = std::filesystem::path(araCsdPath).parent_path() / resolvedTestFile;
-            resolvedTestFile = resolvedTestFile.lexically_normal();
-            lattice::logInfo << "ARA standalone: test file: " << testFile
-                             << " -> resolved: " << resolvedTestFile.string();
-            araTestThread = std::thread([this, resolvedTestFile]() {
-                performAraAnalysisFromFile(resolvedTestFile.string());
-            });
-        }
-        else
-        {
-            lattice::logInfo << "ARA standalone: no testFile in <CabbageARA> — "
-                                "add \"testFile\": \"/path/to/audio.wav\" to trigger analysis";
-        }
-#endif
-    }
-
 #if LATTICE_HAS_ARA
     startAraWorker();
 #endif
-#endif // LATTICE_HAS_ARA || CabbageApp
+
+#ifdef CabbageApp
+    if (auto json = cabbage::File::parseCabbageSection(cabbage::File::getCsdFileAndPath()))
+    {
+        auto testFiles = cabbage::Utils::getTopLevelProperty<std::vector<std::string>>(*json, "ara.testFiles");
+        if (testFiles && !testFiles->empty())
+        {
+            auto csdDir = lattice::File::getParentDirectory(cabbage::File::getCsdFileAndPath());
+            araTestThread = std::thread([this, files = std::move(*testFiles), dir = std::move(csdDir)]() {
+                for (const auto& f : files)
+                {
+                    std::filesystem::path filePath(f);
+                    if (filePath.is_relative())
+                        filePath = std::filesystem::path(dir) / filePath;
+                    performAraAnalysisFromFile(filePath.lexically_normal().string());
+                }
+            });
+        }
+    }
+#endif
 }
 
 //========================================================================================
@@ -656,6 +633,10 @@ void CabbageProcessor::process(float **inputs, float **outputs, std::size_t bloc
     if (!processingEnabled.load(std::memory_order_relaxed))
         return;
 
+#if LATTICE_HAS_ARA
+    flushAraEvents();
+#endif
+
     // Try to acquire a shared lock without blocking. If prepareToPlay() holds the
     // exclusive lock (rebuilding Csound due to an SR change) we must not touch any
     // Csound state — return silence for this block and try again next time.
@@ -668,12 +649,12 @@ void CabbageProcessor::process(float **inputs, float **outputs, std::size_t bloc
     
     // Update transport-related control channels
     cabbage.setControlChannel("HOST_BPM", transport.tempo);
-    cabbage.setControlChannel("IS_PLAYING", transport.isPlaying ? 1.0f : 0.0f);
-    cabbage.setControlChannel("IS_RECORDING", transport.isRecording ? 1.0f : 0.0f);
-    cabbage.setControlChannel("TIME_IN_SECONDS", transport.songPosSeconds);
-    cabbage.setControlChannel("TIME_IN_SAMPLES", transport.songPosSeconds * sampleRate);
-    cabbage.setControlChannel("TIME_SIG_NUM", static_cast<float>(transport.timeSigNum));
-    cabbage.setControlChannel("TIME_SIG_DENOM", static_cast<float>(transport.timeSigDenom));
+    cabbage.setControlChannel("HOST_IS_PLAYING", transport.isPlaying ? 1.0f : 0.0f);
+    cabbage.setControlChannel("HOST_IS_RECORDING", transport.isRecording ? 1.0f : 0.0f);
+    cabbage.setControlChannel("HOST_TIME_IN_SECONDS", transport.songPosSeconds);
+    cabbage.setControlChannel("HOST_TIME_IN_SAMPLES", transport.songPosSeconds * sampleRate);
+    cabbage.setControlChannel("HOST_TIME_SIG_NUM", static_cast<float>(transport.timeSigNum));
+    cabbage.setControlChannel("HOST_TIME_SIG_DENOM", static_cast<float>(transport.timeSigDenom));
     cabbage.setControlChannel("HOST_PPQ_POS", transport.barStart);
     
     // only process audio if Csound has compiled successfully.
@@ -783,14 +764,6 @@ void CabbageProcessor::onIdle()
 #endif
 
     cabbage.processCsoundMessages();
-
-#if LATTICE_HAS_ARA || defined(CabbageApp)
-    {
-        AraForwardPayload araPayload;
-        while (araForwardQueue.try_dequeue(araPayload))
-            forwardAllChannelsToProcessor(araPayload);
-    }
-#endif
 
 #ifndef CabbageApp
     if (uiIsOpen)

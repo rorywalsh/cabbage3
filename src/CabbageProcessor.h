@@ -21,6 +21,7 @@
 
 #include "lattice/LatticeAraProcessor.h"
 #include "Cabbage.h"
+#include "CabbageARADataPool.h"
 #include <set>
 #include <shared_mutex>
 
@@ -100,18 +101,29 @@ class CabbageProcessor : public lattice::Processor
     void startOnIdle();  // Public for CabbageApp initialization
 
 #if LATTICE_HAS_ARA || defined(CabbageApp)
-    // A channel declared in the <CabbageARA> section of the .ara.csd file.
-    struct AraChannelDef
-    {
-        std::string id;
-        std::string type; // "number" | "string"
-    };
-
 #if LATTICE_HAS_ARA
     static lattice::AraPluginInfo getStaticAraInfo() noexcept;
     void araAudioSourceContentUpdated(ARA::PlugIn::AudioSource* source, ARA::ContentUpdateScopes scopes) override;
     void araDidEnableSamplesAccess(ARA::PlugIn::AudioSource* source, bool enable) override;
+    void araPlaybackRegionPropertiesUpdated(ARA::PlugIn::PlaybackRegion* playbackRegion) override;
+    void araBeginEditing() override;
+    void araEndEditing() override;
+    void araDidNotifyModelUpdates() override;
+    void araDocumentPropertiesUpdated(ARA::PlugIn::Document* document) override;
+    void araMusicalContextPropertiesUpdated(ARA::PlugIn::MusicalContext* musicalContext) override;
+    void araRegionSequencePropertiesUpdated(ARA::PlugIn::RegionSequence* regionSequence) override;
+    void araAudioSourcePropertiesUpdated(ARA::PlugIn::AudioSource* audioSource) override;
+    void araAudioModificationPropertiesUpdated(ARA::PlugIn::AudioModification* audioModification) override;
+    void araPlaybackRegionAddedToRegionSequence(ARA::PlugIn::RegionSequence* regionSequence,
+                                                 ARA::PlugIn::PlaybackRegion* playbackRegion) override;
+    void araPlaybackRegionRemovedFromRegionSequence(ARA::PlugIn::RegionSequence* regionSequence,
+                                                      ARA::PlugIn::PlaybackRegion* playbackRegion) override;
 #endif
+
+    // Public accessors for ARA opcodes
+    int getAraCurrentSourceIndex() const { return araCurrentSourceIndex; }
+    int getAraUpdateCounter() const { return araUpdateCounter; }
+    std::string getAraLastEventType();
 #endif // LATTICE_HAS_ARA || CabbageApp
 
 private:
@@ -129,26 +141,10 @@ private:
     std::thread             araWorkerThread;
 #endif
 #if LATTICE_HAS_ARA || defined(CabbageApp)
-    static nlohmann::json parseAraCsdSection(const std::string& csdPath);
-    nlohmann::json runAraCsdWithPcm(const std::vector<std::vector<float>>& pcm, int numChannels,
-                          double sr, int64_t totalSamples, const std::string& sourceName,
-                          std::atomic<bool>* runningFlag);
-    struct AraSourceResult {
-        std::string sourceName;
-        double samples = 0, channels = 0, sr = 0, duration = 0;
-        nlohmann::json data;  // declared <CabbageARA> channel results
-    };
-    struct AraForwardPayload {
-        std::vector<AraSourceResult> results;
-        int currentIdx = -1;
-    };
-    void forwardAllChannelsToProcessor(const AraForwardPayload& payload);
-    std::vector<AraSourceResult> araSourceResults;  // one entry per analysed source, guarded by araMutex
-    int araCurrentSourceIndex = -1;                 // index of this instance's own source
-    moodycamel::ConcurrentQueue<AraForwardPayload> araForwardQueue;
-    int araUpdateCounter = 0;                       // incremented each forward; use as trigger in Csound
-    std::vector<AraChannelDef> araChannelDefs;
-    std::mutex araMutex;  // protects araSourceResults / araPendingSources
+    int araCurrentSourceIndex = -1;  // pool index of this instance's own source
+    int araUpdateCounter = 0;        // incremented each analysis
+    std::string araLastEventType;    // most recent ARA lifecycle event name
+    std::mutex araMutex;
 #ifdef CabbageApp
     void performAraAnalysisFromFile(const std::string& filePath);
     std::thread araTestThread;
@@ -187,9 +183,6 @@ private:
     std::string compileErrorHtml;
     std::string cabzTempDir;  // Temp directory for extracted .cabz archive (Pro builds only)
 
-#if LATTICE_HAS_ARA || defined(CabbageApp)
-    std::string araCsdPath;   // Path to companion .ara.csd file (if present)
-#endif
 #if LATTICE_HAS_ARA
     std::mutex  araSourcesMutex; // protects araAccessibleSources
 #endif
