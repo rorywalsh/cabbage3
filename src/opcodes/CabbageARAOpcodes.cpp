@@ -30,71 +30,141 @@ static cabbage::Engine* getEngine(csnd::Csound* cs)
 }
 
 // ============================================================================
-// CabbageAraGetSourceCount
+// Dot-notation JSON helper (from CabbageOpcodes.h)
 // ============================================================================
 
-int CabbageAraGetSourceCount::init()
+static nlohmann::json getJson(const nlohmann::json& obj, const std::string& path)
 {
-    outargs[0] = static_cast<MYFLT>(cabbage::ARADataPool::instance().getSourceCount());
-    return IS_OK;
-}
-
-int CabbageAraGetSourceCount::kperf()
-{
-    outargs[0] = static_cast<MYFLT>(cabbage::ARADataPool::instance().getSourceCount());
-    return IS_OK;
-}
-
-// ============================================================================
-// CabbageAraGetCurrentSourceIndex
-// ============================================================================
-
-int CabbageAraGetCurrentSourceIndex::init()
-{
-    auto* engine = getEngine(csound);
-    if (engine)
-        outargs[0] = static_cast<MYFLT>(engine->getProcessor().getAraCurrentSourceIndex());
-    else
-        outargs[0] = -1;
-    return IS_OK;
-}
-
-int CabbageAraGetCurrentSourceIndex::kperf()
-{
-    auto* engine = getEngine(csound);
-    if (engine)
-        outargs[0] = static_cast<MYFLT>(engine->getProcessor().getAraCurrentSourceIndex());
-    else
-        outargs[0] = -1;
-    return IS_OK;
-}
-
-// ============================================================================
-// CabbageAraGetCurrentSourceName
-// ============================================================================
-
-int CabbageAraGetCurrentSourceName::init()
-{
-    auto* engine = getEngine(csound);
-    if (engine)
+    // Single key — check directly
+    if (path.find('.') == std::string::npos)
     {
-        auto& proc = engine->getProcessor();
-        auto entry = cabbage::ARADataPool::instance().getByIndex(
-            static_cast<size_t>(proc.getAraCurrentSourceIndex()));
-        if (entry)
+        if (obj.is_array() && !path.empty() && std::all_of(path.begin(), path.end(), ::isdigit))
         {
-            outargs.str_data(0).data = csound->strdup(const_cast<char*>(entry->name.c_str()));
-            outargs.str_data(0).size = static_cast<int32_t>(entry->name.size()) + 1;
-            return IS_OK;
+            size_t idx = std::stoul(path);
+            return (idx < obj.size()) ? obj[idx] : nlohmann::json(nullptr);
+        }
+        return obj.contains(path) ? obj[path] : nlohmann::json(nullptr);
+    }
+
+    std::vector<std::string> keys;
+    std::stringstream ss(path);
+    std::string token;
+    while (std::getline(ss, token, '.'))
+        keys.push_back(token);
+
+    nlohmann::json current = obj;
+    for (const auto& key : keys)
+    {
+        if (current.is_array() && !key.empty() && std::all_of(key.begin(), key.end(), ::isdigit))
+        {
+            size_t idx = std::stoul(key);
+            if (idx >= current.size())
+                return nlohmann::json(nullptr);
+            current = current[idx];
+        }
+        else if (current.contains(key))
+        {
+            current = current[key];
+        }
+        else
+        {
+            return nlohmann::json(nullptr);
         }
     }
-    outargs.str_data(0).data = csound->strdup(const_cast<char*>(""));
-    outargs.str_data(0).size = 1;
+    return current;
+}
+
+// ============================================================================
+// CabbageAraGetNum — iVal cabbageAraGet "property" [, iSourceIdx]
+// ============================================================================
+
+int CabbageAraGetNum::init()
+{
+    stateCopy = cabbage::ARADataPool::instance().getAraState();
+    std::string prop(inargs.str_data(0).data);
+
+    // Handle selectedRegion* properties (indexed into editorView.selectedRegions[])
+    if (prop == "selectedRegionCount")
+    {
+        auto& regions = stateCopy["editorView"]["selectedRegions"];
+        outargs[0] = regions.is_array() ? static_cast<double>(regions.size()) : 0;
+    }
+    else if (prop.rfind("selectedRegion", 0) == 0 && in_count() >= 2 && inargs[1] >= 0)
+    {
+        int selIdx = static_cast<int>(inargs[1]);
+        auto& regions = stateCopy["editorView"]["selectedRegions"];
+        if (regions.is_array() && selIdx < static_cast<int>(regions.size()))
+        {
+            std::string key;
+            if (prop == "selectedRegionStart")           key = "start";
+            else if (prop == "selectedRegionDuration")   key = "durationSec";
+            else if (prop == "selectedRegionSampleCount") key = "durationSamples";
+            else                                         key = "start";
+            auto& obj = regions[selIdx];
+            outargs[0] = obj.contains(key) ? obj[key].get<double>() : 0;
+        }
+        else
+        {
+            outargs[0] = 0;
+        }
+    }
+    else if (in_count() >= 2 && inargs[1] >= 0)
+    {
+        int idx = static_cast<int>(inargs[1]);
+        auto val = getJson(stateCopy, "sources." + std::to_string(idx) + "." + prop);
+        outargs[0] = val.is_number() ? val.get<double>() : 0;
+    }
+    else
+    {
+        auto val = getJson(stateCopy, prop);
+        outargs[0] = val.is_number() ? val.get<double>() : 0;
+    }
     return IS_OK;
 }
 
 // ============================================================================
-// CabbageAraGetUpdate
+// CabbageAraGetString — SVal cabbageAraGet "property" [, iSourceIdx]
+// ============================================================================
+
+int CabbageAraGetString::init()
+{
+    stateCopy = cabbage::ARADataPool::instance().getAraState();
+    std::string prop(inargs.str_data(0).data);
+    std::string result;
+
+    // Handle selectedRegionName (indexed into editorView.selectedRegions[])
+    if (prop == "selectedRegionName" && in_count() >= 2 && inargs[1] >= 0)
+    {
+        int selIdx = static_cast<int>(inargs[1]);
+        auto& regions = stateCopy["editorView"]["selectedRegions"];
+        if (regions.is_array() && selIdx < static_cast<int>(regions.size()))
+        {
+            auto& obj = regions[selIdx];
+            if (obj.contains("name") && obj["name"].is_string())
+                result = obj["name"].get<std::string>();
+        }
+    }
+    else if (in_count() >= 2 && inargs[1] >= 0)
+    {
+        int idx = static_cast<int>(inargs[1]);
+        auto val = getJson(stateCopy, "sources." + std::to_string(idx) + "." + prop);
+        if (val.is_string())
+            result = val.get<std::string>();
+    }
+    else
+    {
+        auto val = getJson(stateCopy, prop);
+        if (val.is_string())
+            result = val.get<std::string>();
+    }
+
+    outargs.str_data(0).size = static_cast<int32_t>(result.size()) + 1;
+    outargs.str_data(0).data = csound->strdup(const_cast<char*>(result.c_str()));
+    return IS_OK;
+}
+
+// ============================================================================
+// CabbageAraGetUpdate — kTrig cabbageAraGetUpdate
 // ============================================================================
 
 int CabbageAraGetUpdate::kperf()
@@ -132,151 +202,7 @@ int CabbageAraGetUpdateEvent::kperf()
 }
 
 // ============================================================================
-// CabbageAraGetSourceName
-// ============================================================================
-
-int CabbageAraGetSourceName::init()
-{
-    int idx = static_cast<int>(inargs[0]);
-    auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(idx));
-    if (entry)
-    {
-        outargs.str_data(0).data = csound->strdup(const_cast<char*>(entry->name.c_str()));
-        outargs.str_data(0).size = static_cast<int32_t>(entry->name.size()) + 1;
-        return IS_OK;
-    }
-    csound->message("cabbageAraGetSourceName: source index out of range");
-    outargs.str_data(0).data = csound->strdup(const_cast<char*>(""));
-    outargs.str_data(0).size = 1;
-    return IS_OK;
-}
-
-// ============================================================================
-// CabbageAraGetSourceChannels
-// ============================================================================
-
-int CabbageAraGetSourceChannels::init()
-{
-    int idx = static_cast<int>(inargs[0]);
-    auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(idx));
-    if (entry)
-    {
-        outargs[0] = static_cast<MYFLT>(entry->channels);
-        return IS_OK;
-    }
-    csound->message("cabbageAraGetSourceChannels: source index out of range");
-    outargs[0] = 0;
-    return IS_OK;
-}
-
-int CabbageAraGetSourceChannels::kperf()
-{
-    int idx = static_cast<int>(inargs[0]);
-    auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(idx));
-    if (entry)
-    {
-        outargs[0] = static_cast<MYFLT>(entry->channels);
-        return IS_OK;
-    }
-    outargs[0] = 0;
-    return IS_OK;
-}
-
-// ============================================================================
-// CabbageAraGetSourceSampleCount
-// ============================================================================
-
-int CabbageAraGetSourceSampleCount::init()
-{
-    int idx = static_cast<int>(inargs[0]);
-    auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(idx));
-    if (entry)
-    {
-        outargs[0] = static_cast<MYFLT>(entry->samples);
-        return IS_OK;
-    }
-    csound->message("cabbageAraGetSourceSampleCount: source index out of range");
-    outargs[0] = 0;
-    return IS_OK;
-}
-
-int CabbageAraGetSourceSampleCount::kperf()
-{
-    int idx = static_cast<int>(inargs[0]);
-    auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(idx));
-    if (entry)
-    {
-        outargs[0] = static_cast<MYFLT>(entry->samples);
-        return IS_OK;
-    }
-    outargs[0] = 0;
-    return IS_OK;
-}
-
-// ============================================================================
-// CabbageAraGetSourceSr
-// ============================================================================
-
-int CabbageAraGetSourceSr::init()
-{
-    int idx = static_cast<int>(inargs[0]);
-    auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(idx));
-    if (entry)
-    {
-        outargs[0] = static_cast<MYFLT>(entry->sr);
-        return IS_OK;
-    }
-    csound->message("cabbageAraGetSourceSr: source index out of range");
-    outargs[0] = 0;
-    return IS_OK;
-}
-
-int CabbageAraGetSourceSr::kperf()
-{
-    int idx = static_cast<int>(inargs[0]);
-    auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(idx));
-    if (entry)
-    {
-        outargs[0] = static_cast<MYFLT>(entry->sr);
-        return IS_OK;
-    }
-    outargs[0] = 0;
-    return IS_OK;
-}
-
-// ============================================================================
-// CabbageAraGetSourceDuration
-// ============================================================================
-
-int CabbageAraGetSourceDuration::init()
-{
-    int idx = static_cast<int>(inargs[0]);
-    auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(idx));
-    if (entry)
-    {
-        outargs[0] = static_cast<MYFLT>(entry->duration);
-        return IS_OK;
-    }
-    csound->message("cabbageAraGetSourceDuration: source index out of range");
-    outargs[0] = 0;
-    return IS_OK;
-}
-
-int CabbageAraGetSourceDuration::kperf()
-{
-    int idx = static_cast<int>(inargs[0]);
-    auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(idx));
-    if (entry)
-    {
-        outargs[0] = static_cast<MYFLT>(entry->duration);
-        return IS_OK;
-    }
-    outargs[0] = 0;
-    return IS_OK;
-}
-
-// ============================================================================
-// CabbageAraGetSourceSamplesAudio — aOut cabbageAraGetSourceSamples aPos, iChan, iSourceIndex
+// PCM sample access (kept separate — a-rate performance)
 // ============================================================================
 
 int CabbageAraGetSourceSamplesAudio::init()
@@ -322,20 +248,12 @@ int CabbageAraGetSourceSamplesAudio::aperf()
     {
         int pos = static_cast<int>(aPos[i]);
         if (pos < 0 || pos >= numSamples)
-        {
             out[i] = 0;
-        }
         else
-        {
             out[i] = static_cast<MYFLT>(channelData[static_cast<size_t>(pos)]);
-        }
     }
     return IS_OK;
 }
-
-// ============================================================================
-// CabbageAraGetSourceSamplesK — kOut cabbageAraGetSourceSamples kPos, iChan, iSourceIndex
-// ============================================================================
 
 int CabbageAraGetSourceSamplesK::init()
 {
@@ -376,112 +294,11 @@ int CabbageAraGetSourceSamplesK::kperf()
     const auto& channelData = (*pcmData)[static_cast<size_t>(channelIndex)];
 
     if (pos < 0 || pos >= numSamples)
-    {
         outargs[0] = 0;
-    }
     else
-    {
         outargs[0] = static_cast<MYFLT>(channelData[static_cast<size_t>(pos)]);
-    }
     return IS_OK;
 }
-
-// ============================================================================
-// CabbageAraGetRegionSampleStart — iStart cabbageAraGetRegionSampleStart iSourceIndex
-// ============================================================================
-
-int CabbageAraGetRegionSampleStart::init()
-{
-    int idx = static_cast<int>(inargs[0]);
-    auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(idx));
-    if (entry)
-    {
-        outargs[0] = static_cast<MYFLT>(entry->regionStart);
-        return IS_OK;
-    }
-    csound->message("cabbageAraGetRegionSampleStart: source index out of range");
-    outargs[0] = 0;
-    return IS_OK;
-}
-
-int CabbageAraGetRegionSampleStart::kperf()
-{
-    int idx = static_cast<int>(inargs[0]);
-    auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(idx));
-    if (entry)
-    {
-        outargs[0] = static_cast<MYFLT>(entry->regionStart);
-        return IS_OK;
-    }
-    outargs[0] = 0;
-    return IS_OK;
-}
-
-// ============================================================================
-// CabbageAraGetRegionSampleCount — iSamples cabbageAraGetRegionSampleCount iSourceIndex
-// ============================================================================
-
-int CabbageAraGetRegionSampleCount::init()
-{
-    int idx = static_cast<int>(inargs[0]);
-    auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(idx));
-    if (entry)
-    {
-        outargs[0] = static_cast<MYFLT>(entry->regionDuration);
-        return IS_OK;
-    }
-    csound->message("cabbageAraGetRegionSampleCount: source index out of range");
-    outargs[0] = 0;
-    return IS_OK;
-}
-
-int CabbageAraGetRegionSampleCount::kperf()
-{
-    int idx = static_cast<int>(inargs[0]);
-    auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(idx));
-    if (entry)
-    {
-        outargs[0] = static_cast<MYFLT>(entry->regionDuration);
-        return IS_OK;
-    }
-    outargs[0] = 0;
-    return IS_OK;
-}
-
-// ============================================================================
-// CabbageAraGetRegionDuration — iDur cabbageAraGetRegionDuration iSourceIndex
-// ============================================================================
-
-int CabbageAraGetRegionDuration::init()
-{
-    int idx = static_cast<int>(inargs[0]);
-    auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(idx));
-    if (entry && entry->sr > 0.0)
-    {
-        outargs[0] = static_cast<MYFLT>(entry->regionDuration / entry->sr);
-        return IS_OK;
-    }
-    csound->message("cabbageAraGetRegionDuration: source index out of range or sr is zero");
-    outargs[0] = 0;
-    return IS_OK;
-}
-
-int CabbageAraGetRegionDuration::kperf()
-{
-    int idx = static_cast<int>(inargs[0]);
-    auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(idx));
-    if (entry && entry->sr > 0.0)
-    {
-        outargs[0] = static_cast<MYFLT>(entry->regionDuration / entry->sr);
-        return IS_OK;
-    }
-    outargs[0] = 0;
-    return IS_OK;
-}
-
-// ============================================================================
-// CabbageAraGetSourceSamplesArray — kSamples[] cabbageAraGetSourceSamples iStart, iCount, iChan, iSourceIndex
-// ============================================================================
 
 int CabbageAraGetSourceSamplesArray::init()
 {
@@ -515,10 +332,6 @@ int CabbageAraGetSourceSamplesArray::init()
     }
     return IS_OK;
 }
-
-// ============================================================================
-// CabbageAraGetSourceSamplesIArray — iSamples[] cabbageAraGetSourceSamples iStart, iCount, iChan, iSourceIndex
-// ============================================================================
 
 int CabbageAraGetSourceSamplesIArray::init()
 {

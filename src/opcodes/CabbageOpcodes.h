@@ -223,6 +223,11 @@ struct CabbageOpcodes
     {
         if (jsonString.find(".") == std::string::npos)
         {
+            if (jsonObj.is_array() && !jsonString.empty() && std::all_of(jsonString.begin(), jsonString.end(), ::isdigit))
+            {
+                size_t idx = std::stoul(jsonString);
+                return (idx < jsonObj.size()) ? jsonObj[idx] : nullptr;
+            }
             if (jsonObj.contains(jsonString))
                 return jsonObj[jsonString];
 
@@ -235,7 +240,14 @@ struct CabbageOpcodes
         nlohmann::json current = jsonObj;
         for (const auto &key : keys)
         {
-            if (current.contains(key))
+            if (current.is_array() && !key.empty() && std::all_of(key.begin(), key.end(), ::isdigit))
+            {
+                size_t idx = std::stoul(key);
+                if (idx >= current.size())
+                    return nullptr;
+                current = current[idx];
+            }
+            else if (current.contains(key))
             {
                 current = current[key];
             }

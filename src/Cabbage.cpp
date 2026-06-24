@@ -117,35 +117,17 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageGetWidgets>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetWidgets", "S[]", "", csnd::thread::i);
 
 #if LATTICE_HAS_ARA || defined(CabbageApp)
-    csnd::plugin<CabbageAraGetSourceCount>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceCount", "i", "", csnd::thread::i);
-    csnd::plugin<CabbageAraGetSourceCount>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceCount", "k", "", csnd::thread::ik);
-    csnd::plugin<CabbageAraGetCurrentSourceIndex>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetCurrentSourceIndex", "i", "", csnd::thread::i);
-    csnd::plugin<CabbageAraGetCurrentSourceIndex>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetCurrentSourceIndex", "k", "", csnd::thread::ik);
-    csnd::plugin<CabbageAraGetCurrentSourceName>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetCurrentSourceName", "S", "", csnd::thread::i);
+    csnd::plugin<CabbageAraGetNum>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGet", "i", "S", csnd::thread::i);
+    csnd::plugin<CabbageAraGetNum>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGet", "i", "Si", csnd::thread::i);
+    csnd::plugin<CabbageAraGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGet", "S", "S", csnd::thread::i);
+    csnd::plugin<CabbageAraGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGet", "S", "Si", csnd::thread::i);
     csnd::plugin<CabbageAraGetUpdate>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdate", "k", "", csnd::thread::k);
     csnd::plugin<CabbageAraGetUpdateEvent>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdateEvent", "Sk", "", csnd::thread::k);
-    
-    csnd::plugin<CabbageAraGetSourceName>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceName", "S", "i", csnd::thread::i);
-    csnd::plugin<CabbageAraGetSourceChannels>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceChannels", "i", "i", csnd::thread::i);
-    csnd::plugin<CabbageAraGetSourceChannels>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceChannels", "k", "k", csnd::thread::ik);
-    csnd::plugin<CabbageAraGetSourceSampleCount>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSampleCount", "i", "i", csnd::thread::i);
-    csnd::plugin<CabbageAraGetSourceSampleCount>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSampleCount", "k", "k", csnd::thread::ik);
-    csnd::plugin<CabbageAraGetSourceSr>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSr", "i", "i", csnd::thread::i);
-    csnd::plugin<CabbageAraGetSourceSr>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSr", "k", "k", csnd::thread::ik);
-    csnd::plugin<CabbageAraGetSourceDuration>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceDuration", "i", "i", csnd::thread::i);
-    csnd::plugin<CabbageAraGetSourceDuration>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceDuration", "k", "k", csnd::thread::ik);
-    
+
     csnd::plugin<CabbageAraGetSourceSamplesAudio>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "a", "aii", csnd::thread::ia);
     csnd::plugin<CabbageAraGetSourceSamplesK>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "k", "kii", csnd::thread::k);
     csnd::plugin<CabbageAraGetSourceSamplesArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "k[]", "iiii", csnd::thread::i);
     csnd::plugin<CabbageAraGetSourceSamplesIArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "i[]", "iiii", csnd::thread::i);
-
-    csnd::plugin<CabbageAraGetRegionSampleStart>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetRegionSampleStart", "i", "i", csnd::thread::i);
-    csnd::plugin<CabbageAraGetRegionSampleStart>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetRegionSampleStart", "k", "k", csnd::thread::ik);
-    csnd::plugin<CabbageAraGetRegionSampleCount>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetRegionSampleCount", "i", "i", csnd::thread::i);
-    csnd::plugin<CabbageAraGetRegionSampleCount>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetRegionSampleCount", "k", "k", csnd::thread::ik);
-    csnd::plugin<CabbageAraGetRegionDuration>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetRegionDuration", "i", "i", csnd::thread::i);
-    csnd::plugin<CabbageAraGetRegionDuration>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetRegionDuration", "k", "k", csnd::thread::ik);
 #endif
 }
 

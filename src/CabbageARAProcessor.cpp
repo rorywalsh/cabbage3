@@ -24,6 +24,7 @@
 // ---------------------------------------------------------------------------
 
 #include "CabbageProcessor.h"
+#include "CabbageARADataPool.h"
 #include <algorithm>
 #include <filesystem>
 #include <thread>
@@ -38,6 +39,15 @@
 #if LATTICE_HAS_ARA || defined(CabbageApp)
 
 #if LATTICE_HAS_ARA
+
+// Helper: update processor state + araState JSON (called under araMutex)
+static void updateState(int& counter, std::string& lastEvent, const char* eventType)
+{
+    lastEvent = eventType;
+    counter++;
+    cabbage::ARADataPool::instance().updateAraState("lastEvent", eventType);
+    cabbage::ARADataPool::instance().updateAraState("update", static_cast<double>(counter));
+}
 
 #include PLUGIN_INFO_HEADER  // pulls in CABBAGE_ARA_* constants
 
@@ -122,11 +132,31 @@ void CabbageProcessor::araPlaybackRegionPropertiesUpdated(ARA::PlugIn::PlaybackR
     const std::string sourceName(name);
     const auto start = static_cast<double>(playbackRegion->getStartInAudioModificationSamples());
     const auto duration = static_cast<double>(playbackRegion->getDurationInAudioModificationSamples());
+    const double sr = source->getSampleRate();
+    const double durationSec = (sr > 0.0) ? duration / sr : 0.0;
+
+    ARA_LOG("CabbageARA: didUpdatePlaybackRegionProperties source='%s' start=%d duration=%d",
+            name, (int)start, (int)duration);
 
     cabbage::ARADataPool::instance().updateRegionByName(sourceName, start, duration);
+    cabbage::ARADataPool::instance().updateSelectedRegionByName(sourceName, start, durationSec, duration);
 
+    // Update currentIndex so the CSD reads from the correct source
     {
         std::lock_guard<std::mutex> lk(araMutex);
+        auto& sources = cabbage::ARADataPool::instance().getAraState()["sources"];
+        if (sources.is_array())
+        {
+            for (size_t i = 0; i < sources.size(); ++i)
+            {
+                if (sources[i].contains("name") && sources[i]["name"].get<std::string>() == sourceName)
+                {
+                    araCurrentSourceIndex = static_cast<int>(i);
+                    cabbage::ARADataPool::instance().updateAraState("currentIndex", static_cast<double>(i));
+                    break;
+                }
+            }
+        }
         araUpdateCounter++;
     }
 
@@ -149,8 +179,7 @@ std::string CabbageProcessor::getAraLastEventType()
 void CabbageProcessor::araBeginEditing()
 {
     std::lock_guard<std::mutex> lk(araMutex);
-    araLastEventType = "beginEditing";
-    araUpdateCounter++;
+    updateState(araUpdateCounter, araLastEventType, "beginEditing");
 }
 
 // ---------------------------------------------------------------------------
@@ -159,8 +188,7 @@ void CabbageProcessor::araBeginEditing()
 void CabbageProcessor::araEndEditing()
 {
     std::lock_guard<std::mutex> lk(araMutex);
-    araLastEventType = "endEditing";
-    araUpdateCounter++;
+    updateState(araUpdateCounter, araLastEventType, "endEditing");
 }
 
 // ---------------------------------------------------------------------------
@@ -176,52 +204,271 @@ void CabbageProcessor::araDidNotifyModelUpdates()
 void CabbageProcessor::araDocumentPropertiesUpdated(ARA::PlugIn::Document* /*document*/)
 {
     std::lock_guard<std::mutex> lk(araMutex);
-    araLastEventType = "documentPropertiesUpdated";
-    araUpdateCounter++;
+    updateState(araUpdateCounter, araLastEventType, "documentPropertiesUpdated");
 }
 
 void CabbageProcessor::araMusicalContextPropertiesUpdated(ARA::PlugIn::MusicalContext* /*musicalContext*/)
 {
     std::lock_guard<std::mutex> lk(araMutex);
-    araLastEventType = "musicalContextPropertiesUpdated";
-    araUpdateCounter++;
+    updateState(araUpdateCounter, araLastEventType, "musicalContextPropertiesUpdated");
 }
 
 void CabbageProcessor::araRegionSequencePropertiesUpdated(ARA::PlugIn::RegionSequence* /*regionSequence*/)
 {
     std::lock_guard<std::mutex> lk(araMutex);
-    araLastEventType = "regionSequencePropertiesUpdated";
-    araUpdateCounter++;
+    updateState(araUpdateCounter, araLastEventType, "regionSequencePropertiesUpdated");
 }
 
 void CabbageProcessor::araAudioSourcePropertiesUpdated(ARA::PlugIn::AudioSource* /*audioSource*/)
 {
     std::lock_guard<std::mutex> lk(araMutex);
-    araLastEventType = "audioSourcePropertiesUpdated";
-    araUpdateCounter++;
+    updateState(araUpdateCounter, araLastEventType, "audioSourcePropertiesUpdated");
 }
 
 void CabbageProcessor::araAudioModificationPropertiesUpdated(ARA::PlugIn::AudioModification* /*audioModification*/)
 {
     std::lock_guard<std::mutex> lk(araMutex);
-    araLastEventType = "audioModificationPropertiesUpdated";
-    araUpdateCounter++;
+    updateState(araUpdateCounter, araLastEventType, "audioModificationPropertiesUpdated");
 }
 
 void CabbageProcessor::araPlaybackRegionAddedToRegionSequence(ARA::PlugIn::RegionSequence* /*regionSequence*/,
                                                                ARA::PlugIn::PlaybackRegion* /*playbackRegion*/)
 {
     std::lock_guard<std::mutex> lk(araMutex);
-    araLastEventType = "playbackRegionAddedToRegionSequence";
-    araUpdateCounter++;
+    updateState(araUpdateCounter, araLastEventType, "playbackRegionAddedToRegionSequence");
 }
 
 void CabbageProcessor::araPlaybackRegionRemovedFromRegionSequence(ARA::PlugIn::RegionSequence* /*regionSequence*/,
-                                                                    ARA::PlugIn::PlaybackRegion* /*playbackRegion*/)
+                                                                     ARA::PlugIn::PlaybackRegion* /*playbackRegion*/)
 {
     std::lock_guard<std::mutex> lk(araMutex);
-    araLastEventType = "playbackRegionRemovedFromRegionSequence";
-    araUpdateCounter++;
+    updateState(araUpdateCounter, araLastEventType, "playbackRegionRemovedFromRegionSequence");
+}
+
+void CabbageProcessor::araMusicalContextAddedToDocument(ARA::PlugIn::Document* /*document*/,
+                                                           ARA::PlugIn::MusicalContext* /*musicalContext*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "musicalContextAddedToDocument");
+}
+
+void CabbageProcessor::araMusicalContextRemovedFromDocument(ARA::PlugIn::Document* /*document*/,
+                                                               ARA::PlugIn::MusicalContext* /*musicalContext*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "musicalContextRemovedFromDocument");
+}
+
+void CabbageProcessor::araRegionSequenceAddedToDocument(ARA::PlugIn::Document* /*document*/,
+                                                           ARA::PlugIn::RegionSequence* /*regionSequence*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "regionSequenceAddedToDocument");
+}
+
+void CabbageProcessor::araRegionSequenceRemovedFromDocument(ARA::PlugIn::Document* /*document*/,
+                                                               ARA::PlugIn::RegionSequence* /*regionSequence*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "regionSequenceRemovedFromDocument");
+}
+
+void CabbageProcessor::araAudioSourceAddedToDocument(ARA::PlugIn::Document* /*document*/,
+                                                        ARA::PlugIn::AudioSource* /*audioSource*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "audioSourceAddedToDocument");
+}
+
+void CabbageProcessor::araAudioSourceRemovedFromDocument(ARA::PlugIn::Document* /*document*/,
+                                                            ARA::PlugIn::AudioSource* /*audioSource*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "audioSourceRemovedFromDocument");
+}
+
+void CabbageProcessor::araDocumentWillDestroy(ARA::PlugIn::Document* /*document*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "documentWillDestroy");
+}
+
+void CabbageProcessor::araDocumentPropertiesWillUpdate(ARA::PlugIn::Document* /*document*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "documentPropertiesWillUpdate");
+}
+
+void CabbageProcessor::araMusicalContextPropertiesWillUpdate(ARA::PlugIn::MusicalContext* /*musicalContext*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "musicalContextPropertiesWillUpdate");
+}
+
+void CabbageProcessor::araRegionSequenceAddedToMusicalContext(ARA::PlugIn::MusicalContext* /*musicalContext*/,
+                                                                 ARA::PlugIn::RegionSequence* /*regionSequence*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "regionSequenceAddedToMusicalContext");
+}
+
+void CabbageProcessor::araRegionSequenceRemovedFromMusicalContext(ARA::PlugIn::MusicalContext* /*musicalContext*/,
+                                                                     ARA::PlugIn::RegionSequence* /*regionSequence*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "regionSequenceRemovedFromMusicalContext");
+}
+
+void CabbageProcessor::araMusicalContextWillDestroy(ARA::PlugIn::MusicalContext* /*musicalContext*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "musicalContextWillDestroy");
+}
+
+void CabbageProcessor::araRegionSequencePropertiesWillUpdate(ARA::PlugIn::RegionSequence* /*regionSequence*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "regionSequencePropertiesWillUpdate");
+}
+
+void CabbageProcessor::araRegionSequenceWillDestroy(ARA::PlugIn::RegionSequence* /*regionSequence*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "regionSequenceWillDestroy");
+}
+
+void CabbageProcessor::araAudioSourcePropertiesWillUpdate(ARA::PlugIn::AudioSource* /*audioSource*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "audioSourcePropertiesWillUpdate");
+}
+
+void CabbageProcessor::araAudioSourceDeactivatedForUndo(ARA::PlugIn::AudioSource* /*audioSource*/,
+                                                           bool /*deactivate*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "audioSourceDeactivatedForUndo");
+}
+
+void CabbageProcessor::araAudioSourceReactivatedFromUndo(ARA::PlugIn::AudioSource* /*audioSource*/,
+                                                           bool /*deactivate*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "audioSourceReactivatedFromUndo");
+}
+
+void CabbageProcessor::araAudioModificationAddedToAudioSource(ARA::PlugIn::AudioSource* /*audioSource*/,
+                                                                ARA::PlugIn::AudioModification* /*audioModification*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "audioModificationAddedToAudioSource");
+}
+
+void CabbageProcessor::araAudioModificationRemovedFromAudioSource(ARA::PlugIn::AudioSource* /*audioSource*/,
+                                                                    ARA::PlugIn::AudioModification* /*audioModification*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "audioModificationRemovedFromAudioSource");
+}
+
+void CabbageProcessor::araAudioSourceWillDestroy(ARA::PlugIn::AudioSource* /*audioSource*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "audioSourceWillDestroy");
+}
+
+void CabbageProcessor::araAudioModificationPropertiesWillUpdate(ARA::PlugIn::AudioModification* /*audioModification*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "audioModificationPropertiesWillUpdate");
+}
+
+void CabbageProcessor::araAudioModificationDeactivatedForUndo(ARA::PlugIn::AudioModification* /*audioModification*/,
+                                                                bool /*deactivate*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "audioModificationDeactivatedForUndo");
+}
+
+void CabbageProcessor::araAudioModificationReactivatedFromUndo(ARA::PlugIn::AudioModification* /*audioModification*/,
+                                                                 bool /*deactivate*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "audioModificationReactivatedFromUndo");
+}
+
+void CabbageProcessor::araPlaybackRegionAddedToAudioModification(ARA::PlugIn::AudioModification* /*audioModification*/,
+                                                                   ARA::PlugIn::PlaybackRegion* /*playbackRegion*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "playbackRegionAddedToAudioModification");
+}
+
+void CabbageProcessor::araPlaybackRegionRemovedFromAudioModification(ARA::PlugIn::AudioModification* /*audioModification*/,
+                                                                       ARA::PlugIn::PlaybackRegion* /*playbackRegion*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "playbackRegionRemovedFromAudioModification");
+}
+
+void CabbageProcessor::araAudioModificationWillDestroy(ARA::PlugIn::AudioModification* /*audioModification*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "audioModificationWillDestroy");
+}
+
+void CabbageProcessor::araPlaybackRegionPropertiesWillUpdate(ARA::PlugIn::PlaybackRegion* /*playbackRegion*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "playbackRegionPropertiesWillUpdate");
+}
+
+void CabbageProcessor::araPlaybackRegionWillDestroy(ARA::PlugIn::PlaybackRegion* /*playbackRegion*/)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "playbackRegionWillDestroy");
+}
+
+void CabbageProcessor::araNotifySelection(const ARA::PlugIn::ViewSelection* selection)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "notifySelection");
+    nlohmann::json regions = nlohmann::json::array();
+    if (selection)
+    {
+        for (const auto* pr : selection->getEffectivePlaybackRegions())
+        {
+            nlohmann::json obj;
+            const auto* src = pr->getAudioModification()->getAudioSource();
+            const char* name = src ? src->getName() : "";
+            const std::string srcName = name ? name : "";
+            obj["name"] = srcName;
+            const auto startSamples = static_cast<double>(pr->getStartInAudioModificationSamples());
+            obj["start"] = startSamples;
+            const auto durSamples = static_cast<double>(pr->getDurationInAudioModificationSamples());
+            obj["durationSamples"] = durSamples;
+            const double sr = src ? src->getSampleRate() : 0.0;
+            obj["durationSec"] = (sr > 0.0) ? durSamples / sr : 0.0;
+            regions.push_back(std::move(obj));
+
+            // Also update source-level region data so cabbageAraGet("regionStart", idx) stays in sync
+            if (!srcName.empty())
+                cabbage::ARADataPool::instance().updateRegionByName(srcName, startSamples, durSamples);
+        }
+    }
+    cabbage::ARADataPool::instance().updateAraState("editorView",
+        {{"selectedRegions", regions}, {"hiddenSequenceCount", 0}});
+}
+
+void CabbageProcessor::araNotifyHideRegionSequences(
+    const std::vector<ARA::PlugIn::RegionSequence*>& hiddenSequences)
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    updateState(araUpdateCounter, araLastEventType, "notifyHideRegionSequences");
+    auto state = cabbage::ARADataPool::instance().getAraState();
+    auto ev = state.value("editorView", nlohmann::json::object());
+    ev["hiddenSequenceCount"] = static_cast<double>(hiddenSequences.size());
+    cabbage::ARADataPool::instance().updateAraState("editorView", ev);
 }
 
 // ---------------------------------------------------------------------------
@@ -329,6 +576,8 @@ void CabbageProcessor::performAraAnalysis(ARA::PlugIn::AudioSource* source)
         std::lock_guard<std::mutex> lk(araMutex);
         araCurrentSourceIndex = static_cast<int>(poolIdx);
         araUpdateCounter++;
+        cabbage::ARADataPool::instance().updateAraState("currentIndex", static_cast<double>(poolIdx));
+        cabbage::ARADataPool::instance().updateAraState("update", static_cast<double>(araUpdateCounter));
     }
 
     lattice::logDebug << "ARA: source '" << sourceName << "' stored at pool index " << poolIdx;
@@ -405,6 +654,8 @@ void CabbageProcessor::performAraAnalysisFromFile(const std::string& filePath)
         std::lock_guard<std::mutex> lk(araMutex);
         araCurrentSourceIndex = static_cast<int>(poolIdx);
         araUpdateCounter++;
+        cabbage::ARADataPool::instance().updateAraState("currentIndex", static_cast<double>(poolIdx));
+        cabbage::ARADataPool::instance().updateAraState("update", static_cast<double>(araUpdateCounter));
     }
 
     lattice::logInfo << "ARA standalone: '" << sourceName << "' stored at pool index " << poolIdx;

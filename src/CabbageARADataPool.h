@@ -89,11 +89,13 @@ struct ARADataPool
             sources[idx].duration = duration;
             sources[idx].pcm = std::move(pcmData);
             sources[idx].data = data;
+            rebuildSourcesJson();
             return idx;
         }
         size_t idx = sources.size();
         sources.push_back({name, samples, channels, sr, duration, std::move(pcmData), data});
         nameToIndex[name] = idx;
+        rebuildSourcesJson();
         return idx;
     }
 
@@ -102,6 +104,7 @@ struct ARADataPool
         std::lock_guard<std::mutex> lock(mutex);
         sources.clear();
         nameToIndex.clear();
+        rebuildSourcesJson();
     }
 
     void updateRegion(size_t index, double start, double duration)
@@ -111,6 +114,7 @@ struct ARADataPool
         {
             sources[index].regionStart = start;
             sources[index].regionDuration = duration;
+            rebuildSourceJson(index);
         }
     }
 
@@ -122,7 +126,40 @@ struct ARADataPool
         {
             sources[it->second].regionStart = start;
             sources[it->second].regionDuration = duration;
+            rebuildSourceJson(it->second);
         }
+    }
+
+    void updateSelectedRegionByName(const std::string& name, double start,
+                                     double durationSec, double durationSamples)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto& regions = araState["editorView"]["selectedRegions"];
+        if (!regions.is_array())
+            return;
+        for (auto& entry : regions)
+        {
+            if (entry.contains("name") && entry["name"].get<std::string>() == name)
+            {
+                entry["start"] = start;
+                entry["durationSec"] = durationSec;
+                entry["durationSamples"] = durationSamples;
+            }
+        }
+    }
+
+    // --- JSON state access (thread-safe, read under lock) ---
+
+    const nlohmann::json& getAraState()
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        return araState;
+    }
+
+    void updateAraState(const std::string& key, const nlohmann::json& value)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        araState[key] = value;
     }
 
     std::mutex mutex;
@@ -131,6 +168,44 @@ private:
     ARADataPool() = default;
     ARADataPool(const ARADataPool&) = delete;
     ARADataPool& operator=(const ARADataPool&) = delete;
+
+    void rebuildSourceJson(size_t idx)
+    {
+        if (idx >= sources.size())
+            return;
+        const auto& s = sources[idx];
+        nlohmann::json obj;
+        obj["name"] = s.name;
+        obj["sampleCount"] = s.samples;
+        obj["channels"] = s.channels;
+        obj["sampleRate"] = s.sr;
+        obj["duration"] = s.duration;
+        obj["regionStart"] = s.regionStart;
+        obj["regionDuration"] = s.regionDuration;
+        if (idx < araState["sources"].size())
+            araState["sources"][idx] = std::move(obj);
+        else
+            araState["sources"].push_back(std::move(obj));
+        araState["sourceCount"] = static_cast<double>(sources.size());
+    }
+
+    void rebuildSourcesJson()
+    {
+        araState["sources"] = nlohmann::json::array();
+        for (size_t i = 0; i < sources.size(); ++i)
+            rebuildSourceJson(i);
+        araState["sourceCount"] = static_cast<double>(sources.size());
+    }
+
+    nlohmann::json araState = {
+        {"currentIndex", -1.0},
+        {"update", 0.0},
+        {"lastEvent", ""},
+        {"sourceCount", 0.0},
+        {"sources", nlohmann::json::array()},
+        {"editorView", {{"selectedRegions", nlohmann::json::array()},
+                         {"hiddenSequenceCount", 0.0}}}
+    };
 
     std::vector<SourceEntry> sources;
     std::unordered_map<std::string, size_t> nameToIndex;

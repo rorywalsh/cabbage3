@@ -22,23 +22,31 @@
 #undef _CR
 
 #include <plugin.h>
+#include <nlohmann/json.hpp>
 
-struct CabbageAraGetSourceCount : csnd::Plugin<1, 0>
-{
-    int init();
-    int kperf();
-};
+// ============================================================================
+// Consolidated ARA get opcodes — read from ARADataPool::araState JSON
+// ============================================================================
 
-struct CabbageAraGetCurrentSourceIndex : csnd::Plugin<1, 0>
+// iVal cabbageAraGet "property"
+// iVal cabbageAraGet "property", iSourceIdx
+struct CabbageAraGetNum : csnd::Plugin<1, 2>
 {
-    int init();
-    int kperf();
-};
-
-struct CabbageAraGetCurrentSourceName : csnd::Plugin<1, 0>
-{
+    nlohmann::json stateCopy;  // keep alive for i-rate string lifetime
     int init();
 };
+
+// SVal cabbageAraGet "property"
+// SVal cabbageAraGet "property", iSourceIdx
+struct CabbageAraGetString : csnd::Plugin<1, 2>
+{
+    nlohmann::json stateCopy;  // keep alive for i-rate string lifetime
+    int init();
+};
+
+// ============================================================================
+// Update trigger opcode — keeps k-rate trigger output
+// ============================================================================
 
 struct CabbageAraGetUpdate : csnd::Plugin<1, 0>
 {
@@ -50,34 +58,9 @@ struct CabbageAraGetUpdateEvent : csnd::Plugin<2, 0>
     int kperf();
 };
 
-struct CabbageAraGetSourceName : csnd::Plugin<1, 1>
-{
-    int init();
-};
-
-struct CabbageAraGetSourceChannels : csnd::Plugin<1, 1>
-{
-    int init();
-    int kperf();
-};
-
-struct CabbageAraGetSourceSampleCount : csnd::Plugin<1, 1>
-{
-    int init();
-    int kperf();
-};
-
-struct CabbageAraGetSourceSr : csnd::Plugin<1, 1>
-{
-    int init();
-    int kperf();
-};
-
-struct CabbageAraGetSourceDuration : csnd::Plugin<1, 1>
-{
-    int init();
-    int kperf();
-};
+// ============================================================================
+// PCM sample access — kept separate (a-rate performance)
+// ============================================================================
 
 struct CabbageAraGetSourceSamplesAudio : csnd::Plugin<1, 3>
 {
@@ -109,22 +92,4 @@ struct CabbageAraGetSourceSamplesArray : csnd::Plugin<1, 4>
 struct CabbageAraGetSourceSamplesIArray : csnd::Plugin<1, 4>
 {
     int init();
-};
-
-struct CabbageAraGetRegionSampleStart : csnd::Plugin<1, 1>
-{
-    int init();
-    int kperf();
-};
-
-struct CabbageAraGetRegionSampleCount : csnd::Plugin<1, 1>
-{
-    int init();
-    int kperf();
-};
-
-struct CabbageAraGetRegionDuration : csnd::Plugin<1, 1>
-{
-    int init();
-    int kperf();
 };

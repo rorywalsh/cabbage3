@@ -118,6 +118,51 @@ class CabbageProcessor : public lattice::Processor
                                                  ARA::PlugIn::PlaybackRegion* playbackRegion) override;
     void araPlaybackRegionRemovedFromRegionSequence(ARA::PlugIn::RegionSequence* regionSequence,
                                                       ARA::PlugIn::PlaybackRegion* playbackRegion) override;
+    void araMusicalContextAddedToDocument(ARA::PlugIn::Document* document,
+                                           ARA::PlugIn::MusicalContext* musicalContext) override;
+    void araMusicalContextRemovedFromDocument(ARA::PlugIn::Document* document,
+                                               ARA::PlugIn::MusicalContext* musicalContext) override;
+    void araRegionSequenceAddedToDocument(ARA::PlugIn::Document* document,
+                                           ARA::PlugIn::RegionSequence* regionSequence) override;
+    void araRegionSequenceRemovedFromDocument(ARA::PlugIn::Document* document,
+                                               ARA::PlugIn::RegionSequence* regionSequence) override;
+    void araAudioSourceAddedToDocument(ARA::PlugIn::Document* document,
+                                        ARA::PlugIn::AudioSource* audioSource) override;
+    void araAudioSourceRemovedFromDocument(ARA::PlugIn::Document* document,
+                                            ARA::PlugIn::AudioSource* audioSource) override;
+    void araDocumentWillDestroy(ARA::PlugIn::Document* document) override;
+    void araDocumentPropertiesWillUpdate(ARA::PlugIn::Document* document) override;
+    void araMusicalContextPropertiesWillUpdate(ARA::PlugIn::MusicalContext* musicalContext) override;
+    void araRegionSequenceAddedToMusicalContext(ARA::PlugIn::MusicalContext* musicalContext,
+                                                 ARA::PlugIn::RegionSequence* regionSequence) override;
+    void araRegionSequenceRemovedFromMusicalContext(ARA::PlugIn::MusicalContext* musicalContext,
+                                                     ARA::PlugIn::RegionSequence* regionSequence) override;
+    void araMusicalContextWillDestroy(ARA::PlugIn::MusicalContext* musicalContext) override;
+    void araRegionSequencePropertiesWillUpdate(ARA::PlugIn::RegionSequence* regionSequence) override;
+    void araRegionSequenceWillDestroy(ARA::PlugIn::RegionSequence* regionSequence) override;
+    void araAudioSourcePropertiesWillUpdate(ARA::PlugIn::AudioSource* audioSource) override;
+    void araAudioSourceDeactivatedForUndo(ARA::PlugIn::AudioSource* audioSource, bool deactivate) override;
+    void araAudioSourceReactivatedFromUndo(ARA::PlugIn::AudioSource* audioSource, bool deactivate) override;
+    void araAudioModificationAddedToAudioSource(ARA::PlugIn::AudioSource* audioSource,
+                                                 ARA::PlugIn::AudioModification* audioModification) override;
+    void araAudioModificationRemovedFromAudioSource(ARA::PlugIn::AudioSource* audioSource,
+                                                     ARA::PlugIn::AudioModification* audioModification) override;
+    void araAudioSourceWillDestroy(ARA::PlugIn::AudioSource* audioSource) override;
+    void araAudioModificationPropertiesWillUpdate(ARA::PlugIn::AudioModification* audioModification) override;
+    void araAudioModificationDeactivatedForUndo(ARA::PlugIn::AudioModification* audioModification,
+                                                 bool deactivate) override;
+    void araAudioModificationReactivatedFromUndo(ARA::PlugIn::AudioModification* audioModification,
+                                                  bool deactivate) override;
+    void araPlaybackRegionAddedToAudioModification(ARA::PlugIn::AudioModification* audioModification,
+                                                    ARA::PlugIn::PlaybackRegion* playbackRegion) override;
+    void araPlaybackRegionRemovedFromAudioModification(ARA::PlugIn::AudioModification* audioModification,
+                                                        ARA::PlugIn::PlaybackRegion* playbackRegion) override;
+    void araAudioModificationWillDestroy(ARA::PlugIn::AudioModification* audioModification) override;
+    void araPlaybackRegionPropertiesWillUpdate(ARA::PlugIn::PlaybackRegion* playbackRegion) override;
+    void araPlaybackRegionWillDestroy(ARA::PlugIn::PlaybackRegion* playbackRegion) override;
+    void araNotifySelection(const ARA::PlugIn::ViewSelection* selection) override;
+    void araNotifyHideRegionSequences(
+        const std::vector<ARA::PlugIn::RegionSequence*>& hiddenSequences) override;
 #endif
 
     // Public accessors for ARA opcodes
