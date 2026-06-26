@@ -119,6 +119,8 @@ void Engine::addOpcodes()
 #if LATTICE_HAS_ARA || defined(CabbageApp)
     csnd::plugin<CabbageAraGetNum>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGet", "i", "S", csnd::thread::i);
     csnd::plugin<CabbageAraGetNum>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGet", "i", "Si", csnd::thread::i);
+    csnd::plugin<CabbageAraGetNum>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGet", "k", "S", csnd::thread::k);
+    csnd::plugin<CabbageAraGetNum>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGet", "k", "Sk", csnd::thread::k);
     csnd::plugin<CabbageAraGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGet", "S", "S", csnd::thread::i);
     csnd::plugin<CabbageAraGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGet", "S", "Si", csnd::thread::i);
     csnd::plugin<CabbageAraGetUpdate>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdate", "k", "", csnd::thread::k);
@@ -128,6 +130,8 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageAraGetSourceSamplesK>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "k", "kii", csnd::thread::k);
     csnd::plugin<CabbageAraGetSourceSamplesArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "k[]", "iiii", csnd::thread::i);
     csnd::plugin<CabbageAraGetSourceSamplesIArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "i[]", "iiii", csnd::thread::i);
+    csnd::plugin<CabbageAraDump>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraDump", "", "", csnd::thread::i);
+    csnd::plugin<CabbageAraDump>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraDump", "", "k", csnd::thread::k);
 #endif
 }
 

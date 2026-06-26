@@ -30,17 +30,20 @@
 
 // iVal cabbageAraGet "property"
 // iVal cabbageAraGet "property", iSourceIdx
+// kVal cabbageAraGet "property"
+// kVal cabbageAraGet "property", kSourceIdx
 struct CabbageAraGetNum : csnd::Plugin<1, 2>
 {
-    nlohmann::json stateCopy;  // keep alive for i-rate string lifetime
+    nlohmann::json stateCopy;
     int init();
+    int kperf();
 };
 
 // SVal cabbageAraGet "property"
 // SVal cabbageAraGet "property", iSourceIdx
 struct CabbageAraGetString : csnd::Plugin<1, 2>
 {
-    nlohmann::json stateCopy;  // keep alive for i-rate string lifetime
+    nlohmann::json stateCopy;
     int init();
 };
 
@@ -92,4 +95,17 @@ struct CabbageAraGetSourceSamplesArray : csnd::Plugin<1, 4>
 struct CabbageAraGetSourceSamplesIArray : csnd::Plugin<1, 4>
 {
     int init();
+};
+
+// ============================================================================
+// Diagnostic dump — prints entire ARA state to Csound output
+// ============================================================================
+
+struct CabbageAraDump : csnd::InPlug<1>
+{
+    int init();
+    int kperf();
+private:
+    void araDumpState();
+    MYFLT prevTrig = 0;
 };

@@ -135,28 +135,49 @@ void CabbageProcessor::araPlaybackRegionPropertiesUpdated(ARA::PlugIn::PlaybackR
     const double sr = source->getSampleRate();
     const double durationSec = (sr > 0.0) ? duration / sr : 0.0;
 
-    ARA_LOG("CabbageARA: didUpdatePlaybackRegionProperties source='%s' start=%d duration=%d",
-            name, (int)start, (int)duration);
+    ARA_LOG("CabbageARA: didUpdatePlaybackRegionProperties source='%s'", name);
+    ARA_LOG("  mod: start=%.3f dur=%.3f",
+            playbackRegion->getStartInAudioModificationTime(), playbackRegion->getDurationInAudioModificationTime());
+    ARA_LOG("  pb:  start=%.3f dur=%.3f",
+            playbackRegion->getStartInPlaybackTime(), playbackRegion->getDurationInPlaybackTime());
+    ARA_LOG("  modSamples: start=%d dur=%d",
+            (int)playbackRegion->getStartInAudioModificationSamples(), (int)playbackRegion->getDurationInAudioModificationSamples());
+    ARA_LOG("  srcSamples: count=%d sr=%.0f", (int)source->getSampleCount(), source->getSampleRate());
 
     cabbage::ARADataPool::instance().updateRegionByName(sourceName, start, duration);
-    cabbage::ARADataPool::instance().updateSelectedRegionByName(sourceName, start, durationSec, duration);
+    cabbage::ARADataPool::instance().updateSelectedRegionByName(
+        sourceName, start, durationSec, duration,
+        static_cast<double>(playbackRegion->getStartInPlaybackTime()),
+        static_cast<double>(playbackRegion->getDurationInPlaybackTime()));
+
+    // Also store audio source crop position (within the source file)
+    const auto asStart = static_cast<double>(playbackRegion->getStartInAudioModificationTime());
+    const auto asDur = static_cast<double>(playbackRegion->getDurationInAudioModificationTime());
+    cabbage::ARADataPool::instance().updateRegionTimeByName(
+        sourceName, asStart, asDur);
+
+    // Also update the playback region entry in the full playback regions list
+    cabbage::ARADataPool::instance().addOrUpdatePlaybackRegion(
+        playbackRegion,
+        sourceName,
+        "",  // region sequence name not available here; set on add
+        start, duration,
+        static_cast<double>(playbackRegion->getStartInPlaybackTime()),
+        static_cast<double>(playbackRegion->getDurationInPlaybackTime()));
+
+    ARA_LOG("CabbageARA: stored audioSource for '%s' start=%.3f dur=%.3f",
+            name, asStart, asDur);
 
     // Update currentIndex so the CSD reads from the correct source
     {
-        std::lock_guard<std::mutex> lk(araMutex);
-        auto& sources = cabbage::ARADataPool::instance().getAraState()["sources"];
-        if (sources.is_array())
+        int poolIdx = cabbage::ARADataPool::instance().getIndexByName(sourceName);
+        if (poolIdx >= 0)
         {
-            for (size_t i = 0; i < sources.size(); ++i)
-            {
-                if (sources[i].contains("name") && sources[i]["name"].get<std::string>() == sourceName)
-                {
-                    araCurrentSourceIndex = static_cast<int>(i);
-                    cabbage::ARADataPool::instance().updateAraState("currentIndex", static_cast<double>(i));
-                    break;
-                }
-            }
+            std::lock_guard<std::mutex> lk(araMutex);
+            araCurrentSourceIndex = poolIdx;
+            cabbage::ARADataPool::instance().updateAraState("currentIndex", static_cast<double>(poolIdx));
         }
+        std::lock_guard<std::mutex> lk(araMutex);
         araUpdateCounter++;
     }
 
@@ -231,18 +252,31 @@ void CabbageProcessor::araAudioModificationPropertiesUpdated(ARA::PlugIn::AudioM
     updateState(araUpdateCounter, araLastEventType, "audioModificationPropertiesUpdated");
 }
 
-void CabbageProcessor::araPlaybackRegionAddedToRegionSequence(ARA::PlugIn::RegionSequence* /*regionSequence*/,
-                                                               ARA::PlugIn::PlaybackRegion* /*playbackRegion*/)
+void CabbageProcessor::araPlaybackRegionAddedToRegionSequence(ARA::PlugIn::RegionSequence* regionSequence,
+                                                               ARA::PlugIn::PlaybackRegion* playbackRegion)
 {
     std::lock_guard<std::mutex> lk(araMutex);
     updateState(araUpdateCounter, araLastEventType, "playbackRegionAddedToRegionSequence");
+
+    const auto* src = playbackRegion->getAudioModification()->getAudioSource();
+    const char* srcName = src ? src->getName() : "";
+    const char* seqName = regionSequence ? regionSequence->getName() : "";
+    cabbage::ARADataPool::instance().addOrUpdatePlaybackRegion(
+        playbackRegion,
+        srcName ? srcName : "",
+        seqName ? seqName : "",
+        static_cast<double>(playbackRegion->getStartInAudioModificationSamples()),
+        static_cast<double>(playbackRegion->getDurationInAudioModificationSamples()),
+        static_cast<double>(playbackRegion->getStartInPlaybackTime()),
+        static_cast<double>(playbackRegion->getDurationInPlaybackTime()));
 }
 
 void CabbageProcessor::araPlaybackRegionRemovedFromRegionSequence(ARA::PlugIn::RegionSequence* /*regionSequence*/,
-                                                                     ARA::PlugIn::PlaybackRegion* /*playbackRegion*/)
+                                                                     ARA::PlugIn::PlaybackRegion* playbackRegion)
 {
     std::lock_guard<std::mutex> lk(araMutex);
     updateState(araUpdateCounter, araLastEventType, "playbackRegionRemovedFromRegionSequence");
+    cabbage::ARADataPool::instance().removePlaybackRegion(playbackRegion);
 }
 
 void CabbageProcessor::araMusicalContextAddedToDocument(ARA::PlugIn::Document* /*document*/,
@@ -274,15 +308,29 @@ void CabbageProcessor::araRegionSequenceRemovedFromDocument(ARA::PlugIn::Documen
 }
 
 void CabbageProcessor::araAudioSourceAddedToDocument(ARA::PlugIn::Document* /*document*/,
-                                                        ARA::PlugIn::AudioSource* /*audioSource*/)
+                                                        ARA::PlugIn::AudioSource* audioSource)
 {
-    std::lock_guard<std::mutex> lk(araMutex);
-    updateState(araUpdateCounter, araLastEventType, "audioSourceAddedToDocument");
+    {
+        std::lock_guard<std::mutex> lk(araMutex);
+        updateState(araUpdateCounter, araLastEventType, "audioSourceAddedToDocument");
+    }
+    if (audioSource && isMyAudioSource(audioSource))
+    {
+        lattice::logInfo << "ARA: audio source added — queuing analysis for '"
+                         << (audioSource->getName() ? audioSource->getName() : "?") << "'";
+        enqueueAraSource(audioSource);
+    }
 }
 
 void CabbageProcessor::araAudioSourceRemovedFromDocument(ARA::PlugIn::Document* /*document*/,
-                                                            ARA::PlugIn::AudioSource* /*audioSource*/)
+                                                            ARA::PlugIn::AudioSource* audioSource)
 {
+    const char* name = audioSource ? audioSource->getName() : nullptr;
+    if (name)
+    {
+        std::lock_guard<std::mutex> lk(araMutex);
+        cabbage::ARADataPool::instance().removeByName(name);
+    }
     std::lock_guard<std::mutex> lk(araMutex);
     updateState(araUpdateCounter, araLastEventType, "audioSourceRemovedFromDocument");
 }
@@ -371,8 +419,14 @@ void CabbageProcessor::araAudioModificationRemovedFromAudioSource(ARA::PlugIn::A
     updateState(araUpdateCounter, araLastEventType, "audioModificationRemovedFromAudioSource");
 }
 
-void CabbageProcessor::araAudioSourceWillDestroy(ARA::PlugIn::AudioSource* /*audioSource*/)
+void CabbageProcessor::araAudioSourceWillDestroy(ARA::PlugIn::AudioSource* audioSource)
 {
+    const char* name = audioSource ? audioSource->getName() : nullptr;
+    if (name)
+    {
+        std::lock_guard<std::mutex> lk(araMutex);
+        cabbage::ARADataPool::instance().removeByName(name);
+    }
     std::lock_guard<std::mutex> lk(araMutex);
     updateState(araUpdateCounter, araLastEventType, "audioSourceWillDestroy");
 }
@@ -423,10 +477,11 @@ void CabbageProcessor::araPlaybackRegionPropertiesWillUpdate(ARA::PlugIn::Playba
     updateState(araUpdateCounter, araLastEventType, "playbackRegionPropertiesWillUpdate");
 }
 
-void CabbageProcessor::araPlaybackRegionWillDestroy(ARA::PlugIn::PlaybackRegion* /*playbackRegion*/)
+void CabbageProcessor::araPlaybackRegionWillDestroy(ARA::PlugIn::PlaybackRegion* playbackRegion)
 {
     std::lock_guard<std::mutex> lk(araMutex);
     updateState(araUpdateCounter, araLastEventType, "playbackRegionWillDestroy");
+    cabbage::ARADataPool::instance().removePlaybackRegion(playbackRegion);
 }
 
 void CabbageProcessor::araNotifySelection(const ARA::PlugIn::ViewSelection* selection)
@@ -434,9 +489,19 @@ void CabbageProcessor::araNotifySelection(const ARA::PlugIn::ViewSelection* sele
     std::lock_guard<std::mutex> lk(araMutex);
     updateState(araUpdateCounter, araLastEventType, "notifySelection");
     nlohmann::json regions = nlohmann::json::array();
+    double trStart = 0.0;
+    double trDuration = 0.0;
     if (selection)
     {
-        for (const auto* pr : selection->getEffectivePlaybackRegions())
+        // Get overall selection time range (arrangement timeline position)
+        const auto& timeRange = selection->getTimeRange();
+        if (timeRange != nullptr)
+        {
+            trStart = timeRange->start;
+            trDuration = timeRange->duration;
+        }
+
+        for (const auto* pr : selection->getPlaybackRegions())
         {
             nlohmann::json obj;
             const auto* src = pr->getAudioModification()->getAudioSource();
@@ -444,20 +509,34 @@ void CabbageProcessor::araNotifySelection(const ARA::PlugIn::ViewSelection* sele
             const std::string srcName = name ? name : "";
             obj["name"] = srcName;
             const auto startSamples = static_cast<double>(pr->getStartInAudioModificationSamples());
-            obj["start"] = startSamples;
+            obj["startInSamples"] = startSamples;
             const auto durSamples = static_cast<double>(pr->getDurationInAudioModificationSamples());
-            obj["durationSamples"] = durSamples;
+            obj["durationInSamples"] = durSamples;
             const double sr = src ? src->getSampleRate() : 0.0;
-            obj["durationSec"] = (sr > 0.0) ? durSamples / sr : 0.0;
+            obj["duration"] = (sr > 0.0) ? durSamples / sr : 0.0;
+
+            // Per-region arrangement position (where this clip sits on the host timeline)
+            obj["playbackStart"] = static_cast<double>(pr->getStartInPlaybackTime());
+            obj["playbackDuration"] = static_cast<double>(pr->getDurationInPlaybackTime());
+
             regions.push_back(std::move(obj));
 
             // Also update source-level region data so cabbageAraGet("regionStart", idx) stays in sync
             if (!srcName.empty())
+            {
                 cabbage::ARADataPool::instance().updateRegionByName(srcName, startSamples, durSamples);
+
+                // Also store audio source crop position from the selection
+                const auto asStart = static_cast<double>(pr->getStartInAudioModificationTime());
+                const auto asDur = static_cast<double>(pr->getDurationInAudioModificationTime());
+                cabbage::ARADataPool::instance().updateRegionTimeByName(
+                    srcName, asStart, asDur);
+            }
         }
     }
     cabbage::ARADataPool::instance().updateAraState("editorView",
-        {{"selectedRegions", regions}, {"hiddenSequenceCount", 0}});
+        {{"selectedRegions", regions}, {"hiddenSequenceCount", 0},
+         {"timeRangeStart", trStart}, {"timeRangeDuration", trDuration}});
 }
 
 void CabbageProcessor::araNotifyHideRegionSequences(

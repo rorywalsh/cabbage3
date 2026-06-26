@@ -40,8 +40,21 @@ struct ARADataPool
         double duration = 0;
         std::shared_ptr<std::vector<std::vector<float>>> pcm; // planar: pcm[channel][sample]
         nlohmann::json data; // declared <CabbageARA> channel results
-        double regionStart = 0;    // modification start in samples
-        double regionDuration = 0; // modification duration in samples
+        double regionStart = 0;           // modification start in samples
+        double regionDuration = 0;        // modification duration in samples
+        double regionStartSec = 0;        // crop start within the source (seconds)
+        double regionDurationSec = 0;     // crop duration within the source (seconds)
+        bool removed = false;              // marked for removal, skipped in JSON
+    };
+
+    struct PlaybackRegionEntry
+    {
+        std::string sourceName;           // source file name
+        std::string regionSequenceName;   // track/lane name
+        double regionStart = 0;           // crop start in samples (within source)
+        double regionDuration = 0;        // crop duration in samples
+        double playbackStart = 0;         // arrangement position in seconds
+        double playbackDuration = 0;      // arrangement duration in seconds
     };
 
     static ARADataPool& instance()
@@ -53,16 +66,23 @@ struct ARADataPool
     std::shared_ptr<SourceEntry> getByIndex(size_t index)
     {
         std::lock_guard<std::mutex> lock(mutex);
-        if (index >= sources.size())
-            return nullptr;
-        return std::make_shared<SourceEntry>(sources[index]);
+        size_t visible = 0;
+        for (size_t i = 0; i < sources.size(); ++i)
+        {
+            if (sources[i].removed)
+                continue;
+            if (visible == index)
+                return std::make_shared<SourceEntry>(sources[i]);
+            visible++;
+        }
+        return nullptr;
     }
 
     std::shared_ptr<SourceEntry> getByName(const std::string& name)
     {
         std::lock_guard<std::mutex> lock(mutex);
         auto it = nameToIndex.find(name);
-        if (it == nameToIndex.end() || it->second >= sources.size())
+        if (it == nameToIndex.end() || it->second >= sources.size() || sources[it->second].removed)
             return nullptr;
         return std::make_shared<SourceEntry>(sources[it->second]);
     }
@@ -70,7 +90,20 @@ struct ARADataPool
     size_t getSourceCount()
     {
         std::lock_guard<std::mutex> lock(mutex);
-        return sources.size();
+        size_t count = 0;
+        for (const auto& s : sources)
+            if (!s.removed)
+                count++;
+        return count;
+    }
+
+    int getIndexByName(const std::string& name)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto it = nameToIndex.find(name);
+        if (it != nameToIndex.end() && it->second < sources.size() && !sources[it->second].removed)
+            return static_cast<int>(it->second);
+        return -1;
     }
 
     size_t upsert(const std::string& name, double samples, double channels,
@@ -92,6 +125,23 @@ struct ARADataPool
             rebuildSourcesJson();
             return idx;
         }
+        // Also check for a previously removed entry with the same name
+        for (size_t i = 0; i < sources.size(); ++i)
+        {
+            if (sources[i].removed && sources[i].name == name)
+            {
+                sources[i].removed = false;
+                sources[i].samples = samples;
+                sources[i].channels = channels;
+                sources[i].sr = sr;
+                sources[i].duration = duration;
+                sources[i].pcm = std::move(pcmData);
+                sources[i].data = data;
+                nameToIndex[name] = i;
+                rebuildSourcesJson();
+                return i;
+            }
+        }
         size_t idx = sources.size();
         sources.push_back({name, samples, channels, sr, duration, std::move(pcmData), data});
         nameToIndex[name] = idx;
@@ -104,7 +154,9 @@ struct ARADataPool
         std::lock_guard<std::mutex> lock(mutex);
         sources.clear();
         nameToIndex.clear();
+        playbackRegions.clear();
         rebuildSourcesJson();
+        rebuildPlaybackRegionsJson();
     }
 
     void updateRegion(size_t index, double start, double duration)
@@ -130,8 +182,9 @@ struct ARADataPool
         }
     }
 
-    void updateSelectedRegionByName(const std::string& name, double start,
-                                     double durationSec, double durationSamples)
+    void updateSelectedRegionByName(const std::string& name, double startInSamples,
+                                     double durationSec, double durationInSamples,
+                                     double playbackStart, double playbackDuration)
     {
         std::lock_guard<std::mutex> lock(mutex);
         auto& regions = araState["editorView"]["selectedRegions"];
@@ -141,16 +194,98 @@ struct ARADataPool
         {
             if (entry.contains("name") && entry["name"].get<std::string>() == name)
             {
-                entry["start"] = start;
-                entry["durationSec"] = durationSec;
-                entry["durationSamples"] = durationSamples;
+                entry["startInSamples"] = startInSamples;
+                entry["duration"] = durationSec;
+                entry["durationInSamples"] = durationInSamples;
+                entry["playbackStart"] = playbackStart;
+                entry["playbackDuration"] = playbackDuration;
             }
         }
     }
 
+    void updateRegionTimeByName(const std::string& name, double startSec,
+                                   double durationSec)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto it = nameToIndex.find(name);
+        if (it != nameToIndex.end() && it->second < sources.size())
+        {
+            sources[it->second].regionStartSec = startSec;
+            sources[it->second].regionDurationSec = durationSec;
+            rebuildSourceJson(it->second);
+        }
+    }
+
+    void removeByName(const std::string& name)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto it = nameToIndex.find(name);
+        if (it != nameToIndex.end() && it->second < sources.size())
+        {
+            sources[it->second].removed = true;
+            nameToIndex.erase(it);
+            rebuildSourcesJson();
+        }
+    }
+
+    // --- Playback region management (thread-safe) ---
+
+    void addOrUpdatePlaybackRegion(void* key, const std::string& sourceName,
+                                    const std::string& regionSequenceName,
+                                    double regionStart, double regionDuration,
+                                    double playbackStart, double playbackDuration)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        playbackRegions[key] = {sourceName, regionSequenceName,
+                                regionStart, regionDuration,
+                                playbackStart, playbackDuration};
+        rebuildPlaybackRegionsJson();
+    }
+
+    void removePlaybackRegion(void* key)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto it = playbackRegions.find(key);
+        if (it == playbackRegions.end())
+            return;
+        std::string sourceName = it->second.sourceName;
+        playbackRegions.erase(it);
+
+        // Check if any other playback regions still reference this source
+        bool stillReferenced = false;
+        for (const auto& [k, entry] : playbackRegions)
+        {
+            if (entry.sourceName == sourceName)
+            {
+                stillReferenced = true;
+                break;
+            }
+        }
+
+        // If no playback regions reference this source, remove it from the pool
+        if (!stillReferenced)
+        {
+            auto sit = nameToIndex.find(sourceName);
+            if (sit != nameToIndex.end() && sit->second < sources.size())
+            {
+                sources[sit->second].removed = true;
+                nameToIndex.erase(sit);
+                rebuildSourcesJson();
+            }
+        }
+
+        rebuildPlaybackRegionsJson();
+    }
+
+    size_t getPlaybackRegionCount()
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        return playbackRegions.size();
+    }
+
     // --- JSON state access (thread-safe, read under lock) ---
 
-    const nlohmann::json& getAraState()
+    nlohmann::json getAraState()
     {
         std::lock_guard<std::mutex> lock(mutex);
         return araState;
@@ -180,8 +315,10 @@ private:
         obj["channels"] = s.channels;
         obj["sampleRate"] = s.sr;
         obj["duration"] = s.duration;
-        obj["regionStart"] = s.regionStart;
-        obj["regionDuration"] = s.regionDuration;
+        obj["regionStartInSamples"] = s.regionStart;
+        obj["regionDurationInSamples"] = s.regionDuration;
+        obj["regionStart"] = s.regionStartSec;
+        obj["regionDuration"] = s.regionDurationSec;
         if (idx < araState["sources"].size())
             araState["sources"][idx] = std::move(obj);
         else
@@ -192,9 +329,44 @@ private:
     void rebuildSourcesJson()
     {
         araState["sources"] = nlohmann::json::array();
+        nameToIndex.clear();
+        double count = 0;
         for (size_t i = 0; i < sources.size(); ++i)
-            rebuildSourceJson(i);
-        araState["sourceCount"] = static_cast<double>(sources.size());
+        {
+            if (sources[i].removed)
+                continue;
+            nlohmann::json obj;
+            obj["name"] = sources[i].name;
+            obj["sampleCount"] = sources[i].samples;
+            obj["channels"] = sources[i].channels;
+            obj["sampleRate"] = sources[i].sr;
+            obj["duration"] = sources[i].duration;
+            obj["regionStartInSamples"] = sources[i].regionStart;
+            obj["regionDurationInSamples"] = sources[i].regionDuration;
+            obj["regionStart"] = sources[i].regionStartSec;
+            obj["regionDuration"] = sources[i].regionDurationSec;
+            araState["sources"].push_back(std::move(obj));
+            nameToIndex[sources[i].name] = i;
+            count++;
+        }
+        araState["sourceCount"] = count;
+    }
+
+    void rebuildPlaybackRegionsJson()
+    {
+        araState["playbackRegions"] = nlohmann::json::array();
+        for (const auto& [key, entry] : playbackRegions)
+        {
+            nlohmann::json obj;
+            obj["name"] = entry.sourceName;
+            obj["regionSequenceName"] = entry.regionSequenceName;
+            obj["regionStartInSamples"] = entry.regionStart;
+            obj["regionDurationInSamples"] = entry.regionDuration;
+            obj["playbackStart"] = entry.playbackStart;
+            obj["playbackDuration"] = entry.playbackDuration;
+            araState["playbackRegions"].push_back(std::move(obj));
+        }
+        araState["playbackRegionCount"] = static_cast<double>(playbackRegions.size());
     }
 
     nlohmann::json araState = {
@@ -203,12 +375,15 @@ private:
         {"lastEvent", ""},
         {"sourceCount", 0.0},
         {"sources", nlohmann::json::array()},
+        {"playbackRegionCount", 0.0},
+        {"playbackRegions", nlohmann::json::array()},
         {"editorView", {{"selectedRegions", nlohmann::json::array()},
                          {"hiddenSequenceCount", 0.0}}}
     };
 
     std::vector<SourceEntry> sources;
     std::unordered_map<std::string, size_t> nameToIndex;
+    std::unordered_map<void*, PlaybackRegionEntry> playbackRegions;
 };
 
 } // namespace cabbage

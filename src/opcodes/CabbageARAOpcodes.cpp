@@ -75,32 +75,118 @@ static nlohmann::json getJson(const nlohmann::json& obj, const std::string& path
 }
 
 // ============================================================================
+// Dot-notation property name mapping
+// ============================================================================
+
+static const std::unordered_map<std::string, std::string> dotNotationMap = {
+    // AudioSource properties
+    {"audioSource.name",                    "name"},
+    {"audioSource.channels",                "channels"},
+    {"audioSource.sampleCount",             "sampleCount"},
+    {"audioSource.sampleRate",              "sampleRate"},
+    {"audioSource.duration",                "duration"},
+
+    // Region properties (crop within source)
+    {"audioSource.region.start",            "regionStart"},
+    {"audioSource.region.startInSamples",   "regionStartInSamples"},
+    {"audioSource.region.duration",         "regionDuration"},
+    {"audioSource.region.durationInSamples","regionDurationInSamples"},
+
+    // Top-level counts
+    {"audioSourceCount",                    "sourceCount"},
+
+    // PlaybackRegion properties (all regions)
+    {"playbackRegion.name",                 "playbackRegionName"},
+    {"playbackRegion.sequenceName",         "playbackRegionSequenceName"},
+    {"playbackRegion.startInSamples",       "playbackRegionStartInSamples"},
+    {"playbackRegion.durationInSamples",    "playbackRegionDurationInSamples"},
+    {"playbackRegion.start",                "playbackRegionStart"},
+    {"playbackRegion.duration",             "playbackRegionDuration"},
+    {"playbackRegion.sourceIndex",          "playbackRegionSourceIndex"},
+
+    // EditorView - overview (no index)
+    {"editorView.timeRange.start",              "timeRangeStart"},
+    {"editorView.timeRange.duration",           "timeRangeDuration"},
+    {"editorView.hiddenSequenceCount",          "hiddenSequenceCount"},
+    {"editorView.selectedPlaybackRegionCount",  "selectedPlaybackRegionCount"},
+
+    // EditorView - selection region (indexed)
+    {"editorView.selectedRegion.name",              "selectedRegionName"},
+    {"editorView.selectedRegion.startInSamples",    "selectedRegionStartInSamples"},
+    {"editorView.selectedRegion.duration",          "selectedRegionDuration"},
+    {"editorView.selectedRegion.durationInSamples", "selectedRegionDurationInSamples"},
+    {"editorView.selectedPlayback.start",           "selectedPlaybackStart"},
+    {"editorView.selectedPlayback.duration",        "selectedPlaybackDuration"},
+};
+
+static std::string resolveProperty(const std::string& prop) {
+    auto it = dotNotationMap.find(prop);
+    return (it != dotNotationMap.end()) ? it->second : prop;
+}
+
+// ============================================================================
 // CabbageAraGetNum — iVal cabbageAraGet "property" [, iSourceIdx]
 // ============================================================================
 
 int CabbageAraGetNum::init()
 {
     stateCopy = cabbage::ARADataPool::instance().getAraState();
-    std::string prop(inargs.str_data(0).data);
+    std::string prop(resolveProperty(inargs.str_data(0).data));
 
     // Handle selectedRegion* properties (indexed into editorView.selectedRegions[])
-    if (prop == "selectedRegionCount")
+    if (prop == "selectedPlaybackRegionCount")
     {
         auto& regions = stateCopy["editorView"]["selectedRegions"];
         outargs[0] = regions.is_array() ? static_cast<double>(regions.size()) : 0;
     }
-    else if (prop.rfind("selectedRegion", 0) == 0 && in_count() >= 2 && inargs[1] >= 0)
+    else if ((prop.rfind("selectedRegion", 0) == 0 || prop == "selectedPlaybackStart" || prop == "selectedPlaybackDuration") && in_count() >= 2 && inargs[1] >= 0)
     {
         int selIdx = static_cast<int>(inargs[1]);
         auto& regions = stateCopy["editorView"]["selectedRegions"];
         if (regions.is_array() && selIdx < static_cast<int>(regions.size()))
         {
             std::string key;
-            if (prop == "selectedRegionStart")           key = "start";
-            else if (prop == "selectedRegionDuration")   key = "durationSec";
-            else if (prop == "selectedRegionSampleCount") key = "durationSamples";
-            else                                         key = "start";
+            if (prop == "selectedRegionStartInSamples")    key = "startInSamples";
+            else if (prop == "selectedRegionDuration")    key = "duration";
+            else if (prop == "selectedRegionDurationInSamples") key = "durationInSamples";
+            else if (prop == "selectedPlaybackStart")     key = "playbackStart";
+            else if (prop == "selectedPlaybackDuration")  key = "playbackDuration";
+            else                                          key = "startInSamples";
             auto& obj = regions[selIdx];
+            outargs[0] = obj.contains(key) ? obj[key].get<double>() : 0;
+        }
+        else
+        {
+            outargs[0] = 0;
+        }
+    }
+    // Handle playbackRegionCount (top-level, no index)
+    else if (prop == "playbackRegionCount")
+    {
+        auto& prs = stateCopy["playbackRegions"];
+        outargs[0] = prs.is_array() ? static_cast<double>(prs.size()) : 0;
+    }
+    // Handle playbackRegion* properties (indexed into playbackRegions[])
+    else if (prop.rfind("playbackRegion", 0) == 0 && in_count() >= 2 && inargs[1] >= 0)
+    {
+        int prIdx = static_cast<int>(inargs[1]);
+        auto& prs = stateCopy["playbackRegions"];
+        if (prs.is_array() && prIdx < static_cast<int>(prs.size()))
+        {
+            std::string key;
+            if (prop == "playbackRegionStartInSamples")            key = "regionStartInSamples";
+            else if (prop == "playbackRegionDurationInSamples")    key = "regionDurationInSamples";
+            else if (prop == "playbackRegionStart")                key = "playbackStart";
+            else if (prop == "playbackRegionDuration")             key = "playbackDuration";
+            else if (prop == "playbackRegionSourceIndex")
+            {
+                auto& obj = prs[prIdx];
+                std::string srcName = obj.contains("name") ? obj["name"].get<std::string>() : "";
+                outargs[0] = static_cast<double>(cabbage::ARADataPool::instance().getIndexByName(srcName));
+                return IS_OK;
+            }
+            else key = "regionStartInSamples";
+            auto& obj = prs[prIdx];
             outargs[0] = obj.contains(key) ? obj[key].get<double>() : 0;
         }
         else
@@ -112,6 +198,97 @@ int CabbageAraGetNum::init()
     {
         int idx = static_cast<int>(inargs[1]);
         auto val = getJson(stateCopy, "sources." + std::to_string(idx) + "." + prop);
+        outargs[0] = val.is_number() ? val.get<double>() : 0;
+    }
+    else if (prop.rfind("timeRange", 0) == 0)
+    {
+        auto val = getJson(stateCopy, "editorView." + prop);
+        outargs[0] = val.is_number() ? val.get<double>() : 0;
+    }
+    else
+    {
+        auto val = getJson(stateCopy, prop);
+        outargs[0] = val.is_number() ? val.get<double>() : 0;
+    }
+    return IS_OK;
+}
+
+// ============================================================================
+// CabbageAraGetNum — kperf re-reads JSON every k-cycle for live updates
+// ============================================================================
+
+int CabbageAraGetNum::kperf()
+{
+    stateCopy = cabbage::ARADataPool::instance().getAraState();
+    std::string prop(resolveProperty(inargs.str_data(0).data));
+
+    if (prop == "selectedPlaybackRegionCount")
+    {
+        auto& regions = stateCopy["editorView"]["selectedRegions"];
+        outargs[0] = regions.is_array() ? static_cast<double>(regions.size()) : 0;
+    }
+    else if ((prop.rfind("selectedRegion", 0) == 0 || prop == "selectedPlaybackStart" || prop == "selectedPlaybackDuration") && in_count() >= 2 && inargs[1] >= 0)
+    {
+        int selIdx = static_cast<int>(inargs[1]);
+        auto& regions = stateCopy["editorView"]["selectedRegions"];
+        if (regions.is_array() && selIdx < static_cast<int>(regions.size()))
+        {
+            std::string key;
+            if (prop == "selectedRegionStartInSamples")    key = "startInSamples";
+            else if (prop == "selectedRegionDuration")    key = "duration";
+            else if (prop == "selectedRegionDurationInSamples") key = "durationInSamples";
+            else if (prop == "selectedPlaybackStart")     key = "playbackStart";
+            else if (prop == "selectedPlaybackDuration")  key = "playbackDuration";
+            else                                          key = "startInSamples";
+            auto& obj = regions[selIdx];
+            outargs[0] = obj.contains(key) ? obj[key].get<double>() : 0;
+        }
+        else
+        {
+            outargs[0] = 0;
+        }
+    }
+    else if (prop == "playbackRegionCount")
+    {
+        auto& prs = stateCopy["playbackRegions"];
+        outargs[0] = prs.is_array() ? static_cast<double>(prs.size()) : 0;
+    }
+    else if (prop.rfind("playbackRegion", 0) == 0 && in_count() >= 2 && inargs[1] >= 0)
+    {
+        int prIdx = static_cast<int>(inargs[1]);
+        auto& prs = stateCopy["playbackRegions"];
+        if (prs.is_array() && prIdx < static_cast<int>(prs.size()))
+        {
+            std::string key;
+            if (prop == "playbackRegionStartInSamples")            key = "regionStartInSamples";
+            else if (prop == "playbackRegionDurationInSamples")    key = "regionDurationInSamples";
+            else if (prop == "playbackRegionStart")                key = "playbackStart";
+            else if (prop == "playbackRegionDuration")             key = "playbackDuration";
+            else if (prop == "playbackRegionSourceIndex")
+            {
+                auto& obj = prs[prIdx];
+                std::string srcName = obj.contains("name") ? obj["name"].get<std::string>() : "";
+                outargs[0] = static_cast<double>(cabbage::ARADataPool::instance().getIndexByName(srcName));
+                return IS_OK;
+            }
+            else key = "regionStartInSamples";
+            auto& obj = prs[prIdx];
+            outargs[0] = obj.contains(key) ? obj[key].get<double>() : 0;
+        }
+        else
+        {
+            outargs[0] = 0;
+        }
+    }
+    else if (in_count() >= 2 && inargs[1] >= 0)
+    {
+        int idx = static_cast<int>(inargs[1]);
+        auto val = getJson(stateCopy, "sources." + std::to_string(idx) + "." + prop);
+        outargs[0] = val.is_number() ? val.get<double>() : 0;
+    }
+    else if (prop.rfind("timeRange", 0) == 0)
+    {
+        auto val = getJson(stateCopy, "editorView." + prop);
         outargs[0] = val.is_number() ? val.get<double>() : 0;
     }
     else
@@ -129,7 +306,7 @@ int CabbageAraGetNum::init()
 int CabbageAraGetString::init()
 {
     stateCopy = cabbage::ARADataPool::instance().getAraState();
-    std::string prop(inargs.str_data(0).data);
+    std::string prop(resolveProperty(inargs.str_data(0).data));
     std::string result;
 
     // Handle selectedRegionName (indexed into editorView.selectedRegions[])
@@ -142,6 +319,19 @@ int CabbageAraGetString::init()
             auto& obj = regions[selIdx];
             if (obj.contains("name") && obj["name"].is_string())
                 result = obj["name"].get<std::string>();
+        }
+    }
+    // Handle playbackRegionName and playbackRegionSequenceName (indexed into playbackRegions[])
+    else if ((prop == "playbackRegionName" || prop == "playbackRegionSequenceName") && in_count() >= 2 && inargs[1] >= 0)
+    {
+        int prIdx = static_cast<int>(inargs[1]);
+        auto& prs = stateCopy["playbackRegions"];
+        if (prs.is_array() && prIdx < static_cast<int>(prs.size()))
+        {
+            auto& obj = prs[prIdx];
+            std::string key = (prop == "playbackRegionName") ? "name" : "regionSequenceName";
+            if (obj.contains(key) && obj[key].is_string())
+                result = obj[key].get<std::string>();
         }
     }
     else if (in_count() >= 2 && inargs[1] >= 0)
@@ -363,5 +553,157 @@ int CabbageAraGetSourceSamplesIArray::init()
         else
             out[i] = static_cast<MYFLT>(channelData[static_cast<size_t>(pos)]);
     }
+    return IS_OK;
+}
+
+// ============================================================================
+// CabbageAraDump — prints entire ARA state to Csound output
+// ============================================================================
+
+static std::string fmt3(double v)
+{
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.3f", v);
+    return buf;
+}
+
+static std::string fmt0(double v)
+{
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.0f", v);
+    return buf;
+}
+
+int CabbageAraDump::init()
+{
+    araDumpState();
+    return IS_OK;
+}
+
+int CabbageAraDump::kperf()
+{
+    MYFLT trig = args[0];
+    if (trig > 0 && prevTrig <= 0)
+        araDumpState();
+    prevTrig = trig;
+    return IS_OK;
+}
+
+void CabbageAraDump::araDumpState()
+{
+    auto state = cabbage::ARADataPool::instance().getAraState();
+
+    csound->message("=========================================");
+    csound->message("ARA STATE DUMP");
+    csound->message("=========================================");
+
+    // Top-level state
+    double update = state.value("update", 0.0);
+    std::string lastEvent = state.value("lastEvent", "");
+    double currentIndex = state.value("currentIndex", -1.0);
+    double sourceCount = state.value("sourceCount", 0.0);
+    double prCount = state.value("playbackRegionCount", 0.0);
+
+    csound->message("[Status]  Last Event:   " + lastEvent);
+    csound->message("[Status]  Update:       " + fmt0(update));
+
+    // EditorView overview
+    auto& ev = state["editorView"];
+    double selCount = 0.0;
+    if (ev.contains("selectedRegions") && ev["selectedRegions"].is_array())
+        selCount = static_cast<double>(ev["selectedRegions"].size());
+    double hiddenCount = ev.value("hiddenSequenceCount", 0.0);
+    double trStart = ev.value("timeRangeStart", 0.0);
+    double trDur = ev.value("timeRangeDuration", 0.0);
+
+    csound->message("[Metrics] Sources: " + fmt0(sourceCount) + "  |  Regions: " + fmt0(prCount)
+        + "  |  Selected: " + fmt0(selCount) + "  |  Hidden: " + fmt0(hiddenCount)
+        + "  |  Current Index: " + fmt0(currentIndex));
+    csound->message("[Time]    Host Range: " + fmt3(trStart) + " to " + fmt3(trStart + trDur)
+        + " (" + fmt3(trDur) + "s)\n");
+
+    // Playback Regions
+    csound->message("------------ PLAYBACK REGIONS ------------");
+    auto& prs = state["playbackRegions"];
+    if (!prs.is_array() || prs.empty())
+    {
+        csound->message("    [None]");
+    }
+    else
+    {
+        for (size_t i = 0; i < prs.size(); ++i)
+        {
+            auto& pr = prs[i];
+            std::string name = pr.value("name", "");
+            double start = pr.value("playbackStart", 0.0);
+            double dur = pr.value("playbackDuration", 0.0);
+            double srcStart = pr.value("regionStartInSamples", 0.0);
+            double srcDur = pr.value("regionDurationInSamples", 0.0);
+            csound->message("[" + std::to_string(i + 1) + "] '" + name);
+            csound->message("    Start:    " + fmt3(start));
+            csound->message("    Duration: " + fmt3(dur));
+            csound->message("    Source Crop: Start=" + std::to_string((int)srcStart)
+                + " samples, Dur=" + std::to_string((int)srcDur) + " samples");
+        }
+    }
+
+    // Selected Regions
+    csound->message("------------ SELECTED REGIONS ------------");
+    auto& selRegs = ev["selectedRegions"];
+    if (!selRegs.is_array() || selRegs.empty())
+    {
+        csound->message("    [None]");
+    }
+    else
+    {
+        for (size_t i = 0; i < selRegs.size(); ++i)
+        {
+            auto& sr = selRegs[i];
+            std::string name = sr.value("name", "");
+            double startSamp = sr.value("startInSamples", 0.0);
+            double durSec = sr.value("duration", 0.0);
+            double durSamp = sr.value("durationInSamples", 0.0);
+            double pbStart = sr.value("playbackStart", 0.0);
+            double pbDur = sr.value("playbackDuration", 0.0);
+            csound->message("[" + std::to_string(i + 1) + "] '" + name);
+            csound->message("    Timeline Pos: " + fmt3(pbStart) + "s (Dur: " + fmt3(pbDur));
+            csound->message("    Source Crop:  Start=" + std::to_string((int)startSamp)
+                + " samples, Dur=" + std::to_string((int)durSamp)
+                + " samples (" + fmt3(durSec));
+        }
+    }
+
+    // Sources
+    csound->message("------------ SOURCES ---------------------");
+    auto& srcs = state["sources"];
+    if (!srcs.is_array() || srcs.empty())
+    {
+        csound->message("    [None]");
+    }
+    else
+    {
+        for (size_t i = 0; i < srcs.size(); ++i)
+        {
+            auto& src = srcs[i];
+            std::string name = src.value("name", "");
+            double channels = src.value("channels", 0.0);
+            double sr = src.value("sampleRate", 0.0);
+            double sampCnt = src.value("sampleCount", 0.0);
+            double duration = src.value("duration", 0.0);
+            double regStart = src.value("regionStartInSamples", 0.0);
+            double regDur = src.value("regionDurationInSamples", 0.0);
+            double regStartSec = src.value("regionStart", 0.0);
+            double regDurSec = src.value("regionDuration", 0.0);
+            csound->message("[" + std::to_string(i + 1) + "] '" + name);
+            csound->message("    Channels:    " + fmt0(channels));
+            csound->message("    Sample Rate: " + fmt0(sr));
+            csound->message("    Sample Count: " + fmt0(sampCnt));
+            csound->message("    Duration:    " + fmt3(duration));
+            csound->message("    Region:      Start=" + std::to_string((int)regStart)
+                + " (" + fmt3(regStartSec) + "s), Duration=" + std::to_string((int)regDur)
+                + " (" + fmt3(regDurSec));
+        }
+    }
+
     return IS_OK;
 }
