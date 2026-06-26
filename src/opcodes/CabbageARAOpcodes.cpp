@@ -705,5 +705,5 @@ void CabbageAraDump::araDumpState()
         }
     }
 
-    return IS_OK;
+    return;
 }

@@ -248,8 +248,6 @@ set(CABBAGE_OPCODE_SOURCES
     "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageSendMessageOpcode.h"
     "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageGetWidgesOpcodes.h"
     "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageGetWidgesOpcodes.cpp"
-    "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageARAOpcodes.h"
-    "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageARAOpcodes.cpp"
 )
 
 # ----------------------------
@@ -470,6 +468,10 @@ if (NOT (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}") AND NOT (CabbageTests ST
         if(LATTICE_ARA_LIBRARY_SOURCE_FILES)
             target_sources(${PROJECT_NAME}-impl PRIVATE ${LATTICE_ARA_LIBRARY_SOURCE_FILES})
         endif()
+        target_sources(${PROJECT_NAME}-impl PRIVATE
+            "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageARAOpcodes.h"
+            "${CMAKE_SOURCE_DIR}/src/opcodes/CabbageARAOpcodes.cpp"
+        )
     endif()
 
     # CABBAGE_PRO_PLUGIN_DEFINITIONS_PLACEHOLDER
