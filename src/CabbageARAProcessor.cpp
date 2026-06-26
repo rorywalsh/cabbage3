@@ -186,15 +186,6 @@ void CabbageProcessor::araPlaybackRegionPropertiesUpdated(ARA::PlugIn::PlaybackR
 }
 
 // ---------------------------------------------------------------------------
-// Thread-safe getter for the last ARA event type (returns copy under lock).
-// ---------------------------------------------------------------------------
-std::string CabbageProcessor::getAraLastEventType()
-{
-    std::lock_guard<std::mutex> lk(araMutex);
-    return araLastEventType;
-}
-
-// ---------------------------------------------------------------------------
 // Called when the host begins an edit cycle.
 // ---------------------------------------------------------------------------
 void CabbageProcessor::araBeginEditing()
@@ -663,6 +654,16 @@ void CabbageProcessor::performAraAnalysis(ARA::PlugIn::AudioSource* source)
 }
 
 #endif // LATTICE_HAS_ARA
+
+// ---------------------------------------------------------------------------
+// Thread-safe getter for the last ARA event type (returns copy under lock).
+// Available in both LATTICE_HAS_ARA and CabbageApp builds.
+// ---------------------------------------------------------------------------
+std::string CabbageProcessor::getAraLastEventType()
+{
+    std::lock_guard<std::mutex> lk(araMutex);
+    return araLastEventType;
+}
 
 #ifdef CabbageApp
 // ---------------------------------------------------------------------------
