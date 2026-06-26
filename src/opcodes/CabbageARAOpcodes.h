@@ -24,6 +24,8 @@
 #include <plugin.h>
 #include <nlohmann/json.hpp>
 
+#if LATTICE_HAS_ARA || defined(CabbageApp)
+
 // ============================================================================
 // Consolidated ARA get opcodes — read from ARADataPool::araState JSON
 // ============================================================================
@@ -109,3 +111,5 @@ private:
     void araDumpState();
     MYFLT prevTrig = 0;
 };
+
+#endif // LATTICE_HAS_ARA || CabbageApp

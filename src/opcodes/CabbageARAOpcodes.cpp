@@ -24,6 +24,8 @@
 #include <algorithm>
 #include <string>
 
+#if LATTICE_HAS_ARA || defined(CabbageApp)
+
 static cabbage::Engine* getEngine(csnd::Csound* cs)
 {
     return static_cast<cabbage::Engine*>(cs->host_data());
@@ -707,3 +709,5 @@ void CabbageAraDump::araDumpState()
 
     return;
 }
+
+#endif // LATTICE_HAS_ARA || CabbageApp
