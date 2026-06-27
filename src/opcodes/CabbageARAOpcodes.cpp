@@ -96,6 +96,9 @@ static const std::unordered_map<std::string, std::string> dotNotationMap = {
 
     // Top-level counts
     {"audioSourceCount",                    "sourceCount"},
+    {"musicalContextCount",                 "musicalContextCount"},
+    {"regionSequenceCount",                 "regionSequenceCount"},
+    {"audioModificationCount",              "audioModificationCount"},
 
     // PlaybackRegion properties (all regions)
     {"playbackRegion.name",                 "playbackRegionName"},
@@ -105,6 +108,28 @@ static const std::unordered_map<std::string, std::string> dotNotationMap = {
     {"playbackRegion.start",                "playbackRegionStart"},
     {"playbackRegion.duration",             "playbackRegionDuration"},
     {"playbackRegion.sourceIndex",          "playbackRegionSourceIndex"},
+    {"playbackRegion.color.r",              "playbackRegionColorR"},
+    {"playbackRegion.color.g",              "playbackRegionColorG"},
+    {"playbackRegion.color.b",              "playbackRegionColorB"},
+
+    // MusicalContext properties
+    {"musicalContext.name",                 "musicalContextName"},
+    {"musicalContext.orderIndex",           "musicalContextOrderIndex"},
+    {"musicalContext.color.r",              "musicalContextColorR"},
+    {"musicalContext.color.g",              "musicalContextColorG"},
+    {"musicalContext.color.b",              "musicalContextColorB"},
+
+    // RegionSequence properties
+    {"regionSequence.name",                 "regionSequenceName"},
+    {"regionSequence.orderIndex",           "regionSequenceOrderIndex"},
+    {"regionSequence.musicalContextIndex",  "regionSequenceMusicalContextIndex"},
+    {"regionSequence.color.r",              "regionSequenceColorR"},
+    {"regionSequence.color.g",              "regionSequenceColorG"},
+    {"regionSequence.color.b",              "regionSequenceColorB"},
+
+    // AudioModification properties
+    {"audioModification.name",              "audioModificationName"},
+    {"audioModification.persistentId",      "audioModificationPersistentId"},
 
     // EditorView - overview (no index)
     {"editorView.timeRange.start",              "timeRangeStart"},
@@ -187,6 +212,9 @@ int CabbageAraGetNum::init()
                 outargs[0] = static_cast<double>(cabbage::ARADataPool::instance().getIndexByName(srcName));
                 return IS_OK;
             }
+            else if (prop == "playbackRegionColorR")   key = "colorR";
+            else if (prop == "playbackRegionColorG")   key = "colorG";
+            else if (prop == "playbackRegionColorB")   key = "colorB";
             else key = "regionStartInSamples";
             auto& obj = prs[prIdx];
             outargs[0] = obj.contains(key) ? obj[key].get<double>() : 0;
@@ -195,6 +223,67 @@ int CabbageAraGetNum::init()
         {
             outargs[0] = 0;
         }
+    }
+    // Handle musicalContextCount (top-level, no index)
+    else if (prop == "musicalContextCount")
+    {
+        auto& mcs = stateCopy["musicalContexts"];
+        outargs[0] = mcs.is_array() ? static_cast<double>(mcs.size()) : 0;
+    }
+    // Handle musicalContext* properties (indexed into musicalContexts[])
+    else if (prop.rfind("musicalContext", 0) == 0 && in_count() >= 2 && inargs[1] >= 0)
+    {
+        int mcIdx = static_cast<int>(inargs[1]);
+        auto& mcs = stateCopy["musicalContexts"];
+        if (mcs.is_array() && mcIdx < static_cast<int>(mcs.size()))
+        {
+            std::string key;
+            if (prop == "musicalContextOrderIndex")  key = "orderIndex";
+            else if (prop == "musicalContextColorR") key = "colorR";
+            else if (prop == "musicalContextColorG") key = "colorG";
+            else if (prop == "musicalContextColorB") key = "colorB";
+            else key = "orderIndex";
+            auto& obj = mcs[mcIdx];
+            outargs[0] = obj.contains(key) ? obj[key].get<double>() : 0;
+        }
+        else
+        {
+            outargs[0] = 0;
+        }
+    }
+    // Handle regionSequenceCount (top-level, no index)
+    else if (prop == "regionSequenceCount")
+    {
+        auto& rss = stateCopy["regionSequences"];
+        outargs[0] = rss.is_array() ? static_cast<double>(rss.size()) : 0;
+    }
+    // Handle regionSequence* properties (indexed into regionSequences[])
+    else if (prop.rfind("regionSequence", 0) == 0 && in_count() >= 2 && inargs[1] >= 0)
+    {
+        int rsIdx = static_cast<int>(inargs[1]);
+        auto& rss = stateCopy["regionSequences"];
+        if (rss.is_array() && rsIdx < static_cast<int>(rss.size()))
+        {
+            std::string key;
+            if (prop == "regionSequenceOrderIndex")           key = "orderIndex";
+            else if (prop == "regionSequenceMusicalContextIndex") key = "musicalContextIndex";
+            else if (prop == "regionSequenceColorR")          key = "colorR";
+            else if (prop == "regionSequenceColorG")          key = "colorG";
+            else if (prop == "regionSequenceColorB")          key = "colorB";
+            else key = "orderIndex";
+            auto& obj = rss[rsIdx];
+            outargs[0] = obj.contains(key) ? obj[key].get<double>() : 0;
+        }
+        else
+        {
+            outargs[0] = 0;
+        }
+    }
+    // Handle audioModificationCount (top-level, no index)
+    else if (prop == "audioModificationCount")
+    {
+        auto& mods = stateCopy["audioModifications"];
+        outargs[0] = mods.is_array() ? static_cast<double>(mods.size()) : 0;
     }
     else if (in_count() >= 2 && inargs[1] >= 0)
     {
@@ -273,6 +362,9 @@ int CabbageAraGetNum::kperf()
                 outargs[0] = static_cast<double>(cabbage::ARADataPool::instance().getIndexByName(srcName));
                 return IS_OK;
             }
+            else if (prop == "playbackRegionColorR")   key = "colorR";
+            else if (prop == "playbackRegionColorG")   key = "colorG";
+            else if (prop == "playbackRegionColorB")   key = "colorB";
             else key = "regionStartInSamples";
             auto& obj = prs[prIdx];
             outargs[0] = obj.contains(key) ? obj[key].get<double>() : 0;
@@ -281,6 +373,62 @@ int CabbageAraGetNum::kperf()
         {
             outargs[0] = 0;
         }
+    }
+    else if (prop == "musicalContextCount")
+    {
+        auto& mcs = stateCopy["musicalContexts"];
+        outargs[0] = mcs.is_array() ? static_cast<double>(mcs.size()) : 0;
+    }
+    else if (prop.rfind("musicalContext", 0) == 0 && in_count() >= 2 && inargs[1] >= 0)
+    {
+        int mcIdx = static_cast<int>(inargs[1]);
+        auto& mcs = stateCopy["musicalContexts"];
+        if (mcs.is_array() && mcIdx < static_cast<int>(mcs.size()))
+        {
+            std::string key;
+            if (prop == "musicalContextOrderIndex")  key = "orderIndex";
+            else if (prop == "musicalContextColorR") key = "colorR";
+            else if (prop == "musicalContextColorG") key = "colorG";
+            else if (prop == "musicalContextColorB") key = "colorB";
+            else key = "orderIndex";
+            auto& obj = mcs[mcIdx];
+            outargs[0] = obj.contains(key) ? obj[key].get<double>() : 0;
+        }
+        else
+        {
+            outargs[0] = 0;
+        }
+    }
+    else if (prop == "regionSequenceCount")
+    {
+        auto& rss = stateCopy["regionSequences"];
+        outargs[0] = rss.is_array() ? static_cast<double>(rss.size()) : 0;
+    }
+    else if (prop.rfind("regionSequence", 0) == 0 && in_count() >= 2 && inargs[1] >= 0)
+    {
+        int rsIdx = static_cast<int>(inargs[1]);
+        auto& rss = stateCopy["regionSequences"];
+        if (rss.is_array() && rsIdx < static_cast<int>(rss.size()))
+        {
+            std::string key;
+            if (prop == "regionSequenceOrderIndex")           key = "orderIndex";
+            else if (prop == "regionSequenceMusicalContextIndex") key = "musicalContextIndex";
+            else if (prop == "regionSequenceColorR")          key = "colorR";
+            else if (prop == "regionSequenceColorG")          key = "colorG";
+            else if (prop == "regionSequenceColorB")          key = "colorB";
+            else key = "orderIndex";
+            auto& obj = rss[rsIdx];
+            outargs[0] = obj.contains(key) ? obj[key].get<double>() : 0;
+        }
+        else
+        {
+            outargs[0] = 0;
+        }
+    }
+    else if (prop == "audioModificationCount")
+    {
+        auto& mods = stateCopy["audioModifications"];
+        outargs[0] = mods.is_array() ? static_cast<double>(mods.size()) : 0;
     }
     else if (in_count() >= 2 && inargs[1] >= 0)
     {
@@ -332,6 +480,43 @@ int CabbageAraGetString::init()
         {
             auto& obj = prs[prIdx];
             std::string key = (prop == "playbackRegionName") ? "name" : "regionSequenceName";
+            if (obj.contains(key) && obj[key].is_string())
+                result = obj[key].get<std::string>();
+        }
+    }
+    // Handle musicalContext.name (indexed into musicalContexts[])
+    else if (prop == "musicalContextName" && in_count() >= 2 && inargs[1] >= 0)
+    {
+        int mcIdx = static_cast<int>(inargs[1]);
+        auto& mcs = stateCopy["musicalContexts"];
+        if (mcs.is_array() && mcIdx < static_cast<int>(mcs.size()))
+        {
+            auto& obj = mcs[mcIdx];
+            if (obj.contains("name") && obj["name"].is_string())
+                result = obj["name"].get<std::string>();
+        }
+    }
+    // Handle regionSequence.name (indexed into regionSequences[])
+    else if (prop == "regionSequenceName" && in_count() >= 2 && inargs[1] >= 0)
+    {
+        int rsIdx = static_cast<int>(inargs[1]);
+        auto& rss = stateCopy["regionSequences"];
+        if (rss.is_array() && rsIdx < static_cast<int>(rss.size()))
+        {
+            auto& obj = rss[rsIdx];
+            if (obj.contains("name") && obj["name"].is_string())
+                result = obj["name"].get<std::string>();
+        }
+    }
+    // Handle audioModification.name and audioModification.persistentId (indexed into audioModifications[])
+    else if ((prop == "audioModificationName" || prop == "audioModificationPersistentId") && in_count() >= 2 && inargs[1] >= 0)
+    {
+        int modIdx = static_cast<int>(inargs[1]);
+        auto& mods = stateCopy["audioModifications"];
+        if (mods.is_array() && modIdx < static_cast<int>(mods.size()))
+        {
+            auto& obj = mods[modIdx];
+            std::string key = (prop == "audioModificationName") ? "name" : "persistentId";
             if (obj.contains(key) && obj[key].is_string())
                 result = obj[key].get<std::string>();
         }
@@ -605,6 +790,9 @@ void CabbageAraDump::araDumpState()
     double currentIndex = state.value("currentIndex", -1.0);
     double sourceCount = state.value("sourceCount", 0.0);
     double prCount = state.value("playbackRegionCount", 0.0);
+    double mcCount = state.value("musicalContextCount", 0.0);
+    double rsCount = state.value("regionSequenceCount", 0.0);
+    double modCount = state.value("audioModificationCount", 0.0);
 
     csound->message("[Status]  Last Event:   " + lastEvent);
     csound->message("[Status]  Update:       " + fmt0(update));
@@ -619,13 +807,67 @@ void CabbageAraDump::araDumpState()
     double trDur = ev.value("timeRangeDuration", 0.0);
 
     csound->message("[Metrics] Sources: " + fmt0(sourceCount) + "  |  Regions: " + fmt0(prCount)
+        + "  |  Contexts: " + fmt0(mcCount) + "  |  Sequences: " + fmt0(rsCount)
+        + "  |  Modifications: " + fmt0(modCount)
         + "  |  Selected: " + fmt0(selCount) + "  |  Hidden: " + fmt0(hiddenCount)
         + "  |  Current Index: " + fmt0(currentIndex));
     csound->message("[Time]    Host Range: " + fmt3(trStart) + " to " + fmt3(trStart + trDur)
         + " (" + fmt3(trDur) + "s)\n");
 
+    // Musical Contexts
+    csound->message("------------ MUSICAL CONTEXTS -----------");
+    auto& mcs = state["musicalContexts"];
+    if (!mcs.is_array() || mcs.empty())
+    {
+        csound->message("    [None]");
+    }
+    else
+    {
+        for (size_t i = 0; i < mcs.size(); ++i)
+        {
+            auto& mc = mcs[i];
+            std::string name = mc.value("name", "");
+            int order = mc.value("orderIndex", 0);
+            float cr = mc.value("colorR", 0.0f);
+            float cg = mc.value("colorG", 0.0f);
+            float cb = mc.value("colorB", 0.0f);
+            csound->message("[" + std::to_string(i + 1) + "] '" + (name.empty() ? "N/A" : name) + "'");
+            csound->message("    Order:  " + fmt0(order));
+            char colorBuf[64];
+            snprintf(colorBuf, sizeof(colorBuf), "    Colour: (%.2f, %.2f, %.2f)", cr, cg, cb);
+            csound->message(colorBuf);
+        }
+    }
+
+    // Region Sequences
+    csound->message("\n------------ REGION SEQUENCES -----------");
+    auto& rss = state["regionSequences"];
+    if (!rss.is_array() || rss.empty())
+    {
+        csound->message("    [None]");
+    }
+    else
+    {
+        for (size_t i = 0; i < rss.size(); ++i)
+        {
+            auto& rs = rss[i];
+            std::string name = rs.value("name", "");
+            int order = rs.value("orderIndex", 0);
+            int mcIdx = rs.value("musicalContextIndex", 0);
+            float cr = rs.value("colorR", 0.0f);
+            float cg = rs.value("colorG", 0.0f);
+            float cb = rs.value("colorB", 0.0f);
+            csound->message("[" + std::to_string(i + 1) + "] '" + (name.empty() ? "N/A" : name) + "'");
+            csound->message("    Order:     " + fmt0(order));
+            csound->message("    Context:   #" + fmt0(mcIdx));
+            char colorBuf[64];
+            snprintf(colorBuf, sizeof(colorBuf), "    Colour:    (%.2f, %.2f, %.2f)", cr, cg, cb);
+            csound->message(colorBuf);
+        }
+    }
+
     // Playback Regions
-    csound->message("------------ PLAYBACK REGIONS ------------");
+    csound->message("\n------------ PLAYBACK REGIONS ------------");
     auto& prs = state["playbackRegions"];
     if (!prs.is_array() || prs.empty())
     {
@@ -641,16 +883,22 @@ void CabbageAraDump::araDumpState()
             double dur = pr.value("playbackDuration", 0.0);
             double srcStart = pr.value("regionStartInSamples", 0.0);
             double srcDur = pr.value("regionDurationInSamples", 0.0);
-            csound->message("[" + std::to_string(i + 1) + "] '" + name);
+            float cr = pr.value("colorR", 0.0f);
+            float cg = pr.value("colorG", 0.0f);
+            float cb = pr.value("colorB", 0.0f);
+            csound->message("[" + std::to_string(i + 1) + "] '" + name + "'");
             csound->message("    Start:    " + fmt3(start));
             csound->message("    Duration: " + fmt3(dur));
             csound->message("    Source Crop: Start=" + std::to_string((int)srcStart)
                 + " samples, Dur=" + std::to_string((int)srcDur) + " samples");
+            char colorBuf[64];
+            snprintf(colorBuf, sizeof(colorBuf), "    Colour:   (%.2f, %.2f, %.2f)", cr, cg, cb);
+            csound->message(colorBuf);
         }
     }
 
     // Selected Regions
-    csound->message("------------ SELECTED REGIONS ------------");
+    csound->message("\n------------ SELECTED REGIONS ------------");
     auto& selRegs = ev["selectedRegions"];
     if (!selRegs.is_array() || selRegs.empty())
     {
@@ -667,7 +915,7 @@ void CabbageAraDump::araDumpState()
             double durSamp = sr.value("durationInSamples", 0.0);
             double pbStart = sr.value("playbackStart", 0.0);
             double pbDur = sr.value("playbackDuration", 0.0);
-            csound->message("[" + std::to_string(i + 1) + "] '" + name);
+            csound->message("[" + std::to_string(i + 1) + "] '" + name + "'");
             csound->message("    Timeline Pos: " + fmt3(pbStart) + "s (Dur: " + fmt3(pbDur));
             csound->message("    Source Crop:  Start=" + std::to_string((int)startSamp)
                 + " samples, Dur=" + std::to_string((int)durSamp)
@@ -675,8 +923,27 @@ void CabbageAraDump::araDumpState()
         }
     }
 
+    // Audio Modifications
+    csound->message("\n------------ AUDIO MODIFICATIONS ---------");
+    auto& mods = state["audioModifications"];
+    if (!mods.is_array() || mods.empty())
+    {
+        csound->message("    [None]");
+    }
+    else
+    {
+        for (size_t i = 0; i < mods.size(); ++i)
+        {
+            auto& mod = mods[i];
+            std::string name = mod.value("name", "");
+            std::string persistentId = mod.value("persistentId", "");
+            csound->message("[" + std::to_string(i + 1) + "] '" + (name.empty() ? "N/A" : name) + "'");
+            csound->message("    Persistent ID: '" + (persistentId.empty() ? "N/A" : persistentId) + "'");
+        }
+    }
+
     // Sources
-    csound->message("------------ SOURCES ---------------------");
+    csound->message("\n------------ SOURCES ---------------------");
     auto& srcs = state["sources"];
     if (!srcs.is_array() || srcs.empty())
     {
@@ -696,7 +963,7 @@ void CabbageAraDump::araDumpState()
             double regDur = src.value("regionDurationInSamples", 0.0);
             double regStartSec = src.value("regionStart", 0.0);
             double regDurSec = src.value("regionDuration", 0.0);
-            csound->message("[" + std::to_string(i + 1) + "] '" + name);
+            csound->message("[" + std::to_string(i + 1) + "] '" + name + "'");
             csound->message("    Channels:    " + fmt0(channels));
             csound->message("    Sample Rate: " + fmt0(sr));
             csound->message("    Sample Count: " + fmt0(sampCnt));
@@ -707,6 +974,7 @@ void CabbageAraDump::araDumpState()
         }
     }
 
+    csound->message("=========================================");
     return;
 }
 

@@ -55,6 +55,35 @@ struct ARADataPool
         double regionDuration = 0;        // crop duration in samples
         double playbackStart = 0;         // arrangement position in seconds
         double playbackDuration = 0;      // arrangement duration in seconds
+        float colorR = 0;                 // red channel (0.0-1.0)
+        float colorG = 0;                 // green channel (0.0-1.0)
+        float colorB = 0;                 // blue channel (0.0-1.0)
+    };
+
+    struct MusicalContextEntry
+    {
+        std::string name;
+        int orderIndex = 0;
+        float colorR = 0;
+        float colorG = 0;
+        float colorB = 0;
+    };
+
+    struct RegionSequenceEntry
+    {
+        std::string name;
+        int orderIndex = 0;
+        int musicalContextIndex = 0;
+        float colorR = 0;
+        float colorG = 0;
+        float colorB = 0;
+    };
+
+    struct AudioModificationEntry
+    {
+        std::string name;
+        std::string persistentId;
+        int audioSourceIndex = 0;
     };
 
     static ARADataPool& instance()
@@ -155,8 +184,15 @@ struct ARADataPool
         sources.clear();
         nameToIndex.clear();
         playbackRegions.clear();
+        musicalContexts.clear();
+        musicalContextIndex.clear();
+        regionSequences.clear();
+        audioModifications.clear();
         rebuildSourcesJson();
         rebuildPlaybackRegionsJson();
+        rebuildMusicalContextsJson();
+        rebuildRegionSequencesJson();
+        rebuildAudioModificationsJson();
     }
 
     void updateRegion(size_t index, double start, double duration)
@@ -233,12 +269,14 @@ struct ARADataPool
     void addOrUpdatePlaybackRegion(void* key, const std::string& sourceName,
                                     const std::string& regionSequenceName,
                                     double regionStart, double regionDuration,
-                                    double playbackStart, double playbackDuration)
+                                    double playbackStart, double playbackDuration,
+                                    float colorR = 0, float colorG = 0, float colorB = 0)
     {
         std::lock_guard<std::mutex> lock(mutex);
         playbackRegions[key] = {sourceName, regionSequenceName,
                                 regionStart, regionDuration,
-                                playbackStart, playbackDuration};
+                                playbackStart, playbackDuration,
+                                colorR, colorG, colorB};
         rebuildPlaybackRegionsJson();
     }
 
@@ -281,6 +319,88 @@ struct ARADataPool
     {
         std::lock_guard<std::mutex> lock(mutex);
         return playbackRegions.size();
+    }
+
+    // --- Musical context management ---
+
+    void addOrUpdateMusicalContext(void* key, const std::string& name,
+                                    int orderIndex, float colorR, float colorG, float colorB)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto it = musicalContexts.find(key);
+        if (it == musicalContexts.end())
+        {
+            // New entry - assign index based on current size
+            musicalContextIndex[key] = static_cast<int>(musicalContexts.size());
+        }
+        musicalContexts[key] = {name, orderIndex, colorR, colorG, colorB};
+        rebuildMusicalContextsJson();
+    }
+
+    int getMusicalContextIndex(void* key) const
+    {
+        auto it = musicalContextIndex.find(key);
+        return (it != musicalContextIndex.end()) ? it->second : 0;
+    }
+
+    void removeMusicalContext(void* key)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        musicalContexts.erase(key);
+        rebuildMusicalContextsJson();
+    }
+
+    size_t getMusicalContextCount()
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        return musicalContexts.size();
+    }
+
+    // --- Region sequence management ---
+
+    void addOrUpdateRegionSequence(void* key, const std::string& name,
+                                    int orderIndex, int musicalContextIndex,
+                                    float colorR, float colorG, float colorB)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        regionSequences[key] = {name, orderIndex, musicalContextIndex, colorR, colorG, colorB};
+        rebuildRegionSequencesJson();
+    }
+
+    void removeRegionSequence(void* key)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        regionSequences.erase(key);
+        rebuildRegionSequencesJson();
+    }
+
+    size_t getRegionSequenceCount()
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        return regionSequences.size();
+    }
+
+    // --- Audio modification management ---
+
+    void addOrUpdateAudioModification(void* key, const std::string& name,
+                                       const std::string& persistentId, int audioSourceIndex)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        audioModifications[key] = {name, persistentId, audioSourceIndex};
+        rebuildAudioModificationsJson();
+    }
+
+    void removeAudioModification(void* key)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        audioModifications.erase(key);
+        rebuildAudioModificationsJson();
+    }
+
+    size_t getAudioModificationCount()
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        return audioModifications.size();
     }
 
     // --- JSON state access (thread-safe, read under lock) ---
@@ -364,9 +484,59 @@ private:
             obj["regionDurationInSamples"] = entry.regionDuration;
             obj["playbackStart"] = entry.playbackStart;
             obj["playbackDuration"] = entry.playbackDuration;
+            obj["colorR"] = entry.colorR;
+            obj["colorG"] = entry.colorG;
+            obj["colorB"] = entry.colorB;
             araState["playbackRegions"].push_back(std::move(obj));
         }
         araState["playbackRegionCount"] = static_cast<double>(playbackRegions.size());
+    }
+
+    void rebuildMusicalContextsJson()
+    {
+        araState["musicalContexts"] = nlohmann::json::array();
+        for (const auto& [key, entry] : musicalContexts)
+        {
+            nlohmann::json obj;
+            obj["name"] = entry.name;
+            obj["orderIndex"] = entry.orderIndex;
+            obj["colorR"] = entry.colorR;
+            obj["colorG"] = entry.colorG;
+            obj["colorB"] = entry.colorB;
+            araState["musicalContexts"].push_back(std::move(obj));
+        }
+        araState["musicalContextCount"] = static_cast<double>(musicalContexts.size());
+    }
+
+    void rebuildRegionSequencesJson()
+    {
+        araState["regionSequences"] = nlohmann::json::array();
+        for (const auto& [key, entry] : regionSequences)
+        {
+            nlohmann::json obj;
+            obj["name"] = entry.name;
+            obj["orderIndex"] = entry.orderIndex;
+            obj["musicalContextIndex"] = entry.musicalContextIndex;
+            obj["colorR"] = entry.colorR;
+            obj["colorG"] = entry.colorG;
+            obj["colorB"] = entry.colorB;
+            araState["regionSequences"].push_back(std::move(obj));
+        }
+        araState["regionSequenceCount"] = static_cast<double>(regionSequences.size());
+    }
+
+    void rebuildAudioModificationsJson()
+    {
+        araState["audioModifications"] = nlohmann::json::array();
+        for (const auto& [key, entry] : audioModifications)
+        {
+            nlohmann::json obj;
+            obj["name"] = entry.name;
+            obj["persistentId"] = entry.persistentId;
+            obj["audioSourceIndex"] = entry.audioSourceIndex;
+            araState["audioModifications"].push_back(std::move(obj));
+        }
+        araState["audioModificationCount"] = static_cast<double>(audioModifications.size());
     }
 
     nlohmann::json araState = {
@@ -377,6 +547,12 @@ private:
         {"sources", nlohmann::json::array()},
         {"playbackRegionCount", 0.0},
         {"playbackRegions", nlohmann::json::array()},
+        {"musicalContextCount", 0.0},
+        {"musicalContexts", nlohmann::json::array()},
+        {"regionSequenceCount", 0.0},
+        {"regionSequences", nlohmann::json::array()},
+        {"audioModificationCount", 0.0},
+        {"audioModifications", nlohmann::json::array()},
         {"editorView", {{"selectedRegions", nlohmann::json::array()},
                          {"hiddenSequenceCount", 0.0}}}
     };
@@ -384,6 +560,10 @@ private:
     std::vector<SourceEntry> sources;
     std::unordered_map<std::string, size_t> nameToIndex;
     std::unordered_map<void*, PlaybackRegionEntry> playbackRegions;
+    std::unordered_map<void*, MusicalContextEntry> musicalContexts;
+    std::unordered_map<void*, int> musicalContextIndex;  // void* key -> stable array index
+    std::unordered_map<void*, RegionSequenceEntry> regionSequences;
+    std::unordered_map<void*, AudioModificationEntry> audioModifications;
 };
 
 } // namespace cabbage
