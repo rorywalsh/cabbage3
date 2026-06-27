@@ -162,6 +162,7 @@ void CabbageProcessor::araPlaybackRegionPropertiesUpdated(ARA::PlugIn::PlaybackR
         playbackRegion,
         sourceName,
         "",  // region sequence name not available here; set on add
+        -1,  // region sequence index not available here; set on add
         start, duration,
         static_cast<double>(playbackRegion->getStartInPlaybackTime()),
         static_cast<double>(playbackRegion->getDurationInPlaybackTime()),
@@ -273,10 +274,12 @@ void CabbageProcessor::araPlaybackRegionAddedToRegionSequence(ARA::PlugIn::Regio
     float cr = color ? color->r : 0.0f;
     float cg = color ? color->g : 0.0f;
     float cb = color ? color->b : 0.0f;
+    int seqIndex = regionSequence ? cabbage::ARADataPool::instance().getRegionSequenceOrderIndex(regionSequence) : -1;
     cabbage::ARADataPool::instance().addOrUpdatePlaybackRegion(
         playbackRegion,
         srcName ? srcName : "",
         seqName ? seqName : "",
+        seqIndex,
         static_cast<double>(playbackRegion->getStartInAudioModificationSamples()),
         static_cast<double>(playbackRegion->getDurationInAudioModificationSamples()),
         static_cast<double>(playbackRegion->getStartInPlaybackTime()),

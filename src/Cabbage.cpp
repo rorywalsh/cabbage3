@@ -130,6 +130,7 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageAraGetSourceSamplesK>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "k", "kii", csnd::thread::k);
     csnd::plugin<CabbageAraGetSourceSamplesArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "k[]", "iiii", csnd::thread::i);
     csnd::plugin<CabbageAraGetSourceSamplesIArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "i[]", "iiii", csnd::thread::i);
+    csnd::plugin<CabbageAraGetStateJson>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetStateJson", "S", "ko", csnd::thread::k);
     csnd::plugin<CabbageAraDump>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraDump", "", "", csnd::thread::i);
     csnd::plugin<CabbageAraDump>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraDump", "", "k", csnd::thread::k);
 #endif

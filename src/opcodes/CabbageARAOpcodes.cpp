@@ -744,6 +744,38 @@ int CabbageAraGetSourceSamplesIArray::init()
 }
 
 // ============================================================================
+// CabbageAraGetStateJson — returns entire ARA data pool as JSON string
+// ============================================================================
+
+int CabbageAraGetStateJson::init()
+{
+    auto json = cabbage::ARADataPool::instance().getAraState();
+    std::string result = json.dump();
+    outargs.str_data(0).size = static_cast<int32_t>(result.size()) + 1;
+    outargs.str_data(0).data = csound->strdup(const_cast<char*>(result.c_str()));
+    return IS_OK;
+}
+
+int CabbageAraGetStateJson::kperf()
+{
+    MYFLT trig = inargs[0];
+    std::string result = {};
+    if (trig > 0 && trig != prevTrig)
+    {
+        auto json = cabbage::ARADataPool::instance().getAraState();
+        if(in_count()==2)
+            result = json.dump(inargs[1]);
+        else
+            result = json.dump();
+        
+        outargs.str_data(0).size = static_cast<int32_t>(result.size()) + 1;
+        outargs.str_data(0).data = csound->strdup(const_cast<char*>(result.c_str()));
+    }
+    prevTrig = trig;
+    return IS_OK;
+}
+
+// ============================================================================
 // CabbageAraDump — prints entire ARA state to Csound output
 // ============================================================================
 
@@ -771,7 +803,9 @@ int CabbageAraDump::kperf()
 {
     MYFLT trig = args[0];
     if (trig > 0 && prevTrig <= 0)
+    {
         araDumpState();
+    }
     prevTrig = trig;
     return IS_OK;
 }
@@ -973,9 +1007,9 @@ void CabbageAraDump::araDumpState()
                 + " (" + fmt3(regDurSec));
         }
     }
-
-    csound->message("=========================================");
     return;
 }
+
+
 
 #endif // LATTICE_HAS_ARA || CabbageApp

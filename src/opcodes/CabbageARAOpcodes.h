@@ -100,6 +100,18 @@ struct CabbageAraGetSourceSamplesIArray : csnd::Plugin<1, 4>
 };
 
 // ============================================================================
+// Full JSON state — returns entire ARA data pool as JSON string
+// ============================================================================
+
+struct CabbageAraGetStateJson : csnd::Plugin<1, 2>
+{
+    int init();
+    int kperf();
+private:
+    MYFLT prevTrig = 0;
+};
+
+// ============================================================================
 // Diagnostic dump — prints entire ARA state to Csound output
 // ============================================================================
 
@@ -111,5 +123,4 @@ private:
     void araDumpState();
     MYFLT prevTrig = 0;
 };
-
 #endif // LATTICE_HAS_ARA || CabbageApp

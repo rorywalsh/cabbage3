@@ -51,6 +51,7 @@ struct ARADataPool
     {
         std::string sourceName;           // source file name
         std::string regionSequenceName;   // track/lane name
+        int regionSequenceIndex = -1;     // stable link to parent region sequence
         double regionStart = 0;           // crop start in samples (within source)
         double regionDuration = 0;        // crop duration in samples
         double playbackStart = 0;         // arrangement position in seconds
@@ -268,12 +269,13 @@ struct ARADataPool
 
     void addOrUpdatePlaybackRegion(void* key, const std::string& sourceName,
                                     const std::string& regionSequenceName,
+                                    int regionSequenceIndex,
                                     double regionStart, double regionDuration,
                                     double playbackStart, double playbackDuration,
                                     float colorR = 0, float colorG = 0, float colorB = 0)
     {
         std::lock_guard<std::mutex> lock(mutex);
-        playbackRegions[key] = {sourceName, regionSequenceName,
+        playbackRegions[key] = {sourceName, regionSequenceName, regionSequenceIndex,
                                 regionStart, regionDuration,
                                 playbackStart, playbackDuration,
                                 colorR, colorG, colorB};
@@ -380,6 +382,15 @@ struct ARADataPool
         return regionSequences.size();
     }
 
+    int getRegionSequenceOrderIndex(void* key)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto it = regionSequences.find(key);
+        if (it != regionSequences.end())
+            return it->second.orderIndex;
+        return -1;
+    }
+
     // --- Audio modification management ---
 
     void addOrUpdateAudioModification(void* key, const std::string& name,
@@ -424,26 +435,9 @@ private:
     ARADataPool(const ARADataPool&) = delete;
     ARADataPool& operator=(const ARADataPool&) = delete;
 
-    void rebuildSourceJson(size_t idx)
+    void rebuildSourceJson(size_t /*idx*/)
     {
-        if (idx >= sources.size())
-            return;
-        const auto& s = sources[idx];
-        nlohmann::json obj;
-        obj["name"] = s.name;
-        obj["sampleCount"] = s.samples;
-        obj["channels"] = s.channels;
-        obj["sampleRate"] = s.sr;
-        obj["duration"] = s.duration;
-        obj["regionStartInSamples"] = s.regionStart;
-        obj["regionDurationInSamples"] = s.regionDuration;
-        obj["regionStart"] = s.regionStartSec;
-        obj["regionDuration"] = s.regionDurationSec;
-        if (idx < araState["sources"].size())
-            araState["sources"][idx] = std::move(obj);
-        else
-            araState["sources"].push_back(std::move(obj));
-        araState["sourceCount"] = static_cast<double>(sources.size());
+        rebuildSourcesJson();
     }
 
     void rebuildSourcesJson()
@@ -480,6 +474,7 @@ private:
             nlohmann::json obj;
             obj["name"] = entry.sourceName;
             obj["regionSequenceName"] = entry.regionSequenceName;
+            obj["regionSequenceIndex"] = entry.regionSequenceIndex;
             obj["regionStartInSamples"] = entry.regionStart;
             obj["regionDurationInSamples"] = entry.regionDuration;
             obj["playbackStart"] = entry.playbackStart;
