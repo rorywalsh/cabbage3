@@ -160,7 +160,7 @@ class CabbageAudioApp
     void processIncomingMessage(const std::string &message);
     bool createCabbageProcessor();
     void initialiseAudio(bool startStream);
-    void initialiseMidi();
+    void initialiseMidi(bool openPorts = false);
     void deinitAudioAndMidi();
 
     // stdin/stdout communication thread

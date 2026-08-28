@@ -502,7 +502,7 @@ void CabbageAudioApp::sendWidgetDataToVscode()
 //==============================================================================
 // This method is called from the RtMidiIn callback
 //==============================================================================
-void CabbageAudioApp::initialiseMidi()
+void CabbageAudioApp::initialiseMidi(bool openPorts)
 {
     try
     {
@@ -536,6 +536,37 @@ void CabbageAudioApp::initialiseMidi()
 
     midiInDevice->setCallback(&midiCallback, this);
     midiInDevice->ignoreTypes(false, true, false);
+
+    if (openPorts)
+    {
+        if (!audioConfig.midiInDev.empty() && audioConfig.midiInDev != "no input")
+        {
+            unsigned int portCount = midiInDevice->getPortCount();
+            for (unsigned int i = 0; i < portCount; i++)
+            {
+                if (midiInDevice->getPortName(i) == audioConfig.midiInDev)
+                {
+                    midiInDevice->openPort(i);
+                    lattice::logInfo << "Opened MIDI input: " << midiInDevice->getPortName(i);
+                    break;
+                }
+            }
+        }
+
+        if (!audioConfig.midiOutDev.empty() && audioConfig.midiOutDev != "no output")
+        {
+            unsigned int portCount = midiOutDevice->getPortCount();
+            for (unsigned int i = 0; i < portCount; i++)
+            {
+                if (midiOutDevice->getPortName(i) == audioConfig.midiOutDev)
+                {
+                    midiOutDevice->openPort(i);
+                    lattice::logInfo << "Opened MIDI output: " << midiOutDevice->getPortName(i);
+                    break;
+                }
+            }
+        }
+    }
 }
 
 int CabbageAudioApp::getAudioDeviceId(const std::string &deviceName) const
@@ -592,7 +623,7 @@ bool CabbageAudioApp::createCabbageProcessor()
     // Passing false skips openStream/startStream, so the callback cannot run
     // while we free the old buffer and destroy the old Csound instance.
     initialiseAudio(false);
-    initialiseMidi();
+    initialiseMidi(true);
 
     // Stream is now guaranteed stopped — safe to free the old input buffer.
     if (emptyInputBufferInitialised)
@@ -1223,6 +1254,39 @@ void CabbageAudioApp::addDevicesToSettings(const std::string &settingsPath)
                 settingsJson["systemAudioMidiIOListing"]["audioInputDevices"][inputDevice] = j;
                 inputCnt++;
             }
+        }
+
+        // Enumerate MIDI devices
+        try
+        {
+            RtMidiIn tempMidiIn;
+            unsigned int inputCount = tempMidiIn.getPortCount();
+            for (unsigned int i = 0; i < inputCount; ++i)
+            {
+                nlohmann::json j;
+                j["deviceId"] = i;
+                settingsJson["systemAudioMidiIOListing"]["midiInputDevices"][tempMidiIn.getPortName(i)] = j;
+            }
+        }
+        catch (RtMidiError &error)
+        {
+            error.printMessage();
+        }
+
+        try
+        {
+            RtMidiOut tempMidiOut;
+            unsigned int outputCount = tempMidiOut.getPortCount();
+            for (unsigned int i = 0; i < outputCount; ++i)
+            {
+                nlohmann::json j;
+                j["deviceId"] = i;
+                settingsJson["systemAudioMidiIOListing"]["midiOutputDevices"][tempMidiOut.getPortName(i)] = j;
+            }
+        }
+        catch (RtMidiError &error)
+        {
+            error.printMessage();
         }
 
 #ifdef LATTICE_WINDOWS
