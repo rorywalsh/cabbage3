@@ -43,7 +43,8 @@ Engine::~Engine()
     {
         std::lock_guard<std::mutex> lock(channelCacheMutex);
         channelCache.clear();
-        dirtyChannels.clear();
+        dirtyValueChannels.clear();
+        dirtyIdentifierChannels.clear();
     }
 
     if (csound)
@@ -1280,30 +1281,45 @@ void Engine::updateChannelCache(const CabbageOpcodeData &data)
 
     std::lock_guard<std::mutex> lock(channelCacheMutex);
 
-    if (channelCache.find(data.channel) != channelCache.end())
-    {
-        // For value-only updates, don't merge - just update the value field
-        if (data.type == CabbageOpcodeData::MessageType::Value)
-        {
-            channelCache[data.channel].cabbageJson["value"] = data.cabbageJson["value"];
-            channelCache[data.channel].type = CabbageOpcodeData::MessageType::Value;
-        }
-        else
-        {
-            channelCache[data.channel].cabbageJson.merge_patch(data.cabbageJson);
-            // If the new data is of type Identifier, we must update the cached type to Identifier
-            // so that the full JSON is sent to the frontend, not just the value.
-            if (data.type == CabbageOpcodeData::MessageType::Identifier)
-            {
-                channelCache[data.channel].type = CabbageOpcodeData::MessageType::Identifier;
-            }
-        }
-    }
-    else
+    auto it = channelCache.find(data.channel);
+    if (it == channelCache.end())
     {
         channelCache[data.channel] = data;
     }
-    dirtyChannels.insert(data.channel);
+    else if (data.type == CabbageOpcodeData::MessageType::Value)
+    {
+        // Value-only updates refresh just the value field. The cached type is
+        // deliberately left untouched so a pending identifier update for the
+        // same channel within this block is preserved (previously this line
+        // downgraded the entry to Value, causing flushChannelCache() to drop
+        // the identifier payload entirely).
+        it->second.cabbageJson["value"] = data.cabbageJson["value"];
+    }
+    else
+    {
+        it->second.cabbageJson.merge_patch(data.cabbageJson);
+        // If the new data is of type Identifier, we must update the cached type to Identifier
+        // so that the full JSON is sent to the frontend, not just the value.
+        if (data.type == CabbageOpcodeData::MessageType::Identifier)
+        {
+            it->second.type = CabbageOpcodeData::MessageType::Identifier;
+        }
+        if (!data.identifier.empty())
+        {
+            it->second.identifier = data.identifier;
+        }
+    }
+
+    // Track dirtiness per kind so flush can emit a value message and/or an
+    // identifier message for the same channel independently.
+    if (data.type == CabbageOpcodeData::MessageType::Value)
+    {
+        dirtyValueChannels.insert(data.channel);
+    }
+    else
+    {
+        dirtyIdentifierChannels.insert(data.channel);
+    }
 }
 
 bool Engine::isValueDifferent(const CabbageOpcodeData &data)
@@ -1342,7 +1358,18 @@ bool Engine::isValueDifferent(const CabbageOpcodeData &data)
 
     if (data.type == CabbageOpcodeData::MessageType::Value)
     {
-        return cachedData.cabbageJson["value"] != data.cabbageJson["value"];
+        // Either side may lack a "value" key (e.g. a channel previously touched
+        // only by cabbageSet identifiers). Missing counts as different so the
+        // update is not wrongly suppressed. contains() keeps this branch
+        // no-throw on the audio thread.
+        const auto &cachedJson = cachedData.cabbageJson;
+        const bool hasCached = cachedJson.contains("value");
+        const bool hasNew = data.cabbageJson.contains("value");
+        if (!hasCached || !hasNew)
+        {
+            return true;
+        }
+        return cachedJson["value"] != data.cabbageJson["value"];
     }
     else
     {
@@ -1358,26 +1385,90 @@ void Engine::flushChannelCache()
 
     std::lock_guard<std::mutex> lock(channelCacheMutex);
 
-    for (const auto &channel : dirtyChannels)
+    // Identifier updates first. The top-level "value" key is stripped here:
+    // the latest value travels in its own minimal message below, so a k-rate
+    // cabbageSetValue can no longer bury a same-block cabbageSet identifier
+    // update (or vice versa). Emitting two messages instead of one merged
+    // message also matches the existing frontend contract, which handles
+    // {id, value} and {id, widgetJson} independently.
+    for (const auto &channel : dirtyIdentifierChannels)
     {
-        const auto &cachedData = channelCache[channel];
-
-        // For value-only updates, create minimal message
-        if (cachedData.type == CabbageOpcodeData::MessageType::Value)
+        auto it = channelCache.find(channel);
+        if (it == channelCache.end())
         {
-            CabbageOpcodeData minimalData;
-            minimalData.channel = cachedData.channel;
-            minimalData.type = CabbageOpcodeData::MessageType::Value;
-            minimalData.cabbageJson["value"] = cachedData.cabbageJson["value"];
-            opcodeData.enqueue(minimalData);
+            continue;
+        }
+        auto &cachedData = it->second;
+
+        nlohmann::json identJson = cachedData.cabbageJson;
+        identJson.erase("value");
+
+        if (identJson.empty())
+        {
+            // Degenerate case, e.g. cabbageSet with identifier "value": the
+            // payload is just a value, so send it on the value path.
+            if (cachedData.cabbageJson.contains("value"))
+            {
+                CabbageOpcodeData valueData;
+                valueData.channel = cachedData.channel;
+                valueData.type = CabbageOpcodeData::MessageType::Value;
+                valueData.cabbageJson["value"] = cachedData.cabbageJson["value"];
+                opcodeData.enqueue(valueData);
+                dirtyValueChannels.erase(channel);
+            }
         }
         else
         {
-            // For identifier updates, send full JSON
-            opcodeData.enqueue(cachedData);
+            CabbageOpcodeData identData;
+            identData.channel = cachedData.channel;
+            identData.type = CabbageOpcodeData::MessageType::Identifier;
+            identData.identifier = cachedData.identifier;
+            identData.skipPopulateProcessing = cachedData.skipPopulateProcessing;
+            identData.cabbageJson = std::move(identJson);
+            opcodeData.enqueue(identData);
+        }
+
+        // Evict identifier keys so stale payloads (e.g. genTable samples) are
+        // never resent at value rate. The last value is retained for
+        // isValueDifferent() dedup; pure-identifier entries are removed.
+        if (cachedData.cabbageJson.contains("value"))
+        {
+            CabbageOpcodeData evicted;
+            evicted.channel = cachedData.channel;
+            evicted.type = CabbageOpcodeData::MessageType::Value;
+            evicted.cabbageJson["value"] = cachedData.cabbageJson["value"];
+            it->second = std::move(evicted);
+        }
+        else
+        {
+            channelCache.erase(it);
         }
     }
-    dirtyChannels.clear();
+    dirtyIdentifierChannels.clear();
+
+    // Value-only updates collapse to one minimal message per channel.
+    for (const auto &channel : dirtyValueChannels)
+    {
+        auto it = channelCache.find(channel);
+        if (it == channelCache.end())
+        {
+            continue;
+        }
+        const auto &cachedJson = it->second.cabbageJson;
+        auto valueIt = cachedJson.find("value");
+        if (valueIt == cachedJson.end())
+        {
+            continue;
+        }
+        CabbageOpcodeData minimalData;
+        minimalData.channel = it->second.channel;
+        minimalData.type = CabbageOpcodeData::MessageType::Value;
+        minimalData.cabbageJson["value"] = *valueIt;
+        opcodeData.enqueue(minimalData);
+        // The cache entry (last value) is intentionally retained for
+        // isValueDifferent() dedup across blocks.
+    }
+    dirtyValueChannels.clear();
 }
 
 //=====================================================================================

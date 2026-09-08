@@ -786,10 +786,30 @@ void CabbageProcessor::onIdle()
 
     if (allowDequeuing)
     {
-        // Dequeue all messages. For most channels we deduplicate (keep latest),
-        // but preserve Generic messages and the special channel
-        // "cabbageSendMessageQ7mX2b" in FIFO order.
-        std::unordered_map<std::string, CabbageOpcodeData> latestMessages;
+        // Dequeue all messages. For most channels we deduplicate (keep latest
+        // per channel AND per message kind), but preserve Generic messages
+        // and the special channel "cabbageSendMessageQ7mX2b" in FIFO order.
+        // Kind-aware dedup matters because flushChannelCache() may emit both
+        // a Value message and an Identifier message for the same channel in
+        // one block (e.g. cabbageSetValue + cabbageSet on "gain" in the same
+        // k-cycle) — collapsing those to one would drop an update.
+        struct DedupKey
+        {
+            std::string channel;
+            CabbageOpcodeData::MessageType type;
+            bool operator==(const DedupKey &other) const
+            {
+                return channel == other.channel && type == other.type;
+            }
+        };
+        struct DedupKeyHash
+        {
+            size_t operator()(const DedupKey &key) const
+            {
+                return std::hash<std::string>()(key.channel) ^ (std::hash<int>()(static_cast<int>(key.type)) << 1);
+            }
+        };
+        std::unordered_map<DedupKey, CabbageOpcodeData, DedupKeyHash> latestMessages;
         std::vector<CabbageOpcodeData> preservedMessages;
 
         while (cabbage.opcodeData.try_dequeue(data))
@@ -802,8 +822,8 @@ void CabbageProcessor::onIdle()
             }
             else
             {
-                // For all other channels, keep only the latest message
-                latestMessages[data.channel] = data;
+                // For all other channels, keep only the latest message per kind
+                latestMessages[{data.channel, data.type}] = data;
             }
         }
 

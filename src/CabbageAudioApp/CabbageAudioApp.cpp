@@ -195,7 +195,19 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
 
         if (data.type == CabbageOpcodeData::MessageType::Value)
         {
-            msg["value"] = j["value"].get<float>();
+            // Prefer the queued payload as the source of truth (mirrors the
+            // plugin path, which forwards the value directly). Fall back to
+            // the merged widget copy. is_number() guards keep this no-throw.
+            float value = 0.0f;
+            if (data.cabbageJson.contains("value") && data.cabbageJson["value"].is_number())
+            {
+                value = data.cabbageJson["value"].get<float>();
+            }
+            else if (j.contains("value") && j["value"].is_number())
+            {
+                value = j["value"].get<float>();
+            }
+            msg["value"] = value;
             sendJsonMessage(msg);
         }
         else if (data.type == CabbageOpcodeData::MessageType::Widget)

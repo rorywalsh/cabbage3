@@ -288,7 +288,12 @@ class Engine
     std::atomic<bool> shuttingDown {false};
     mutable std::mutex channelCacheMutex;
     std::unordered_map<std::string, CabbageOpcodeData> channelCache;
-    std::unordered_set<std::string> dirtyChannels;
+    // Per-block dirty tracking, split by message kind. Value updates (k-rate,
+    // e.g. cabbageSetValue) must never clobber pending identifier updates
+    // (e.g. cabbageSet "bounds.left") for the same channel within one block,
+    // and vice versa. Both sets are cleared on every flushChannelCache().
+    std::unordered_set<std::string> dirtyValueChannels;
+    std::unordered_set<std::string> dirtyIdentifierChannels;
     std::atomic<long long> totalSamplesCounter {0};
     bool csoundOutputEnabled = false;
 };
