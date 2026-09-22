@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_session.hpp>
+#include <nlohmann/json.hpp>
 #include "../src/CabbageAudioApp/CabbageAudioApp.h"
 #include "../src/CabbageAudioApp/CabbageAudioRecorder.h"
 #include <memory>
@@ -388,6 +389,142 @@ TEST_CASE("Test cabbageSet.csd with JSON message capture", "[CabbageApp]")
     
     REQUIRE(app != nullptr);
     std::cout << "\n==================== END TEST: cabbageSet.csd with JSON messages ====================\n";
+}
+
+//==============================================================================
+// TEST: JSON utility opcodes (cabbageJsonGet/Has/Len/Type/Set)
+//==============================================================================
+TEST_CASE("Test cabbageJson opcodes", "[CabbageApp]")
+{
+    ensureValidSettingsFileExists();
+
+    const char* args[] = {"CabbageApp"};
+    auto app = std::make_unique<CabbageAudioApp>(1, const_cast<char**>(args));
+    REQUIRE(app != nullptr);
+
+    int nInputChannels = 2;
+    int nOutputChannels = 2;
+    int nBufferFrames = 512;
+    float **buffer = new float*[nOutputChannels];
+    for (unsigned int ch = 0; ch < nOutputChannels; ++ch)
+    {
+        buffer[ch] = new float[nBufferFrames];
+        memset(buffer[ch], 0, nBufferFrames * sizeof(float));
+    }
+
+    std::string csdContent = TestCsdFiles::cabbageJson;
+    std::filesystem::path tempPath = std::filesystem::temp_directory_path() / ("test_cabbageJson_" + std::to_string(std::time(nullptr)) + ".csd");
+    std::ofstream tempFile(tempPath);
+    tempFile << csdContent;
+    tempFile.close();
+
+    std::string filePath = tempPath.string();
+    app->setCsoundFile(filePath);
+    REQUIRE(std::filesystem::exists(filePath));
+
+    struct CallbackData {
+        std::string channel;
+        std::string json;
+    };
+    std::vector<CallbackData> callbackMessages;
+
+    app->initialiseCabbage();
+
+    if (app->processor) {
+        app->processor->setCabbageIsReady();
+        app->processor->hostCallback = [&callbackMessages, &app](CabbageOpcodeData data) {
+            CallbackData captured;
+            captured.channel = data.channel;
+            captured.json = data.cabbageJson.dump();
+            callbackMessages.push_back(captured);
+            app->hostCallback(data);
+        };
+    }
+
+    auto startTime = std::chrono::steady_clock::now();
+    auto endTime = startTime + std::chrono::seconds(3);
+    int iterationCount = 0;
+    const int maxIterations = 100;
+    while (std::chrono::steady_clock::now() < endTime && iterationCount < maxIterations)
+    {
+        if (app->processor) {
+            app->processor->process(buffer, buffer, nBufferFrames);
+        }
+        try {
+            app->onIdle();
+        } catch (...) {
+            break;
+        }
+        iterationCount++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    }
+    REQUIRE(iterationCount > 0);
+
+    auto lastJsonFor = [&](const std::string& ch) -> nlohmann::json {
+        for (auto it = callbackMessages.rbegin(); it != callbackMessages.rend(); ++it)
+        {
+            if (it->channel == ch)
+                return nlohmann::json::parse(it->json);
+        }
+        return nullptr;
+    };
+    auto numFor = [&](const std::string& ch) -> double {
+        auto j = lastJsonFor(ch);
+        REQUIRE(!j.is_null());
+        return j.value("value", 0.0);
+    };
+    auto strFor = [&](const std::string& ch) -> std::string {
+        auto j = lastJsonFor(ch);
+        REQUIRE(!j.is_null());
+        REQUIRE(j.contains("label"));
+        return j["label"].value("text", std::string(""));
+    };
+
+    // string queries
+    CHECK(strFor("ps_wave") == "test");
+    CHECK(strFor("ps_miss") == "");
+    CHECK(strFor("ps_amp") == "0.5");
+    CHECK(strFor("ps_tag0") == "a");
+    CHECK(strFor("ps_tag2") == "c");
+    // type queries
+    CHECK(strFor("ps_type_rate") == "number");
+    CHECK(strFor("ps_type_tags") == "array");
+    CHECK(strFor("ps_type_nothing") == "null");
+    CHECK(strFor("ps_type_miss") == "missing");
+    // builders round-tripping through getters (k-rate 99 becomes double 99.0)
+    CHECK(strFor("ps_newrate") == "99.0");
+    CHECK(strFor("ps_newpath") == "hi");
+    CHECK(strFor("ps_newfreq") == "880.0");
+    // invalid input degrades gracefully
+    CHECK(strFor("ps_bad") == "");
+    // numeric queries
+    CHECK(numFor("pr_rate") == 2.5);
+    CHECK(numFor("pr_strnum") == 42.0);
+    CHECK(numFor("pr_bool") == 1.0);
+    CHECK(numFor("pr_miss") == 0.0);
+    CHECK(numFor("pr_has1") == 1.0);
+    CHECK(numFor("pr_hasnull") == 1.0);
+    CHECK(numFor("pr_has0") == 0.0);
+    CHECK(numFor("pr_len") == 1.0);
+    CHECK(numFor("pr_lenobj") == 1.0);
+    CHECK(numFor("pr_len0") == 0.0);
+    CHECK(numFor("pr_taglen") == 3.0);
+    CHECK(numFor("pr_emptyarr") == 0.0);
+    CHECK(numFor("pr_freq") == 440.0);
+    CHECK(numFor("pr_gain1") == 2.5);
+    // trigger variant fired at least once (counted in-orchestra: dedup
+    // keeps only the latest value per channel, so blips aren't observable)
+    CHECK(numFor("pr_trigfires") > 0.0);
+
+    app->addMessageToQueue(CabbageAudioApp::CommandType::StopAudio);
+    app->onIdle();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    for (unsigned int ch = 0; ch < nOutputChannels; ++ch) {
+        delete[] buffer[ch];
+    }
+    delete[] buffer;
+    std::filesystem::remove(tempPath);
 }
 
 //==============================================================================

@@ -37,6 +37,7 @@
 #include "opcodes/CabbageFileOpcodes.h"
 #include "opcodes/CabbageSendMessageOpcode.h"
 #include "opcodes/CabbageGetWidgesOpcodes.h"
+#include "opcodes/CabbageJsonOpcodes.h"
 
 class CabbageProcessor;
 struct CabbageOpcodeData;

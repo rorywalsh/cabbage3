@@ -99,6 +99,24 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageWidgetHasKey>((csnd::Csound *)getCsound()->GetCsound(), "cabbageHasKey", "i", "SS", csnd::thread::i);
     csnd::plugin<CabbageWidgetHasKey>((csnd::Csound *)getCsound()->GetCsound(), "cabbageHasKey", "k", "SW", csnd::thread::ik);
 
+    csnd::plugin<CabbageJsonGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "S", "SS", csnd::thread::i);
+    csnd::plugin<CabbageJsonGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "S", "SS", csnd::thread::k);
+    csnd::plugin<CabbageJsonGetStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "Sk", "SS", csnd::thread::k);
+    csnd::plugin<CabbageJsonGetNumber>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "i", "SS", csnd::thread::i);
+    csnd::plugin<CabbageJsonGetNumber>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "k", "SS", csnd::thread::ik);
+    csnd::plugin<CabbageJsonGetStringArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "S[]", "SS", csnd::thread::i);
+    csnd::plugin<CabbageJsonGetNumberArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "k[]", "SS", csnd::thread::i);
+    csnd::plugin<CabbageJsonHas>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonHas", "i", "SS", csnd::thread::i);
+    csnd::plugin<CabbageJsonHas>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonHas", "k", "SS", csnd::thread::ik);
+    csnd::plugin<CabbageJsonLen>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonLen", "i", "SS", csnd::thread::i);
+    csnd::plugin<CabbageJsonLen>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonLen", "k", "SS", csnd::thread::ik);
+    csnd::plugin<CabbageJsonType>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonType", "S", "SS", csnd::thread::i);
+    csnd::plugin<CabbageJsonType>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonType", "S", "SS", csnd::thread::k);
+    csnd::plugin<CabbageJsonSetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonSet", "S", "SSS", csnd::thread::i);
+    csnd::plugin<CabbageJsonSetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonSet", "S", "SSS", csnd::thread::k);
+    csnd::plugin<CabbageJsonSetNumber>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonSet", "S", "SSM", csnd::thread::i);
+    csnd::plugin<CabbageJsonSetNumber>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonSet", "S", "SSM", csnd::thread::k);
+
     csnd::plugin<CabbageCreate>((csnd::Csound *)getCsound()->GetCsound(), "cabbageCreate", "", "S", csnd::thread::i);
     csnd::plugin<CabbageDump>((csnd::Csound *)getCsound()->GetCsound(), "cabbageDump", "", "So", csnd::thread::i);
     csnd::plugin<CabbageDumpWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageDump", "", "kSo", csnd::thread::ik);
