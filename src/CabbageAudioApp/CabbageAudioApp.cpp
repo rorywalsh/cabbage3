@@ -20,6 +20,8 @@
 #include "CabbageAudioApp.h"
 #include <iostream>
 #include <algorithm>
+#include <fstream>
+#include <sstream>
 #include "argparse.hpp"
 #include <filesystem>
 
@@ -747,6 +749,32 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
     }
 
     auto settingsFilePath = cabbage::File::getSettingsFile();
+    lattice::logInfo << "Cabbage settings file: " << settingsFilePath;
+    // Log the configured JS source dir(s) and the resolved widget path so that
+    // "Unknown widget type" reports are self-diagnosing.
+    try
+    {
+        std::ifstream settingsStream(settingsFilePath, std::ios::binary);
+        if (settingsStream.is_open())
+        {
+            std::ostringstream oss;
+            oss << settingsStream.rdbuf();
+            const auto settingsJson = nlohmann::json::parse(oss.str());
+            if (settingsJson.contains("currentConfig") && settingsJson["currentConfig"].contains("jsSourceDir"))
+                lattice::logInfo << "Cabbage jsSourceDir: " << settingsJson["currentConfig"]["jsSourceDir"].dump();
+            else
+                lattice::logInfo << "Cabbage jsSourceDir: <not set>";
+        }
+        else
+        {
+            lattice::logInfo << "Cabbage settings file not found, using defaults";
+        }
+    }
+    catch (const std::exception &e)
+    {
+        lattice::logInfo << "Cabbage settings could not be parsed: " << e.what();
+    }
+    lattice::logInfo << "Cabbage widget sources: " << cabbage::File::findCabbageJSWidgetPath();
     addDevicesToSettings(settingsFilePath);
     audioConfig.loadFromJson(settingsFilePath);
 

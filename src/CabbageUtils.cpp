@@ -344,18 +344,28 @@ std::string File::findCabbageJSWidgetPath()
     if (cabbage::File::directoryExists(widgetPath))
         return widgetPath;
 
-    // Try fallback in VSCode extensions
+    // Try fallback in VSCode extensions (including popular VS Code flavours:
+    // Insiders, Cursor, VSCodium)
     std::vector<std::string> vscodePaths;
 
 #if defined(_WIN32)
     const char *homeDrive = std::getenv("HOMEDRIVE");
     const char *homePath = std::getenv("HOMEPATH");
     if (homeDrive && homePath)
-        vscodePaths.emplace_back(std::string(homeDrive) + homePath + "\\.vscode\\extensions");
+    {
+        const std::string home = std::string(homeDrive) + homePath;
+        for (const auto &dir : { "\\.vscode\\extensions", "\\.vscode-insiders\\extensions",
+                                 "\\.cursor\\extensions", "\\.vscode-oss\\extensions" })
+            vscodePaths.emplace_back(home + dir);
+    }
 #elif defined(__APPLE__) || defined(__linux__)
     const char *home = std::getenv("HOME");
     if (home)
-        vscodePaths.emplace_back(std::string(home) + "/.vscode/extensions");
+    {
+        for (const auto &dir : { "/.vscode/extensions", "/.vscode-insiders/extensions",
+                                 "/.cursor/extensions", "/.vscode-oss/extensions" })
+            vscodePaths.emplace_back(std::string(home) + dir);
+    }
 #endif
 
     for (const auto &path : vscodePaths)
