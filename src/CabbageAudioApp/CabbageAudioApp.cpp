@@ -681,7 +681,15 @@ bool CabbageAudioApp::createCabbageProcessor()
     lattice::logDebug << "Num widgets : " << processor->getCabbageEngine().getWidgets().size();
 
     // Register callback - will be triggered from CabbageProcessor
-    processor->hostCallback = [&](CabbageOpcodeData data) { hostCallback(data); };
+    processor->hostCallback = [&](CabbageOpcodeData data) {
+        try {
+            hostCallback(data);
+        } catch (const std::exception &e) {
+            lattice::logWarning << "hostCallback failed for channel '" << data.channel << "': " << e.what();
+        } catch (...) {
+            lattice::logWarning << "hostCallback failed for channel '" << data.channel << "' (unknown exception)";
+        }
+    };
 
     // Phase 2: open and start the new stream. openStream may negotiate a
     // different buffer size than requested (e.g. WASAPI format negotiation),

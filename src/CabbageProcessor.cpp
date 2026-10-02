@@ -718,6 +718,26 @@ void CabbageProcessor::process(float **inputs, float **outputs, std::size_t bloc
     }
 }
 
+#ifdef CabbageApp
+void CabbageProcessor::invokeHostCallback(const CabbageOpcodeData &data)
+{
+    if (!hostCallback)
+        return;
+    try
+    {
+        hostCallback(data);
+    }
+    catch (const std::exception &e)
+    {
+        lattice::logWarning << "hostCallback failed for channel '" << data.channel << "': " << e.what();
+    }
+    catch (...)
+    {
+        lattice::logWarning << "hostCallback failed for channel '" << data.channel << "' (unknown exception)";
+    }
+}
+#endif
+
 //========================================================================================
 // onIdle function
 //========================================================================================
@@ -845,9 +865,7 @@ void CabbageProcessor::onIdle()
             if (dataCopy.type == CabbageOpcodeData::MessageType::Generic)
             {
 #ifdef CabbageApp
-                if (hostCallback) {
-                    hostCallback(dataCopy);
-                }
+                invokeHostCallback(dataCopy);
 #else
                 cabbage.processCsoundMessages();
                 updateWidgetData(dataCopy);
@@ -946,9 +964,7 @@ void CabbageProcessor::onIdle()
 
 
 #ifdef CabbageApp
-            if (hostCallback) {
-                hostCallback(dataCopy);
-            }
+            invokeHostCallback(dataCopy);
 #else
             cabbage.processCsoundMessages();
             updateWidgetData(dataCopy);
