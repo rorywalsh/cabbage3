@@ -411,6 +411,14 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
         ${rtaudio_SOURCE_DIR}
         ${rtmidi_SOURCE_DIR}
     )
+
+    if(LINUX)
+        # LatticeClapPlugin.cpp includes the generated
+        # LinuxWebviewProcess/webview_binary.h, produced by the WebViewProcess
+        # target's POST_BUILD step. The lattice helper that orders this for
+        # plugin targets is never called for CabbageTests, so order it here.
+        add_dependencies(${PROJECT_NAME} WebViewProcess)
+    endif()
     
     # Set compile definitions for test target
     target_compile_definitions(${PROJECT_NAME} PRIVATE
