@@ -459,8 +459,13 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
         CXX_STANDARD_REQUIRED ON
     )
     
-    # Add test to CTest
-    add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
+    # Register each Catch2 TEST_CASE as its own ctest test so that a hung
+    # case is reported (and timed out via ctest --timeout) individually
+    # instead of stalling the whole binary behind one buffered log.
+    include(${catch2_SOURCE_DIR}/extras/Catch.cmake)
+    catch_discover_tests(${PROJECT_NAME}
+        EXTRA_ARGS "--reporter compact"
+    )
 endif()
 
 # ----------------------------
