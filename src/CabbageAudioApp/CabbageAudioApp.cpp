@@ -686,8 +686,10 @@ bool CabbageAudioApp::createCabbageProcessor()
             hostCallback(data);
         } catch (const std::exception &e) {
             lattice::logWarning << "hostCallback failed for channel '" << data.channel << "': " << e.what();
+            CabbageProcessor::logCorruptOpcodePayload(data);
         } catch (...) {
             lattice::logWarning << "hostCallback failed for channel '" << data.channel << "' (unknown exception)";
+            CabbageProcessor::logCorruptOpcodePayload(data);
         }
     };
 
