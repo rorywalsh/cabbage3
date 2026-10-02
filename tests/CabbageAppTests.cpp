@@ -813,6 +813,10 @@ TEST_CASE("CabbageAudioApp command line parsing", "[CabbageAudioApp]") {
 //==============================================================================
 // TEST 8: File Resave — InitCabbage on a live session
 //
+// (Test name kept pure-ASCII: ctest re-invokes the binary with the case
+// name as a filter argument, and non-UTF8 console encodings on Windows
+// mangle non-ASCII names so no test cases match.)
+//
 // This reproduces the crash that occurred when a CSD file was saved while
 // CabbageAudioApp already had a running processor/audio stream.  The resave
 // path queues a bare InitCabbage command (no preceding StopAudio/KillProcessor),
@@ -823,7 +827,7 @@ TEST_CASE("CabbageAudioApp command line parsing", "[CabbageAudioApp]") {
 //      new one is constructed, avoiding concurrent Csound global-state access
 //      that caused STATUS_HEAP_CORRUPTION (0xC0000374) on Windows.
 //==============================================================================
-TEST_CASE("File resave — InitCabbage on live session does not crash", "[CabbageApp]")
+TEST_CASE("File resave - InitCabbage on live session does not crash", "[CabbageApp]")
 {
     ensureValidSettingsFileExists();
 

@@ -312,8 +312,9 @@ jobs:
           cmake -S . -B build-tests -DCABBAGE_BUILD_TARGET=CabbageTests -DTEST_VSCABBAGE_DIR="$vsrc" -DCMAKE_BUILD_TYPE=Release
 
       - name: Build tests
+        # RelWithDebInfo (not Release) so a debugger backtrace has symbols.
         shell: pwsh
-        run: cmake --build build-tests --config Release
+        run: cmake --build build-tests --config RelWithDebInfo
 
       - name: Run unit tests (incl. stdin onFileChanged resave tests)
         # Each Catch2 TEST_CASE is its own ctest test (see
@@ -322,7 +323,20 @@ jobs:
         # still run.
         timeout-minutes: 15
         shell: pwsh
-        run: ctest --test-dir build-tests -C Release --output-on-failure --timeout 180
+        run: ctest --test-dir build-tests -C RelWithDebInfo --output-on-failure --timeout 180
+
+      - name: Rerun suite under cdb for a Windows backtrace
+        # Runs only when earlier steps failed. Zero cost on green runs.
+        # Needs the PDBs from the RelWithDebInfo tests build above.
+        if: failure()
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $exe = ".\build-tests\RelWithDebInfo\CabbageTests.exe"
+          if (-not (Test-Path $exe)) { Write-Warning "Test binary not found, skipping backtrace"; exit 0 }
+          $cdb = "C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe"
+          if (-not (Test-Path $cdb)) { Write-Warning "cdb not found, skipping backtrace"; exit 0 }
+          & $cdb -c ".symfix+ C:\symcache;g;k100;q" $exe 2>&1 | Select-Object -Last 60
 
       - name: Configure build
         shell: cmd
