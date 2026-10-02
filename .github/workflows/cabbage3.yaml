@@ -190,7 +190,7 @@ jobs:
           else echo "::error::vscabbage widget sources not found under $WS"; exit 1; fi
           echo "Using vscabbage sources: $VSCABBAGE_SRC"
           cmake -G "Unix Makefiles" -B build-tests -S . \
-            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCABBAGE_BUILD_TARGET=CabbageTests \
             -DTEST_VSCABBAGE_DIR="$VSCABBAGE_SRC" \
             -DCMAKE_C_COMPILER=$(which gcc) \
@@ -207,6 +207,14 @@ jobs:
         # still run.
         timeout-minutes: 15
         run: timeout 600 ctest --test-dir build-tests --output-on-failure --timeout 180
+
+      - name: Rerun suite under gdb for a symbolicated backtrace
+        # Runs only when the suite above fails. Zero cost on green runs.
+        # The tests build uses RelWithDebInfo so the trace has line numbers.
+        if: failure()
+        run: |
+          command -v gdb || sudo apt-get install -y gdb
+          gdb --batch --ex run --ex "bt 30" --ex "info threads" --args ./build-tests/CabbageTests 2>&1 | tail -60
 
       - name: Configure CMake
         run: |
@@ -269,6 +277,18 @@ jobs:
         shell: pwsh
         run: |
           Start-Process -FilePath ".\csound-7.exe" -ArgumentList "/VERYSILENT" -Wait -Verb RunAs
+
+      - name: Put Csound DLL location on PATH
+        # The test executable (and discovery run at build time) loads
+        # csound64.dll at startup; without its directory on PATH Windows
+        # fails with 0xC0000135 STATUS_DLL_NOT_FOUND. Applies to all later
+        # steps via GITHUB_PATH.
+        shell: pwsh
+        run: |
+          $dll = Get-ChildItem -Path "C:\Program Files\Csound7" -Recurse -Filter "csound64.dll" -File | Select-Object -First 1
+          if (-not $dll) { Write-Error "csound64.dll not found under C:\Program Files\Csound7"; exit 1 }
+          Write-Host "Found $($dll.FullName)"
+          $dll.DirectoryName >> $env:GITHUB_PATH
 
       - name: Checkout vscabbage (widget sources for tests)
         uses: actions/checkout@v1
