@@ -30,14 +30,14 @@ i 1 0 10
 const std::string rotarySliders = R"(
 <Cabbage>[
 {"type": "form", "caption": "Slider Example", "size": {"width": 360.0, "height": 460.0}, "guiMode": "queue", "pluginId": "def1"},
-{"type": "rotarySlider", "bounds": {"left": 20.0, "top": 20.0, "width": 80.0, "height": 80.0}, "channel": "harmonic1", "range": {"min": 0.0, "max": 1.0,  "defaultValue": 0.0, "skew": 1.0, "increment": 0.001}},
-{"type": "rotarySlider", "bounds": {"left": 100.0, "top": 20.0, "width": 80.0, "height": 80.0}, "channel": "harmonic2", "range": {"min": 0.0, "max": 1.0, "defaultValue": 0.0, "skew": 1.0, "increment": 0.001}},
-{"type": "rotarySlider", "bounds": {"left": 180.0, "top": 20.0, "width": 80.0, "height": 80.0}, "channel": "harmonic3", "range": {"min": 0.0, "max": 1.0, "defaultValue": 0.0, "skew": 1.0, "increment": 0.001}},
-{"type": "rotarySlider", "bounds": {"left": 260.0, "top": 20.0, "width": 80.0, "height": 80.0}, "channel": "harmonic4", "range": {"min": 0.0, "max": 1.0, "defaultValue": 0.0, "skew": 1.0, "increment": 0.001}},
-{"type": "rotarySlider", "bounds": {"left": 20.0, "top": 100.0, "width": 80.0, "height": 80.0}, "channel": "harmonic5", "range": {"min": 0.0, "max": 1.0, "defaultValue": 0.0, "skew": 1.0, "increment": 0.001}},
-{"type": "rotarySlider", "bounds": {"left": 100.0, "top": 100.0, "width": 80.0, "height": 80.0}, "channel": "harmonic6", "range": {"min": 0.0, "max": 1.0,"defaultValue": 0.0, "skew": 1.0, "increment": 0.001}},
-{"type": "rotarySlider", "bounds": {"left": 180.0, "top": 100.0, "width": 80.0, "height": 80.0}, "channel": "harmonic7", "range": {"min": 0.0, "max": 1.0,"defaultValue": 0.0, "skew": 1.0, "increment": 0.001}},
-{"type": "rotarySlider", "bounds": {"left": 260.0, "top": 100.0, "width": 80.0, "height": 80.0}, "channel": "harmonic8", "range": {"min": 0.0, "max": 1.0,"defaultValue": 0.0, "skew": 1.0, "increment": 0.001}}
+{"type": "rotarySlider", "bounds": {"left": 20.0, "top": 20.0, "width": 80.0, "height": 80.0}, "channels": [{"event": "valueChanged", "id": "harmonic1", "range": {"min": 0.0, "max": 1.0,  "defaultValue": 0.0, "skew": 1.0, "increment": 0.001}}]},
+{"type": "rotarySlider", "bounds": {"left": 100.0, "top": 20.0, "width": 80.0, "height": 80.0}, "channels": [{"event": "valueChanged", "id": "harmonic2", "range": {"min": 0.0, "max": 1.0, "defaultValue": 0.0, "skew": 1.0, "increment": 0.001}}]},
+{"type": "rotarySlider", "bounds": {"left": 180.0, "top": 20.0, "width": 80.0, "height": 80.0}, "channels": [{"event": "valueChanged", "id": "harmonic3", "range": {"min": 0.0, "max": 1.0, "defaultValue": 0.0, "skew": 1.0, "increment": 0.001}}]},
+{"type": "rotarySlider", "bounds": {"left": 260.0, "top": 20.0, "width": 80.0, "height": 80.0}, "channels": [{"event": "valueChanged", "id": "harmonic4", "range": {"min": 0.0, "max": 1.0, "defaultValue": 0.0, "skew": 1.0, "increment": 0.001}}]},
+{"type": "rotarySlider", "bounds": {"left": 20.0, "top": 100.0, "width": 80.0, "height": 80.0}, "channels": [{"event": "valueChanged", "id": "harmonic5", "range": {"min": 0.0, "max": 1.0, "defaultValue": 0.0, "skew": 1.0, "increment": 0.001}}]},
+{"type": "rotarySlider", "bounds": {"left": 100.0, "top": 100.0, "width": 80.0, "height": 80.0}, "channels": [{"event": "valueChanged", "id": "harmonic6", "range": {"min": 0.0, "max": 1.0,"defaultValue": 0.0, "skew": 1.0, "increment": 0.001}}]},
+{"type": "rotarySlider", "bounds": {"left": 180.0, "top": 100.0, "width": 80.0, "height": 80.0}, "channels": [{"event": "valueChanged", "id": "harmonic7", "range": {"min": 0.0, "max": 1.0,"defaultValue": 0.0, "skew": 1.0, "increment": 0.001}}]},
+{"type": "rotarySlider", "bounds": {"left": 260.0, "top": 100.0, "width": 80.0, "height": 80.0}, "channels": [{"event": "valueChanged", "id": "harmonic8", "range": {"min": 0.0, "max": 1.0,"defaultValue": 0.0, "skew": 1.0, "increment": 0.001}}]}
 ]</Cabbage>
 <CsoundSynthesizer>
 <CsOptions>
@@ -253,4 +253,163 @@ i1 0 1
 </CsoundSynthesizer>
 
 )";
-} // namespace TestCsdFiles 
+
+// Side-by-side legacy (kVal, kTrig) vs struct (res:CabbageNumTrig /
+// res:CabbageStrTrig) outputs for cabbageGetValue. Both forms are read in the
+// same instrument from the same channels, so any semantic drift shows up as a
+// non-zero error count published via cabbageSetValue.
+const std::string trigStructs = R"(
+<Cabbage>[
+{"type": "form", "caption": "Trig Structs", "size": {"width": 360.0, "height": 200.0}, "guiMode": "queue", "pluginId": "def1"},
+{"type": "label", "channels": [{"event": "valueChanged", "id": "tslbl"}], "bounds": {"left": 10.0, "top": 10.0, "width": 300.0, "height": 30.0}, "text": "struct trigger comparison"}
+]</Cabbage>
+<CsoundSynthesizer>
+<CsOptions>
+-n -d
+</CsOptions>
+<CsInstruments>
+ksmps = 32
+nchnls = 2
+0dbfs = 1
+
+instr 1
+    kCnt init 0
+    kCnt = kCnt + 1
+
+    ; numeric channel steps 0 -> 1 -> 2 every 4 k-cycles
+    kMod = kCnt % 12
+    kPhas = 0
+    if kMod >= 4 && kMod < 8 then
+        kPhas = 1
+    elseif kMod >= 8 then
+        kPhas = 2
+    endif
+    chnset kPhas, "tsIn"
+
+    ; string channel alternates every 4 k-cycles (S assignment inside a k-branch
+    ; is lowered to init-time only; a k-conditional S expression re-evaluates)
+    Stmp = kCnt % 8 < 4 ? "hello" : "world"
+    chnset Stmp, "tsStr"
+
+    ; --- cabbageGetValue num: legacy vs struct
+    kLegVal, kLegTrig cabbageGetValue "tsIn"
+    numRes:CabbageNumTrig cabbageGetValue "tsIn"
+    kNumErr init 0
+    if kLegVal != numRes.val || kLegTrig != numRes.trig then
+        kNumErr = kNumErr + 1
+    endif
+
+    ; --- cabbageGetValue str: legacy vs struct
+    SLegVal, kStrLegTrig cabbageGetValue "tsStr"
+    strRes:CabbageStrTrig cabbageGetValue "tsStr"
+    kStrErr init 0
+    if kStrLegTrig != strRes.trig || strcmpk(SLegVal, strRes.val) != 0 then
+        kStrErr = kStrErr + 1
+    endif
+
+    ; every form must actually fire (drives the > 0 assertions)
+    kNumTrigLegacy init 0
+    kNumTrigLegacy = kNumTrigLegacy + kLegTrig
+    kNumTrigStruct init 0
+    kNumTrigStruct = kNumTrigStruct + numRes.trig
+    kStrTrigLegacy init 0
+    kStrTrigLegacy = kStrTrigLegacy + kStrLegTrig
+    kStrTrigStruct init 0
+    kStrTrigStruct = kStrTrigStruct + strRes.trig
+
+    kCycles init 0
+    kCycles = kCycles + 1
+
+    cabbageSetValue "tsNumErr", kNumErr
+    cabbageSetValue "tsStrErr", kStrErr
+    cabbageSetValue "tsNumTrigLegacy", kNumTrigLegacy
+    cabbageSetValue "tsNumTrigStruct", kNumTrigStruct
+    cabbageSetValue "tsStrTrigLegacy", kStrTrigLegacy
+    cabbageSetValue "tsStrTrigStruct", kStrTrigStruct
+    cabbageSetValue "tsCycles", kCycles
+endin
+
+</CsInstruments>
+<CsScore>
+i1 0 10
+</CsScore>
+</CsoundSynthesizer>
+
+)";
+
+// Struct-only coverage for the widget-property and JSON trigger forms
+// (cabbageGet / cabbageJsonGet). These two share the process-wide
+// TriggerMemo with their legacy siblings, so a side-by-side pairing in one
+// run would let only the first reader of each key observe the edge; this CSD
+// therefore exercises the struct forms alone against known expected values.
+const std::string trigStructsSolo = R"(
+<Cabbage>[
+{"type": "form", "caption": "Trig Struct Solo", "size": {"width": 360.0, "height": 220.0}, "guiMode": "queue", "pluginId": "def2"},
+{"type": "textEditor", "channels": [{"event": "valueChanged", "id": "twg1"}], "bounds": {"left": 10.0, "top": 10.0, "width": 200.0, "height": 40.0}, "text": "alpha", "readOnly": 1.0, "wrap": 1.0, "scrollbars": 1.0}
+]</Cabbage>
+<CsoundSynthesizer>
+<CsOptions>
+-n -d
+</CsOptions>
+<CsInstruments>
+ksmps = 32
+nchnls = 2
+0dbfs = 1
+
+instr 1
+    ; widget property form: fires on first sight and when instr 2 changes the text
+    propRes:CabbageStrTrig cabbageGet "twg1", "text"
+    kPropFires init 0
+    if propRes.trig == 1 then
+        kPropFires = kPropFires + 1
+    endif
+    kPropIsBeta init 0
+    if strcmpk(propRes.val, "beta") == 0 then
+        kPropIsBeta = 1
+    endif
+
+    ; JSON form: document alternates every 4 k-cycles, value must track it
+    kJCnt init 0
+    kJCnt = kJCnt + 1
+    Sja = "{\"v\":\"zero\"}"
+    Sjb = "{\"v\":\"one\"}"
+    Sjd = kJCnt % 8 < 4 ? Sja : Sjb
+    jsonRes:CabbageStrTrig cabbageJsonGet Sjd, "v"
+    kJsonFires init 0
+    if jsonRes.trig == 1 then
+        kJsonFires = kJsonFires + 1
+    endif
+    kJsonErr init 0
+    if kJCnt % 8 < 4 then
+        if strcmpk(jsonRes.val, "zero") != 0 then
+            kJsonErr = kJsonErr + 1
+        endif
+    else
+        if strcmpk(jsonRes.val, "one") != 0 then
+            kJsonErr = kJsonErr + 1
+        endif
+    endif
+
+    kCycles init 0
+    kCycles = kCycles + 1
+
+    cabbageSetValue "twgPropFires", kPropFires
+    cabbageSetValue "twgPropIsBeta", kPropIsBeta
+    cabbageSetValue "twgJsonFires", kJsonFires
+    cabbageSetValue "twgJsonErr", kJsonErr
+    cabbageSetValue "twgCycles", kCycles
+endin
+
+instr 2
+    cabbageSet "twg1", "text", "beta"
+endin
+
+</CsInstruments>
+<CsScore>
+i1 0 10
+i2 1 1
+</CsScore>
+</CsoundSynthesizer>
+
+)";
+} // namespace TestCsdFiles

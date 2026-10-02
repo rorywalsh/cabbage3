@@ -35,6 +35,7 @@
 
 #include <plugin.h>
 #include "CabbageOpcodes.h"
+#include "CabbageTrigStructs.h"
 
 // SVal cabbageJsonGet SJson, SPath
 // Query a JSON document with dot notation ("nodes.0.params.rate").
@@ -52,6 +53,13 @@ struct CabbageJsonGetString : csnd::Plugin<1, 2>
 // As above, with kTrig firing 1 when the result string changes (tracked in
 // the shared TriggerMemo, keyed by document+path).
 struct CabbageJsonGetStringWithTrigger : csnd::Plugin<2, 2>
+{
+    int kperf();
+};
+
+// res:CabbageStrTrig cabbageJsonGet SJson, SPath
+// Struct overload of the Sk trigger form; shares the same trigger memo.
+struct CabbageJsonGetStringStruct : csnd::Plugin<1, 2>
 {
     int kperf();
 };

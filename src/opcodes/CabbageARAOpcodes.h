@@ -23,6 +23,7 @@
 
 #include <plugin.h>
 #include <nlohmann/json.hpp>
+#include "CabbageTrigStructs.h"
 
 #if LATTICE_HAS_ARA || defined(CabbageApp)
 
@@ -56,11 +57,28 @@ struct CabbageAraGetString : csnd::Plugin<1, 2>
 
 struct CabbageAraGetUpdate : csnd::Plugin<1, 0>
 {
+    // POD only (opcode instances are raw memory): lastSeen is snapshotted in
+    // init() so kperf() can emit a 0/1 edge flag, matching the trigger
+    // semantics of cabbageGetValue/cabbageGet/cabbageJsonGet.
+    int lastSeen = 0;
+    int init();
     int kperf();
 };
 
 struct CabbageAraGetUpdateEvent : csnd::Plugin<2, 0>
 {
+    int lastSeen = 0;
+    int init();
+    int kperf();
+};
+
+// res:CabbageStrTrig cabbageAraGetUpdateEvent
+// Struct overload of the Sk trigger form: res.val is the last event type,
+// res.trig the 0/1 update edge (same semantics as the Sk form).
+struct CabbageAraGetUpdateEventStruct : csnd::Plugin<1, 0>
+{
+    int lastSeen = 0;
+    int init();
     int kperf();
 };
 

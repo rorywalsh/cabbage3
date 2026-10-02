@@ -656,6 +656,217 @@ TEST_CASE("Test cabbageJson functional syntax", "[CabbageApp]")
 }
 
 //==============================================================================
+// TEST: struct trigger outputs (CabbageNumTrig / CabbageStrTrig) must behave
+// identically to the legacy multi-output forms of cabbageGetValue. The CSD
+// reads both forms side by side from the same channels and publishes a
+// per-cycle mismatch count; any drift shows up as a non-zero error count.
+//==============================================================================
+TEST_CASE("Struct trigger overloads match legacy cabbageGetValue forms", "[CabbageApp][TrigStructs]")
+{
+    ensureValidSettingsFileExists();
+
+    const char* args[] = {"CabbageApp"};
+    auto app = std::make_unique<CabbageAudioApp>(1, const_cast<char**>(args));
+    REQUIRE(app != nullptr);
+
+    int nOutputChannels = 2;
+    int nBufferFrames = 512;
+    float** buffer = new float*[nOutputChannels];
+    for (unsigned int ch = 0; ch < nOutputChannels; ++ch)
+    {
+        buffer[ch] = new float[nBufferFrames];
+        memset(buffer[ch], 0, nBufferFrames * sizeof(float));
+    }
+
+    std::string csdContent = TestCsdFiles::trigStructs;
+    std::filesystem::path tempPath = std::filesystem::temp_directory_path() /
+                                     ("test_trigStructs_" + std::to_string(std::time(nullptr)) + ".csd");
+    std::ofstream tempFile(tempPath);
+    tempFile << csdContent;
+    tempFile.close();
+
+    app->setCsoundFile(tempPath.string());
+    REQUIRE(std::filesystem::exists(tempPath));
+
+    // Compile success is the overload-resolution half of the test: a failure
+    // here means "res:CabbageNumTrig cabbageGetValue ..." did not resolve.
+    app->initialiseCabbage();
+    requireWidgetsResolved(app.get());
+
+    if (app->processor)
+        app->processor->setCabbageIsReady();
+
+    std::vector<std::pair<std::string, double>> captured;
+    app->processor->hostCallback = [&](CabbageOpcodeData data) {
+        try
+        {
+            captured.emplace_back(data.channel, data.cabbageJson.value("value", 0.0));
+        }
+        catch (...)
+        {
+        }
+        app->hostCallback(data);
+    };
+
+    auto lastNumFor = [&](const std::string& ch) -> double {
+        for (auto it = captured.rbegin(); it != captured.rend(); ++it)
+        {
+            if (it->first == ch)
+                return it->second;
+        }
+        return -1.0;
+    };
+
+    auto startTime = std::chrono::steady_clock::now();
+    auto endTime = startTime + std::chrono::seconds(10);
+    int iterationCount = 0;
+    const int maxIterations = 2000;
+    while (std::chrono::steady_clock::now() < endTime && iterationCount < maxIterations &&
+           lastNumFor("tsCycles") < 1500)
+    {
+        app->processor->process(buffer, buffer, nBufferFrames);
+        try
+        {
+            app->onIdle();
+        }
+        catch (...)
+        {
+            break;
+        }
+        iterationCount++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    REQUIRE(iterationCount > 0);
+
+    REQUIRE(lastNumFor("tsCycles") >= 1500);
+    // per-cycle equality of value+trigger, legacy vs struct
+    CHECK(lastNumFor("tsNumErr") == 0.0);
+    CHECK(lastNumFor("tsStrErr") == 0.0);
+    // both forms actually fired triggers (channel value/string changes)
+    CHECK(lastNumFor("tsNumTrigLegacy") > 0.0);
+    CHECK(lastNumFor("tsNumTrigStruct") > 0.0);
+    CHECK(lastNumFor("tsStrTrigLegacy") > 0.0);
+    CHECK(lastNumFor("tsStrTrigStruct") > 0.0);
+
+    app->addMessageToQueue(CabbageAudioApp::CommandType::StopAudio);
+    app->onIdle();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    for (unsigned int ch = 0; ch < nOutputChannels; ++ch)
+    {
+        delete[] buffer[ch];
+    }
+    delete[] buffer;
+    std::filesystem::remove(tempPath);
+}
+
+//==============================================================================
+// TEST: struct forms of cabbageGet (widget property) and cabbageJsonGet on
+// their own. These share the process-wide TriggerMemo with the legacy forms,
+// so a side-by-side pairing would let only the first reader of each key see
+// the edge; the struct forms are therefore checked against known expected
+// values instead: the property fires once at first sight and once when the
+// text changes to "beta", and the JSON value tracks its alternating document
+// with zero mismatches.
+//==============================================================================
+TEST_CASE("Struct trigger overloads for cabbageGet and cabbageJsonGet", "[CabbageApp][TrigStructs]")
+{
+    ensureValidSettingsFileExists();
+
+    const char* args[] = {"CabbageApp"};
+    auto app = std::make_unique<CabbageAudioApp>(1, const_cast<char**>(args));
+    REQUIRE(app != nullptr);
+
+    int nOutputChannels = 2;
+    int nBufferFrames = 512;
+    float** buffer = new float*[nOutputChannels];
+    for (unsigned int ch = 0; ch < nOutputChannels; ++ch)
+    {
+        buffer[ch] = new float[nBufferFrames];
+        memset(buffer[ch], 0, nBufferFrames * sizeof(float));
+    }
+
+    std::string csdContent = TestCsdFiles::trigStructsSolo;
+    std::filesystem::path tempPath = std::filesystem::temp_directory_path() /
+                                     ("test_trigStructsSolo_" + std::to_string(std::time(nullptr)) + ".csd");
+    std::ofstream tempFile(tempPath);
+    tempFile << csdContent;
+    tempFile.close();
+
+    app->setCsoundFile(tempPath.string());
+    REQUIRE(std::filesystem::exists(tempPath));
+
+    app->initialiseCabbage();
+    requireWidgetsResolved(app.get());
+
+    if (app->processor)
+        app->processor->setCabbageIsReady();
+
+    std::vector<std::pair<std::string, double>> captured;
+    app->processor->hostCallback = [&](CabbageOpcodeData data) {
+        try
+        {
+            captured.emplace_back(data.channel, data.cabbageJson.value("value", 0.0));
+        }
+        catch (...)
+        {
+        }
+        app->hostCallback(data);
+    };
+
+    auto lastNumFor = [&](const std::string& ch) -> double {
+        for (auto it = captured.rbegin(); it != captured.rend(); ++it)
+        {
+            if (it->first == ch)
+                return it->second;
+        }
+        return -1.0;
+    };
+
+    // Needs to run past score time 1.0 (when instr 2 rewrites the text) and
+    // settle afterwards: 1800 k-cycles is ~1.3s of audio at ksmps 32.
+    auto startTime = std::chrono::steady_clock::now();
+    auto endTime = startTime + std::chrono::seconds(10);
+    int iterationCount = 0;
+    const int maxIterations = 2000;
+    while (std::chrono::steady_clock::now() < endTime && iterationCount < maxIterations &&
+           lastNumFor("twgCycles") < 1800)
+    {
+        app->processor->process(buffer, buffer, nBufferFrames);
+        try
+        {
+            app->onIdle();
+        }
+        catch (...)
+        {
+            break;
+        }
+        iterationCount++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    REQUIRE(iterationCount > 0);
+
+    REQUIRE(lastNumFor("twgCycles") >= 1800);
+    // property: fires on first sight + once when the text becomes "beta"
+    CHECK(lastNumFor("twgPropFires") >= 2.0);
+    CHECK(lastNumFor("twgPropIsBeta") == 1.0);
+    // JSON: fires whenever the document alternates, value always tracks it
+    CHECK(lastNumFor("twgJsonFires") > 0.0);
+    CHECK(lastNumFor("twgJsonErr") == 0.0);
+
+    app->addMessageToQueue(CabbageAudioApp::CommandType::StopAudio);
+    app->onIdle();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    for (unsigned int ch = 0; ch < nOutputChannels; ++ch)
+    {
+        delete[] buffer[ch];
+    }
+    delete[] buffer;
+    std::filesystem::remove(tempPath);
+}
+
+//==============================================================================
 // TEST 5: Stress Test with Message Queue Processing
 //==============================================================================
 TEST_CASE("Stress test start/stop/destroy", "[CabbageApp]")

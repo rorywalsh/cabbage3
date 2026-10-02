@@ -117,6 +117,34 @@ int CabbageGetValueWithTrigger::getValue(int /*mode*/)
 }
 
 //=====================================================================================
+// res:CabbageNumTrig cabbageGetValue "channel"
+//=====================================================================================
+int CabbageGetValueStruct::getValue(int /*mode*/)
+{
+    if (in_count() == 0)
+        return NOTOK;
+
+    auto *out = reinterpret_cast<CS_STRUCT_VAR *>(outargs.data(0));
+    if (out == nullptr)
+        return NOTOK;
+
+    if (csound->get_csound()->GetChannelPtr(csound->get_csound(), (void **)&value, inargs.str_data(0).data,
+                                            CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
+    {
+        // Same trigger rule as the kk overload: fire whenever the channel
+        // value differs from the previously seen one.
+        const cs_float trig = (*value != currentValue) ? 1 : 0;
+        if (trig)
+            currentValue = *value;
+
+        out->members[0]->value = currentValue;
+        out->members[1]->value = trig;
+    }
+
+    return IS_OK;
+}
+
+//=====================================================================================
 // SOut cabbageGetValue "channel"
 //=====================================================================================
 int CabbageGetValueString::getValue(int rate)
@@ -194,6 +222,46 @@ int CabbageGetValueStringWithTrigger::getValue(int rate)
     {
         return NOTOK;
     }
+
+    return IS_OK;
+}
+
+//=====================================================================================
+// res:CabbageStrTrig cabbageGetValue "channel"
+//=====================================================================================
+int CabbageGetValueStringStruct::kperf()
+{
+    if (in_count() == 0)
+        return NOTOK;
+
+    auto *out = reinterpret_cast<CS_STRUCT_VAR *>(outargs.data(0));
+    if (out == nullptr)
+        return NOTOK;
+
+    if (csound->get_csound()->GetChannelPtr(csound->get_csound(), (void **)&value, inargs.str_data(0).data,
+                                            CSOUND_STRING_CHANNEL | CSOUND_OUTPUT_CHANNEL) != CSOUND_SUCCESS)
+        return NOTOK;
+
+    char *channelString = ((STRINGDAT *)value)->data;
+    if (channelString == nullptr)
+        channelString = (char *)"";
+
+    cs_float trig = 0;
+    if (currentString == nullptr)
+    {
+        // First perf call primes the cache with a trigger of 0, matching the
+        // Sk overload exactly (which runs k-rate only).
+        currentString = csound->strdup(channelString);
+    }
+    else if (strcmp(currentString, channelString) != 0)
+    {
+        csound->free(currentString);
+        currentString = csound->strdup(channelString);
+        trig = 1;
+    }
+
+    cabbageWriteStrMember(csound->get_csound(), out, 0, currentString);
+    out->members[1]->value = trig;
 
     return IS_OK;
 }
@@ -378,6 +446,49 @@ int CabbageGetStringWithTrigger::getIdentifier(int /*init*/)
 
                 outargs.str_data(0).size = int(strlen(str.c_str()) + 1);
                 outargs.str_data(0).data = csound->strdup(str.data());
+            }
+        }
+    }
+
+    return IS_OK;
+}
+
+//=========================================================================================
+// res:CabbageStrTrig cabbageGet "channel", "identifier"
+//=========================================================================================
+int CabbageGetStringStruct::getIdentifier(int /*init*/)
+{
+    auto *hostData = static_cast<cabbage::Engine *>(csound->host_data());
+
+    if (in_count() == 2)
+    {
+        CabbageOpcodeData data = getIdentData(csound, inargs, true, 0, 1);
+        for (auto &widget : hostData->getWidgets())
+        {
+            if (cabbage::Engine::hasChannel(widget, data.channel))
+            {
+                auto val = getJsonValue(widget, data.identifier);
+                if (val.is_null())
+                {
+                    csound->message("cabbageGet: property '" + data.identifier + "' not found on channel '" + data.channel + "'");
+                    return NOTOK;
+                }
+                std::string str;
+                try { str = val.get<std::string>(); }
+                catch (const nlohmann::json::exception &e)
+                {
+                    csound->message(std::string("cabbageGet: type error for property '") + data.identifier + "': " + e.what());
+                    return NOTOK;
+                }
+
+                auto *out = reinterpret_cast<CS_STRUCT_VAR *>(outargs.data(0));
+                if (out == nullptr)
+                    return NOTOK;
+
+                // Same shared trigger memo as the Sk overload.
+                const cs_float trig = checkTriggerChanged(data.channel + '\x1F' + data.identifier, str) ? 1 : 0;
+                cabbageWriteStrMember(csound->get_csound(), out, 0, str.c_str());
+                out->members[1]->value = trig;
             }
         }
     }

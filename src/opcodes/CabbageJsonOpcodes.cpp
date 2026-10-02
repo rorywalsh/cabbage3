@@ -185,6 +185,36 @@ int CabbageJsonGetStringWithTrigger::kperf()
 }
 
 //=====================================================================================
+// res:CabbageStrTrig cabbageJsonGet SJson, SPath
+//=====================================================================================
+int CabbageJsonGetStringStruct::kperf()
+{
+    if (in_count() != 2)
+        return IS_OK;
+
+    auto *out = reinterpret_cast<CS_STRUCT_VAR *>(outargs.data(0));
+    if (out == nullptr)
+        return NOTOK;
+
+    std::string docText = safeString(inargs.str_data(0));
+    std::string path = safeString(inargs.str_data(1));
+    std::string result;
+    ParsedDoc p = parseDoc(docText);
+    if (p.ok)
+    {
+        const nlohmann::json *v = findPath(p.doc, path);
+        if (v != nullptr)
+            result = jsonToString(*v);
+    }
+
+    // Same shared trigger memo as the Sk overload.
+    const cs_float trig = checkTriggerChanged(docText + '\x1F' + path, result) ? 1 : 0;
+    cabbageWriteStrMember(csound->get_csound(), out, 0, result.c_str());
+    out->members[1]->value = trig;
+    return IS_OK;
+}
+
+//=====================================================================================
 // kval cabbageJsonGet SJson, SPath / ival cabbageJsonGet SJson, SPath
 //=====================================================================================
 int CabbageJsonGetNumber::get()

@@ -69,6 +69,16 @@ void Engine::teardownCsound()
 void Engine::addOpcodes()
 {
     // The order in which these are registered is important!
+
+    // Plugin structs must be registered before any struct-typed opcode entry
+    // and before Compile() resolves orchestra types. When unavailable (a
+    // Csound older than csound PR #3356) the struct overloads are skipped and
+    // only the legacy multi-output forms remain.
+    const bool haveTrigStructs = registerCabbageTrigStructs(csound->GetCsound());
+    if (!haveTrigStructs)
+        csound->GetCsound()->Message(csound->GetCsound(),
+                                     "Cabbage: RegisterStruct unavailable - struct trigger outputs disabled\n");
+
     csnd::plugin<CabbageSetValue>((csnd::Csound *)csound->GetCsound(), "cabbageSetValue", "", "Si", csnd::thread::i);
     csnd::plugin<CabbageSetValue>((csnd::Csound *)csound->GetCsound(), "cabbageSetValue", "", "SkP", csnd::thread::k);
 
@@ -88,6 +98,11 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageGetValueString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "S", "S", csnd::thread::i);
     csnd::plugin<CabbageGetValueWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "kk", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValueStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "Sk", "S", csnd::thread::k);
+    if (haveTrigStructs)
+    {
+        csnd::plugin<CabbageGetValueStruct>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", ":CabbageNumTrig;", "S", csnd::thread::ik);
+        csnd::plugin<CabbageGetValueStringStruct>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", ":CabbageStrTrig;", "S", csnd::thread::k);
+    }
 
     csnd::plugin<CabbageGetStringArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "S[]", "SS", csnd::thread::i);
     csnd::plugin<CabbageGetMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "k", "SW", csnd::thread::ik);
@@ -95,6 +110,8 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "S", "SS", csnd::thread::i);
     
     csnd::plugin<CabbageGetStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "Sk", "SS", csnd::thread::k);
+    if (haveTrigStructs)
+        csnd::plugin<CabbageGetStringStruct>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", ":CabbageStrTrig;", "SS", csnd::thread::k);
 
     csnd::plugin<CabbageWidgetHasKey>((csnd::Csound *)getCsound()->GetCsound(), "cabbageHasKey", "i", "SS", csnd::thread::i);
     csnd::plugin<CabbageWidgetHasKey>((csnd::Csound *)getCsound()->GetCsound(), "cabbageHasKey", "k", "SW", csnd::thread::ik);
@@ -102,6 +119,8 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageJsonGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "S", "SS", csnd::thread::i);
     csnd::plugin<CabbageJsonGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "S", "SS", csnd::thread::k);
     csnd::plugin<CabbageJsonGetStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "Sk", "SS", csnd::thread::k);
+    if (haveTrigStructs)
+        csnd::plugin<CabbageJsonGetStringStruct>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", ":CabbageStrTrig;", "SS", csnd::thread::k);
     csnd::plugin<CabbageJsonGetNumber>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "i", "SS", csnd::thread::i);
     csnd::plugin<CabbageJsonGetNumber>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "k", "SS", csnd::thread::ik);
     csnd::plugin<CabbageJsonGetStringArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "S[]", "SS", csnd::thread::i);
@@ -142,9 +161,11 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageAraGetNum>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGet", "k", "Sk", csnd::thread::k);
     csnd::plugin<CabbageAraGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGet", "S", "S", csnd::thread::i);
     csnd::plugin<CabbageAraGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGet", "S", "Si", csnd::thread::i);
-    csnd::plugin<CabbageAraGetUpdate>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdate", "k", "", csnd::thread::k);
-    csnd::plugin<CabbageAraGetUpdateEvent>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdateEvent", "Sk", "", csnd::thread::k);
+    csnd::plugin<CabbageAraGetUpdate>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdate", "k", "", csnd::thread::ik);
 
+    csnd::plugin<CabbageAraGetUpdateEvent>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdateEvent", "Sk", "", csnd::thread::ik);
+    if (haveTrigStructs)
+        csnd::plugin<CabbageAraGetUpdateEventStruct>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdateEvent", ":CabbageStrTrig;", "", csnd::thread::ik);
     csnd::plugin<CabbageAraGetSourceSamplesAudio>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "a", "aii", csnd::thread::ia);
     csnd::plugin<CabbageAraGetSourceSamplesK>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "k", "kii", csnd::thread::k);
     csnd::plugin<CabbageAraGetSourceSamplesArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "k[]", "iiii", csnd::thread::i);

@@ -544,19 +544,34 @@ int CabbageAraGetString::init()
 // CabbageAraGetUpdate — kTrig cabbageAraGetUpdate
 // ============================================================================
 
+int CabbageAraGetUpdate::init()
+{
+    auto* engine = getEngine(csound);
+    lastSeen = engine ? engine->getProcessor().getAraUpdateCounter() : 0;
+    outargs[0] = 0;
+    return IS_OK;
+}
+
 int CabbageAraGetUpdate::kperf()
 {
     auto* engine = getEngine(csound);
-    if (engine)
-        outargs[0] = static_cast<cs_float>(engine->getProcessor().getAraUpdateCounter());
-    else
-        outargs[0] = 0;
+    const int current = engine ? engine->getProcessor().getAraUpdateCounter() : 0;
+    outargs[0] = (current != lastSeen) ? 1 : 0;
+    lastSeen = current;
     return IS_OK;
 }
 
 // ============================================================================
-// CabbageAraGetUpdateEvent — SEvent, kCounter cabbageAraGetUpdateEvent
+// CabbageAraGetUpdateEvent — SEvent, kTrig cabbageAraGetUpdateEvent
 // ============================================================================
+
+int CabbageAraGetUpdateEvent::init()
+{
+    auto* engine = getEngine(csound);
+    lastSeen = engine ? engine->getProcessor().getAraUpdateCounter() : 0;
+    outargs[1] = 0;
+    return IS_OK;
+}
 
 int CabbageAraGetUpdateEvent::kperf()
 {
@@ -564,7 +579,9 @@ int CabbageAraGetUpdateEvent::kperf()
     if (engine)
     {
         auto& proc = engine->getProcessor();
-        outargs[1] = static_cast<cs_float>(proc.getAraUpdateCounter());
+        const int current = proc.getAraUpdateCounter();
+        outargs[1] = (current != lastSeen) ? 1 : 0;
+        lastSeen = current;
         auto evtType = proc.getAraLastEventType();
         outargs.str_data(0).data = csound->strdup(const_cast<char*>(evtType.c_str()));
         outargs.str_data(0).size = static_cast<int32_t>(evtType.size()) + 1;
@@ -574,6 +591,41 @@ int CabbageAraGetUpdateEvent::kperf()
         outargs[1] = 0;
         outargs.str_data(0).data = csound->strdup(const_cast<char*>(""));
         outargs.str_data(0).size = 1;
+    }
+    return IS_OK;
+}
+
+// ============================================================================
+// CabbageAraGetUpdateEventStruct — res:CabbageStrTrig cabbageAraGetUpdateEvent
+// ============================================================================
+
+int CabbageAraGetUpdateEventStruct::init()
+{
+    auto* engine = getEngine(csound);
+    lastSeen = engine ? engine->getProcessor().getAraUpdateCounter() : 0;
+    return IS_OK;
+}
+
+int CabbageAraGetUpdateEventStruct::kperf()
+{
+    auto *out = reinterpret_cast<CS_STRUCT_VAR *>(outargs.data(0));
+    if (out == nullptr)
+        return NOT_OK;
+
+    auto* engine = getEngine(csound);
+    if (engine)
+    {
+        auto& proc = engine->getProcessor();
+        const int current = proc.getAraUpdateCounter();
+        auto evtType = proc.getAraLastEventType();
+        cabbageWriteStrMember(csound->get_csound(), out, 0, evtType.c_str());
+        out->members[1]->value = (current != lastSeen) ? 1 : 0;
+        lastSeen = current;
+    }
+    else
+    {
+        cabbageWriteStrMember(csound->get_csound(), out, 0, "");
+        out->members[1]->value = 0;
     }
     return IS_OK;
 }
