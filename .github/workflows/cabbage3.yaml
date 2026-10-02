@@ -72,10 +72,12 @@ jobs:
         run: cmake --build build
   
       - name: Run unit tests
-        # Direct binary (not ctest) so progress streams live to the log;
-        # --durations yes shows per-test-case timing for hang triage.
+        # Each Catch2 TEST_CASE is its own ctest test (see
+        # catch_discover_tests in CMakeLists): progress streams per case and
+        # --timeout turns a hung case into a reported Timeout while the rest
+        # still run.
         timeout-minutes: 15
-        run: ./build/Debug/CabbageTests --reporter compact --durations yes
+        run: ctest --test-dir build -C Debug --output-on-failure --timeout 180
 
       - name: Clean build folder
         run: rm -rf build
@@ -177,11 +179,20 @@ jobs:
           fetch-depth: 1
 
       - name: Configure tests
+        # The vscabbage checkout location varies by runner/action version, so
+        # resolve it dynamically and fail fast when the widget sources are
+        # missing — otherwise tests run against the backend placeholder and
+        # segfault on missing widgets instead of failing cleanly.
         run: |
+          WS="${{ github.workspace }}"
+          if [ -d "$WS/vscabbage/src/cabbage/widgets" ]; then VSCABBAGE_SRC="$WS/vscabbage/src";
+          elif [ -d "$WS/../vscabbage/src/cabbage/widgets" ]; then VSCABBAGE_SRC="$WS/../vscabbage/src";
+          else echo "::error::vscabbage widget sources not found under $WS"; exit 1; fi
+          echo "Using vscabbage sources: $VSCABBAGE_SRC"
           cmake -G "Unix Makefiles" -B build-tests -S . \
             -DCMAKE_BUILD_TYPE=Release \
             -DCABBAGE_BUILD_TARGET=CabbageTests \
-            -DTEST_VSCABBAGE_DIR="${{ github.workspace }}/vscabbage/src" \
+            -DTEST_VSCABBAGE_DIR="$VSCABBAGE_SRC" \
             -DCMAKE_C_COMPILER=$(which gcc) \
             -DCMAKE_CXX_COMPILER=$(which g++)
 
@@ -190,11 +201,12 @@ jobs:
         run: cmake --build build-tests
 
       - name: Run unit tests (incl. stdin onFileChanged resave tests)
-        # Direct binary (not ctest) so progress streams live to the log;
-        # --durations yes shows per-test-case timing for hang triage.
-        # `timeout` kills a stuck binary so the step fails with logs.
+        # Each Catch2 TEST_CASE is its own ctest test (see
+        # catch_discover_tests in CMakeLists): progress streams per case and
+        # --timeout turns a hung case into a reported Timeout while the rest
+        # still run.
         timeout-minutes: 15
-        run: timeout 600 ./build-tests/CabbageTests --reporter compact --durations yes
+        run: timeout 600 ctest --test-dir build-tests --output-on-failure --timeout 180
 
       - name: Configure CMake
         run: |
@@ -267,28 +279,30 @@ jobs:
           fetch-depth: 1
 
       - name: Configure tests
+        # The vscabbage checkout location varies by runner/action version, so
+        # resolve it dynamically and fail fast when the widget sources are
+        # missing — otherwise tests run against the backend placeholder and
+        # segfault on missing widgets instead of failing cleanly.
         shell: pwsh
         run: |
-          cmake -S . -B build-tests -DCABBAGE_BUILD_TARGET=CabbageTests -DTEST_VSCABBAGE_DIR="${{ github.workspace }}/vscabbage/src" -DCMAKE_BUILD_TYPE=Release
+          $ws = "${{ github.workspace }}"
+          $vsrc = @("$ws/vscabbage/src", "$ws/../vscabbage/src") | Where-Object { Test-Path "$_/cabbage/widgets" } | Select-Object -First 1
+          if (-not $vsrc) { Write-Error "vscabbage widget sources not found under $ws"; exit 1 }
+          Write-Host "Using vscabbage sources: $vsrc"
+          cmake -S . -B build-tests -DCABBAGE_BUILD_TARGET=CabbageTests -DTEST_VSCABBAGE_DIR="$vsrc" -DCMAKE_BUILD_TYPE=Release
 
       - name: Build tests
         shell: pwsh
         run: cmake --build build-tests --config Release
 
       - name: Run unit tests (incl. stdin onFileChanged resave tests)
-        # Direct binary (not ctest, which buffers all output) so progress
-        # streams live to the log; --durations yes shows per-test-case
-        # timing for hang triage. WaitForExit bounds a stuck binary.
+        # Each Catch2 TEST_CASE is its own ctest test (see
+        # catch_discover_tests in CMakeLists): progress streams per case and
+        # --timeout turns a hung case into a reported Timeout while the rest
+        # still run.
         timeout-minutes: 15
         shell: pwsh
-        run: |
-          $proc = Start-Process ".\build-tests\Release\CabbageTests.exe" "--reporter","compact","--durations","yes" -NoNewWindow -PassThru
-          if (-not $proc.WaitForExit(600000)) {
-            Write-Error "CabbageTests timed out after 600s; killing."
-            Stop-Process -Id $proc.Id -Force
-            exit 1
-          }
-          exit $proc.ExitCode
+        run: ctest --test-dir build-tests -C Release --output-on-failure --timeout 180
 
       - name: Configure build
         shell: cmd

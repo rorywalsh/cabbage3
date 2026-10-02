@@ -13,6 +13,19 @@
 // Forward declaration of function to ensure valid settings file exists
 void ensureValidSettingsFileExists();
 
+// Fails cleanly (instead of segfaulting deep in process()) when the test
+// environment has no resolvable widget sources — e.g. a wrong
+// TEST_VSCABBAGE_DIR leaving the backend placeholder in settings.json.
+// Every content test below compiles a CSD with real widgets, so zero
+// resolved widgets always means broken setup, never a valid result.
+void requireWidgetsResolved(CabbageAudioApp *app, size_t minimum = 1)
+{
+    REQUIRE(app != nullptr);
+    REQUIRE(app->processor != nullptr);
+    REQUIRE(app->processor->getCabbageEngine().csdCompiledWithoutError());
+    REQUIRE(app->processor->getCabbageEngine().getWidgets().size() >= minimum);
+}
+
 //==============================================================================
 // TEST 1: Basic CabbageApp Construction and Core Functionality
 //==============================================================================
@@ -170,7 +183,8 @@ TEST_CASE("Test stdin/stdout pipe communication", "[CabbageApp]")
     
     // Initialize Cabbage with the test file (this creates the processor)
     REQUIRE_NOTHROW(app->initialiseCabbage());
-    
+    requireWidgetsResolved(app.get());
+
     // Initialize stdin/stdout connection (this would normally connect to VS Code)
     REQUIRE_NOTHROW(app->initialiseStdioConnection());
     
@@ -296,7 +310,8 @@ TEST_CASE("Test cabbageSet.csd with JSON message capture", "[CabbageApp]")
     
     // Initialize Cabbage with the test file
     app->initialiseCabbage();
-    
+    requireWidgetsResolved(app.get());
+
     // Override the hostCallback to capture data for testing
     if (app->processor) {
         // Enable message dequeuing (normally done when UI is ready)
@@ -429,6 +444,7 @@ TEST_CASE("Test cabbageJson opcodes", "[CabbageApp]")
     std::vector<CallbackData> callbackMessages;
 
     app->initialiseCabbage();
+    requireWidgetsResolved(app.get());
 
     if (app->processor) {
         app->processor->setCabbageIsReady();
@@ -567,6 +583,7 @@ TEST_CASE("Test cabbageJson functional syntax", "[CabbageApp]")
     std::vector<CallbackData> callbackMessages;
 
     app->initialiseCabbage();
+    requireWidgetsResolved(app.get());
 
     if (app->processor) {
         app->processor->setCabbageIsReady();
@@ -676,7 +693,8 @@ TEST_CASE("Stress test start/stop/destroy", "[CabbageApp]")
     
     // Initialize Cabbage with the test file (this creates the processor)
     REQUIRE_NOTHROW(app->initialiseCabbage());
-    
+    requireWidgetsResolved(app.get());
+
     //--------------------------------------------------------------------------
     // STRESS TEST: Run 5-second continuous message cycling with timeout protection
     //--------------------------------------------------------------------------
