@@ -248,10 +248,21 @@ int CabbageJsonGetStringArray::get()
     }
     csnd::Vector<STRINGDAT> &out = outargs.vector_data<STRINGDAT>(0);
     out.init(csound, static_cast<int>(items.size()), this->insdshead);
+    if (items.empty())
+        return IS_OK;
+    // Csound 7 arrays may be shared/managed: obtain a private writable copy
+    // rather than writing through the shared buffer, which corrupts whoever
+    // shares it (crashed Linux/Windows while macOS stayed silent).
+    STRINGDAT *dest = out.writable_data_init(csound, this->insdshead);
+    if (dest == nullptr)
+    {
+        lattice::logWarning << "cabbageJsonGet: could not acquire writable string array storage";
+        return IS_OK;
+    }
     for (size_t i = 0; i < items.size(); ++i)
     {
-        out[i].size = static_cast<int>(items[i].size() + 1);
-        out[i].data = csound->strdup(const_cast<char *>(items[i].c_str()));
+        dest[i].size = static_cast<int>(items[i].size() + 1);
+        dest[i].data = csound->strdup(const_cast<char *>(items[i].c_str()));
     }
     return IS_OK;
 }
@@ -276,8 +287,18 @@ int CabbageJsonGetNumberArray::get()
     }
     csnd::Vector<MYFLT> &out = outargs.myfltvec_data(0);
     out.init(csound, static_cast<int>(items.size()), this->insdshead);
+    if (items.empty())
+        return IS_OK;
+    // See string-array variant above: never write through a possibly-shared
+    // buffer; detach first via the init-time API.
+    MYFLT *dest = out.writable_data_init(csound, this->insdshead);
+    if (dest == nullptr)
+    {
+        lattice::logWarning << "cabbageJsonGet: could not acquire writable numeric array storage";
+        return IS_OK;
+    }
     for (size_t i = 0; i < items.size(); ++i)
-        out[i] = items[i];
+        dest[i] = items[i];
     return IS_OK;
 }
 

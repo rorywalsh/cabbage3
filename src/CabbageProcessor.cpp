@@ -785,6 +785,15 @@ void CabbageProcessor::logCorruptOpcodePayload(const CabbageOpcodeData &data)
     std::ostringstream os;
     os << "corrupt payload channel='" << data.channel << "'";
     collectBadStrings(data.cabbageJson, "$", os);
+    // Full shape with invalid bytes substituted (never throws), so the log
+    // shows which sibling values are intact around the corrupt one.
+    try
+    {
+        os << " sanitized=" << data.cabbageJson.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    }
+    catch (...)
+    {
+    }
     lattice::logWarning << os.str();
 }
 
