@@ -72,7 +72,10 @@ jobs:
         run: cmake --build build
   
       - name: Run unit tests
-        run: ./build/Debug/CabbageTests --reporter compact # Adjust path/target as needed
+        # Direct binary (not ctest) so progress streams live to the log;
+        # --durations yes shows per-test-case timing for hang triage.
+        timeout-minutes: 15
+        run: ./build/Debug/CabbageTests --reporter compact --durations yes
 
       - name: Clean build folder
         run: rm -rf build
@@ -173,7 +176,7 @@ jobs:
           path: vscabbage
           fetch-depth: 1
 
-      - name: Configure and run unit tests (incl. stdin onFileChanged resave tests)
+      - name: Configure tests
         run: |
           cmake -G "Unix Makefiles" -B build-tests -S . \
             -DCMAKE_BUILD_TYPE=Release \
@@ -181,8 +184,17 @@ jobs:
             -DTEST_VSCABBAGE_DIR="${{ github.workspace }}/vscabbage/src" \
             -DCMAKE_C_COMPILER=$(which gcc) \
             -DCMAKE_CXX_COMPILER=$(which g++)
-          cmake --build build-tests
-          ctest --test-dir build-tests --output-on-failure
+
+      - name: Build tests
+        timeout-minutes: 30
+        run: cmake --build build-tests
+
+      - name: Run unit tests (incl. stdin onFileChanged resave tests)
+        # Direct binary (not ctest) so progress streams live to the log;
+        # --durations yes shows per-test-case timing for hang triage.
+        # `timeout` kills a stuck binary so the step fails with logs.
+        timeout-minutes: 15
+        run: timeout 600 ./build-tests/CabbageTests --reporter compact --durations yes
 
       - name: Configure CMake
         run: |
@@ -264,8 +276,19 @@ jobs:
         run: cmake --build build-tests --config Release
 
       - name: Run unit tests (incl. stdin onFileChanged resave tests)
+        # Direct binary (not ctest, which buffers all output) so progress
+        # streams live to the log; --durations yes shows per-test-case
+        # timing for hang triage. WaitForExit bounds a stuck binary.
+        timeout-minutes: 15
         shell: pwsh
-        run: ctest --test-dir build-tests -C Release --output-on-failure
+        run: |
+          $proc = Start-Process ".\build-tests\Release\CabbageTests.exe" "--reporter","compact","--durations","yes" -NoNewWindow -PassThru
+          if (-not $proc.WaitForExit(600000)) {
+            Write-Error "CabbageTests timed out after 600s; killing."
+            Stop-Process -Id $proc.Id -Force
+            exit 1
+          }
+          exit $proc.ExitCode
 
       - name: Configure build
         shell: cmd
