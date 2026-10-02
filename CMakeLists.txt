@@ -421,6 +421,13 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
         CabbageApp
     )
 
+    # Optional: absolute path to a vscabbage checkout's src/ dir, used by
+    # tests to bootstrap the shared settings file. Pass with
+    # -DTEST_VSCABBAGE_DIR=<path>. CI clones vscabbage next to cabbage3.
+    if(DEFINED TEST_VSCABBAGE_DIR)
+        target_compile_definitions(${PROJECT_NAME} PRIVATE TEST_VSCABBAGE_DIR="${TEST_VSCABBAGE_DIR}")
+    endif()
+
     # CABBAGE_PRO_DEFINITIONS_PLACEHOLDER
 
     if(WIN32)

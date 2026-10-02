@@ -528,6 +528,117 @@ TEST_CASE("Test cabbageJson opcodes", "[CabbageApp]")
 }
 
 //==============================================================================
+// TEST: JSON opcodes via functional syntax (typed-variable call style)
+// Isolated from the classic-syntax test so a resolution failure here cannot
+// mask the baseline, and vice versa.
+//==============================================================================
+TEST_CASE("Test cabbageJson functional syntax", "[CabbageApp]")
+{
+    ensureValidSettingsFileExists();
+
+    const char* args[] = {"CabbageApp"};
+    auto app = std::make_unique<CabbageAudioApp>(1, const_cast<char**>(args));
+    REQUIRE(app != nullptr);
+
+    int nInputChannels = 2;
+    int nOutputChannels = 2;
+    int nBufferFrames = 512;
+    float **buffer = new float*[nOutputChannels];
+    for (unsigned int ch = 0; ch < nOutputChannels; ++ch)
+    {
+        buffer[ch] = new float[nBufferFrames];
+        memset(buffer[ch], 0, nBufferFrames * sizeof(float));
+    }
+
+    std::string csdContent = TestCsdFiles::cabbageJsonFunc;
+    std::filesystem::path tempPath = std::filesystem::temp_directory_path() / ("test_cabbageJsonFunc_" + std::to_string(std::time(nullptr)) + ".csd");
+    std::ofstream tempFile(tempPath);
+    tempFile << csdContent;
+    tempFile.close();
+
+    std::string filePath = tempPath.string();
+    app->setCsoundFile(filePath);
+    REQUIRE(std::filesystem::exists(filePath));
+
+    struct CallbackData {
+        std::string channel;
+        std::string json;
+    };
+    std::vector<CallbackData> callbackMessages;
+
+    app->initialiseCabbage();
+
+    if (app->processor) {
+        app->processor->setCabbageIsReady();
+        app->processor->hostCallback = [&callbackMessages, &app](CabbageOpcodeData data) {
+            CallbackData captured;
+            captured.channel = data.channel;
+            captured.json = data.cabbageJson.dump();
+            callbackMessages.push_back(captured);
+            app->hostCallback(data);
+        };
+    }
+
+    auto startTime = std::chrono::steady_clock::now();
+    auto endTime = startTime + std::chrono::seconds(3);
+    int iterationCount = 0;
+    const int maxIterations = 100;
+    while (std::chrono::steady_clock::now() < endTime && iterationCount < maxIterations)
+    {
+        if (app->processor) {
+            app->processor->process(buffer, buffer, nBufferFrames);
+        }
+        try {
+            app->onIdle();
+        } catch (...) {
+            break;
+        }
+        iterationCount++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    }
+    REQUIRE(iterationCount > 0);
+
+    auto lastJsonFor = [&](const std::string& ch) -> nlohmann::json {
+        for (auto it = callbackMessages.rbegin(); it != callbackMessages.rend(); ++it)
+        {
+            if (it->channel == ch)
+                return nlohmann::json::parse(it->json);
+        }
+        return nullptr;
+    };
+    auto numFor = [&](const std::string& ch) -> double {
+        auto j = lastJsonFor(ch);
+        REQUIRE(!j.is_null());
+        return j.value("value", 0.0);
+    };
+    auto strFor = [&](const std::string& ch) -> std::string {
+        auto j = lastJsonFor(ch);
+        REQUIRE(!j.is_null());
+        REQUIRE(j.contains("label"));
+        return j["label"].value("text", std::string(""));
+    };
+
+    CHECK(strFor("ps_fwave") == "test");
+    CHECK(numFor("pr_flen") == 2.0);
+    CHECK(strFor("ps_ftype") == "number");
+    CHECK(numFor("pr_fhas") == 1.0);
+    CHECK(numFor("pr_ffreq") == 440.0);
+    CHECK(numFor("pr_fnewfreq") == 880.0);
+    CHECK(strFor("ps_fid") == "test");
+    CHECK(numFor("pr_ftrigseen") == 1.0);
+
+    app->addMessageToQueue(CabbageAudioApp::CommandType::StopAudio);
+    app->onIdle();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    for (unsigned int ch = 0; ch < nOutputChannels; ++ch) {
+        delete[] buffer[ch];
+    }
+    delete[] buffer;
+    std::filesystem::remove(tempPath);
+}
+
+//==============================================================================
 // TEST 5: Stress Test with Message Queue Processing
 //==============================================================================
 TEST_CASE("Stress test start/stop/destroy", "[CabbageApp]")
@@ -744,48 +855,143 @@ TEST_CASE("File resave — InitCabbage on live session does not crash", "[Cabbag
     std::cout << "\n==================== END TEST: File resave InitCabbage ====================\n";
 }
 
+//==============================================================================
+// TEST 9: stdin onFileChanged — the Ctrl+S / compile-on-save path
+//
+// Reproduces exactly what the VS Code extension sends over the stdin pipe on
+// every .csd save (see vscabbage src/commands.ts sendMessageToCabbageApp and
+// extension.ts onDidSaveTextDocument). The server process has been observed to
+// start fine but exit as soon as the first onFileChanged arrives on Windows,
+// so every input below must be handled without throwing or crashing. Queue
+// draining / InitCabbage processing itself is covered by TEST 8; this test
+// covers the stdin parsing layer in processIncomingMessage().
+//==============================================================================
+TEST_CASE("stdin onFileChanged is handled without crashing", "[CabbageApp]")
+{
+    ensureValidSettingsFileExists();
+
+    const char* args[] = {"CabbageApp"};
+    auto app = std::make_unique<CabbageAudioApp>(1, const_cast<char**>(args));
+    REQUIRE(app != nullptr);
+
+    // A real CSD on disk so the "file exists" branch is exercised.
+    std::filesystem::path tempPath =
+        std::filesystem::temp_directory_path() /
+        ("test_stdin_" + std::to_string(std::time(nullptr)) + ".csd");
+    {
+        std::ofstream f(tempPath);
+        f << TestCsdFiles::basicOscillator;
+    }
+    REQUIRE(std::filesystem::exists(tempPath));
+
+    // 1. Exact extension payload shape. Built with a JSON library so string
+    //    escaping matches the extension's JSON.stringify output.
+    {
+        nlohmann::json msg;
+        msg["command"] = "onFileChanged";
+        msg["lastSavedFileName"] = tempPath.string();
+        const size_t queuedBefore = app->getMessageQueueSize();
+        REQUIRE_NOTHROW(app->processIncomingMessage(msg.dump()));
+        // Real file exists -> exactly one InitCabbage queued.
+        REQUIRE(app->getMessageQueueSize() == queuedBefore + 1);
+    }
+
+    // 2. Windows-style path (drive letter, backslashes, spaces). Must parse
+    //    without throwing on every OS; the file does not exist so nothing
+    //    may be queued.
+    {
+        nlohmann::json msg;
+        msg["command"] = "onFileChanged";
+        msg["lastSavedFileName"] = "C:\\Users\\test user\\Documents\\my instrument.csd";
+        const size_t queuedBefore = app->getMessageQueueSize();
+        REQUIRE_NOTHROW(app->processIncomingMessage(msg.dump()));
+        REQUIRE(app->getMessageQueueSize() == queuedBefore);
+    }
+
+    // 3. Double onFileChanged per save (the extension sends once from
+    //    onDidSave and once from onCompileInstrument). Both must queue.
+    {
+        nlohmann::json msg;
+        msg["command"] = "onFileChanged";
+        msg["lastSavedFileName"] = tempPath.string();
+        const std::string wire = msg.dump();
+        const size_t queuedBefore = app->getMessageQueueSize();
+        REQUIRE_NOTHROW(app->processIncomingMessage(wire));
+        REQUIRE_NOTHROW(app->processIncomingMessage(wire));
+        REQUIRE(app->getMessageQueueSize() == queuedBefore + 2);
+    }
+
+    // 4. Missing file -> declined quietly, nothing queued, no crash.
+    {
+        nlohmann::json msg;
+        msg["command"] = "onFileChanged";
+        msg["lastSavedFileName"] = (tempPath.parent_path() / "does_not_exist_12345.csd").string();
+        const size_t queuedBefore = app->getMessageQueueSize();
+        REQUIRE_NOTHROW(app->processIncomingMessage(msg.dump()));
+        REQUIRE(app->getMessageQueueSize() == queuedBefore);
+    }
+
+    // 5. Malformed / hostile inputs -> caught by the json::exception handler.
+    {
+        const size_t queuedBefore = app->getMessageQueueSize();
+        REQUIRE_NOTHROW(app->processIncomingMessage("not json at all {"));
+        REQUIRE_NOTHROW(app->processIncomingMessage(""));
+        REQUIRE_NOTHROW(app->processIncomingMessage(R"({"command":"onFileChanged"})"));
+        REQUIRE_NOTHROW(app->processIncomingMessage(R"({"command":"onFileChanged","lastSavedFileName":123})"));
+        REQUIRE_NOTHROW(app->processIncomingMessage(R"({"command":"bogusCommand","lastSavedFileName":"x.csd"})"));
+        REQUIRE(app->getMessageQueueSize() == queuedBefore);
+    }
+
+    std::filesystem::remove(tempPath);
+    std::cout << "\n==================== END TEST: stdin onFileChanged ====================\n";
+}
+
 void ensureValidSettingsFileExists() {
     std::string settingsPath = cabbage::File::getSettingsFile();
     if(std::filesystem::exists(settingsPath))
         return;
-        
-    std::filesystem::path settingsFilePath(settingsPath);
-    std::filesystem::path parentDir = settingsFilePath.parent_path();
 
-    // Path to widgets directory
-    std::string widgetsDir = "/Users/runner/work/cabbage3/cabbage3/vscabbage/src/cabbage/widgets";
-    if (!std::filesystem::exists(widgetsDir)) {
-        std::cerr << "Warning: widgets directory does not exist: " << widgetsDir << std::endl;
+    // Locate the vscabbage JS sources. Prefer the TEST_VSCABBAGE_DIR compile
+    // definition (passed by CI with -DTEST_VSCABBAGE_DIR=<abs path>), then
+    // fall back to the legacy hardcoded macOS runner layout. If neither
+    // exists (e.g. a bare local checkout), skip bootstrapping — tests that
+    // need the settings file still run against whatever initialiseCabbage
+    // creates by default.
+    std::string vscabbageSrc;
+#ifdef TEST_VSCABBAGE_DIR
+    vscabbageSrc = TEST_VSCABBAGE_DIR;
+#endif
+    if (vscabbageSrc.empty() || !std::filesystem::exists(vscabbageSrc + "/cabbage/widgets")) {
+        const std::string legacy = "/Users/runner/work/cabbage3/cabbage3/vscabbage/src";
+        if (std::filesystem::exists(legacy + "/cabbage/widgets"))
+            vscabbageSrc = legacy;
+    }
+    if (vscabbageSrc.empty() || !std::filesystem::exists(vscabbageSrc + "/cabbage/widgets")) {
+        std::cerr << "Warning: vscabbage src directory not found; skipping settings bootstrap" << std::endl;
         return;
     }
 
     // Create parent directories if they don't exist
     std::error_code ec;
+    std::filesystem::path parentDir = std::filesystem::path(settingsPath).parent_path();
     std::filesystem::create_directories(parentDir, ec);
 
-    std::string validSettings = R"({
-        "currentConfig": {
-            "audio": {
-                "driver": 0,
-                "inputDevice": "Built-in Input",
-                "outputDevice": "Built-in Output",
-                "in1": 1,
-                "in2": 2,
-                "out1": 1,
-                "out2": 2,
-                "bufferSize": 512,
-                "sr": 44100
-            },
-            "midi": {
-                "inputDevice": "no input",
-                "outputDevice": "no output",
-                "inChan": 0,
-                "outChan": 0
-            },
-            "jsSourceDir": "/Users/runner/work/cabbage3/cabbage3/vscabbage/src"
-        }
-    })";
+    nlohmann::json validSettings;
+    validSettings["currentConfig"]["audio"] = {
+        {"driver", 0},
+        {"inputDevice", "Built-in Input"},
+        {"outputDevice", "Built-in Output"},
+        {"in1", 1}, {"in2", 2}, {"out1", 1}, {"out2", 2},
+        {"bufferSize", 512},
+        {"sr", 44100}
+    };
+    validSettings["currentConfig"]["midi"] = {
+        {"inputDevice", "no input"},
+        {"outputDevice", "no output"},
+        {"inChan", 0}, {"outChan", 0}
+    };
+    validSettings["currentConfig"]["jsSourceDir"] = vscabbageSrc;
     std::ofstream validFile(settingsPath);
-    validFile << validSettings;
+    validFile << validSettings.dump(4);
     validFile.close();
 } 

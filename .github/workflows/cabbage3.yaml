@@ -2,7 +2,7 @@ name: cabbage3-build
 
 #Current Csound7 release...
 env:
-  CSOUND_TAG: "7.0.0-beta.15"
+  CSOUND_TAG: "7.0.0-beta.18"
 
 
 on:
@@ -65,7 +65,8 @@ jobs:
           -DCMAKE_CXX_COMPILER=$CXX_PATH \
           -DCMAKE_OBJC_COMPILER=$CC_PATH \
           -DCMAKE_OBJCXX_COMPILER=$CXX_PATH \
-          -DCABBAGE_BUILD_TARGET=CabbageTests
+          -DCABBAGE_BUILD_TARGET=CabbageTests \
+          -DTEST_VSCABBAGE_DIR="$(pwd)/vscabbage/src"
 
       - name: Build tests
         run: cmake --build build
@@ -164,6 +165,25 @@ jobs:
           make
           sudo make install
 
+      - name: Checkout vscabbage (widget sources for tests)
+        uses: actions/checkout@v1
+        with:
+          repository: rorywalsh/vscabbage
+          ref: develop
+          path: vscabbage
+          fetch-depth: 1
+
+      - name: Configure and run unit tests (incl. stdin onFileChanged resave tests)
+        run: |
+          cmake -G "Unix Makefiles" -B build-tests -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCABBAGE_BUILD_TARGET=CabbageTests \
+            -DTEST_VSCABBAGE_DIR="${{ github.workspace }}/vscabbage/src" \
+            -DCMAKE_C_COMPILER=$(which gcc) \
+            -DCMAKE_CXX_COMPILER=$(which g++)
+          cmake --build build-tests
+          ctest --test-dir build-tests --output-on-failure
+
       - name: Configure CMake
         run: |
           cmake -G "Unix Makefiles" -B build \
@@ -225,6 +245,27 @@ jobs:
         shell: pwsh
         run: |
           Start-Process -FilePath ".\csound-7.exe" -ArgumentList "/VERYSILENT" -Wait -Verb RunAs
+
+      - name: Checkout vscabbage (widget sources for tests)
+        uses: actions/checkout@v1
+        with:
+          repository: rorywalsh/vscabbage
+          ref: develop
+          path: vscabbage
+          fetch-depth: 1
+
+      - name: Configure tests
+        shell: pwsh
+        run: |
+          cmake -S . -B build-tests -DCABBAGE_BUILD_TARGET=CabbageTests -DTEST_VSCABBAGE_DIR="${{ github.workspace }}/vscabbage/src" -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build tests
+        shell: pwsh
+        run: cmake --build build-tests --config Release
+
+      - name: Run unit tests (incl. stdin onFileChanged resave tests)
+        shell: pwsh
+        run: ctest --test-dir build-tests -C Release --output-on-failure
 
       - name: Configure build
         shell: cmd

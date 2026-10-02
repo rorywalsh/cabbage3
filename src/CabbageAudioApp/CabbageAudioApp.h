@@ -146,6 +146,11 @@ class CabbageAudioApp
     size_t getMessageQueueSize() const { return messageQueue.size_approx(); }
     bool initialiseStdioConnection();
 
+    // Public for unit tests (TEST 9): lets CabbageTests feed the exact stdin
+    // JSON strings the VS Code extension sends (e.g. onFileChanged with
+    // Windows paths) without needing a live stdin pipe.
+    void processIncomingMessage(const std::string &message);
+
     bool getCanDestroyProcessor() const { return canDestroyProcessor.load(); }
     bool getAudioShutdownComplete() const { return audioShutdownComplete.load(); }
 
@@ -157,7 +162,6 @@ class CabbageAudioApp
 
   private:
     void sendJsonMessage(const nlohmann::json &msg);
-    void processIncomingMessage(const std::string &message);
     bool createCabbageProcessor();
     void initialiseAudio(bool startStream);
     void initialiseMidi(bool openPorts = false);
