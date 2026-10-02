@@ -53,7 +53,7 @@ struct CabbageDumpWithTrigger : csnd::InPlug<3>
 
 struct CabbageGetValue : csnd::Plugin<1, 1>
 {
-    MYFLT *value;
+    cs_float *value;
     int init() { return getValue(CabbageOpcodeData::PassType::Init); };
     int kperf() { return getValue(CabbageOpcodeData::PassType::Perf); };
     int getValue(int init);
@@ -61,8 +61,8 @@ struct CabbageGetValue : csnd::Plugin<1, 1>
 
 struct CabbageGetValueWithTrigger : csnd::Plugin<2, 1>
 {
-    MYFLT *value;
-    MYFLT currentValue = 0;
+    cs_float *value;
+    cs_float currentValue = 0;
     int numberOfPasses = 0;
     int triggerOnPerfPass = 0;
     int init() { return getValue(CabbageOpcodeData::PassType::Init); };
@@ -73,7 +73,7 @@ struct CabbageGetValueWithTrigger : csnd::Plugin<2, 1>
 struct CabbageGetValueString : csnd::Plugin<1, 1>
 {
     char *currentString = {};
-    MYFLT *value;
+    cs_float *value;
     int init() { return getValue(CabbageOpcodeData::PassType::Init); };
     int kperf() { return getValue(CabbageOpcodeData::PassType::Perf); };
     int getValue(int init);
@@ -82,7 +82,7 @@ struct CabbageGetValueString : csnd::Plugin<1, 1>
 struct CabbageGetValueStringWithTrigger : csnd::Plugin<2, 1>
 {
     char *currentString = {};
-    MYFLT *value;
+    cs_float *value;
     int init() { return getValue(CabbageOpcodeData::PassType::Init); };
     int kperf() { return getValue(CabbageOpcodeData::PassType::Perf); };
     int getValue(int init);
@@ -90,7 +90,7 @@ struct CabbageGetValueStringWithTrigger : csnd::Plugin<2, 1>
 
 struct CabbageGetMYFLT : csnd::Plugin<1, 2>, CabbageOpcodes<2>
 {
-    MYFLT *value;
+    cs_float *value;
     int init() { return getIdentifier(CabbageOpcodeData::PassType::Init); };
     int kperf() { return getIdentifier(CabbageOpcodeData::PassType::Perf); };
     int getIdentifier(int init);
@@ -112,7 +112,9 @@ struct CabbageGetStringArray : csnd::Plugin<1, 2>, CabbageOpcodes<2>
 
 struct CabbageGetStringWithTrigger : csnd::Plugin<2, 2>, CabbageOpcodes<2>
 {
-    std::string currentString = {};
+    // NOTE: stateless by necessity (see CabbageJsonOpcodes.h): trigger
+    // history lives in the shared checkTriggerChanged memo, keyed by
+    // channel + identifier.
     int kperf() { return getIdentifier(CabbageOpcodeData::PassType::Perf); };
     int getIdentifier(int init);
 };

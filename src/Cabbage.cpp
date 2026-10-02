@@ -509,7 +509,7 @@ const std::string Engine::getIOChannalConfig(const std::string &csdFile)
 
 //===========================================================================================
 
-void Engine::setControlChannel(const std::string channel, MYFLT value)
+void Engine::setControlChannel(const std::string channel, cs_float value)
 {
     // update Csound channel, and update ParameterChannel values..
     csound->SetControlChannel(channel.c_str(), value);
@@ -1009,9 +1009,9 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
 
                     if (tableSize != -1)
                     {
-                        MYFLT *tablePtr = nullptr;
+                        cs_float *tablePtr = nullptr;
                         auto length = csound->GetTable(&tablePtr, tableNumber);
-                        std::vector<MYFLT> temp(tablePtr, tablePtr + length);
+                        std::vector<cs_float> temp(tablePtr, tablePtr + length);
                         setTableJSON(data.channel, temp, jsonObj);
                     }
                 }
@@ -1028,7 +1028,7 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
 
                 cabbage::Parser::mergeJsonProperties(jsonObj, data.cabbageJson);
 
-                auto soundfile = cabbage::File::readAudioFile<MYFLT>(jsonObj["file"].get<std::string>(), static_cast<int>(sampleRate));
+                auto soundfile = cabbage::File::readAudioFile<cs_float>(jsonObj["file"].get<std::string>(), static_cast<int>(sampleRate));
                 auto samples = soundfile.audioData;
 
                 if (samples.size() == 0)
@@ -1044,10 +1044,10 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
     }
 }
 
-void Engine::setTableJSON(std::string /*channel*/, std::vector<MYFLT> samples, nlohmann::json &jsonObj)
+void Engine::setTableJSON(std::string /*channel*/, std::vector<cs_float> samples, nlohmann::json &jsonObj)
 {
     // this is a condensed version of the sample data that is passed around between C++ and JS.
-    std::vector<MYFLT> widgetSampleData;
+    std::vector<cs_float> widgetSampleData;
 
     // Ensure range object exists and set default y-axis range for waveform display
     if (!jsonObj.contains("range"))
@@ -1105,7 +1105,7 @@ void Engine::initialiseGenTableWidgets()
             try
             {
                 const int tableNumber = widget["tableNumber"].get<int>();
-                auto soundfile = cabbage::File::readAudioFile<MYFLT>(widget["file"].get<std::string>(), static_cast<int>(sampleRate));
+                auto soundfile = cabbage::File::readAudioFile<cs_float>(widget["file"].get<std::string>(), static_cast<int>(sampleRate));
                 auto samples = soundfile.audioData;
 
                 if (samples.size() > 0)
@@ -1118,10 +1118,10 @@ void Engine::initialiseGenTableWidgets()
 
                     if (tableSize != -1)
                     {
-                        MYFLT *tablePtr = nullptr;
+                        cs_float *tablePtr = nullptr;
                         getCsound()->GetTable(&tablePtr, tableNumber);
                         std::memcpy(tablePtr, samples.data(),
-                                    std::min(tableSize, static_cast<int>(samples.size())) * sizeof(MYFLT));
+                                    std::min(tableSize, static_cast<int>(samples.size())) * sizeof(cs_float));
                         setTableJSON("", samples, widget);
                     }
                     else
@@ -1570,13 +1570,13 @@ nlohmann::json Engine::saveWidgetJsonData(bool isPresetSave)
                             else
                             {
                                 // Read current value from Csound control channel
-                                MYFLT* channelPtr = nullptr;
+                                cs_float* channelPtr = nullptr;
                                 if (csoundGetChannelPtr(csound->GetCsound(), (void**)&channelPtr, channelId.c_str(),
                                                          CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
                                 {
                                     if (channelPtr != nullptr)
                                     {
-                                        MYFLT currentValue = *channelPtr;
+                                        cs_float currentValue = *channelPtr;
 
                                         // Update the range.value with the current channel value
                                         if (channel.contains("range") && channel["range"].is_object())
@@ -1686,7 +1686,7 @@ nlohmann::json Engine::saveWidgetChannelData(const std::unordered_set<std::strin
                 if (channel.is_object() && channel.contains("id") && channel["id"].is_string())
                 {
                     const std::string channelId = channel["id"].get<std::string>();
-                    MYFLT* channelPtr = nullptr;
+                    cs_float* channelPtr = nullptr;
                     if (csoundGetChannelPtr(csound->GetCsound(), (void**)&channelPtr, channelId.c_str(),
                                            CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS
                         && channelPtr != nullptr)

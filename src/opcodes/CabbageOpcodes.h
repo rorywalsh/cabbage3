@@ -29,10 +29,40 @@
 #include <plugin.h>
 #include <nlohmann/json.hpp>
 #include <type_traits>
+#include <mutex>
+#include <map>
 #include <lattice/LatticeUtils.h>
 
 #define IS_OK 0
 #define NOT_OK 1
+
+// Process-wide memo for trigger opcodes (cabbageJsonGet-with-trigger and
+// cabbageGet-with-trigger: "fire when the result changed").
+// Rationale: Csound allocates opcode instances as raw memory and never runs
+// C++ constructors, so per-instance std::string state is fatal (harmless on
+// libc++ thanks to SSO, instant UB on libstdc++/MSVC). Keying by content
+// keeps sharing transparent: a missing entry behaves exactly like a freshly
+// constructed empty previous-result.
+struct TriggerMemo
+{
+    std::mutex mutex;
+    std::map<std::string, std::string> lastResults; // key: subject + '\x1F' + path
+};
+
+// Returns true when newResult differs from the recorded result for key
+// (or key is unseen and newResult is non-empty), and records newResult.
+// Thread-safe. Entries are bounded in practice by distinct subscriptions.
+inline bool checkTriggerChanged(const std::string &key, const std::string &newResult)
+{
+    static TriggerMemo memo;
+    std::lock_guard<std::mutex> lock(memo.mutex);
+    if (memo.lastResults.size() > 4096)
+        memo.lastResults.clear();
+    auto it = memo.lastResults.find(key);
+    const bool changed = (it == memo.lastResults.end()) ? !newResult.empty() : (it->second != newResult);
+    memo.lastResults[key] = newResult;
+    return changed;
+}
 
 struct CabbageOpcodeData
 {
@@ -71,8 +101,8 @@ struct CabbageOpcodes
     std::vector<nlohmann::json> **wd = nullptr;
     char *name = NULL;
     char *identifier = NULL;
-    MYFLT *value = {};
-    MYFLT *str = {};
+    cs_float *value = {};
+    cs_float *str = {};
 
     static bool hasNullTerminator(const char *str, size_t length)
     {
@@ -264,7 +294,7 @@ struct CabbageOpcodes
     {
         // check if the identifier is already a JSON object, i.e, as in the case below
         // cabbageSet metro(1), "infoText", sprintf({{"text":"%s"}}, SText)
-        std::vector<MYFLT> array;
+        std::vector<cs_float> array;
         auto j = parseAndFormatJson(identifier);
         auto it = j.begin();
         if (it == j.end())
@@ -289,8 +319,8 @@ struct CabbageOpcodes
                 {
                     if (args.myfltvec_data(argIndex).len() > 0)
                     {
-                        csnd::Vector<MYFLT> &arrayArgs = args.myfltvec_data(argIndex);
-                        std::vector<MYFLT> array(arrayArgs.begin(), arrayArgs.end());
+                        csnd::Vector<cs_float> &arrayArgs = args.myfltvec_data(argIndex);
+                        std::vector<cs_float> array(arrayArgs.begin(), arrayArgs.end());
                         jsonObj[identifier] = array;
                     }
                 }
@@ -331,8 +361,8 @@ struct CabbageOpcodes
                 {
                     if (args.myfltvec_data(argIndex).len() > 0)
                     {
-                        csnd::Vector<MYFLT> &arrayArgs = args.myfltvec_data(argIndex);
-                        std::vector<MYFLT> array(arrayArgs.begin(), arrayArgs.end());
+                        csnd::Vector<cs_float> &arrayArgs = args.myfltvec_data(argIndex);
+                        std::vector<cs_float> array(arrayArgs.begin(), arrayArgs.end());
                         setJsonValue(jsonObj, getSafeString(args, argIndex - 1), array);
                     }
                 }

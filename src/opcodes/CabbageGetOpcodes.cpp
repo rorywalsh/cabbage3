@@ -224,7 +224,7 @@ int CabbageGetMYFLT::getIdentifier(int /*init*/)
                     if (val.is_boolean())
                         outargs[0] = val.get<bool>() ? 1.0 : 0.0;
                     else
-                        outargs[0] = val.get<MYFLT>();
+                        outargs[0] = val.get<cs_float>();
                 }
                 catch (const nlohmann::json::exception &e)
                 {
@@ -324,11 +324,20 @@ int CabbageGetStringArray::getIdentifier(int /*init*/)
                 }
                 csnd::Vector<STRINGDAT>& out = outargs.vector_data<STRINGDAT>(0);
                 out.init(csound, static_cast<int>(items.size()), this->insdshead);
+                if (items.empty())
+                    continue;
+                // Detach shared storage before writing (see CabbageJsonOpcodes).
+                STRINGDAT *dest = out.writable_data_init(csound, this->insdshead);
+                if (dest == nullptr)
+                {
+                    csound->message("cabbageGet: could not acquire writable array storage");
+                    continue;
+                }
                 int index = 0;
                 for( auto& item : items)
                 {
-                    out[index].size = static_cast<int>(item.size() + 1); // +1 to include null terminator
-                    out[index].data = csound->strdup((char*)item.c_str());
+                    dest[index].size = static_cast<int>(item.size() + 1); // +1 to include null terminator
+                    dest[index].data = csound->strdup((char*)item.c_str());
                     index++;
                 }
             }
@@ -365,13 +374,7 @@ int CabbageGetStringWithTrigger::getIdentifier(int /*init*/)
                     return NOTOK;
                 }
 
-                if (currentString != str)
-                {
-                    outargs[1] = 1;
-                    currentString = str;
-                }
-                else
-                    outargs[1] = 0;
+                outargs[1] = checkTriggerChanged(data.channel + '\x1F' + data.identifier, str) ? 1 : 0;
 
                 outargs.str_data(0).size = int(strlen(str.c_str()) + 1);
                 outargs.str_data(0).data = csound->strdup(str.data());

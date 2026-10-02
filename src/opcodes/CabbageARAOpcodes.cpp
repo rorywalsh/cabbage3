@@ -157,7 +157,7 @@ static std::string resolveProperty(const std::string& prop) {
 
 int CabbageAraGetNum::init()
 {
-    stateCopy = cabbage::ARADataPool::instance().getAraState();
+    nlohmann::json stateCopy = cabbage::ARADataPool::instance().getAraState();
     std::string prop(resolveProperty(inargs.str_data(0).data));
 
     // Handle selectedRegion* properties (indexed into editorView.selectedRegions[])
@@ -310,7 +310,7 @@ int CabbageAraGetNum::init()
 
 int CabbageAraGetNum::kperf()
 {
-    stateCopy = cabbage::ARADataPool::instance().getAraState();
+    nlohmann::json stateCopy = cabbage::ARADataPool::instance().getAraState();
     std::string prop(resolveProperty(inargs.str_data(0).data));
 
     if (prop == "selectedPlaybackRegionCount")
@@ -455,7 +455,7 @@ int CabbageAraGetNum::kperf()
 
 int CabbageAraGetString::init()
 {
-    stateCopy = cabbage::ARADataPool::instance().getAraState();
+    nlohmann::json stateCopy = cabbage::ARADataPool::instance().getAraState();
     std::string prop(resolveProperty(inargs.str_data(0).data));
     std::string result;
 
@@ -548,7 +548,7 @@ int CabbageAraGetUpdate::kperf()
 {
     auto* engine = getEngine(csound);
     if (engine)
-        outargs[0] = static_cast<MYFLT>(engine->getProcessor().getAraUpdateCounter());
+        outargs[0] = static_cast<cs_float>(engine->getProcessor().getAraUpdateCounter());
     else
         outargs[0] = 0;
     return IS_OK;
@@ -564,7 +564,7 @@ int CabbageAraGetUpdateEvent::kperf()
     if (engine)
     {
         auto& proc = engine->getProcessor();
-        outargs[1] = static_cast<MYFLT>(proc.getAraUpdateCounter());
+        outargs[1] = static_cast<cs_float>(proc.getAraUpdateCounter());
         auto evtType = proc.getAraLastEventType();
         outargs.str_data(0).data = csound->strdup(const_cast<char*>(evtType.c_str()));
         outargs.str_data(0).size = static_cast<int32_t>(evtType.size()) + 1;
@@ -604,22 +604,24 @@ int CabbageAraGetSourceSamplesAudio::init()
         return NOT_OK;
     }
 
-    pcmData = entry->pcm;
-    numSamples = static_cast<int>((*pcmData)[static_cast<size_t>(channelIndex)].size());
+    numSamples = static_cast<int>((*entry->pcm)[static_cast<size_t>(channelIndex)].size());
     return IS_OK;
 }
 
 int CabbageAraGetSourceSamplesAudio::aperf()
 {
-    if (!pcmData || channelIndex >= static_cast<int>(pcmData->size()))
+    // Re-fetched per call: opcode instances are raw memory, so no
+    // shared_ptr member may persist across init -> perf calls.
+    auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(sourceIndex));
+    if (!entry || !entry->pcm || channelIndex < 0 || channelIndex >= static_cast<int>(entry->pcm->size()))
     {
-        std::fill(outargs(0), outargs(0) + nsmps, static_cast<MYFLT>(0));
+        std::fill(outargs(0), outargs(0) + nsmps, static_cast<cs_float>(0));
         return IS_OK;
     }
 
-    MYFLT* aPos = inargs(0);
-    MYFLT* out = outargs(0);
-    const auto& channelData = (*pcmData)[static_cast<size_t>(channelIndex)];
+    cs_float* aPos = inargs(0);
+    cs_float* out = outargs(0);
+    const auto& channelData = (*entry->pcm)[static_cast<size_t>(channelIndex)];
 
     for (uint32_t i = offset; i < nsmps; i++)
     {
@@ -627,7 +629,7 @@ int CabbageAraGetSourceSamplesAudio::aperf()
         if (pos < 0 || pos >= numSamples)
             out[i] = 0;
         else
-            out[i] = static_cast<MYFLT>(channelData[static_cast<size_t>(pos)]);
+            out[i] = static_cast<cs_float>(channelData[static_cast<size_t>(pos)]);
     }
     return IS_OK;
 }
@@ -654,26 +656,26 @@ int CabbageAraGetSourceSamplesK::init()
         return NOT_OK;
     }
 
-    pcmData = entry->pcm;
-    numSamples = static_cast<int>((*pcmData)[static_cast<size_t>(channelIndex)].size());
+    numSamples = static_cast<int>((*entry->pcm)[static_cast<size_t>(channelIndex)].size());
     return IS_OK;
 }
 
 int CabbageAraGetSourceSamplesK::kperf()
 {
-    if (!pcmData || channelIndex >= static_cast<int>(pcmData->size()))
+    auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(sourceIndex));
+    if (!entry || !entry->pcm || channelIndex < 0 || channelIndex >= static_cast<int>(entry->pcm->size()))
     {
         outargs[0] = 0;
         return IS_OK;
     }
 
     int pos = static_cast<int>(inargs[0]);
-    const auto& channelData = (*pcmData)[static_cast<size_t>(channelIndex)];
+    const auto& channelData = (*entry->pcm)[static_cast<size_t>(channelIndex)];
 
     if (pos < 0 || pos >= numSamples)
         outargs[0] = 0;
     else
-        outargs[0] = static_cast<MYFLT>(channelData[static_cast<size_t>(pos)]);
+        outargs[0] = static_cast<cs_float>(channelData[static_cast<size_t>(pos)]);
     return IS_OK;
 }
 
@@ -687,25 +689,30 @@ int CabbageAraGetSourceSamplesArray::init()
     auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(sourceIndex));
     if (!entry || !entry->pcm || channelIndex < 0 || channelIndex >= static_cast<int>(entry->pcm->size()))
     {
-        csnd::Vector<MYFLT>& out = outargs.myfltvec_data(0);
+        csnd::Vector<cs_float>& out = outargs.myfltvec_data(0);
         out.init(csound, 1, this->insdshead);
-        out[0] = 0;
+        cs_float *dest = out.writable_data_init(csound, this->insdshead);
+        if (dest != nullptr)
+            dest[0] = 0;
         return IS_OK;
     }
 
     const auto& channelData = (*entry->pcm)[static_cast<size_t>(channelIndex)];
     int totalSamples = static_cast<int>(channelData.size());
 
-    csnd::Vector<MYFLT>& out = outargs.myfltvec_data(0);
+    csnd::Vector<cs_float>& out = outargs.myfltvec_data(0);
     out.init(csound, count, this->insdshead);
+    cs_float *dest = out.writable_data_init(csound, this->insdshead);
+    if (dest == nullptr)
+        return IS_OK;
 
     for (int i = 0; i < count; i++)
     {
         int pos = start + i;
         if (pos < 0 || pos >= totalSamples)
-            out[i] = 0;
+            dest[i] = 0;
         else
-            out[i] = static_cast<MYFLT>(channelData[static_cast<size_t>(pos)]);
+            dest[i] = static_cast<cs_float>(channelData[static_cast<size_t>(pos)]);
     }
     return IS_OK;
 }
@@ -720,25 +727,30 @@ int CabbageAraGetSourceSamplesIArray::init()
     auto entry = cabbage::ARADataPool::instance().getByIndex(static_cast<size_t>(sourceIndex));
     if (!entry || !entry->pcm || channelIndex < 0 || channelIndex >= static_cast<int>(entry->pcm->size()))
     {
-        csnd::Vector<MYFLT>& out = outargs.myfltvec_data(0);
+        csnd::Vector<cs_float>& out = outargs.myfltvec_data(0);
         out.init(csound, 1, this->insdshead);
-        out[0] = 0;
+        cs_float *dest = out.writable_data_init(csound, this->insdshead);
+        if (dest != nullptr)
+            dest[0] = 0;
         return IS_OK;
     }
 
     const auto& channelData = (*entry->pcm)[static_cast<size_t>(channelIndex)];
     int totalSamples = static_cast<int>(channelData.size());
 
-    csnd::Vector<MYFLT>& out = outargs.myfltvec_data(0);
+    csnd::Vector<cs_float>& out = outargs.myfltvec_data(0);
     out.init(csound, count, this->insdshead);
+    cs_float *dest = out.writable_data_init(csound, this->insdshead);
+    if (dest == nullptr)
+        return IS_OK;
 
     for (int i = 0; i < count; i++)
     {
         int pos = start + i;
         if (pos < 0 || pos >= totalSamples)
-            out[i] = 0;
+            dest[i] = 0;
         else
-            out[i] = static_cast<MYFLT>(channelData[static_cast<size_t>(pos)]);
+            dest[i] = static_cast<cs_float>(channelData[static_cast<size_t>(pos)]);
     }
     return IS_OK;
 }
@@ -758,7 +770,7 @@ int CabbageAraGetStateJson::init()
 
 int CabbageAraGetStateJson::kperf()
 {
-    MYFLT trig = inargs[0];
+    cs_float trig = inargs[0];
     std::string result = {};
     if (trig > 0 && trig != prevTrig)
     {
@@ -801,7 +813,7 @@ int CabbageAraDump::init()
 
 int CabbageAraDump::kperf()
 {
-    MYFLT trig = args[0];
+    cs_float trig = args[0];
     if (trig > 0 && prevTrig <= 0)
     {
         araDumpState();

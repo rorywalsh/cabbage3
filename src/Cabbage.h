@@ -93,10 +93,10 @@ class Engine
     }
 
     // Set input value for a specific index in csSpin array
-    void setSpIn(int index, MYFLT value) { csSpin[index] = value * csScale; }
+    void setSpIn(int index, cs_float value) { csSpin[index] = value * csScale; }
 
     // Get output value for a specific index in csSpout array
-    MYFLT getSpOut(int index)
+    cs_float getSpOut(int index)
     {
         auto spout = csound->GetSpout();
         if (spout)
@@ -137,7 +137,7 @@ class Engine
     size_t getIndexForParamChannel(std::string name);
 
     // Set control channel value
-    void setControlChannel(const std::string channel, MYFLT value);
+    void setControlChannel(const std::string channel, cs_float value);
 
     // Set string channel data
     void setStringChannel(const std::string channel, std::string data);
@@ -165,7 +165,7 @@ class Engine
     // These two methods return combine with getWidgetIdentifierUpdateScript() to return a JS method
     // that packs samples for a given table
     void updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj);
-    static void setTableJSON(std::string channel, std::vector<MYFLT> samples, nlohmann::json &jsonObj);
+    static void setTableJSON(std::string channel, std::vector<cs_float> samples, nlohmann::json &jsonObj);
 
     // Initialise genTable widgets by loading audio files specified in their file property
     void initialiseGenTableWidgets();
@@ -280,8 +280,8 @@ class Engine
     std::string csoundOutput = {};
     int csCompileResult = -1;
     int csdKsmps = 0;
-    MYFLT csScale = 0.0;
-    MYFLT *csSpin = nullptr;
+    cs_float csScale = 0.0;
+    cs_float *csSpin = nullptr;
     double sampleRate = 44100;
     std::string compileErrors;
     std::unique_ptr<Csound> csound;

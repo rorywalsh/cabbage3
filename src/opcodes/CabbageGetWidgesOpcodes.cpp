@@ -32,6 +32,12 @@ int CabbageGetWidgets::getWidgets()
 
     csnd::Vector<STRINGDAT> &out = outargs.vector_data<STRINGDAT>(0);
     out.init(csound, static_cast<int>(widgets.size()), this->insdshead);
+    if (widgets.empty())
+        return IS_OK;
+    // Detach shared storage before writing (see CabbageJsonOpcodes).
+    STRINGDAT *dest = out.writable_data_init(csound, this->insdshead);
+    if (dest == nullptr)
+        return NOT_OK;
 
     int index = 0;
     for (const auto &widget : widgets)
@@ -48,8 +54,8 @@ int CabbageGetWidgets::getWidgets()
             id = widget["channels"][0]["id"].get<std::string>();
         }
 
-        out[index].size = static_cast<int>(id.size() + 1);
-        out[index].data = csound->strdup((char *)id.c_str());
+        dest[index].size = static_cast<int>(id.size() + 1);
+        dest[index].data = csound->strdup((char *)id.c_str());
         index++;
     }
 
