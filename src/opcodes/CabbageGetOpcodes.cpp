@@ -147,7 +147,7 @@ int CabbageGetValueStruct::getValue(int /*mode*/)
 //=====================================================================================
 // SOut cabbageGetValue "channel"
 //=====================================================================================
-int CabbageGetValueString::getValue(int rate)
+int CabbageGetValueString::getValue(int /*rate*/)
 {
     if (in_count() == 0)
         return NOTOK;
@@ -155,28 +155,38 @@ int CabbageGetValueString::getValue(int rate)
     if (csound->get_csound()->GetChannelPtr(csound->get_csound(), (void **)&value, inargs.str_data(0).data,
                                             CSOUND_STRING_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
     {
-        if (!currentString)
+        const char *channelString = ((STRINGDAT *)value)->data;
+        if (channelString == nullptr)
+            channelString = "";
+
+        if (currentString == nullptr)
         {
-            currentString = csound->strdup((((STRINGDAT *)value)->data));
+            currentString = csound->strdup(const_cast<char *>(channelString));
+        }
+        else if (strcmp(currentString, channelString) != 0)
+        {
+            csound->free(currentString);
+            currentString = csound->strdup(const_cast<char *>(channelString));
         }
 
-        if (strcmp(currentString, ((STRINGDAT *)value)->data) != 0)
-        {
-            currentString = csound->strdup(((STRINGDAT *)value)->data);
-        }
-
-        if (rate == CabbageOpcodeData::PassType::Init)
-        {
-            outargs.str_data(0).size = ((STRINGDAT *)value)->size;
-            outargs.str_data(0).data = (((STRINGDAT *)value)->data);
-        }
-        else // seems I need to use csound->strdup at k-time...
-        {
-            outargs.str_data(0).size = int(strlen(currentString)) + 1;
-            outargs.str_data(0).data = currentString;
-        }
+        // The output must own its buffer: aliasing the channel's STRINGDAT
+        // here makes Csound free channel memory at teardown, corrupting the
+        // heap on the next recompile (0xC0000374). Always emit an owned copy.
+        const char *outText = currentString != nullptr ? currentString : "";
+        outargs.str_data(0).data = csound->strdup(const_cast<char *>(outText));
+        outargs.str_data(0).size = int(strlen(outText)) + 1;
     }
 
+    return IS_OK;
+}
+
+int CabbageGetValueString::deinit()
+{
+    if (currentString != nullptr)
+    {
+        csound->free(currentString);
+        currentString = nullptr;
+    }
     return IS_OK;
 }
 
@@ -197,14 +207,18 @@ int CabbageGetValueStringWithTrigger::getValue(int rate)
     if (csound->get_csound()->GetChannelPtr(csound->get_csound(), (void **)&value, channel.c_str(),
                                             CSOUND_STRING_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
     {
-        if (!currentString)
-        {
-            currentString = csound->strdup((((STRINGDAT *)value)->data));
-        }
+        const char *channelString = ((STRINGDAT *)value)->data;
+        if (channelString == nullptr)
+            channelString = "";
 
-        if (strcmp(currentString, ((STRINGDAT *)value)->data) != 0)
+        if (currentString == nullptr)
         {
-            currentString = csound->strdup(((STRINGDAT *)value)->data);
+            currentString = csound->strdup(const_cast<char *>(channelString));
+        }
+        else if (strcmp(currentString, channelString) != 0)
+        {
+            csound->free(currentString);
+            currentString = csound->strdup(const_cast<char *>(channelString));
             outargs[1] = 1;
         }
         else
@@ -215,14 +229,27 @@ int CabbageGetValueStringWithTrigger::getValue(int rate)
                 outargs[1] = 0;
         }
 
-        outargs.str_data(0).size = int(strlen(currentString)) + 1;
-        outargs.str_data(0).data = currentString;
+        // Owned copy: the output must never alias currentString, which this
+        // instance frees on change/deinit (see CabbageGetValueString above).
+        const char *outText = currentString != nullptr ? currentString : "";
+        outargs.str_data(0).data = csound->strdup(const_cast<char *>(outText));
+        outargs.str_data(0).size = int(strlen(outText)) + 1;
     }
     else
     {
         return NOTOK;
     }
 
+    return IS_OK;
+}
+
+int CabbageGetValueStringWithTrigger::deinit()
+{
+    if (currentString != nullptr)
+    {
+        csound->free(currentString);
+        currentString = nullptr;
+    }
     return IS_OK;
 }
 
@@ -263,6 +290,16 @@ int CabbageGetValueStringStruct::kperf()
     cabbageWriteStrMember(csound->get_csound(), out, 0, currentString);
     out->members[1]->value = trig;
 
+    return IS_OK;
+}
+
+int CabbageGetValueStringStruct::deinit()
+{
+    if (currentString != nullptr)
+    {
+        csound->free(currentString);
+        currentString = nullptr;
+    }
     return IS_OK;
 }
 

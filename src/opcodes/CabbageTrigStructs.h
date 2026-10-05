@@ -33,6 +33,8 @@
 #undef _CR
 
 #include <plugin.h>
+#include <csound_structs.h>
+#include <csound_type_system.h>
 
 // ============================================================================
 // Cabbage trigger structs — plugin structs registered with
@@ -63,27 +65,61 @@ struct CabbageStrTrig
     cs_float trig; // 0/1 edge trigger (k)
 };
 
+// Per-struct registration outcome. Engine::addOpcodes() registers whichever
+// subset succeeded, so one bad member spec can no longer disable both types.
+// `apiPresent` is false when the host Csound predates RegisterStruct
+// (csound PR #3356). A NULL return with the name already present in the type
+// pool (re-init on a live instance) counts as success.
+struct CabbageTrigStructStatus
+{
+    bool apiPresent = false;
+    bool numOk = false;
+    bool strOk = false;
+    const void *numType = nullptr;
+    const void *strType = nullptr;
+};
+
+inline const CS_TYPE *cabbageFindStructType(CSOUND *csound, const char *name)
+{
+    if (csound == nullptr || name == nullptr)
+        return nullptr;
+    TYPE_POOL *pool = csoundGetTypePool(csound);
+    if (pool == nullptr)
+        return nullptr;
+    return csoundGetTypeWithVarTypeName(pool, name);
+}
+
 // Registers both Cabbage trigger struct types on a Csound instance. Must be
 // called before orchestra compilation (Engine::addOpcodes() does this, which
-// runs before Compile()). Returns false when the host Csound predates
-// RegisterStruct (csound PR #3356) or the name is already in use — callers
-// must then skip registering the struct-typed opcode overloads; the legacy
-// multi-output opcodes are unaffected either way.
-inline bool registerCabbageTrigStructs(CSOUND *csound)
+// runs before Compile()). The legacy multi-output opcodes are unaffected
+// either way.
+inline CabbageTrigStructStatus registerCabbageTrigStructs(CSOUND *csound)
 {
-    if (csound == nullptr || csound->RegisterStruct == nullptr)
-        return false;
+    CabbageTrigStructStatus status;
+    if (csound == nullptr)
+        return status;
+    if (csound->RegisterStruct == nullptr)
+        return status;
+    status.apiPresent = true;
 
     static const CSOUND_STRUCT_MEMBER numMembers[] = {{"val", "k"}, {"trig", "k"}};
     static const CSOUND_STRUCT_MEMBER strMembers[] = {{"val", "S"}, {"trig", "k"}};
 
-    if (csound->RegisterStruct(csound, "CabbageNumTrig", numMembers, 2) == nullptr)
-        return false;
-    if (csound->RegisterStruct(csound, "CabbageStrTrig", strMembers, 2) == nullptr)
-        return false;
+    const CS_TYPE *numType = csound->RegisterStruct(csound, "CabbageNumTrig", numMembers, 2);
+    if (numType == nullptr)
+        numType = cabbageFindStructType(csound, "CabbageNumTrig"); // already registered?
+    status.numType = numType;
+    status.numOk = (numType != nullptr);
 
-    return true;
+    const CS_TYPE *strType = csound->RegisterStruct(csound, "CabbageStrTrig", strMembers, 2);
+    if (strType == nullptr)
+        strType = cabbageFindStructType(csound, "CabbageStrTrig"); // already registered?
+    status.strType = strType;
+    status.strOk = (strType != nullptr);
+
+    return status;
 }
+
 
 // Copies text into the string member `index` of a plugin struct output value.
 // Follows the engine's STRINGDAT ownership rules (see string_free_internal /

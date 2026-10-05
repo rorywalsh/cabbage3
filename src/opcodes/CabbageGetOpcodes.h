@@ -77,6 +77,7 @@ struct CabbageGetValueString : csnd::Plugin<1, 1>
     cs_float *value;
     int init() { return getValue(CabbageOpcodeData::PassType::Init); };
     int kperf() { return getValue(CabbageOpcodeData::PassType::Perf); };
+    int deinit();
     int getValue(int init);
 };
 
@@ -86,6 +87,7 @@ struct CabbageGetValueStringWithTrigger : csnd::Plugin<2, 1>
     cs_float *value;
     int init() { return getValue(CabbageOpcodeData::PassType::Init); };
     int kperf() { return getValue(CabbageOpcodeData::PassType::Perf); };
+    int deinit();
     int getValue(int init);
 };
 
@@ -114,6 +116,7 @@ struct CabbageGetValueStringStruct : csnd::Plugin<1, 1>
     char *currentString = nullptr;
     cs_float *value = nullptr;
     int kperf();
+    int deinit();
 };
 
 struct CabbageGetMYFLT : csnd::Plugin<1, 2>, CabbageOpcodes<2>

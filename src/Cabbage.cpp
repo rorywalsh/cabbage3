@@ -74,10 +74,20 @@ void Engine::addOpcodes()
     // and before Compile() resolves orchestra types. When unavailable (a
     // Csound older than csound PR #3356) the struct overloads are skipped and
     // only the legacy multi-output forms remain.
-    const bool haveTrigStructs = registerCabbageTrigStructs(csound->GetCsound());
-    if (!haveTrigStructs)
-        csound->GetCsound()->Message(csound->GetCsound(),
-                                     "Cabbage: RegisterStruct unavailable - struct trigger outputs disabled\n");
+    CSOUND *cs = csound->GetCsound();
+    lattice::logInfo << "Cabbage: RegisterStruct API present: "
+                     << (cs != nullptr && cs->RegisterStruct != nullptr ? "yes" : "no");
+    const CabbageTrigStructStatus trigStructs = registerCabbageTrigStructs(cs);
+    lattice::logInfo << "Cabbage: RegisterStruct CabbageNumTrig: "
+                     << (trigStructs.numOk ? "ok" : "FAILED")
+                     << ", CabbageStrTrig: " << (trigStructs.strOk ? "ok" : "FAILED");
+    if (!trigStructs.numOk || !trigStructs.strOk)
+    {
+        lattice::logInfo << "Cabbage: struct trigger outputs partially/fully disabled - "
+                            "legacy multi-output forms remain";
+        if (cs != nullptr)
+            cs->Message(cs, "Cabbage: RegisterStruct unavailable - struct trigger outputs disabled\n");
+    }
 
     csnd::plugin<CabbageSetValue>((csnd::Csound *)csound->GetCsound(), "cabbageSetValue", "", "Si", csnd::thread::i);
     csnd::plugin<CabbageSetValue>((csnd::Csound *)csound->GetCsound(), "cabbageSetValue", "", "SkP", csnd::thread::k);
@@ -98,10 +108,17 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageGetValueString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "S", "S", csnd::thread::i);
     csnd::plugin<CabbageGetValueWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "kk", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValueStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "Sk", "S", csnd::thread::k);
-    if (haveTrigStructs)
+    if (trigStructs.numOk)
     {
-        csnd::plugin<CabbageGetValueStruct>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", ":CabbageNumTrig;", "S", csnd::thread::ik);
-        csnd::plugin<CabbageGetValueStringStruct>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", ":CabbageStrTrig;", "S", csnd::thread::k);
+        const int32_t rc = csnd::plugin<CabbageGetValueStruct>(
+            (csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", ":CabbageNumTrig;", "S", csnd::thread::ik);
+        lattice::logInfo << "Cabbage: cabbageGetValue :CabbageNumTrig; registration rc=" << rc;
+    }
+    if (trigStructs.strOk)
+    {
+        const int32_t rc = csnd::plugin<CabbageGetValueStringStruct>(
+            (csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", ":CabbageStrTrig;", "S", csnd::thread::k);
+        lattice::logInfo << "Cabbage: cabbageGetValue :CabbageStrTrig; registration rc=" << rc;
     }
 
     csnd::plugin<CabbageGetStringArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "S[]", "SS", csnd::thread::i);
@@ -110,8 +127,12 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "S", "SS", csnd::thread::i);
     
     csnd::plugin<CabbageGetStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "Sk", "SS", csnd::thread::k);
-    if (haveTrigStructs)
-        csnd::plugin<CabbageGetStringStruct>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", ":CabbageStrTrig;", "SS", csnd::thread::k);
+    if (trigStructs.strOk)
+    {
+        const int32_t rc = csnd::plugin<CabbageGetStringStruct>(
+            (csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", ":CabbageStrTrig;", "SS", csnd::thread::k);
+        lattice::logInfo << "Cabbage: cabbageGet :CabbageStrTrig; registration rc=" << rc;
+    }
 
     csnd::plugin<CabbageWidgetHasKey>((csnd::Csound *)getCsound()->GetCsound(), "cabbageHasKey", "i", "SS", csnd::thread::i);
     csnd::plugin<CabbageWidgetHasKey>((csnd::Csound *)getCsound()->GetCsound(), "cabbageHasKey", "k", "SW", csnd::thread::ik);
@@ -119,8 +140,12 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageJsonGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "S", "SS", csnd::thread::i);
     csnd::plugin<CabbageJsonGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "S", "SS", csnd::thread::k);
     csnd::plugin<CabbageJsonGetStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "Sk", "SS", csnd::thread::k);
-    if (haveTrigStructs)
-        csnd::plugin<CabbageJsonGetStringStruct>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", ":CabbageStrTrig;", "SS", csnd::thread::k);
+    if (trigStructs.strOk)
+    {
+        const int32_t rc = csnd::plugin<CabbageJsonGetStringStruct>(
+            (csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", ":CabbageStrTrig;", "SS", csnd::thread::k);
+        lattice::logInfo << "Cabbage: cabbageJsonGet :CabbageStrTrig; registration rc=" << rc;
+    }
     csnd::plugin<CabbageJsonGetNumber>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "i", "SS", csnd::thread::i);
     csnd::plugin<CabbageJsonGetNumber>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "k", "SS", csnd::thread::ik);
     csnd::plugin<CabbageJsonGetStringArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "S[]", "SS", csnd::thread::i);
@@ -164,8 +189,12 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageAraGetUpdate>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdate", "k", "", csnd::thread::ik);
 
     csnd::plugin<CabbageAraGetUpdateEvent>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdateEvent", "Sk", "", csnd::thread::ik);
-    if (haveTrigStructs)
-        csnd::plugin<CabbageAraGetUpdateEventStruct>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdateEvent", ":CabbageStrTrig;", "", csnd::thread::ik);
+    if (trigStructs.strOk)
+    {
+        const int32_t rc = csnd::plugin<CabbageAraGetUpdateEventStruct>(
+            (csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdateEvent", ":CabbageStrTrig;", "", csnd::thread::ik);
+        lattice::logInfo << "Cabbage: cabbageAraGetUpdateEvent :CabbageStrTrig; registration rc=" << rc;
+    }
     csnd::plugin<CabbageAraGetSourceSamplesAudio>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "a", "aii", csnd::thread::ia);
     csnd::plugin<CabbageAraGetSourceSamplesK>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "k", "kii", csnd::thread::k);
     csnd::plugin<CabbageAraGetSourceSamplesArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "k[]", "iiii", csnd::thread::i);
@@ -238,9 +267,11 @@ bool Engine::setupCsound()
 
     lattice::logInfo << "Csound SetHostData: enginePtr=" << this << " processorPtr=" << &processor;
 
-    addOpcodes();
-
+    // Message buffer must exist before addOpcodes(): the RegisterStruct
+    // fallback path reports via csound->Message(), which is lost otherwise.
     csound->CreateMessageBuffer(0);
+
+    addOpcodes();
     csound->SetExternalMidiInOpenCallback(CabbageProcessor::OpenMidiInputDevice);
     csound->SetExternalMidiReadCallback(CabbageProcessor::ReadMidiData);
     csound->SetExternalMidiOutOpenCallback(CabbageProcessor::OpenMidiOutputDevice);
@@ -268,6 +299,16 @@ bool Engine::setupCsound()
     bool exists = std::filesystem::exists(csdFile);
     if (exists)
     {
+        // Pre-Compile probe: confirms plugin struct types survived in the
+        // type pool up to the point of orchestra parsing.
+        {
+            CSOUND *raw = csound->GetCsound();
+            const bool numVisible = cabbageFindStructType(raw, "CabbageNumTrig") != nullptr;
+            const bool strVisible = cabbageFindStructType(raw, "CabbageStrTrig") != nullptr;
+            lattice::logInfo << "Cabbage: pre-Compile type pool: CabbageNumTrig "
+                             << (numVisible ? "visible" : "MISSING") << ", CabbageStrTrig "
+                             << (strVisible ? "visible" : "MISSING");
+        }
         // Check for compile time errors
 #ifdef CabbagePro
         // Pro version: Check if file is encrypted
