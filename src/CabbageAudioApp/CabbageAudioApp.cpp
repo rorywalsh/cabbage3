@@ -25,6 +25,10 @@
 #include "argparse.hpp"
 #include <filesystem>
 
+#if defined(__APPLE__)
+#include <CoreMIDI/CoreMIDI.h>
+#endif
+
 //==============================================================================
 // Constructor - responsible for creating processor and initialising audio/midi
 // and stdin/stdout connection to vscode
@@ -513,11 +517,48 @@ void CabbageAudioApp::sendWidgetDataToVscode()
     // otherwise queued messages (like table data) will be sent before webview is connected.
 }
 
+#if defined(__APPLE__)
+// Probes CoreMIDI directly with the raw client-creation call that RtMidi
+// itself performs. This must NOT go through RtMidi: the vendored RtMidi
+// declares its CoreMIDI singleton creator throw() (RtMidi.cpp:
+// MidiInCore/MidiOutCore::getCoreMidiClientSingleton), so a failed
+// MIDIClientCreate leaves that function via an exception, which is an
+// immediate std::terminate()/SIGABRT — no try/catch in our code can
+// intercept it. Seen on macOS CI runners as:
+//   "MidiInCore::initialize: error creating OS-X MIDI client object (-304)."
+//   "libc++abi: terminating due to uncaught exception of type rt::midi::RtMidiError"
+// Probing with our own call lets us degrade gracefully (MIDI unavailable)
+// instead of aborting the whole process.
+static bool coreMidiClientAvailable()
+{
+    MIDIClientRef client = 0;
+    const OSStatus status = MIDIClientCreate(CFSTR("CabbageMidiProbe"), nullptr, nullptr, &client);
+    if (status == noErr && client != 0)
+    {
+        MIDIClientDispose(client);
+        return true;
+    }
+    return false;
+}
+#endif
+
 //==============================================================================
 // This method is called from the RtMidiIn callback
 //==============================================================================
 void CabbageAudioApp::initialiseMidi(bool openPorts)
 {
+    midiAvailable = false;
+
+#if defined(__APPLE__)
+    // See coreMidiClientAvailable() above: never hand a broken CoreMIDI to
+    // RtMidi, it would terminate the process instead of throwing.
+    if (!coreMidiClientAvailable())
+    {
+        lattice::logWarning << "CoreMIDI client unavailable - MIDI disabled for this session";
+        return;
+    }
+#endif
+
     try
     {
 #if defined(LATTICE_LINUX)
@@ -548,39 +589,60 @@ void CabbageAudioApp::initialiseMidi(bool openPorts)
         return;
     }
 
-    midiInDevice->setCallback(&midiCallback, this);
-    midiInDevice->ignoreTypes(false, true, false);
-
-    if (openPorts)
+    // Port setup is outside the try blocks above, so its RtMidi errors would
+    // otherwise escape initialiseMidi. Catch them and degrade to no-MIDI.
+    try
     {
-        if (!audioConfig.midiInDev.empty() && audioConfig.midiInDev != "no input")
+        midiInDevice->setCallback(&midiCallback, this);
+        midiInDevice->ignoreTypes(false, true, false);
+
+        if (openPorts)
         {
-            unsigned int portCount = midiInDevice->getPortCount();
-            for (unsigned int i = 0; i < portCount; i++)
+            if (!audioConfig.midiInDev.empty() && audioConfig.midiInDev != "no input")
             {
-                if (midiInDevice->getPortName(i) == audioConfig.midiInDev)
+                unsigned int portCount = midiInDevice->getPortCount();
+                for (unsigned int i = 0; i < portCount; i++)
                 {
-                    midiInDevice->openPort(i);
-                    lattice::logInfo << "Opened MIDI input: " << midiInDevice->getPortName(i);
-                    break;
+                    if (midiInDevice->getPortName(i) == audioConfig.midiInDev)
+                    {
+                        midiInDevice->openPort(i);
+                        lattice::logInfo << "Opened MIDI input: " << midiInDevice->getPortName(i);
+                        break;
+                    }
                 }
             }
-        }
 
-        if (!audioConfig.midiOutDev.empty() && audioConfig.midiOutDev != "no output")
-        {
-            unsigned int portCount = midiOutDevice->getPortCount();
-            for (unsigned int i = 0; i < portCount; i++)
+            if (!audioConfig.midiOutDev.empty() && audioConfig.midiOutDev != "no output")
             {
-                if (midiOutDevice->getPortName(i) == audioConfig.midiOutDev)
+                unsigned int portCount = midiOutDevice->getPortCount();
+                for (unsigned int i = 0; i < portCount; i++)
                 {
-                    midiOutDevice->openPort(i);
-                    lattice::logInfo << "Opened MIDI output: " << midiOutDevice->getPortName(i);
-                    break;
+                    if (midiOutDevice->getPortName(i) == audioConfig.midiOutDev)
+                    {
+                        midiOutDevice->openPort(i);
+                        lattice::logInfo << "Opened MIDI output: " << midiOutDevice->getPortName(i);
+                        break;
+                    }
                 }
             }
         }
     }
+    catch (const std::exception &e)
+    {
+        lattice::logWarning << "MIDI port setup failed (" << e.what() << ") - MIDI disabled for this session";
+        midiInDevice = nullptr;
+        midiOutDevice = nullptr;
+        return;
+    }
+    catch (...)
+    {
+        lattice::logWarning << "MIDI port setup failed - MIDI disabled for this session";
+        midiInDevice = nullptr;
+        midiOutDevice = nullptr;
+        return;
+    }
+
+    midiAvailable = true;
 }
 
 int CabbageAudioApp::getAudioDeviceId(const std::string &deviceName) const
@@ -953,6 +1015,8 @@ void CabbageAudioApp::deinitAudioAndMidi()
         midiOutDevice->closePort();
         midiOutDevice = nullptr;
     }
+
+    midiAvailable = false;
 
     // Clean up empty input buffer if it was initialised
     if (emptyInputBufferInitialised)

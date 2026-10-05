@@ -132,6 +132,11 @@ class CabbageAudioApp
     bool isStreamRunning() const;
     static void errorCallback(RtAudioErrorType type, const std::string &errorText);
 
+    // True when MIDI devices were successfully created and the input callback
+    // installed. False when CoreMIDI/RtMidi is unavailable (e.g. headless CI
+    // runners) — the app keeps running without MIDI in that case.
+    bool isMidiAvailable() const { return midiAvailable; }
+
     std::unique_ptr<CabbageProcessor> processor; // Main processor
     AudioConfig audioConfig;                     // Audio configuration
 
@@ -190,6 +195,7 @@ class CabbageAudioApp
     std::unique_ptr<RtAudio> audioDevice = nullptr;
     std::unique_ptr<RtMidiIn> midiInDevice = nullptr;
     std::unique_ptr<RtMidiOut> midiOutDevice = nullptr;
+    bool midiAvailable = false;
     int midiOutChannel = -1;
     int midiInChannel = -1;
 
