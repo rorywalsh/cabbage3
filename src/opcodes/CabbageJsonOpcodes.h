@@ -35,27 +35,32 @@
 
 #include <plugin.h>
 #include "CabbageOpcodes.h"
+#include "CabbageTrigStructs.h"
 
 // SVal cabbageJsonGet SJson, SPath
 // Query a JSON document with dot notation ("nodes.0.params.rate").
 // Strings come back verbatim, other values as compact JSON. Missing -> "".
+// NOTE: deliberately stateless (no members): Csound allocates opcode
+// instances as raw memory without running constructors.
 struct CabbageJsonGetString : csnd::Plugin<1, 2>
 {
-    std::string lastDoc;
-    std::string lastPath;
-    std::string lastResult;
     int init() { return get(false); };
     int kperf() { return get(true); };
     int get(bool perf);
 };
 
 // SVal, kTrig cabbageJsonGet SJson, SPath
-// As above, with kTrig firing 1 when the result string changes.
+// As above, with kTrig firing 1 when the result string changes (tracked in
+// the shared TriggerMemo, keyed by document+path).
 struct CabbageJsonGetStringWithTrigger : csnd::Plugin<2, 2>
 {
-    std::string lastDoc;
-    std::string lastPath;
-    std::string lastResult;
+    int kperf();
+};
+
+// res:CabbageStrTrig cabbageJsonGet SJson, SPath
+// Struct overload of the Sk trigger form; shares the same trigger memo.
+struct CabbageJsonGetStringStruct : csnd::Plugin<1, 2>
+{
     int kperf();
 };
 
@@ -63,9 +68,6 @@ struct CabbageJsonGetStringWithTrigger : csnd::Plugin<2, 2>
 // Numbers direct, numeric strings parsed, booleans -> 1/0, else 0.
 struct CabbageJsonGetNumber : csnd::Plugin<1, 2>
 {
-    std::string lastDoc;
-    std::string lastPath;
-    double lastResult = 0.0;
     int init() { return get(); };
     int kperf() { return get(); };
     int get();
@@ -109,9 +111,6 @@ struct CabbageJsonLen : csnd::Plugin<1, 2>
 // "string" | "number" | "boolean" | "array" | "object" | "null" | "missing".
 struct CabbageJsonType : csnd::Plugin<1, 2>
 {
-    std::string lastDoc;
-    std::string lastPath;
-    std::string lastResult;
     int init() { return get(false); };
     int kperf() { return get(true); };
     int get(bool perf);

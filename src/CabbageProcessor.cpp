@@ -718,6 +718,106 @@ void CabbageProcessor::process(float **inputs, float **outputs, std::size_t bloc
     }
 }
 
+#ifdef CabbageApp
+namespace {
+// Strict UTF-8 validity check (RFC 3629): rejects overlongs, surrogates
+// and code points past U+10FFFF, matching nlohmann::json's serializer.
+bool isValidUtf8(const std::string &s)
+{
+    const auto *b = reinterpret_cast<const unsigned char *>(s.data());
+    size_t i = 0, n = s.size();
+    while (i < n)
+    {
+        unsigned char c = b[i];
+        size_t len;
+        if (c < 0x80) { ++i; continue; }
+        else if (c >= 0xC2 && c <= 0xDF) len = 2;
+        else if (c >= 0xE0 && c <= 0xEF) len = 3;
+        else if (c >= 0xF0 && c <= 0xF4) len = 4;
+        else return false;
+        if (i + len > n) return false;
+        uint32_t cp = 0;
+        for (size_t k = 0; k < len; ++k)
+        {
+            unsigned char d = b[i + k];
+            if (k > 0 && (d >> 6) != 0x2) return false;
+            cp = (cp << 6) | (d & (k == 0 ? (len == 2 ? 0x1F : len == 3 ? 0x0F : 0x07) : 0x3F));
+        }
+        if ((len == 2 && cp < 0x80) || (len == 3 && cp < 0x800) || (len == 4 && cp < 0x10000) ||
+            cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
+            return false;
+        i += len;
+    }
+    return true;
+}
+
+void collectBadStrings(const nlohmann::json &j, const std::string &path, std::ostringstream &os)
+{
+    if (j.is_string())
+    {
+        const std::string s = j.get<std::string>();
+        if (!isValidUtf8(s))
+        {
+            static constexpr char hex[] = "0123456789ABCDEF";
+            os << " [" << path << " len=" << s.size() << " hex=";
+            const size_t n = std::min<size_t>(s.size(), 32);
+            for (size_t k = 0; k < n; ++k)
+                os << hex[(s[k] >> 4) & 0xF] << hex[s[k] & 0xF] << ' ';
+            if (s.size() > 32) os << "...";
+            os << "]";
+        }
+    }
+    else if (j.is_object())
+    {
+        for (auto it = j.begin(); it != j.end(); ++it)
+            collectBadStrings(it.value(), path + "/" + it.key(), os);
+    }
+    else if (j.is_array())
+    {
+        for (size_t k = 0; k < j.size(); ++k)
+            collectBadStrings(j[k], path + "/" + std::to_string(k), os);
+    }
+}
+} // namespace
+
+void CabbageProcessor::logCorruptOpcodePayload(const CabbageOpcodeData &data)
+{
+    std::ostringstream os;
+    os << "corrupt payload channel='" << data.channel << "'";
+    collectBadStrings(data.cabbageJson, "$", os);
+    // Full shape with invalid bytes substituted (never throws), so the log
+    // shows which sibling values are intact around the corrupt one.
+    try
+    {
+        os << " sanitized=" << data.cabbageJson.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    }
+    catch (...)
+    {
+    }
+    lattice::logWarning << os.str();
+}
+
+void CabbageProcessor::invokeHostCallback(const CabbageOpcodeData &data)
+{
+    if (!hostCallback)
+        return;
+    try
+    {
+        hostCallback(data);
+    }
+    catch (const std::exception &e)
+    {
+        lattice::logWarning << "hostCallback failed for channel '" << data.channel << "': " << e.what();
+        logCorruptOpcodePayload(data);
+    }
+    catch (...)
+    {
+        lattice::logWarning << "hostCallback failed for channel '" << data.channel << "' (unknown exception)";
+        logCorruptOpcodePayload(data);
+    }
+}
+#endif
+
 //========================================================================================
 // onIdle function
 //========================================================================================
@@ -845,9 +945,7 @@ void CabbageProcessor::onIdle()
             if (dataCopy.type == CabbageOpcodeData::MessageType::Generic)
             {
 #ifdef CabbageApp
-                if (hostCallback) {
-                    hostCallback(dataCopy);
-                }
+                invokeHostCallback(dataCopy);
 #else
                 cabbage.processCsoundMessages();
                 updateWidgetData(dataCopy);
@@ -946,9 +1044,7 @@ void CabbageProcessor::onIdle()
 
 
 #ifdef CabbageApp
-            if (hostCallback) {
-                hostCallback(dataCopy);
-            }
+            invokeHostCallback(dataCopy);
 #else
             cabbage.processCsoundMessages();
             updateWidgetData(dataCopy);

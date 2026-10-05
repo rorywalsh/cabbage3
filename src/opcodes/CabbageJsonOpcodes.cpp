@@ -148,23 +148,16 @@ int CabbageJsonGetString::get(bool /*perf*/)
 {
     if (in_count() != 2)
         return IS_OK;
-    std::string docText = safeString(inargs.str_data(0));
-    std::string path = safeString(inargs.str_data(1));
-    if (docText != lastDoc || path != lastPath)
+    std::string result;
+    ParsedDoc p = parseDoc(safeString(inargs.str_data(0)));
+    if (p.ok)
     {
-        lastDoc = docText;
-        lastPath = path;
-        lastResult.clear();
-        ParsedDoc p = parseDoc(docText);
-        if (p.ok)
-        {
-            const nlohmann::json *v = findPath(p.doc, path);
-            if (v != nullptr)
-                lastResult = jsonToString(*v);
-        }
+        const nlohmann::json *v = findPath(p.doc, safeString(inargs.str_data(1)));
+        if (v != nullptr)
+            result = jsonToString(*v);
     }
-    outargs.str_data(0).size = int(lastResult.size()) + 1;
-    outargs.str_data(0).data = csound->strdup(const_cast<char *>(lastResult.c_str()));
+    outargs.str_data(0).size = int(result.size()) + 1;
+    outargs.str_data(0).data = csound->strdup(const_cast<char *>(result.c_str()));
     return IS_OK;
 }
 
@@ -178,27 +171,46 @@ int CabbageJsonGetStringWithTrigger::kperf()
     std::string docText = safeString(inargs.str_data(0));
     std::string path = safeString(inargs.str_data(1));
     std::string result;
-    if (docText == lastDoc && path == lastPath)
+    ParsedDoc p = parseDoc(docText);
+    if (p.ok)
     {
-        result = lastResult;
-        outargs[1] = 0;
+        const nlohmann::json *v = findPath(p.doc, path);
+        if (v != nullptr)
+            result = jsonToString(*v);
     }
-    else
+    outargs[1] = checkTriggerChanged(docText + '\x1F' + path, result) ? 1 : 0;
+    outargs.str_data(0).size = int(result.size()) + 1;
+    outargs.str_data(0).data = csound->strdup(const_cast<char *>(result.c_str()));
+    return IS_OK;
+}
+
+//=====================================================================================
+// res:CabbageStrTrig cabbageJsonGet SJson, SPath
+//=====================================================================================
+int CabbageJsonGetStringStruct::kperf()
+{
+    if (in_count() != 2)
+        return IS_OK;
+
+    auto *out = reinterpret_cast<CS_STRUCT_VAR *>(outargs.data(0));
+    if (out == nullptr)
+        return NOTOK;
+
+    std::string docText = safeString(inargs.str_data(0));
+    std::string path = safeString(inargs.str_data(1));
+    std::string result;
+    ParsedDoc p = parseDoc(docText);
+    if (p.ok)
     {
-        lastDoc = docText;
-        lastPath = path;
-        ParsedDoc p = parseDoc(docText);
-        if (p.ok)
-        {
-            const nlohmann::json *v = findPath(p.doc, path);
-            if (v != nullptr)
-                result = jsonToString(*v);
-        }
-        outargs[1] = (result != lastResult) ? 1 : 0;
-        lastResult = result;
+        const nlohmann::json *v = findPath(p.doc, path);
+        if (v != nullptr)
+            result = jsonToString(*v);
     }
-    outargs.str_data(0).size = int(lastResult.size()) + 1;
-    outargs.str_data(0).data = csound->strdup(const_cast<char *>(lastResult.c_str()));
+
+    // Same shared trigger memo as the Sk overload.
+    const cs_float trig = checkTriggerChanged(docText + '\x1F' + path, result) ? 1 : 0;
+    cabbageWriteStrMember(csound->get_csound(), out, 0, result.c_str());
+    out->members[1]->value = trig;
     return IS_OK;
 }
 
@@ -209,22 +221,15 @@ int CabbageJsonGetNumber::get()
 {
     if (in_count() != 2)
         return IS_OK;
-    std::string docText = safeString(inargs.str_data(0));
-    std::string path = safeString(inargs.str_data(1));
-    if (docText != lastDoc || path != lastPath)
+    double result = 0.0;
+    ParsedDoc p = parseDoc(safeString(inargs.str_data(0)));
+    if (p.ok)
     {
-        lastDoc = docText;
-        lastPath = path;
-        lastResult = 0.0;
-        ParsedDoc p = parseDoc(docText);
-        if (p.ok)
-        {
-            const nlohmann::json *v = findPath(p.doc, path);
-            if (v != nullptr)
-                lastResult = jsonToNumber(*v);
-        }
+        const nlohmann::json *v = findPath(p.doc, safeString(inargs.str_data(1)));
+        if (v != nullptr)
+            result = jsonToNumber(*v);
     }
-    outargs[0] = lastResult;
+    outargs[0] = result;
     return IS_OK;
 }
 
@@ -248,10 +253,21 @@ int CabbageJsonGetStringArray::get()
     }
     csnd::Vector<STRINGDAT> &out = outargs.vector_data<STRINGDAT>(0);
     out.init(csound, static_cast<int>(items.size()), this->insdshead);
+    if (items.empty())
+        return IS_OK;
+    // Csound 7 arrays may be shared/managed: obtain a private writable copy
+    // rather than writing through the shared buffer, which corrupts whoever
+    // shares it (crashed Linux/Windows while macOS stayed silent).
+    STRINGDAT *dest = out.writable_data_init(csound, this->insdshead);
+    if (dest == nullptr)
+    {
+        lattice::logWarning << "cabbageJsonGet: could not acquire writable string array storage";
+        return IS_OK;
+    }
     for (size_t i = 0; i < items.size(); ++i)
     {
-        out[i].size = static_cast<int>(items[i].size() + 1);
-        out[i].data = csound->strdup(const_cast<char *>(items[i].c_str()));
+        dest[i].size = static_cast<int>(items[i].size() + 1);
+        dest[i].data = csound->strdup(const_cast<char *>(items[i].c_str()));
     }
     return IS_OK;
 }
@@ -274,10 +290,20 @@ int CabbageJsonGetNumberArray::get()
                 items.push_back(jsonToNumber(el));
         }
     }
-    csnd::Vector<MYFLT> &out = outargs.myfltvec_data(0);
+    csnd::Vector<cs_float> &out = outargs.myfltvec_data(0);
     out.init(csound, static_cast<int>(items.size()), this->insdshead);
+    if (items.empty())
+        return IS_OK;
+    // See string-array variant above: never write through a possibly-shared
+    // buffer; detach first via the init-time API.
+    cs_float *dest = out.writable_data_init(csound, this->insdshead);
+    if (dest == nullptr)
+    {
+        lattice::logWarning << "cabbageJsonGet: could not acquire writable numeric array storage";
+        return IS_OK;
+    }
     for (size_t i = 0; i < items.size(); ++i)
-        out[i] = items[i];
+        dest[i] = items[i];
     return IS_OK;
 }
 
@@ -308,7 +334,7 @@ int CabbageJsonLen::check()
     {
         const nlohmann::json *v = findPath(p.doc, safeString(inargs.str_data(1)));
         if (v != nullptr && (v->is_array() || v->is_object()))
-            outargs[0] = static_cast<MYFLT>(v->size());
+            outargs[0] = static_cast<cs_float>(v->size());
     }
     return IS_OK;
 }
@@ -320,23 +346,16 @@ int CabbageJsonType::get(bool /*perf*/)
 {
     if (in_count() != 2)
         return IS_OK;
-    std::string docText = safeString(inargs.str_data(0));
-    std::string path = safeString(inargs.str_data(1));
-    if (docText != lastDoc || path != lastPath)
+    std::string result = "missing";
+    ParsedDoc p = parseDoc(safeString(inargs.str_data(0)));
+    if (p.ok)
     {
-        lastDoc = docText;
-        lastPath = path;
-        lastResult = "missing";
-        ParsedDoc p = parseDoc(docText);
-        if (p.ok)
-        {
-            const nlohmann::json *v = findPath(p.doc, path);
-            if (v != nullptr)
-                lastResult = jsonTypeName(*v);
-        }
+        const nlohmann::json *v = findPath(p.doc, safeString(inargs.str_data(1)));
+        if (v != nullptr)
+            result = jsonTypeName(*v);
     }
-    outargs.str_data(0).size = int(lastResult.size()) + 1;
-    outargs.str_data(0).data = csound->strdup(const_cast<char *>(lastResult.c_str()));
+    outargs.str_data(0).size = int(result.size()) + 1;
+    outargs.str_data(0).data = csound->strdup(const_cast<char *>(result.c_str()));
     return IS_OK;
 }
 

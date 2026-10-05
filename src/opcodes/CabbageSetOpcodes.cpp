@@ -36,7 +36,7 @@ int CabbageSetValue::setValue(int /*pass*/)
     if (trigger == 1)
     {
         std::string channel = args.str_data(0).data;
-        MYFLT newValue = args[1];
+        cs_float newValue = args[1];
         
         if (csound->get_csound()->GetChannelPtr(csound->get_csound(), (void **)&value, channel.c_str(),
                                                 CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)

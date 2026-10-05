@@ -23,6 +23,7 @@
 
 #include <plugin.h>
 #include <nlohmann/json.hpp>
+#include "CabbageTrigStructs.h"
 
 #if LATTICE_HAS_ARA || defined(CabbageApp)
 
@@ -36,7 +37,9 @@
 // kVal cabbageAraGet "property", kSourceIdx
 struct CabbageAraGetNum : csnd::Plugin<1, 2>
 {
-    nlohmann::json stateCopy;
+    // NOTE: no stateCopy member here (see below): opcode instances are raw
+    // memory, so non-POD members are never constructed. State is fetched
+    // fresh per call into locals instead.
     int init();
     int kperf();
 };
@@ -45,7 +48,6 @@ struct CabbageAraGetNum : csnd::Plugin<1, 2>
 // SVal cabbageAraGet "property", iSourceIdx
 struct CabbageAraGetString : csnd::Plugin<1, 2>
 {
-    nlohmann::json stateCopy;
     int init();
 };
 
@@ -55,11 +57,28 @@ struct CabbageAraGetString : csnd::Plugin<1, 2>
 
 struct CabbageAraGetUpdate : csnd::Plugin<1, 0>
 {
+    // POD only (opcode instances are raw memory): lastSeen is snapshotted in
+    // init() so kperf() can emit a 0/1 edge flag, matching the trigger
+    // semantics of cabbageGetValue/cabbageGet/cabbageJsonGet.
+    int lastSeen = 0;
+    int init();
     int kperf();
 };
 
 struct CabbageAraGetUpdateEvent : csnd::Plugin<2, 0>
 {
+    int lastSeen = 0;
+    int init();
+    int kperf();
+};
+
+// res:CabbageStrTrig cabbageAraGetUpdateEvent
+// Struct overload of the Sk trigger form: res.val is the last event type,
+// res.trig the 0/1 update edge (same semantics as the Sk form).
+struct CabbageAraGetUpdateEventStruct : csnd::Plugin<1, 0>
+{
+    int lastSeen = 0;
+    int init();
     int kperf();
 };
 
@@ -69,7 +88,9 @@ struct CabbageAraGetUpdateEvent : csnd::Plugin<2, 0>
 
 struct CabbageAraGetSourceSamplesAudio : csnd::Plugin<1, 3>
 {
-    std::shared_ptr<std::vector<std::vector<float>>> pcmData;
+    // NOTE: no shared_ptr member (see above): instances are raw memory.
+    // PCM is re-fetched per call from the indices below (POD, assigned in
+    // init before any perf call).
     int sourceIndex = 0;
     int channelIndex = 0;
     int numSamples = 0;
@@ -80,7 +101,6 @@ struct CabbageAraGetSourceSamplesAudio : csnd::Plugin<1, 3>
 
 struct CabbageAraGetSourceSamplesK : csnd::Plugin<1, 3>
 {
-    std::shared_ptr<std::vector<std::vector<float>>> pcmData;
     int sourceIndex = 0;
     int channelIndex = 0;
     int numSamples = 0;
@@ -108,7 +128,7 @@ struct CabbageAraGetStateJson : csnd::Plugin<1, 2>
     int init();
     int kperf();
 private:
-    MYFLT prevTrig = 0;
+    cs_float prevTrig = 0;
 };
 
 // ============================================================================
@@ -121,6 +141,6 @@ struct CabbageAraDump : csnd::InPlug<1>
     int kperf();
 private:
     void araDumpState();
-    MYFLT prevTrig = 0;
+    cs_float prevTrig = 0;
 };
 #endif // LATTICE_HAS_ARA || CabbageApp

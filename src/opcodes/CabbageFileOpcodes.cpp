@@ -36,11 +36,20 @@ int CabbageGetFiles::getFiles()
         auto files = lattice::File::getFilesOfType(directory, fileType);
         csnd::Vector<STRINGDAT>& out = outargs.vector_data<STRINGDAT>(0);
         out.init(csound, static_cast<int>(files.size()), this->insdshead);
+        if (files.empty())
+            return IS_OK;
+        // Detach shared storage before writing (see CabbageJsonOpcodes).
+        STRINGDAT *dest = out.writable_data_init(csound, this->insdshead);
+        if (dest == nullptr)
+        {
+            lattice::logDebug << "cabbageGetFiles: could not acquire writable array storage";
+            return NOT_OK;
+        }
         int index = 0;
         for( auto& file : files)
         {
-            out[index].size = static_cast<int>(file.size() + 1); // +1 to include null terminator
-            out[index].data = csound->strdup((char*)file.c_str());
+            dest[index].size = static_cast<int>(file.size() + 1); // +1 to include null terminator
+            dest[index].data = csound->strdup((char*)file.c_str());
             index++;
         }
     }

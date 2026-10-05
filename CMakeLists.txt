@@ -411,6 +411,14 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
         ${rtaudio_SOURCE_DIR}
         ${rtmidi_SOURCE_DIR}
     )
+
+    if(LINUX)
+        # LatticeClapPlugin.cpp includes the generated
+        # LinuxWebviewProcess/webview_binary.h, produced by the WebViewProcess
+        # target's POST_BUILD step. The lattice helper that orders this for
+        # plugin targets is never called for CabbageTests, so order it here.
+        add_dependencies(${PROJECT_NAME} WebViewProcess)
+    endif()
     
     # Set compile definitions for test target
     target_compile_definitions(${PROJECT_NAME} PRIVATE
@@ -420,6 +428,16 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
         CabbageTests
         CabbageApp
     )
+
+    # Optional: absolute path to a vscabbage checkout's src/ dir, used by
+    # tests to bootstrap the shared settings file. Pass with
+    # -DTEST_VSCABBAGE_DIR=<path>. CI clones vscabbage next to cabbage3.
+    # Normalised to forward slashes: a raw Windows path would otherwise
+    # lose its backslashes to escape processing in the string literal.
+    if(DEFINED TEST_VSCABBAGE_DIR)
+        file(TO_CMAKE_PATH "${TEST_VSCABBAGE_DIR}" TEST_VSCABBAGE_DIR_NORM)
+        target_compile_definitions(${PROJECT_NAME} PRIVATE TEST_VSCABBAGE_DIR="${TEST_VSCABBAGE_DIR_NORM}")
+    endif()
 
     # CABBAGE_PRO_DEFINITIONS_PLACEHOLDER
 
@@ -444,8 +462,13 @@ if (CabbageTests STREQUAL "${CABBAGE_BUILD_TARGET}")
         CXX_STANDARD_REQUIRED ON
     )
     
-    # Add test to CTest
-    add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
+    # Register each Catch2 TEST_CASE as its own ctest test so that a hung
+    # case is reported (and timed out via ctest --timeout) individually
+    # instead of stalling the whole binary behind one buffered log.
+    include(${catch2_SOURCE_DIR}/extras/Catch.cmake)
+    catch_discover_tests(${PROJECT_NAME}
+        EXTRA_ARGS "--reporter compact"
+    )
 endif()
 
 # ----------------------------

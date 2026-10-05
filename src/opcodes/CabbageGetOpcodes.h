@@ -38,6 +38,7 @@
 
 #include <plugin.h>
 #include "CabbageSetOpcodes.h"
+#include "CabbageTrigStructs.h"
 
 struct CabbageDump : csnd::InPlug<2>
 {
@@ -53,7 +54,7 @@ struct CabbageDumpWithTrigger : csnd::InPlug<3>
 
 struct CabbageGetValue : csnd::Plugin<1, 1>
 {
-    MYFLT *value;
+    cs_float *value;
     int init() { return getValue(CabbageOpcodeData::PassType::Init); };
     int kperf() { return getValue(CabbageOpcodeData::PassType::Perf); };
     int getValue(int init);
@@ -61,8 +62,8 @@ struct CabbageGetValue : csnd::Plugin<1, 1>
 
 struct CabbageGetValueWithTrigger : csnd::Plugin<2, 1>
 {
-    MYFLT *value;
-    MYFLT currentValue = 0;
+    cs_float *value;
+    cs_float currentValue = 0;
     int numberOfPasses = 0;
     int triggerOnPerfPass = 0;
     int init() { return getValue(CabbageOpcodeData::PassType::Init); };
@@ -73,7 +74,7 @@ struct CabbageGetValueWithTrigger : csnd::Plugin<2, 1>
 struct CabbageGetValueString : csnd::Plugin<1, 1>
 {
     char *currentString = {};
-    MYFLT *value;
+    cs_float *value;
     int init() { return getValue(CabbageOpcodeData::PassType::Init); };
     int kperf() { return getValue(CabbageOpcodeData::PassType::Perf); };
     int getValue(int init);
@@ -82,15 +83,42 @@ struct CabbageGetValueString : csnd::Plugin<1, 1>
 struct CabbageGetValueStringWithTrigger : csnd::Plugin<2, 1>
 {
     char *currentString = {};
-    MYFLT *value;
+    cs_float *value;
     int init() { return getValue(CabbageOpcodeData::PassType::Init); };
     int kperf() { return getValue(CabbageOpcodeData::PassType::Perf); };
     int getValue(int init);
 };
 
+// res:CabbageNumTrig cabbageGetValue "channel"
+// Struct overload of the kk trigger form: res.val/res.trig replace kVal/kTrig.
+// Trigger rule identical to CabbageGetValueWithTrigger.
+struct CabbageGetValueStruct : csnd::Plugin<1, 1>
+{
+    cs_float *value = nullptr;
+    cs_float currentValue = 0;
+    int init()
+    {
+        currentValue = 0;
+        return getValue(CabbageOpcodeData::PassType::Init);
+    };
+    int kperf() { return getValue(CabbageOpcodeData::PassType::Perf); };
+    int getValue(int init);
+};
+
+// res:CabbageStrTrig cabbageGetValue "channel"
+// Struct overload of the Sk trigger form. Like its legacy sibling this runs
+// at k-rate only (no init pass): the first perf call primes currentString
+// with a trigger of 0, exactly as the Sk form does.
+struct CabbageGetValueStringStruct : csnd::Plugin<1, 1>
+{
+    char *currentString = nullptr;
+    cs_float *value = nullptr;
+    int kperf();
+};
+
 struct CabbageGetMYFLT : csnd::Plugin<1, 2>, CabbageOpcodes<2>
 {
-    MYFLT *value;
+    cs_float *value;
     int init() { return getIdentifier(CabbageOpcodeData::PassType::Init); };
     int kperf() { return getIdentifier(CabbageOpcodeData::PassType::Perf); };
     int getIdentifier(int init);
@@ -112,7 +140,17 @@ struct CabbageGetStringArray : csnd::Plugin<1, 2>, CabbageOpcodes<2>
 
 struct CabbageGetStringWithTrigger : csnd::Plugin<2, 2>, CabbageOpcodes<2>
 {
-    std::string currentString = {};
+    // NOTE: stateless by necessity (see CabbageJsonOpcodes.h): trigger
+    // history lives in the shared checkTriggerChanged memo, keyed by
+    // channel + identifier.
+    int kperf() { return getIdentifier(CabbageOpcodeData::PassType::Perf); };
+    int getIdentifier(int init);
+};
+
+// res:CabbageStrTrig cabbageGet "channel", "identifier"
+// Struct overload of the Sk trigger form; shares the same trigger memo.
+struct CabbageGetStringStruct : csnd::Plugin<1, 2>, CabbageOpcodes<2>
+{
     int kperf() { return getIdentifier(CabbageOpcodeData::PassType::Perf); };
     int getIdentifier(int init);
 };

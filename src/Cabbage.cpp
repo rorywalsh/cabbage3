@@ -69,6 +69,16 @@ void Engine::teardownCsound()
 void Engine::addOpcodes()
 {
     // The order in which these are registered is important!
+
+    // Plugin structs must be registered before any struct-typed opcode entry
+    // and before Compile() resolves orchestra types. When unavailable (a
+    // Csound older than csound PR #3356) the struct overloads are skipped and
+    // only the legacy multi-output forms remain.
+    const bool haveTrigStructs = registerCabbageTrigStructs(csound->GetCsound());
+    if (!haveTrigStructs)
+        csound->GetCsound()->Message(csound->GetCsound(),
+                                     "Cabbage: RegisterStruct unavailable - struct trigger outputs disabled\n");
+
     csnd::plugin<CabbageSetValue>((csnd::Csound *)csound->GetCsound(), "cabbageSetValue", "", "Si", csnd::thread::i);
     csnd::plugin<CabbageSetValue>((csnd::Csound *)csound->GetCsound(), "cabbageSetValue", "", "SkP", csnd::thread::k);
 
@@ -88,6 +98,11 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageGetValueString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "S", "S", csnd::thread::i);
     csnd::plugin<CabbageGetValueWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "kk", "S", csnd::thread::ik);
     csnd::plugin<CabbageGetValueStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", "Sk", "S", csnd::thread::k);
+    if (haveTrigStructs)
+    {
+        csnd::plugin<CabbageGetValueStruct>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", ":CabbageNumTrig;", "S", csnd::thread::ik);
+        csnd::plugin<CabbageGetValueStringStruct>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", ":CabbageStrTrig;", "S", csnd::thread::k);
+    }
 
     csnd::plugin<CabbageGetStringArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "S[]", "SS", csnd::thread::i);
     csnd::plugin<CabbageGetMYFLT>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "k", "SW", csnd::thread::ik);
@@ -95,6 +110,8 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "S", "SS", csnd::thread::i);
     
     csnd::plugin<CabbageGetStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "Sk", "SS", csnd::thread::k);
+    if (haveTrigStructs)
+        csnd::plugin<CabbageGetStringStruct>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", ":CabbageStrTrig;", "SS", csnd::thread::k);
 
     csnd::plugin<CabbageWidgetHasKey>((csnd::Csound *)getCsound()->GetCsound(), "cabbageHasKey", "i", "SS", csnd::thread::i);
     csnd::plugin<CabbageWidgetHasKey>((csnd::Csound *)getCsound()->GetCsound(), "cabbageHasKey", "k", "SW", csnd::thread::ik);
@@ -102,6 +119,8 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageJsonGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "S", "SS", csnd::thread::i);
     csnd::plugin<CabbageJsonGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "S", "SS", csnd::thread::k);
     csnd::plugin<CabbageJsonGetStringWithTrigger>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "Sk", "SS", csnd::thread::k);
+    if (haveTrigStructs)
+        csnd::plugin<CabbageJsonGetStringStruct>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", ":CabbageStrTrig;", "SS", csnd::thread::k);
     csnd::plugin<CabbageJsonGetNumber>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "i", "SS", csnd::thread::i);
     csnd::plugin<CabbageJsonGetNumber>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "k", "SS", csnd::thread::ik);
     csnd::plugin<CabbageJsonGetStringArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "S[]", "SS", csnd::thread::i);
@@ -142,9 +161,11 @@ void Engine::addOpcodes()
     csnd::plugin<CabbageAraGetNum>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGet", "k", "Sk", csnd::thread::k);
     csnd::plugin<CabbageAraGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGet", "S", "S", csnd::thread::i);
     csnd::plugin<CabbageAraGetString>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGet", "S", "Si", csnd::thread::i);
-    csnd::plugin<CabbageAraGetUpdate>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdate", "k", "", csnd::thread::k);
-    csnd::plugin<CabbageAraGetUpdateEvent>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdateEvent", "Sk", "", csnd::thread::k);
+    csnd::plugin<CabbageAraGetUpdate>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdate", "k", "", csnd::thread::ik);
 
+    csnd::plugin<CabbageAraGetUpdateEvent>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdateEvent", "Sk", "", csnd::thread::ik);
+    if (haveTrigStructs)
+        csnd::plugin<CabbageAraGetUpdateEventStruct>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdateEvent", ":CabbageStrTrig;", "", csnd::thread::ik);
     csnd::plugin<CabbageAraGetSourceSamplesAudio>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "a", "aii", csnd::thread::ia);
     csnd::plugin<CabbageAraGetSourceSamplesK>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "k", "kii", csnd::thread::k);
     csnd::plugin<CabbageAraGetSourceSamplesArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "k[]", "iiii", csnd::thread::i);
@@ -509,7 +530,7 @@ const std::string Engine::getIOChannalConfig(const std::string &csdFile)
 
 //===========================================================================================
 
-void Engine::setControlChannel(const std::string channel, MYFLT value)
+void Engine::setControlChannel(const std::string channel, cs_float value)
 {
     // update Csound channel, and update ParameterChannel values..
     csound->SetControlChannel(channel.c_str(), value);
@@ -1009,9 +1030,9 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
 
                     if (tableSize != -1)
                     {
-                        MYFLT *tablePtr = nullptr;
+                        cs_float *tablePtr = nullptr;
                         auto length = csound->GetTable(&tablePtr, tableNumber);
-                        std::vector<MYFLT> temp(tablePtr, tablePtr + length);
+                        std::vector<cs_float> temp(tablePtr, tablePtr + length);
                         setTableJSON(data.channel, temp, jsonObj);
                     }
                 }
@@ -1028,7 +1049,7 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
 
                 cabbage::Parser::mergeJsonProperties(jsonObj, data.cabbageJson);
 
-                auto soundfile = cabbage::File::readAudioFile<MYFLT>(jsonObj["file"].get<std::string>(), static_cast<int>(sampleRate));
+                auto soundfile = cabbage::File::readAudioFile<cs_float>(jsonObj["file"].get<std::string>(), static_cast<int>(sampleRate));
                 auto samples = soundfile.audioData;
 
                 if (samples.size() == 0)
@@ -1044,10 +1065,10 @@ void Engine::updateFunctionTable(CabbageOpcodeData data, nlohmann::json &jsonObj
     }
 }
 
-void Engine::setTableJSON(std::string /*channel*/, std::vector<MYFLT> samples, nlohmann::json &jsonObj)
+void Engine::setTableJSON(std::string /*channel*/, std::vector<cs_float> samples, nlohmann::json &jsonObj)
 {
     // this is a condensed version of the sample data that is passed around between C++ and JS.
-    std::vector<MYFLT> widgetSampleData;
+    std::vector<cs_float> widgetSampleData;
 
     // Ensure range object exists and set default y-axis range for waveform display
     if (!jsonObj.contains("range"))
@@ -1105,7 +1126,7 @@ void Engine::initialiseGenTableWidgets()
             try
             {
                 const int tableNumber = widget["tableNumber"].get<int>();
-                auto soundfile = cabbage::File::readAudioFile<MYFLT>(widget["file"].get<std::string>(), static_cast<int>(sampleRate));
+                auto soundfile = cabbage::File::readAudioFile<cs_float>(widget["file"].get<std::string>(), static_cast<int>(sampleRate));
                 auto samples = soundfile.audioData;
 
                 if (samples.size() > 0)
@@ -1118,10 +1139,10 @@ void Engine::initialiseGenTableWidgets()
 
                     if (tableSize != -1)
                     {
-                        MYFLT *tablePtr = nullptr;
+                        cs_float *tablePtr = nullptr;
                         getCsound()->GetTable(&tablePtr, tableNumber);
                         std::memcpy(tablePtr, samples.data(),
-                                    std::min(tableSize, static_cast<int>(samples.size())) * sizeof(MYFLT));
+                                    std::min(tableSize, static_cast<int>(samples.size())) * sizeof(cs_float));
                         setTableJSON("", samples, widget);
                     }
                     else
@@ -1570,13 +1591,13 @@ nlohmann::json Engine::saveWidgetJsonData(bool isPresetSave)
                             else
                             {
                                 // Read current value from Csound control channel
-                                MYFLT* channelPtr = nullptr;
+                                cs_float* channelPtr = nullptr;
                                 if (csoundGetChannelPtr(csound->GetCsound(), (void**)&channelPtr, channelId.c_str(),
                                                          CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS)
                                 {
                                     if (channelPtr != nullptr)
                                     {
-                                        MYFLT currentValue = *channelPtr;
+                                        cs_float currentValue = *channelPtr;
 
                                         // Update the range.value with the current channel value
                                         if (channel.contains("range") && channel["range"].is_object())
@@ -1686,7 +1707,7 @@ nlohmann::json Engine::saveWidgetChannelData(const std::unordered_set<std::strin
                 if (channel.is_object() && channel.contains("id") && channel["id"].is_string())
                 {
                     const std::string channelId = channel["id"].get<std::string>();
-                    MYFLT* channelPtr = nullptr;
+                    cs_float* channelPtr = nullptr;
                     if (csoundGetChannelPtr(csound->GetCsound(), (void**)&channelPtr, channelId.c_str(),
                                            CSOUND_CONTROL_CHANNEL | CSOUND_OUTPUT_CHANNEL) == CSOUND_SUCCESS
                         && channelPtr != nullptr)

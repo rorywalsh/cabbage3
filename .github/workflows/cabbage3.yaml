@@ -2,7 +2,7 @@ name: cabbage3-build
 
 #Current Csound7 release...
 env:
-  CSOUND_TAG: "7.0.0-beta.15"
+  CSOUND_TAG: "7.0.0-beta.18"
 
 
 on:
@@ -65,13 +65,19 @@ jobs:
           -DCMAKE_CXX_COMPILER=$CXX_PATH \
           -DCMAKE_OBJC_COMPILER=$CC_PATH \
           -DCMAKE_OBJCXX_COMPILER=$CXX_PATH \
-          -DCABBAGE_BUILD_TARGET=CabbageTests
+          -DCABBAGE_BUILD_TARGET=CabbageTests \
+          -DTEST_VSCABBAGE_DIR="$(pwd)/vscabbage/src"
 
       - name: Build tests
         run: cmake --build build
   
       - name: Run unit tests
-        run: ./build/Debug/CabbageTests --reporter compact # Adjust path/target as needed
+        # Each Catch2 TEST_CASE is its own ctest test (see
+        # catch_discover_tests in CMakeLists): progress streams per case and
+        # --timeout turns a hung case into a reported Timeout while the rest
+        # still run.
+        timeout-minutes: 15
+        run: ctest --test-dir build -C Debug --output-on-failure --timeout 180
 
       - name: Clean build folder
         run: rm -rf build
@@ -164,6 +170,52 @@ jobs:
           make
           sudo make install
 
+      - name: Checkout vscabbage (widget sources for tests)
+        uses: actions/checkout@v1
+        with:
+          repository: rorywalsh/vscabbage
+          ref: develop
+          path: vscabbage
+          fetch-depth: 1
+
+      - name: Configure tests
+        # The vscabbage checkout location varies by runner/action version, so
+        # resolve it dynamically and fail fast when the widget sources are
+        # missing — otherwise tests run against the backend placeholder and
+        # segfault on missing widgets instead of failing cleanly.
+        run: |
+          WS="${{ github.workspace }}"
+          if [ -d "$WS/vscabbage/src/cabbage/widgets" ]; then VSCABBAGE_SRC="$WS/vscabbage/src";
+          elif [ -d "$WS/../vscabbage/src/cabbage/widgets" ]; then VSCABBAGE_SRC="$WS/../vscabbage/src";
+          else echo "::error::vscabbage widget sources not found under $WS"; exit 1; fi
+          echo "Using vscabbage sources: $VSCABBAGE_SRC"
+          cmake -G "Unix Makefiles" -B build-tests -S . \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCABBAGE_BUILD_TARGET=CabbageTests \
+            -DTEST_VSCABBAGE_DIR="$VSCABBAGE_SRC" \
+            -DCMAKE_C_COMPILER=$(which gcc) \
+            -DCMAKE_CXX_COMPILER=$(which g++)
+
+      - name: Build tests
+        timeout-minutes: 30
+        run: cmake --build build-tests
+
+      - name: Run unit tests (incl. stdin onFileChanged resave tests)
+        # Each Catch2 TEST_CASE is its own ctest test (see
+        # catch_discover_tests in CMakeLists): progress streams per case and
+        # --timeout turns a hung case into a reported Timeout while the rest
+        # still run.
+        timeout-minutes: 15
+        run: timeout 600 ctest --test-dir build-tests --output-on-failure --timeout 180
+
+      - name: Rerun suite under gdb for a symbolicated backtrace
+        # Runs only when the suite above fails. Zero cost on green runs.
+        # The tests build uses RelWithDebInfo so the trace has line numbers.
+        if: failure()
+        run: |
+          command -v gdb || sudo apt-get install -y gdb
+          gdb --batch --ex run --ex "bt 30" --ex "info threads" --args ./build-tests/CabbageTests 2>&1 | tail -60
+
       - name: Configure CMake
         run: |
           cmake -G "Unix Makefiles" -B build \
@@ -225,6 +277,66 @@ jobs:
         shell: pwsh
         run: |
           Start-Process -FilePath ".\csound-7.exe" -ArgumentList "/VERYSILENT" -Wait -Verb RunAs
+
+      - name: Put Csound DLL location on PATH
+        # The test executable (and discovery run at build time) loads
+        # csound64.dll at startup; without its directory on PATH Windows
+        # fails with 0xC0000135 STATUS_DLL_NOT_FOUND. Applies to all later
+        # steps via GITHUB_PATH.
+        shell: pwsh
+        run: |
+          $dll = Get-ChildItem -Path "C:\Program Files\Csound7" -Recurse -Filter "csound64.dll" -File | Select-Object -First 1
+          if (-not $dll) { Write-Error "csound64.dll not found under C:\Program Files\Csound7"; exit 1 }
+          Write-Host "Found $($dll.FullName)"
+          $dll.DirectoryName >> $env:GITHUB_PATH
+
+      - name: Checkout vscabbage (widget sources for tests)
+        uses: actions/checkout@v1
+        with:
+          repository: rorywalsh/vscabbage
+          ref: develop
+          path: vscabbage
+          fetch-depth: 1
+
+      - name: Configure tests
+        # The vscabbage checkout location varies by runner/action version, so
+        # resolve it dynamically and fail fast when the widget sources are
+        # missing — otherwise tests run against the backend placeholder and
+        # segfault on missing widgets instead of failing cleanly.
+        shell: pwsh
+        run: |
+          $ws = "${{ github.workspace }}"
+          $vsrc = @("$ws/vscabbage/src", "$ws/../vscabbage/src") | Where-Object { Test-Path "$_/cabbage/widgets" } | Select-Object -First 1
+          if (-not $vsrc) { Write-Error "vscabbage widget sources not found under $ws"; exit 1 }
+          Write-Host "Using vscabbage sources: $vsrc"
+          cmake -S . -B build-tests -DCABBAGE_BUILD_TARGET=CabbageTests -DTEST_VSCABBAGE_DIR="$vsrc" -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build tests
+        # RelWithDebInfo (not Release) so a debugger backtrace has symbols.
+        shell: pwsh
+        run: cmake --build build-tests --config RelWithDebInfo
+
+      - name: Run unit tests (incl. stdin onFileChanged resave tests)
+        # Each Catch2 TEST_CASE is its own ctest test (see
+        # catch_discover_tests in CMakeLists): progress streams per case and
+        # --timeout turns a hung case into a reported Timeout while the rest
+        # still run.
+        timeout-minutes: 15
+        shell: pwsh
+        run: ctest --test-dir build-tests -C RelWithDebInfo --output-on-failure --timeout 180
+
+      - name: Rerun suite under cdb for a Windows backtrace
+        # Runs only when earlier steps failed. Zero cost on green runs.
+        # Needs the PDBs from the RelWithDebInfo tests build above.
+        if: failure()
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $exe = ".\build-tests\RelWithDebInfo\CabbageTests.exe"
+          if (-not (Test-Path $exe)) { Write-Warning "Test binary not found, skipping backtrace"; exit 0 }
+          $cdb = "C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe"
+          if (-not (Test-Path $cdb)) { Write-Warning "cdb not found, skipping backtrace"; exit 0 }
+          & $cdb -c ".symfix+ C:\symcache;g;k100;q" $exe 2>&1 | Select-Object -Last 60
 
       - name: Configure build
         shell: cmd

@@ -88,6 +88,14 @@ class CabbageProcessor : public lattice::Processor
 
 #ifdef CabbageApp
     std::function<void(CabbageOpcodeData)> hostCallback = nullptr;
+    // Invokes hostCallback guarded: a corrupt payload (e.g. non-UTF8 bytes
+    // that make json::dump throw) is logged with its channel instead of
+    // propagating through the idle thread and killing the process.
+    void invokeHostCallback(const CabbageOpcodeData &data);
+    // Logs the channel plus a hex preview of any non-UTF8 strings in a
+    // payload that failed to serialize, so CI pinpoints which extraction
+    // produced the bad bytes.
+    static void logCorruptOpcodePayload(const CabbageOpcodeData &data);
 #endif
 
     // Process opcode data and return the updated widget JSON if applicable
