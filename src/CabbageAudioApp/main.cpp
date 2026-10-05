@@ -22,10 +22,62 @@
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
+#include <filesystem>
+#include <iomanip>
+#include <sstream>
 
 #ifdef _WIN32
 #include <windows.h>
 #endif
+
+// Logs binary path, compile stamp and file mtime (UTC ISO + local).
+// Uses logDebug so the frontend only shows it when verbose logging is enabled.
+static void logBinaryIdentity(const char *argv0)
+{
+    try
+    {
+        const std::string exePath = argv0 ? argv0 : "<unknown>";
+        std::string mtimeUtc = "<unknown>";
+        std::string mtimeLocal = "<unknown>";
+        long long fileSize = -1;
+
+        std::error_code ec;
+        if (!exePath.empty() && std::filesystem::exists(exePath, ec))
+        {
+            fileSize = static_cast<long long>(std::filesystem::file_size(exePath, ec));
+            auto ftime = std::filesystem::last_write_time(exePath, ec);
+            if (!ec)
+            {
+                const auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+                    ftime - decltype(ftime)::clock::now() + std::chrono::system_clock::now());
+                const std::time_t tt = std::chrono::system_clock::to_time_t(sctp);
+                std::tm utcTm{};
+                std::tm localTm{};
+#ifdef _WIN32
+                gmtime_s(&utcTm, &tt);
+                localtime_s(&localTm, &tt);
+#else
+                gmtime_r(&tt, &utcTm);
+                localtime_r(&tt, &localTm);
+#endif
+                char utcBuf[32]{};
+                char localBuf[32]{};
+                std::strftime(utcBuf, sizeof(utcBuf), "%Y-%m-%dT%H:%M:%SZ", &utcTm);
+                std::strftime(localBuf, sizeof(localBuf), "%Y-%m-%d %H:%M:%S", &localTm);
+                mtimeUtc = utcBuf;
+                mtimeLocal = localBuf;
+            }
+        }
+
+        lattice::logDebug << "CabbageApp binary: " << exePath << " | built " << __DATE__ << " " << __TIME__
+                          << " | mtime UTC " << mtimeUtc << " | mtime local " << mtimeLocal << " | " << fileSize
+                          << " bytes";
+    }
+    catch (...)
+    {
+        // Never block startup for a diagnostic log
+    }
+}
 
 // Static pointer to the CabbageAudioApp instance
 static CabbageAudioApp* appInstance = nullptr;
@@ -76,9 +128,11 @@ int main(int argc, char* argv[]) {
     SetConsoleCtrlHandler(consoleHandler, TRUE);
 #endif
     
+    logBinaryIdentity(argc > 0 ? argv[0] : nullptr);
+
     // Create an instance of CabbageAudioApp
     appInstance = new CabbageAudioApp(argc, argv);
-    
+
     // Scan audio devices and initialize Cabbage
     appInstance->scanAudioDevices();
     appInstance->initialiseCabbage();

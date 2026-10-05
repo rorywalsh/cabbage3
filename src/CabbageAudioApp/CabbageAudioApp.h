@@ -173,6 +173,13 @@ class CabbageAudioApp
     // Return a valid device ID for a given device name
     int getAudioDeviceId(const std::string &deviceName) const;
 
+#ifdef LATTICE_WINDOWS
+    // Canonical Windows driver ordering: 0 = WASAPI (default), 1 = DirectSound, 2 = ASIO.
+    // Old settings with only {DirectSound, ASIO} migrate to WASAPI (see initialiseAudio).
+    static RtAudio::Api windowsDriverIndexToApi(int driverIndex);
+    static const char *windowsApiToDisplayName(RtAudio::Api api);
+#endif
+
     // Settings functions
     void addDevicesToSettings(const std::string &settingsFile);
 

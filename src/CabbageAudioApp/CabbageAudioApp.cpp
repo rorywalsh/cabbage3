@@ -715,19 +715,76 @@ bool CabbageAudioApp::createCabbageProcessor()
 //==============================================================================
 // Initialise rtaudio - set up divers, etc
 //==============================================================================
+#ifdef LATTICE_WINDOWS
+RtAudio::Api CabbageAudioApp::windowsDriverIndexToApi(int driverIndex)
+{
+    switch (driverIndex)
+    {
+    case 0:
+        return RtAudio::Api::WINDOWS_WASAPI;
+    case 2:
+        return RtAudio::Api::WINDOWS_ASIO;
+    case 1:
+    default:
+        return RtAudio::Api::WINDOWS_DS;
+    }
+}
+
+const char *CabbageAudioApp::windowsApiToDisplayName(RtAudio::Api api)
+{
+    switch (api)
+    {
+    case RtAudio::Api::WINDOWS_WASAPI:
+        return "WASAPI";
+    case RtAudio::Api::WINDOWS_ASIO:
+        return "ASIO";
+    case RtAudio::Api::WINDOWS_DS:
+    default:
+        return "DirectSound";
+    }
+}
+#endif
+
 void CabbageAudioApp::initialiseAudio(bool startStream)
 {
     // Create an instance of RtAudio
-    std::vector<RtAudio::Api> apis;
-    RtAudio::getCompiledApi(apis);
     canProcessAudio.store(false);
 
     if (!audioDevice)
     {
 #if defined LATTICE_WINDOWS
-        audioDevice = std::make_unique<RtAudio>(
-            (audioConfig.audioDriverType == RtAudio::Api::WINDOWS_ASIO) ? RtAudio::WINDOWS_ASIO : RtAudio::WINDOWS_DS,
-            errorCallback);
+        std::vector<RtAudio::Api> compiledApis;
+        RtAudio::getCompiledApi(compiledApis);
+        std::string compiledList;
+        for (auto api : compiledApis)
+            compiledList += std::string(RtAudio::getApiName(api)) + " ";
+        lattice::logInfo << "RtAudio compiled APIs: " << compiledList;
+
+        RtAudio::Api requestedApi = windowsDriverIndexToApi(audioConfig.audioDriverType);
+        if (!compiledApis.empty() &&
+            std::find(compiledApis.begin(), compiledApis.end(), requestedApi) == compiledApis.end())
+        {
+            lattice::logInfo << "Requested audio driver '" << windowsApiToDisplayName(requestedApi)
+                             << "' was not compiled in, falling back to '"
+                             << windowsApiToDisplayName(compiledApis[0]) << "'.";
+            requestedApi = compiledApis[0];
+        }
+        else if (audioConfig.audioDriverType < 0 || audioConfig.audioDriverType > 2)
+        {
+            lattice::logInfo << "Stale audio driver index " << audioConfig.audioDriverType
+                             << ", migrating to WASAPI (index 0).";
+        }
+        lattice::logInfo << "Using audio driver: " << windowsApiToDisplayName(requestedApi);
+        try
+        {
+            audioDevice = std::make_unique<RtAudio>(requestedApi, errorCallback);
+        }
+        catch (const std::exception &e)
+        {
+            lattice::logDebug << "Failed to open requested audio driver (" << e.what()
+                              << "), falling back to default API.";
+            audioDevice = std::make_unique<RtAudio>(RtAudio::Api::UNSPECIFIED, errorCallback);
+        }
 #elif defined LATTICE_MACOS
         audioDevice = std::make_unique<RtAudio>(RtAudio::Api::MACOSX_CORE, errorCallback);
 #else
@@ -1330,9 +1387,25 @@ void CabbageAudioApp::addDevicesToSettings(const std::string &settingsPath)
         }
 
 #ifdef LATTICE_WINDOWS
-        settingsJson["systemAudioMidiIOListing"]["audioDrivers"] = {"DirectSound", "ASIO"};
+        // Canonical order: 0 = WASAPI (default), 1 = DirectSound, 2 = ASIO.
+        // Only advertise APIs that were actually compiled into RtAudio.
+        {
+            std::vector<RtAudio::Api> compiledApis;
+            RtAudio::getCompiledApi(compiledApis);
+            nlohmann::json drivers = nlohmann::json::array();
+            const RtAudio::Api canonicalOrder[] = {RtAudio::Api::WINDOWS_WASAPI, RtAudio::Api::WINDOWS_DS,
+                                                   RtAudio::Api::WINDOWS_ASIO};
+            for (auto api : canonicalOrder)
+            {
+                if (std::find(compiledApis.begin(), compiledApis.end(), api) != compiledApis.end())
+                    drivers.push_back(windowsApiToDisplayName(api));
+            }
+            if (drivers.empty())
+                drivers = {"WASAPI", "DirectSound", "ASIO"};
+            settingsJson["systemAudioMidiIOListing"]["audioDrivers"] = drivers;
+        }
 #elif defined LATTICE_MACOS
-        settingsJson["systemAudioMidiIOListing"]["audioDrivers"] = "CoreAudio";
+        settingsJson["systemAudioMidiIOListing"]["audioDrivers"] = nlohmann::json::array({"CoreAudio"});
 #else
         settingsJson["systemAudioMidiIOListing"]["audioDrivers"] = {"Pulse", "Alsa", "Jack"};
 #endif
