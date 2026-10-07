@@ -1100,11 +1100,17 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
     if (startStream)
     {
         cabbage::ScopedPhaseTimer streamTimer("initialiseAudio openAndStartStream");
-        lattice::logDebug << "Attempting to start audio with the following settings:\nSR: " << audioConfig.audioSR
-                          << "\nBuffer Size: " << audioConfig.bufferSize << "\nInput device: " << audioConfig.audioInDev
-                          << "\nNumber of input channels: " << inputParameters.nChannels
-                          << "\nOutput device: " << audioConfig.audioOutDev
-                          << "\nNumber of output channels: " << outputParameters.nChannels;
+        // NOTE: one log call per line. The frontend splits stdout on
+        // newlines and only recognises the level prefix on the first
+        // line, so embedded '\n' would leak settings lines into
+        // non-verbose output.
+        lattice::logDebug << "Attempting to start audio with the following settings:";
+        lattice::logDebug << "SR: " << audioConfig.audioSR;
+        lattice::logDebug << "Buffer Size: " << audioConfig.bufferSize;
+        lattice::logDebug << "Input device: " << audioConfig.audioInDev;
+        lattice::logDebug << "Number of input channels: " << inputParameters.nChannels;
+        lattice::logDebug << "Output device: " << audioConfig.audioOutDev;
+        lattice::logDebug << "Number of output channels: " << outputParameters.nChannels;
 
         try
         {

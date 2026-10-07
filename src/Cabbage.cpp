@@ -337,7 +337,12 @@ bool Engine::setupCsound()
             csdKsmps = csound->GetKsmps();
             csSpin = csound->GetSpin();
             csScale = csound->Get0dBFS();
-            lattice::logDebug << "Resetting csound ...\ncsound = " << csound.get();
+            // NOTE: keep log statements single-line. The VS Code frontend
+            // splits backend stdout on newlines and only recognises the
+            // level prefix on the first line, so embedded '\n' would leak
+            // continuation lines into non-verbose output.
+            lattice::logDebug << "Resetting csound ...";
+            lattice::logDebug << "csound = " << csound.get();
         }
         else
         {
