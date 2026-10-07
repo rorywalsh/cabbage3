@@ -69,8 +69,8 @@ jobs:
           -DTEST_VSCABBAGE_DIR="$(pwd)/vscabbage/src"
 
       - name: Build tests
-        run: cmake --build build
-  
+        run: cmake --build build --config Debug
+
       - name: Run unit tests
         # Each Catch2 TEST_CASE is its own ctest test (see
         # catch_discover_tests in CMakeLists): progress streams per case and
@@ -79,15 +79,19 @@ jobs:
         timeout-minutes: 15
         run: ctest --test-dir build -C Debug --output-on-failure --timeout 180
 
+      - name: Rerun suite under lldb for a symbolicated backtrace
+        # Runs only when the suite above fails. Zero cost on green runs.
+        # The tests build uses the Debug config so the trace has line numbers.
+        if: failure()
+        timeout-minutes: 10
+        run: |
+          EXE=$(find build -name CabbageTests -type f | head -n 1)
+          if [ -z "$EXE" ]; then echo "Test binary not found, skipping backtrace"; exit 0; fi
+          echo "Rerunning $EXE under lldb..."
+          lldb --batch -o run -o "bt 30" -o "thread list" -- "$EXE" 2>&1 | tail -60
+
       - name: Clean build folder
         run: rm -rf build
-
-      - name: Configure and build
-        run: |
-          export CC=/usr/bin/clang
-          export CXX=/usr/bin/clang++
-          # Get absolute paths to compilers
-          CC_PATH=$(which clang)
 
       - name: Configure and build
         run: |
