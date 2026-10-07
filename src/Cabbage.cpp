@@ -75,15 +75,15 @@ void Engine::addOpcodes()
     // Csound older than csound PR #3356) the struct overloads are skipped and
     // only the legacy multi-output forms remain.
     CSOUND *cs = csound->GetCsound();
-    lattice::logInfo << "Cabbage: RegisterStruct API present: "
+    lattice::logDebug << "Cabbage: RegisterStruct API present: "
                      << (cs != nullptr && cs->RegisterStruct != nullptr ? "yes" : "no");
     const CabbageTrigStructStatus trigStructs = registerCabbageTrigStructs(cs);
-    lattice::logInfo << "Cabbage: RegisterStruct CabbageNumTrig: "
+    lattice::logDebug << "Cabbage: RegisterStruct CabbageNumTrig: "
                      << (trigStructs.numOk ? "ok" : "FAILED")
                      << ", CabbageStrTrig: " << (trigStructs.strOk ? "ok" : "FAILED");
     if (!trigStructs.numOk || !trigStructs.strOk)
     {
-        lattice::logInfo << "Cabbage: struct trigger outputs partially/fully disabled - "
+        lattice::logError << "Cabbage: struct trigger outputs partially/fully disabled - "
                             "legacy multi-output forms remain";
         if (cs != nullptr)
             cs->Message(cs, "Cabbage: RegisterStruct unavailable - struct trigger outputs disabled\n");
@@ -112,13 +112,13 @@ void Engine::addOpcodes()
     {
         const int32_t rc = csnd::plugin<CabbageGetValueStruct>(
             (csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", ":CabbageNumTrig;", "S", csnd::thread::ik);
-        lattice::logInfo << "Cabbage: cabbageGetValue :CabbageNumTrig; registration rc=" << rc;
+        lattice::logDebug << "Cabbage: cabbageGetValue :CabbageNumTrig; registration rc=" << rc;
     }
     if (trigStructs.strOk)
     {
         const int32_t rc = csnd::plugin<CabbageGetValueStringStruct>(
             (csnd::Csound *)getCsound()->GetCsound(), "cabbageGetValue", ":CabbageStrTrig;", "S", csnd::thread::k);
-        lattice::logInfo << "Cabbage: cabbageGetValue :CabbageStrTrig; registration rc=" << rc;
+        lattice::logDebug << "Cabbage: cabbageGetValue :CabbageStrTrig; registration rc=" << rc;
     }
 
     csnd::plugin<CabbageGetStringArray>((csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", "S[]", "SS", csnd::thread::i);
@@ -131,7 +131,7 @@ void Engine::addOpcodes()
     {
         const int32_t rc = csnd::plugin<CabbageGetStringStruct>(
             (csnd::Csound *)getCsound()->GetCsound(), "cabbageGet", ":CabbageStrTrig;", "SS", csnd::thread::k);
-        lattice::logInfo << "Cabbage: cabbageGet :CabbageStrTrig; registration rc=" << rc;
+        lattice::logDebug << "Cabbage: cabbageGet :CabbageStrTrig; registration rc=" << rc;
     }
 
     csnd::plugin<CabbageWidgetHasKey>((csnd::Csound *)getCsound()->GetCsound(), "cabbageHasKey", "i", "SS", csnd::thread::i);
@@ -144,7 +144,7 @@ void Engine::addOpcodes()
     {
         const int32_t rc = csnd::plugin<CabbageJsonGetStringStruct>(
             (csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", ":CabbageStrTrig;", "SS", csnd::thread::k);
-        lattice::logInfo << "Cabbage: cabbageJsonGet :CabbageStrTrig; registration rc=" << rc;
+        lattice::logDebug << "Cabbage: cabbageJsonGet :CabbageStrTrig; registration rc=" << rc;
     }
     csnd::plugin<CabbageJsonGetNumber>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "i", "SS", csnd::thread::i);
     csnd::plugin<CabbageJsonGetNumber>((csnd::Csound *)getCsound()->GetCsound(), "cabbageJsonGet", "k", "SS", csnd::thread::ik);
@@ -193,7 +193,7 @@ void Engine::addOpcodes()
     {
         const int32_t rc = csnd::plugin<CabbageAraGetUpdateEventStruct>(
             (csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetUpdateEvent", ":CabbageStrTrig;", "", csnd::thread::ik);
-        lattice::logInfo << "Cabbage: cabbageAraGetUpdateEvent :CabbageStrTrig; registration rc=" << rc;
+        lattice::logDebug << "Cabbage: cabbageAraGetUpdateEvent :CabbageStrTrig; registration rc=" << rc;
     }
     csnd::plugin<CabbageAraGetSourceSamplesAudio>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "a", "aii", csnd::thread::ia);
     csnd::plugin<CabbageAraGetSourceSamplesK>((csnd::Csound *)getCsound()->GetCsound(), "cabbageAraGetSourceSamples", "k", "kii", csnd::thread::k);
@@ -265,7 +265,7 @@ bool Engine::setupCsound()
     csound->SetHostAudioIO();
     csound->SetHostData(this);
 
-    lattice::logInfo << "Csound SetHostData: enginePtr=" << this << " processorPtr=" << &processor;
+    lattice::logDebug << "Csound SetHostData: enginePtr=" << this << " processorPtr=" << &processor;
 
     // Message buffer must exist before addOpcodes(): the RegisterStruct
     // fallback path reports via csound->Message(), which is lost otherwise.
@@ -305,7 +305,7 @@ bool Engine::setupCsound()
             CSOUND *raw = csound->GetCsound();
             const bool numVisible = cabbageFindStructType(raw, "CabbageNumTrig") != nullptr;
             const bool strVisible = cabbageFindStructType(raw, "CabbageStrTrig") != nullptr;
-            lattice::logInfo << "Cabbage: pre-Compile type pool: CabbageNumTrig "
+            lattice::logDebug << "Cabbage: pre-Compile type pool: CabbageNumTrig "
                              << (numVisible ? "visible" : "MISSING") << ", CabbageStrTrig "
                              << (strVisible ? "visible" : "MISSING");
         }
@@ -579,7 +579,7 @@ void Engine::setControlChannel(const std::string channel, cs_float value)
 
 void Engine::setStringChannel(const std::string channel, std::string data)
 {
-    lattice::logInfo << "setStringChannel[" << channel << "]: Setting to '" << data << "'";
+    lattice::logDebug << "setStringChannel[" << channel << "]: Setting to '" << data << "'";
     // update Csound channel
     csound->SetStringChannel(channel.c_str(), (char *)data.c_str());
 }
@@ -632,7 +632,7 @@ void Engine::processCsoundMessages()
             opcodeData.enqueue(data);
         }
 
-        lattice::logInfo << message; // Log the message
+        lattice::logDebug << message; // Log the message
         csound->PopFirstMessage();   // Remove from queue
     }
 }
@@ -897,7 +897,7 @@ std::optional<std::reference_wrapper<nlohmann::json>> Engine::getWidgetFromId(st
         // Safety check: ensure w is a valid object
         if (!w.is_object())
         {
-            lattice::logWarning << "Engine::getWidgetFromId: encountered non-object widget, skipping";
+            lattice::logError << "Engine::getWidgetFromId: encountered non-object widget, skipping";
             continue;
         }
         
@@ -1680,7 +1680,7 @@ nlohmann::json Engine::saveWidgetJsonData(bool isPresetSave)
                 if (ch.contains("stringValue"))
                 {
                     std::string chId = ch.value("id", "unknown");
-                    lattice::logInfo << "saveWidgetJsonData: String channel '" << chId
+                    lattice::logDebug << "saveWidgetJsonData: String channel '" << chId
                                      << "' stringValue: " << ch["stringValue"].dump();
                 }
             }
@@ -1799,7 +1799,7 @@ void Engine::loadWidgetState(const nlohmann::json &state, bool isPresetLoad)
                     if (ch.contains("stringValue"))
                     {
                         std::string chId = ch.value("id", "unknown");
-                        lattice::logInfo << "loadWidgetState: Incoming state has string channel '"
+                        lattice::logDebug << "loadWidgetState: Incoming state has string channel '"
                                          << chId << "' stringValue: " << ch["stringValue"].dump();
                     }
                 }
@@ -2111,7 +2111,7 @@ void Engine::loadWidgetState(const nlohmann::json &state, bool isPresetLoad)
         opcodeData.enqueue(data);
     }
     
-    lattice::logInfo << "Widget state loaded successfully. Queued batch update with " << widgetCount << " widgets for UI";
+    lattice::logDebug << "Widget state loaded successfully. Queued batch update with " << widgetCount << " widgets for UI";
 }
 
 //=====================================================================================

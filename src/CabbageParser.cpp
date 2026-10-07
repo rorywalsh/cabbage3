@@ -82,7 +82,7 @@ std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string &csdFil
         std::ifstream file(csdFile);
         if (!file.is_open())
         {
-            lattice::logInfo << "Error opening CSD file: " << csdFile;
+            lattice::logError << "Error opening CSD file: " << csdFile;
             return widgets;
         }
 
@@ -95,7 +95,7 @@ std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string &csdFil
     std::ifstream file(csdFile);
     if (!file.is_open())
     {
-        lattice::logInfo << "Error opening CSD file: " << csdFile;
+        lattice::logError << "Error opening CSD file: " << csdFile;
         return widgets;
     }
 
@@ -145,7 +145,7 @@ std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string &csdFil
     }
     else
     {
-        lattice::logInfo << "No <Cabbage> section found in the file: " << csdFile;
+        lattice::logError << "No <Cabbage> section found in the file: " << csdFile;
     }
 
     if (outError && !jsonError.empty())
@@ -176,13 +176,13 @@ std::string Parser::parseContent(const std::string &content, std::vector<nlohman
         {
             // Legacy format: root is array
             widgetsArray = jsonRoot;
-            lattice::logInfo << "Parsing Cabbage JSON using legacy array format";
+            lattice::logDebug << "Parsing Cabbage JSON using legacy array format";
         }
         else if (jsonRoot.is_object() && jsonRoot.contains("widgets") && jsonRoot["widgets"].is_array())
         {
             // New format: root is object with "widgets" key
             widgetsArray = jsonRoot["widgets"];
-            lattice::logInfo << "Parsing Cabbage JSON using new object format with 'widgets' key";
+            lattice::logDebug << "Parsing Cabbage JSON using new object format with 'widgets' key";
         }
         else
         {
@@ -327,7 +327,7 @@ void Parser::initialiseWidgetJson(nlohmann::json &jsonObj, const nlohmann::json 
                         jsonObj["channels"][0]["id"] = autoId;
                     }
                     lattice::logDebug << incomingJson.dump(4);
-                    lattice::logWarning << "Widget type '" << widgetType << "' is missing an id property. "
+                    lattice::logError << "Widget type '" << widgetType << "' is missing an id property. "
                                       << "Automatically assigned: \"" << autoId
                                       << "\". Assign your own id property to avoid unexpected behavior.";
                 }
@@ -394,7 +394,7 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
                 }
                 else
                 {
-                    lattice::logWarning << "Property '" << key << "' should be an object for widget type: " << widgetType;
+                    lattice::logError << "Property '" << key << "' should be an object for widget type: " << widgetType;
                 }
             }
             else if (key == "sampleRange")
@@ -406,12 +406,12 @@ void Parser::mergeJsonProperties(nlohmann::json &jsonObj, const nlohmann::json &
                         jsonObj["endSample"] = value[1].get<int>();
 //                            lattice::logDebug << "Set sample range for widget type: " << widgetType;
                     } else {
-                        lattice::logWarning << "sampleRange array elements must be numbers for widget type: " << widgetType;
+                        lattice::logError << "sampleRange array elements must be numbers for widget type: " << widgetType;
                     }
                 }
                 else
                 {
-                    lattice::logWarning << "sampleRange must be an array with exactly 2 elements for widget type: " << widgetType;
+                    lattice::logError << "sampleRange must be an array with exactly 2 elements for widget type: " << widgetType;
                 }
             }
             else if (key == "populate")
@@ -1311,7 +1311,7 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
                 try {
                     // If directory doesn't exist, warn and continue
                     if (!std::filesystem::exists(directory) || !std::filesystem::is_directory(directory)) {
-                        lattice::logWarning << "populate directory does not exist or is not a directory: " << directory;
+                        lattice::logError << "populate directory does not exist or is not a directory: " << directory;
                         continue;
                     }
 
@@ -1333,10 +1333,10 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
                     if (truncated)
                         break; // budget exhausted - further directories can't contribute
                 } catch (const std::exception &e) {
-                    lattice::logWarning << "Error scanning directory '" << directory << "': " << e.what();
+                    lattice::logError << "Error scanning directory '" << directory << "': " << e.what();
                     continue;
                 } catch (...) {
-                    lattice::logWarning << "Unknown error scanning directory: " << directory;
+                    lattice::logError << "Unknown error scanning directory: " << directory;
                     continue;
                 }
             }
@@ -1348,7 +1348,7 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
                     dirList += directories[i];
                     if (i < directories.size() - 1) dirList += ", ";
                 }
-                lattice::logWarning << "No files found in directories [" << dirList << "] with type '" << fileType << "'";
+                lattice::logError << "No files found in directories [" << dirList << "] with type '" << fileType << "'";
             }
             
             // Apply sorting
@@ -1436,7 +1436,7 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
             }
 
             if (truncated) {
-                lattice::logWarning << "populate results truncated to " << kMaxPopulateFiles
+                lattice::logError << "populate results truncated to " << kMaxPopulateFiles
                                     << " items for widget '" << widgetChannel
                                     << "' - refine directories/fileType";
             }
@@ -1474,7 +1474,7 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
             if (callback) {
                 lattice::logDebug << "Calling callback with result";
             } else {
-                lattice::logWarning << "No callback provided for populate";
+                lattice::logError << "No callback provided for populate";
             }
             if (callback) {
                 callback(result);

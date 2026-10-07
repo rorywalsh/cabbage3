@@ -43,7 +43,7 @@ int CabbageSaveState::writeDataToDisk()
     std::thread([hostData, stateFile]() {
         nlohmann::json stateJson = hostData->saveWidgetChannelData({}, true);
         cabbage::File::writeToFile(stateFile, stateJson.dump(4));
-        lattice::logInfo << "Widget channel data saved to: " << stateFile;
+        lattice::logDebug << "Widget channel data saved to: " << stateFile;
     }).detach();
 
     return IS_OK;
@@ -68,7 +68,7 @@ int CabbageSaveStateSelected::init()
     std::thread([hostData, stateFile, fullJsonIds]() {
         nlohmann::json stateJson = hostData->saveWidgetChannelData(fullJsonIds, false);
         cabbage::File::writeToFile(stateFile, stateJson.dump(4));
-        lattice::logInfo << "Widget state saved to: " << stateFile;
+        lattice::logDebug << "Widget state saved to: " << stateFile;
     }).detach();
 
     return IS_OK;
@@ -106,7 +106,7 @@ int CabbageLoadState::readDataFromDisk()
             // false = session load, checks persistence.session
             hostData->loadWidgetState(stateJson, false);
             
-            lattice::logInfo << "State loaded successfully from: " << stateFile;
+            lattice::logDebug << "State loaded successfully from: " << stateFile;
             
         } catch (const nlohmann::json::exception &e) {
             lattice::logError << "Failed to parse state file: " << e.what();

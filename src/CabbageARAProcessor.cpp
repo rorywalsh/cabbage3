@@ -70,7 +70,7 @@ void CabbageProcessor::araAudioSourceContentUpdated(ARA::PlugIn::AudioSource* so
 {
     if (isMyAudioSource(source) && source->isSampleAccessEnabled() && scopes.affectSamples())
     {
-        lattice::logInfo << "ARA: content updated with samples access enabled — queuing re-analysis";
+        lattice::logDebug << "ARA: content updated with samples access enabled — queuing re-analysis";
 //        enqueueAraSource(source);
     }
 }
@@ -111,7 +111,7 @@ void CabbageProcessor::araDidEnableSamplesAccess(ARA::PlugIn::AudioSource* sourc
         {
             std::lock_guard<std::mutex> lk(araSourcesMutex);
             araAnalysedSources.insert(source);
-            lattice::logInfo << "ARA: sample access enabled — queuing analysis";
+            lattice::logDebug << "ARA: sample access enabled — queuing analysis";
             enqueueAraSource(source);
         }
     }
@@ -347,7 +347,7 @@ void CabbageProcessor::araAudioSourceAddedToDocument(ARA::PlugIn::Document* /*do
     }
     if (audioSource && isMyAudioSource(audioSource))
     {
-        lattice::logInfo << "ARA: audio source added — queuing analysis for '"
+        lattice::logDebug << "ARA: audio source added — queuing analysis for '"
                          << (audioSource->getName() ? audioSource->getName() : "?") << "'";
         enqueueAraSource(audioSource);
     }
@@ -738,7 +738,7 @@ std::string CabbageProcessor::getAraLastEventType()
 // ---------------------------------------------------------------------------
 void CabbageProcessor::performAraAnalysisFromFile(const std::string& filePath)
 {
-    lattice::logInfo << "ARA standalone: analysing file '" << filePath << "'";
+    lattice::logDebug << "ARA standalone: analysing file '" << filePath << "'";
 
     choc::audio::AudioFileFormatList formats;
     formats.addFormat<choc::audio::WAVAudioFileFormat<false>>();
@@ -759,7 +759,7 @@ void CabbageProcessor::performAraAnalysisFromFile(const std::string& filePath)
     const int64_t totalSamples = static_cast<int64_t>(props.numFrames);
     const std::string sourceName = std::filesystem::path(filePath).filename().string();
 
-    lattice::logInfo << "ARA standalone: '" << sourceName << "' ch=" << numChannels
+    lattice::logDebug << "ARA standalone: '" << sourceName << "' ch=" << numChannels
                      << " sr=" << sr << " samples=" << totalSamples;
 
     // Read into per-channel float buffers.
@@ -805,7 +805,7 @@ void CabbageProcessor::performAraAnalysisFromFile(const std::string& filePath)
         cabbage::ARADataPool::instance().updateAraState("update", static_cast<double>(araUpdateCounter));
     }
 
-    lattice::logInfo << "ARA standalone: '" << sourceName << "' stored at pool index " << poolIdx;
+    lattice::logDebug << "ARA standalone: '" << sourceName << "' stored at pool index " << poolIdx;
 }
 #endif // CabbageApp
 

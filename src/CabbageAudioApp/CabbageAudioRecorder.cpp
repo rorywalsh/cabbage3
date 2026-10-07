@@ -98,7 +98,7 @@ bool AudioRecorder::startRecording(const std::string& filepath,
 
         writerThread = std::thread(&AudioRecorder::writerThreadFunc, this);
 
-        lattice::logInfo << "AudioRecorder: Started recording to " << filepath
+        lattice::logDebug << "AudioRecorder: Started recording to " << filepath
                         << " (" << numChannels << " channels, "
                         << sampleRate << " Hz, "
                         << static_cast<int>(bitDepth) << " bit depth)";
@@ -150,7 +150,7 @@ void AudioRecorder::stopRecording()
         outputStream.reset();
     }
 
-    lattice::logInfo << "AudioRecorder: Recording stopped";
+    lattice::logDebug << "AudioRecorder: Recording stopped";
 }
 
 void AudioRecorder::pushSamples(float** deinterleavedSamples, uint32_t numFrames, uint32_t numChannels)

@@ -72,7 +72,7 @@ void CabbageAudioApp::closeAudioDevice()
     }
     if (audioDevice->isStreamOpen())
     {
-        lattice::logInfo << "Closing rtaudio stream";
+        lattice::logDebug << "Closing rtaudio stream";
         audioDevice->closeStream();
     }
 
@@ -170,7 +170,7 @@ void CabbageAudioApp::hostCallback(CabbageOpcodeData data)
     if (data.channel == "BATCH-UPDATE-7f3d2a" && data.cabbageJson.contains("command") &&
         data.cabbageJson["command"] == "batchWidgetUpdate" && data.cabbageJson.contains("widgets"))
     {
-        lattice::logInfo << "Processing batch widget update with " << data.cabbageJson["widgets"].size()
+        lattice::logDebug << "Processing batch widget update with " << data.cabbageJson["widgets"].size()
                          << " widgets in standalone mode";
 
         // Send individual widgetUpdate messages for each widget in the batch
@@ -371,7 +371,7 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
         {
             if (!processor)
             {
-                lattice::logInfo << "Processor is null! Cannot process parameterChange.";
+                lattice::logError << "Processor is null! Cannot process parameterChange.";
                 return;
             }
             auto &cabbage = processor->getCabbageEngine();
@@ -384,7 +384,7 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
 
             if (!processor)
             {
-                lattice::logInfo << "Processor is null! Cannot process fileOpenFromVSCode.";
+                lattice::logError << "Processor is null! Cannot process fileOpenFromVSCode.";
                 return;
             }
 
@@ -397,7 +397,7 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
             }
             else
             {
-                lattice::logInfo << "fileOpenFromVSCode missing required fields. Has fileName: "
+                lattice::logError << "fileOpenFromVSCode missing required fields. Has fileName: "
                                  << jsonObj.contains("fileName") << ", Has channel: " << jsonObj.contains("channel");
             }
         }
@@ -422,7 +422,7 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
         {
             if (!processor)
             {
-                lattice::logInfo << "Processor is null! Cannot process midiMessage.";
+                lattice::logError << "Processor is null! Cannot process midiMessage.";
                 return;
             }
 
@@ -575,7 +575,7 @@ void CabbageAudioApp::initialiseMidi(bool openPorts)
     // RtMidi, it would terminate the process instead of throwing.
     if (!coreMidiClientAvailable())
     {
-        lattice::logWarning << "CoreMIDI client unavailable - MIDI disabled for this session";
+        lattice::logError << "CoreMIDI client unavailable - MIDI disabled for this session";
         return;
     }
 #endif
@@ -627,7 +627,7 @@ void CabbageAudioApp::initialiseMidi(bool openPorts)
                     if (midiInDevice->getPortName(i) == audioConfig.midiInDev)
                     {
                         midiInDevice->openPort(i);
-                        lattice::logInfo << "Opened MIDI input: " << midiInDevice->getPortName(i);
+                        lattice::logDebug << "Opened MIDI input: " << midiInDevice->getPortName(i);
                         break;
                     }
                 }
@@ -641,7 +641,7 @@ void CabbageAudioApp::initialiseMidi(bool openPorts)
                     if (midiOutDevice->getPortName(i) == audioConfig.midiOutDev)
                     {
                         midiOutDevice->openPort(i);
-                        lattice::logInfo << "Opened MIDI output: " << midiOutDevice->getPortName(i);
+                        lattice::logDebug << "Opened MIDI output: " << midiOutDevice->getPortName(i);
                         break;
                     }
                 }
@@ -650,14 +650,14 @@ void CabbageAudioApp::initialiseMidi(bool openPorts)
     }
     catch (const std::exception &e)
     {
-        lattice::logWarning << "MIDI port setup failed (" << e.what() << ") - MIDI disabled for this session";
+        lattice::logError << "MIDI port setup failed (" << e.what() << ") - MIDI disabled for this session";
         midiInDevice = nullptr;
         midiOutDevice = nullptr;
         return;
     }
     catch (...)
     {
-        lattice::logWarning << "MIDI port setup failed - MIDI disabled for this session";
+        lattice::logError << "MIDI port setup failed - MIDI disabled for this session";
         midiInDevice = nullptr;
         midiOutDevice = nullptr;
         return;
@@ -855,7 +855,7 @@ bool CabbageAudioApp::createCabbageProcessor()
 
     if (!processor->getCabbageEngine().csdCompiledWithoutError())
     {
-        lattice::logDebug << "Couldn't compile Csound...";
+        lattice::logError << "Couldn't compile Csound...";
         return false;
     }
 
@@ -866,10 +866,10 @@ bool CabbageAudioApp::createCabbageProcessor()
         try {
             hostCallback(data);
         } catch (const std::exception &e) {
-            lattice::logWarning << "hostCallback failed for channel '" << data.channel << "': " << e.what();
+            lattice::logError << "hostCallback failed for channel '" << data.channel << "': " << e.what();
             CabbageProcessor::logCorruptOpcodePayload(data);
         } catch (...) {
-            lattice::logWarning << "hostCallback failed for channel '" << data.channel << "' (unknown exception)";
+            lattice::logError << "hostCallback failed for channel '" << data.channel << "' (unknown exception)";
             CabbageProcessor::logCorruptOpcodePayload(data);
         }
     };
@@ -971,23 +971,23 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
         std::string compiledList;
         for (auto api : compiledApis)
             compiledList += std::string(RtAudio::getApiName(api)) + " ";
-        lattice::logInfo << "RtAudio compiled APIs: " << compiledList;
+        lattice::logDebug << "RtAudio compiled APIs: " << compiledList;
 
         RtAudio::Api requestedApi = windowsDriverIndexToApi(audioConfig.audioDriverType);
         if (!compiledApis.empty() &&
             std::find(compiledApis.begin(), compiledApis.end(), requestedApi) == compiledApis.end())
         {
-            lattice::logInfo << "Requested audio driver '" << windowsApiToDisplayName(requestedApi)
+            lattice::logDebug << "Requested audio driver '" << windowsApiToDisplayName(requestedApi)
                              << "' was not compiled in, falling back to '"
                              << windowsApiToDisplayName(compiledApis[0]) << "'.";
             requestedApi = compiledApis[0];
         }
         else if (audioConfig.audioDriverType < 0 || audioConfig.audioDriverType > 2)
         {
-            lattice::logInfo << "Stale audio driver index " << audioConfig.audioDriverType
+            lattice::logDebug << "Stale audio driver index " << audioConfig.audioDriverType
                              << ", migrating to WASAPI (index 0).";
         }
-        lattice::logInfo << "Using audio driver: " << windowsApiToDisplayName(requestedApi);
+        lattice::logDebug << "Using audio driver: " << windowsApiToDisplayName(requestedApi);
         try
         {
             audioDevice = std::make_unique<RtAudio>(requestedApi, errorCallback);
@@ -1021,7 +1021,7 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
     }
 
     auto settingsFilePath = cabbage::File::getSettingsFile();
-    lattice::logInfo << "Cabbage settings file: " << settingsFilePath;
+    lattice::logDebug << "Cabbage settings file: " << settingsFilePath;
     // Log the configured JS source dir(s) and the resolved widget path so that
     // "Unknown widget type" reports are self-diagnosing.
     {
@@ -1035,20 +1035,20 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
                 oss << settingsStream.rdbuf();
                 const auto settingsJson = nlohmann::json::parse(oss.str());
                 if (settingsJson.contains("currentConfig") && settingsJson["currentConfig"].contains("jsSourceDir"))
-                    lattice::logInfo << "Cabbage jsSourceDir: " << settingsJson["currentConfig"]["jsSourceDir"].dump();
+                    lattice::logDebug << "Cabbage jsSourceDir: " << settingsJson["currentConfig"]["jsSourceDir"].dump();
                 else
-                    lattice::logInfo << "Cabbage jsSourceDir: <not set>";
+                    lattice::logDebug << "Cabbage jsSourceDir: <not set>";
             }
             else
             {
-                lattice::logInfo << "Cabbage settings file not found, using defaults";
+                lattice::logDebug << "Cabbage settings file not found, using defaults";
             }
         }
         catch (const std::exception &e)
         {
-            lattice::logInfo << "Cabbage settings could not be parsed: " << e.what();
+            lattice::logError << "Cabbage settings could not be parsed: " << e.what();
         }
-        lattice::logInfo << "Cabbage widget sources: " << cabbage::File::findCabbageJSWidgetPath();
+        lattice::logDebug << "Cabbage widget sources: " << cabbage::File::findCabbageJSWidgetPath();
         addDevicesToSettings(settingsFilePath);
         audioConfig.loadFromJson(settingsFilePath);
     }
@@ -1056,7 +1056,7 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
     // Check if audio devices are available
     if (audioDevice->getDeviceCount() < 1)
     {
-        lattice::logInfo << "No audio devices found - audio unavailable.";
+        lattice::logError << "No audio devices found - audio unavailable.";
         return;
     }
 
@@ -1146,7 +1146,7 @@ void CabbageAudioApp::deinitAudioAndMidi()
 
     if (audioDevice->isStreamOpen())
     {
-        lattice::logInfo << "Closing audio stream...";
+        lattice::logDebug << "Closing audio stream...";
         audioDevice->closeStream();
     }
     // Stream torn down: UI must re-gate until a new stream proves live.
@@ -1171,7 +1171,7 @@ void CabbageAudioApp::deinitAudioAndMidi()
     // Clean up empty input buffer if it was initialised
     if (emptyInputBufferInitialised)
     {
-        lattice::logInfo << "Cleaning up empty input buffer...";
+        lattice::logDebug << "Cleaning up empty input buffer...";
         for (unsigned int ch = 0; ch < numInputChannels; ++ch)
         {
             delete[] emptyInputBuffer[ch];
@@ -1310,7 +1310,7 @@ void CabbageAudioApp::onIdle()
             }
             else
             {
-                lattice::logDebug << "Failed to create Cabbage processor";
+                lattice::logError << "Failed to create Cabbage processor";
                 nlohmann::json msg;
                 msg["command"] = "failedToCompile";
                 sendJsonMessage(msg);

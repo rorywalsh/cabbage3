@@ -188,7 +188,7 @@ void CabbageProcessor::initialiseAudioEngine()
     if (!cabbage.setupCsound())
     {
         auto errors = cabbage.getCompileErrors();
-        lattice::logInfo << "COMPILE ERRORS:\n" << errors;
+        lattice::logError << "COMPILE ERRORS:\n" << errors;
         compileErrorHtml = generateErrorPageHtml(errors);
         hasCompileErrors = true;
         lattice::logDebug << "Generated error HTML, length: " << compileErrorHtml.length();
@@ -283,7 +283,7 @@ void CabbageProcessor::configureLogger(const nlohmann::json& json)
     auto logFile = cabbage::Utils::getTopLevelProperty<std::string>(json, "logger.file");
     if (!logFile.has_value() || logFile->empty())
     {
-        lattice::logInfo << "Logger enabled but no file path specified";
+        lattice::logError << "Logger enabled but no file path specified";
         return;
     }
 
@@ -318,7 +318,7 @@ void CabbageProcessor::configureLogger(const nlohmann::json& json)
     try
     {
         lattice::Logger::getInstance().setLogFile(logFilePath);
-        lattice::logInfo << "Logger configured: " << logFilePath
+        lattice::logDebug << "Logger configured: " << logFilePath
                          << " (replace=" << (replace.value_or(false) ? "true" : "false") << ")";
     }
     catch (const std::exception& e)
@@ -453,7 +453,7 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
         }
     }
 
-    lattice::logInfo << "addParametersForWidget: type=" << widgetType << ", id=" << widgetId
+    lattice::logDebug << "addParametersForWidget: type=" << widgetType << ", id=" << widgetId
                      << ", automatable=" << isAutomatable << ", isNumericChannel=" << isNumericChannel;
 
     if (isAutomatable && isNumericChannel)
@@ -549,7 +549,7 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                         normalizedDefault = std::pow(normalizedDefault, 1.0f / skewVal);
                     }
 
-                    lattice::logInfo << "Creating parameter '" << paramLabel << "' (channel: " << channel << "): min=" << minValAdjusted
+                    lattice::logDebug << "Creating parameter '" << paramLabel << "' (channel: " << channel << "): min=" << minValAdjusted
                                      << ", max=" << maxVal << ", default=" << defVal
                                      << ", normalizedDefault=" << normalizedDefault << ", initial=" << initialValue
                                      << ", inc=" << incVal << ", skew=" << skewVal;
@@ -587,7 +587,7 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                 const std::string widgetType = w.contains("type") && w["type"].is_string()
                     ? w["type"].get<std::string>() : "";
 
-                lattice::logInfo << "Processing non-automatable widget type: " << widgetType;
+                lattice::logDebug << "Processing non-automatable widget type: " << widgetType;
 
                 for (auto &ch : w["channels"])
                 {
@@ -595,7 +595,7 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                         continue;
 
                     const std::string channel = ch["id"].get<std::string>();
-                    lattice::logInfo << "  Processing channel: " << channel << " in widget type: " << widgetType;
+                    lattice::logDebug << "  Processing channel: " << channel << " in widget type: " << widgetType;
 
                     // For comboBox/optionButton, create default range based on items if not provided
                     if ((widgetType == "comboBox" || widgetType == "optionButton") && !ch.contains("range"))
@@ -626,7 +626,7 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                     {
                         // For string channels, set empty string as default
                         cabbage.getCsound()->SetStringChannel(channel.c_str(), "");
-                        lattice::logInfo << "    Created string channel for non-automatable widget '" << channel << "'";
+                        lattice::logDebug << "    Created string channel for non-automatable widget '" << channel << "'";
                     }
                     else
                     {
@@ -843,7 +843,7 @@ void CabbageProcessor::logCorruptOpcodePayload(const CabbageOpcodeData &data)
     catch (...)
     {
     }
-    lattice::logWarning << os.str();
+    lattice::logError << os.str();
 }
 
 void CabbageProcessor::invokeHostCallback(const CabbageOpcodeData &data)
@@ -856,12 +856,12 @@ void CabbageProcessor::invokeHostCallback(const CabbageOpcodeData &data)
     }
     catch (const std::exception &e)
     {
-        lattice::logWarning << "hostCallback failed for channel '" << data.channel << "': " << e.what();
+        lattice::logError << "hostCallback failed for channel '" << data.channel << "': " << e.what();
         logCorruptOpcodePayload(data);
     }
     catch (...)
     {
-        lattice::logWarning << "hostCallback failed for channel '" << data.channel << "' (unknown exception)";
+        lattice::logError << "hostCallback failed for channel '" << data.channel << "' (unknown exception)";
         logCorruptOpcodePayload(data);
     }
 }
@@ -936,8 +936,8 @@ void CabbageProcessor::runPopulateAsync(const std::string &widgetChannel, nlohma
           std::any_of(populateConfig["directories"].begin(), populateConfig["directories"].end(), [](const nlohmann::json& dir) { return dir.is_string() && !dir.get<std::string>().empty(); }) &&
           populateConfig.contains("fileType")))
     {
-        lattice::logWarning << "Populate config missing directories array or fileType for: " << widgetChannel;
-        lattice::logWarning << "Current populate config: " << populateConfig.dump();
+        lattice::logError << "Populate config missing directories array or fileType for: " << widgetChannel;
+        lattice::logError << "Current populate config: " << populateConfig.dump();
         return;
     }
 
@@ -1016,7 +1016,7 @@ void CabbageProcessor::onIdle()
         }
         for (auto* src : toAnalyse)
         {
-            lattice::logInfo << "ARA: onIdle retry — queuing source='" << (src ? src->getName() : "null") << "'";
+            lattice::logDebug << "ARA: onIdle retry — queuing source='" << (src ? src->getName() : "null") << "'";
             enqueueAraSource(src);
         }
     }
@@ -1138,9 +1138,9 @@ void CabbageProcessor::onIdle()
                 }
                 else
                 {
-                    lattice::logWarning << "Widget not found or populate not an object for: " << dataCopy.channel;
+                    lattice::logError << "Widget not found or populate not an object for: " << dataCopy.channel;
                     if (widgetOpt.has_value()) {
-                        lattice::logWarning << "Widget JSON: " << widgetOpt->dump();
+                        lattice::logError << "Widget JSON: " << widgetOpt->dump();
                     }
                 }
             }
@@ -1227,7 +1227,7 @@ void CabbageProcessor::updateWidgetData(const CabbageOpcodeData &data)
         }
         else
         {
-            lattice::logWarning << "processOpcodeData returned nullopt for channel: " << data.channel;
+            lattice::logError << "processOpcodeData returned nullopt for channel: " << data.channel;
         }
     }
 }
@@ -1389,14 +1389,14 @@ void CabbageProcessor::setCabbageIsReady()
         std::vector<ARA::PlugIn::AudioSource*> toAnalyse;
         {
             std::lock_guard<std::mutex> lk(araSourcesMutex);
-            lattice::logInfo << "ARA setCabbageIsReady: araAccessibleSources.size()=" << araAccessibleSources.size();
+            lattice::logDebug << "ARA setCabbageIsReady: araAccessibleSources.size()=" << araAccessibleSources.size();
 
             // First pass: collect only sources that belong to this instance.
             for (auto* src : araAccessibleSources)
             {
                 const bool mine     = isMyAudioSource(src);
                 const bool analysed = araAnalysedSources.count(src) > 0;
-                lattice::logInfo << "ARA setCabbageIsReady: source='" << (src ? src->getName() : "null")
+                lattice::logDebug << "ARA setCabbageIsReady: source='" << (src ? src->getName() : "null")
                                  << "' isMyAudioSource=" << mine
                                  << " alreadyAnalysed=" << analysed;
                 if (!analysed && mine)
@@ -1407,7 +1407,7 @@ void CabbageProcessor::setCabbageIsReady()
             // assign a PlaybackRenderer), queue all unanalysed sources.
             if (toAnalyse.empty())
             {
-                lattice::logInfo << "ARA setCabbageIsReady: isMyAudioSource() found no matches — falling back to all unanalysed sources";
+                lattice::logDebug << "ARA setCabbageIsReady: isMyAudioSource() found no matches — falling back to all unanalysed sources";
                 for (auto* src : araAccessibleSources)
                 {
                     if (araAnalysedSources.count(src) == 0)
@@ -1417,7 +1417,7 @@ void CabbageProcessor::setCabbageIsReady()
         }
         for (auto* src : toAnalyse)
         {
-            lattice::logInfo << "ARA: queuing deferred analysis from setCabbageIsReady for source='" << (src ? src->getName() : "null") << "'";
+            lattice::logDebug << "ARA: queuing deferred analysis from setCabbageIsReady for source='" << (src ? src->getName() : "null") << "'";
             araAnalysedSources.insert(src);
             enqueueAraSource(src);
         }
@@ -1475,7 +1475,7 @@ void CabbageProcessor::onMessageFromWebView(const nlohmann::json &j)
 
     if (command == "cabbageIsReadyToLoad")
     {
-        lattice::logInfo << "CabbageProcessor: Calling queueGenTableUpdates() for webview reconnection";
+        lattice::logDebug << "CabbageProcessor: Calling queueGenTableUpdates() for webview reconnection";
         setCabbageIsReady();
         // Note: setCabbageIsReady() already calls updateUI() in plugin mode (#ifndef CabbageApp).
         // For CabbageApp mode, call it here since setCabbageIsReady() skips it.
@@ -1663,7 +1663,7 @@ void CabbageProcessor::updateUI()
                                 // Also normalize and store back to parameter to fix it
                                 float fixedNormalized = getParameter(paramIdx).toNormalised(defaultValue);
                                 getParameters()[paramIdx].value = fixedNormalized;
-                                lattice::logInfo << "Fixed parameter " << paramIdx << " to normalized value: " << fixedNormalized;
+                                lattice::logDebug << "Fixed parameter " << paramIdx << " to normalized value: " << fixedNormalized;
                             }
                             continue; // Skip to next channel
                         }
@@ -1844,13 +1844,13 @@ void CabbageProcessor::setActualChannelCounts(int inputs, int outputs)
 {
     if (inputs < totalNumInputs)
     {
-        lattice::logInfo << "Reducing input channels from " << totalNumInputs << " to " << inputs
+        lattice::logDebug << "Reducing input channels from " << totalNumInputs << " to " << inputs
                          << " (audio device limitation)";
         totalNumInputs = inputs;
     }
     if (outputs < totalNumOutputs)
     {
-        lattice::logInfo << "Reducing output channels from " << totalNumOutputs << " to " << outputs
+        lattice::logDebug << "Reducing output channels from " << totalNumOutputs << " to " << outputs
                          << " (audio device limitation)";
         totalNumOutputs = outputs;
     }

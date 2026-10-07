@@ -671,11 +671,11 @@ void File::setCsdFileAndPath(const std::string &csdFile)
         // Get or create the cached data for this binary
         auto &data = getCache().data[binaryName];
         data.csdPath = csdFile; // Cache CSD path
-        lattice::logInfo << "setCsdFileAndPath: Set CSD path for " << binaryName << " to: " << csdFile;
+        lattice::logDebug << "setCsdFileAndPath: Set CSD path for " << binaryName << " to: " << csdFile;
     }
     else
     {
-        lattice::logWarning << "setCsdFileAndPath: Path does not exist or is empty: " << csdFile;
+        lattice::logError << "setCsdFileAndPath: Path does not exist or is empty: " << csdFile;
     }
 }
 
@@ -717,7 +717,7 @@ std::pair<std::string, std::string> File::setupRootDirectory(const std::string &
         {
             // Already extracted for this binary, reuse without incrementing here
             cabzTempDir = it->second.tempDir;
-            lattice::logInfo << "Reusing existing temp dir for " << binaryName << ": " << cabzTempDir
+            lattice::logDebug << "Reusing existing temp dir for " << binaryName << ": " << cabzTempDir
                              << " (current ref count: " << it->second.tempDirRefCount << ")";
         }
     }
@@ -739,7 +739,7 @@ std::pair<std::string, std::string> File::setupRootDirectory(const std::string &
         auto files = lattice::File::getFilesOfType(cabzTempDir, "*");
         for (auto &f : files)
         {
-            lattice::logInfo << "File: " << f;
+            lattice::logDebug << "File: " << f;
         }
 
         // Store temp dir and set initial reference count
@@ -748,7 +748,7 @@ std::pair<std::string, std::string> File::setupRootDirectory(const std::string &
             auto &data = getCache().data[binaryName];
             data.tempDir = cabzTempDir;
             data.tempDirRefCount = 0; // Will be incremented by CabbageProcessor constructor
-            lattice::logInfo << "Set temp dir for " << binaryName << " to: " << cabzTempDir
+            lattice::logDebug << "Set temp dir for " << binaryName << " to: " << cabzTempDir
                              << " (initial ref count: " << data.tempDirRefCount << ")";
         }
 
@@ -870,7 +870,7 @@ nlohmann::json File::extractPropsFromJS(const std::string &jsContent)
         }
         catch (const nlohmann::json::parse_error &e)
         {
-            lattice::logInfo << "JSON parse error: " << e.what() << "\nOffending JSON:\n"
+            lattice::logError << "JSON parse error: " << e.what() << "\nOffending JSON:\n"
                              << cabbage::Utils::getJsonWithLineNumbers(propsString);
             return {};
         }
@@ -931,7 +931,7 @@ std::string File::getSettingsProperty(const std::string &section, const std::str
     }
     catch (const nlohmann::json::parse_error &e)
     {
-        lattice::logInfo << "Parse error : " << e.what() << " at byte position " << e.byte;
+        lattice::logError << "Parse error : " << e.what() << " at byte position " << e.byte;
         return "";
     }
 
@@ -941,7 +941,7 @@ std::string File::getSettingsProperty(const std::string &section, const std::str
         return jsonData[section][key].get<std::string>();
     }
 
-    lattice::logInfo << "Error: Section '" << section << "' or key '" << key << "' not found.";
+    lattice::logError << "Error: Section '" << section << "' or key '" << key << "' not found.";
     return "";
 }
 
@@ -1010,7 +1010,7 @@ std::string File::extractCabzArchive(const std::string &resourceDir)
         return ""; // No archive, use regular resources
     }
 
-    lattice::logInfo << "Found .cabz archive: " << cabzPath;
+    lattice::logDebug << "Found .cabz archive: " << cabzPath;
 
     try
     {
@@ -1031,20 +1031,20 @@ std::string File::extractCabzArchive(const std::string &resourceDir)
         file.read(reinterpret_cast<char *>(encryptedData.data()), fileSize);
         file.close();
 
-        lattice::logInfo << "Read encrypted archive: " << fileSize << " bytes";
+        lattice::logDebug << "Read encrypted archive: " << fileSize << " bytes";
 
         // Decrypt the archive using the company-wide encryption key
         // NOTE: All Pro plugins use the same encryption key for simplicity.
         // This avoids the chicken-and-egg problem of needing to decrypt files to find the key.
-        lattice::logInfo << "Decrypting archive...";
+        lattice::logDebug << "Decrypting archive...";
         std::vector<uint8_t> zipData = Decrypt::decryptData(encryptedData);
-        lattice::logInfo << "Decrypted archive: " << zipData.size() << " bytes";
+        lattice::logDebug << "Decrypted archive: " << zipData.size() << " bytes";
 
         // Create temp directory
         std::string tempDir = std::filesystem::temp_directory_path().string();
         tempDir = lattice::File::joinPath(tempDir, "cabbage_" + binaryName + "_" + std::to_string(std::time(nullptr)));
         std::filesystem::create_directories(tempDir);
-        lattice::logInfo << "Created temp directory: " << tempDir;
+        lattice::logDebug << "Created temp directory: " << tempDir;
 
         // Create an input stream from decrypted zip data
         auto zipStream = std::make_shared<std::istringstream>(
@@ -1052,7 +1052,7 @@ std::string File::extractCabzArchive(const std::string &resourceDir)
 
         // Extract zip archive using choc
         choc::zip::ZipFile archive(zipStream);
-        lattice::logInfo << "Found " << archive.items.size() << " files in archive";
+        lattice::logDebug << "Found " << archive.items.size() << " files in archive";
 
         // Extract all files
         bool success = archive.uncompressToFolder(tempDir, true, false);
@@ -1063,7 +1063,7 @@ std::string File::extractCabzArchive(const std::string &resourceDir)
             return "";
         }
 
-        lattice::logInfo << "Successfully extracted .cabz archive to: " << tempDir;
+        lattice::logDebug << "Successfully extracted .cabz archive to: " << tempDir;
         return tempDir;
     }
     catch (const std::exception &e)
@@ -1081,7 +1081,7 @@ void File::cleanupCabzTempDir(const std::string &tempDir)
     try
     {
         std::filesystem::remove_all(tempDir);
-        lattice::logInfo << "Cleaned up temp directory: " << tempDir;
+        lattice::logDebug << "Cleaned up temp directory: " << tempDir;
     }
     catch (const std::exception &e)
     {
@@ -1105,7 +1105,7 @@ void File::decrementTempDirRef(const std::string &tempDir)
         if (data.tempDir == tempDir)
         {
             data.tempDirRefCount--; // Decrement reference count
-            lattice::logInfo << "Decremented ref count for temp dir: " << tempDir << " (binary: " << pair.first
+            lattice::logDebug << "Decremented ref count for temp dir: " << tempDir << " (binary: " << pair.first
                              << ") to " << data.tempDirRefCount;
 
             if (data.tempDirRefCount <= 0)
@@ -1120,7 +1120,7 @@ void File::decrementTempDirRef(const std::string &tempDir)
         }
     }
 
-    lattice::logWarning << "Attempted to decrement ref count for unknown temp dir: " << tempDir;
+    lattice::logError << "Attempted to decrement ref count for unknown temp dir: " << tempDir;
 }
 
 // Increment reference count for temp directory
@@ -1139,13 +1139,13 @@ void File::incrementTempDirRef(const std::string &tempDir)
         if (data.tempDir == tempDir)
         {
             data.tempDirRefCount++; // Increment reference count
-            lattice::logInfo << "Incremented ref count for temp dir: " << tempDir << " (binary: " << pair.first
+            lattice::logDebug << "Incremented ref count for temp dir: " << tempDir << " (binary: " << pair.first
                              << ") to " << data.tempDirRefCount;
             return; // Found and handled
         }
     }
 
-    lattice::logWarning << "Attempted to increment ref count for unknown temp dir: " << tempDir;
+    lattice::logError << "Attempted to increment ref count for unknown temp dir: " << tempDir;
 }
 #else
 // Stub implementations for non-Pro builds

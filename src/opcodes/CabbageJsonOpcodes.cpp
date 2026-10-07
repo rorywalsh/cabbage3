@@ -134,7 +134,7 @@ ParsedDoc parseDoc(const std::string &text)
     }
     catch (const nlohmann::json::exception &e)
     {
-        lattice::logWarning << "cabbageJson: invalid JSON document: " << e.what();
+        lattice::logError << "cabbageJson: invalid JSON document: " << e.what();
     }
     return p;
 }
@@ -261,7 +261,7 @@ int CabbageJsonGetStringArray::get()
     STRINGDAT *dest = out.writable_data_init(csound, this->insdshead);
     if (dest == nullptr)
     {
-        lattice::logWarning << "cabbageJsonGet: could not acquire writable string array storage";
+        lattice::logError << "cabbageJsonGet: could not acquire writable string array storage";
         return IS_OK;
     }
     for (size_t i = 0; i < items.size(); ++i)
@@ -299,7 +299,7 @@ int CabbageJsonGetNumberArray::get()
     cs_float *dest = out.writable_data_init(csound, this->insdshead);
     if (dest == nullptr)
     {
-        lattice::logWarning << "cabbageJsonGet: could not acquire writable numeric array storage";
+        lattice::logError << "cabbageJsonGet: could not acquire writable numeric array storage";
         return IS_OK;
     }
     for (size_t i = 0; i < items.size(); ++i)
@@ -411,7 +411,7 @@ static bool setPathValue(nlohmann::json &doc, const std::string &path, const nlo
     }
     catch (const nlohmann::json::exception &e)
     {
-        lattice::logWarning << "cabbageJsonSet: " << e.what();
+        lattice::logError << "cabbageJsonSet: " << e.what();
         return false;
     }
 }
@@ -431,7 +431,7 @@ int CabbageJsonSetString::set()
         if (setPathValue(p.doc, safeString(inargs.str_data(1)), sval))
             result = p.doc.dump();
         else
-            lattice::logWarning << "cabbageJsonSet: cannot set path (type clash or index out of range)";
+            lattice::logError << "cabbageJsonSet: cannot set path (type clash or index out of range)";
     }
     outargs.str_data(0).size = int(result.size()) + 1;
     outargs.str_data(0).data = csound->strdup(const_cast<char *>(result.c_str()));
@@ -452,7 +452,7 @@ int CabbageJsonSetNumber::set()
         if (setPathValue(p.doc, safeString(inargs.str_data(1)), inargs[2]))
             result = p.doc.dump();
         else
-            lattice::logWarning << "cabbageJsonSet: cannot set path (type clash or index out of range)";
+            lattice::logError << "cabbageJsonSet: cannot set path (type clash or index out of range)";
     }
     outargs.str_data(0).size = int(result.size()) + 1;
     outargs.str_data(0).data = csound->strdup(const_cast<char *>(result.c_str()));

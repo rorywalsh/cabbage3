@@ -216,7 +216,7 @@ class Engine
     {
         if (compileErrors.length() > 0)
         {
-            lattice::logInfo << compileErrors.c_str();
+            lattice::logError << compileErrors.c_str();
             compileErrors.clear();
         }
     }

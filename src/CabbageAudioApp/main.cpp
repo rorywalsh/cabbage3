@@ -86,7 +86,7 @@ volatile sig_atomic_t terminateRequested = 0;
 
 void signalHandler(int signal)
 {
-    lattice::logInfo << "Received signal " << signal << ". Cleaning up...";
+    lattice::logError << "Received signal " << signal << ". Cleaning up...";
     if (appInstance) {
         try {
             terminateRequested = 1;

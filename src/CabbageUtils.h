@@ -548,7 +548,7 @@ public:
             }
         }
 
-        lattice::logInfo << "Unknown widget type: " << widgetType << " - skipping widget";
+        lattice::logError << "Unknown widget type: " << widgetType << " - skipping widget";
         return {};
     }
 };

@@ -303,7 +303,7 @@ struct CabbageOpcodes
             // unparseable (e.g. a channel value that hasn't been set yet).  Bail
             // out cleanly rather than dereferencing a past-the-end iterator, which
             // would fire an nlohmann assert() and abort() the host process.
-            lattice::logWarning << "cabbageSet: empty or unresolvable identifier '" << identifier
+            lattice::logError << "cabbageSet: empty or unresolvable identifier '" << identifier
                                 << "' for channel '" << name << "' — no update applied";
             return;
         }
