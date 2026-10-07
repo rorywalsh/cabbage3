@@ -1639,7 +1639,21 @@ void CabbageAudioApp::addDevicesToSettings(const std::string &settingsPath)
             }
         }
 
-        // Enumerate MIDI devices
+        // Enumerate MIDI devices. On macOS, never hand a broken CoreMIDI to
+        // RtMidi: the vendored RtMidi declares its CoreMIDI singleton creator
+        // throw(), so a failed MIDIClientCreate (-304 on headless CI runners)
+        // terminates the process via std::terminate()/SIGABRT instead of
+        // throwing a catchable RtMidiError. Probe first and skip MIDI
+        // enumeration gracefully when CoreMIDI is unavailable.
+#if defined(__APPLE__)
+        const bool midiEnumerationAllowed = coreMidiClientAvailable();
+        if (!midiEnumerationAllowed)
+        {
+            lattice::logWarning << "CoreMIDI client unavailable - skipping MIDI device enumeration";
+        }
+        else
+        {
+#endif
         try
         {
             RtMidiIn tempMidiIn;
@@ -1671,6 +1685,9 @@ void CabbageAudioApp::addDevicesToSettings(const std::string &settingsPath)
         {
             error.printMessage();
         }
+#if defined(__APPLE__)
+        }
+#endif
 
 #ifdef LATTICE_WINDOWS
         // Canonical order: 0 = WASAPI (default), 1 = DirectSound, 2 = ASIO.
