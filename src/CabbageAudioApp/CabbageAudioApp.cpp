@@ -288,6 +288,11 @@ bool CabbageAudioApp::initialiseStdioConnection()
 //==============================================================================
 void CabbageAudioApp::processIncomingMessage(const std::string &message)
 {
+    // Silently ignore empty/whitespace keepalive lines: without this they hit
+    // the JSON parser below and log a parse error every time.
+    if (message.find_first_not_of(" \t\r\n") == std::string::npos)
+        return;
+
     try
     {
         auto json = nlohmann::json::parse(message, nullptr, false);
@@ -295,13 +300,20 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
 
         nlohmann::json jsonObj;
 
-        // Handle both old obj wrapper format and new direct properties format
+        // Handle both old obj wrapper format and new direct properties format.
+        // Note: the extension sends some messages (e.g. cabbageIsReadyToLoad)
+        // with an explicitly EMPTY text/obj string. Parsing "" throws
+        // parse_error.101 and would drop the whole message, so empty strings
+        // map to an empty object instead.
         if (json.contains("obj"))
         {
             //"obj" can be a string when coming from vscode - but will always be
             // an object when testing outside vscode
             if (json["obj"].is_string())
-                jsonObj = nlohmann::json::parse(json["obj"].get<std::string>());
+            {
+                const std::string objStr = json["obj"].get<std::string>();
+                jsonObj = objStr.empty() ? nlohmann::json::object() : nlohmann::json::parse(objStr);
+            }
             else
                 jsonObj = json["obj"];
         }
@@ -309,7 +321,10 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
         {
             // Handle "text" wrapper format (used by fileOpenFromVSCode and similar)
             if (json["text"].is_string())
-                jsonObj = nlohmann::json::parse(json["text"].get<std::string>());
+            {
+                const std::string textStr = json["text"].get<std::string>();
+                jsonObj = textStr.empty() ? nlohmann::json::object() : nlohmann::json::parse(textStr);
+            }
             else
                 jsonObj = json["text"];
         }
@@ -344,6 +359,12 @@ void CabbageAudioApp::processIncomingMessage(const std::string &message)
             // Signal that webview is ready - this enables message dequeuing
             // Now queued table data and other updates will be processed and sent
             processor->setCabbageIsReady();
+            // Late joiner (e.g. webview finished booting after the post-compile
+            // dump was already sent): re-send the full widget state and re-arm
+            // the backendReady gate, so the UI converges instead of sticking on
+            // stale or blank content. Idempotent - boot sends this once.
+            sendWidgetDataToVscode();
+            backendReadySent = false;
         }
 
         else if (command == "parameterChange")
@@ -659,6 +680,52 @@ int CabbageAudioApp::getAudioDeviceId(const std::string &deviceName) const
 }
 
 //==============================================================================
+// Hot-swap decision for createCabbageProcessor(): true when the live audio
+// stream can stay open across this recompile. Compares a fresh settings
+// snapshot plus the requested channel counts against the live configuration.
+// Reads + parses the settings file only - no device enumeration, no stream
+// calls - so it is cheap enough to run on every save.
+//==============================================================================
+bool CabbageAudioApp::canHotSwapAudio(unsigned int reqInputs, unsigned int reqOutputs)
+{
+    // First load, previous teardown, or no live stream: nothing to preserve.
+    if (!processor || !audioDevice || !audioDevice->isStreamRunning())
+        return false;
+
+    AudioConfig freshConfig;
+    if (!freshConfig.loadFromJson(cabbage::File::getSettingsFile()))
+    {
+        lattice::logDebug << "Hot-swap check: settings unreadable - full audio stack restart";
+        return false;
+    }
+
+    const bool match =
+        freshConfig.audioSR == audioConfig.audioSR &&
+        freshConfig.bufferSize == audioConfig.bufferSize &&
+        freshConfig.audioDriverType == audioConfig.audioDriverType &&
+        freshConfig.audioInDev == audioConfig.audioInDev &&
+        freshConfig.audioOutDev == audioConfig.audioOutDev &&
+        freshConfig.audioInChanL == audioConfig.audioInChanL &&
+        freshConfig.audioInChanR == audioConfig.audioInChanR &&
+        freshConfig.audioOutChanL == audioConfig.audioOutChanL &&
+        freshConfig.audioOutChanR == audioConfig.audioOutChanR &&
+        reqInputs == numInputChannels &&
+        reqOutputs == numOutputChannels;
+
+    if (!match)
+    {
+        lattice::logDebug << "Audio config changed since last compile - full audio stack restart";
+        return false;
+    }
+
+    // Adopt the fresh snapshot so future comparisons (and ancillary fields
+    // such as jsSourceDir) stay current even though initialiseAudio() - which
+    // normally reloads settings - is skipped on the hot-swap path.
+    audioConfig = freshConfig;
+    return true;
+}
+
+//==============================================================================
 // Initialise Cabbage - create processor and set up audio and midi
 //==============================================================================
 bool CabbageAudioApp::createCabbageProcessor()
@@ -672,7 +739,10 @@ bool CabbageAudioApp::createCabbageProcessor()
 
     // Channel counts are authoritative from the channelConfig JSON property,
     // not from nchnls/nchnls_i in the CSD orchestra section.
+    // Parsed into locals first: the hot-swap decision below compares the
+    // requested counts against the live stream before adopting them.
     const auto channelConfigStr = cabbage::Utils::getChannelConfig(csdFileAndPath);
+    unsigned int reqNumInputs = 2u, reqNumOutputs = 2u;
     {
         // Parse the first entry "Name:ins|outs" to get the RtAudio stream width.
         // ins/outs may be '+'-separated bus counts (e.g. "2+1" → 3).
@@ -691,48 +761,97 @@ bool CabbageAudioApp::createCabbageProcessor()
                 if (!tok.empty()) total += static_cast<unsigned int>(std::stoi(tok));
             return total > 0 ? total : 2u;
         };
-        numInputChannels  = (pipe != std::string::npos) ? sumBuses(io.substr(0, pipe)) : 2u;
-        numOutputChannels = (pipe != std::string::npos) ? sumBuses(io.substr(pipe + 1)) : 2u;
+        reqNumInputs  = (pipe != std::string::npos) ? sumBuses(io.substr(0, pipe)) : 2u;
+        reqNumOutputs = (pipe != std::string::npos) ? sumBuses(io.substr(pipe + 1)) : 2u;
     }
 
-    // Phase 1: stop the existing stream (if any) WITHOUT starting a new one.
-    // Passing false skips openStream/startStream, so the callback cannot run
-    // while we free the old buffer and destroy the old Csound instance.
-    initialiseAudio(false);
-    initialiseMidi(true);
-
-    // Stream is now guaranteed stopped — safe to free the old input buffer.
-    if (emptyInputBufferInitialised)
+    // Hot-swap decision: when a stream is already running with identical audio
+    // config, keep it open across the processor swap. Closing and reopening
+    // the OS stream on every save costs seconds of dead audio (measured: first
+    // callback ~2.2s after startStream on WASAPI) while the UI already looks
+    // ready. First load, or any config change, takes the full restart below.
+    const bool hotSwapAudio = canHotSwapAudio(reqNumInputs, reqNumOutputs);
+    if (hotSwapAudio)
     {
-        for (unsigned int ch = 0; ch < prevNumInputChannels; ++ch)
-            delete[] emptyInputBuffer[ch];
-        delete[] emptyInputBuffer;
-        emptyInputBuffer = nullptr;
-        emptyInputBufferInitialised = false;
+        lattice::logDebug << "Audio config unchanged - hot-swapping processor, stream stays open";
     }
-
-    // Clear the hostCallback before destroying the processor to prevent
-    // the idle thread from calling it during shutdown. The idle thread might
-    // still be executing onIdle() even after isIdleRunning is set to false,
-    // and if it calls hostCallback while the processor is being destroyed,
-    // it will try to access destroyed members (cabbage.widgetsMutex) causing a crash.
-    if (processor)
+    else
     {
-        processor->hostCallback = nullptr;
+        numInputChannels = reqNumInputs;
+        numOutputChannels = reqNumOutputs;
     }
 
-    // Fully destroy the old processor (and its Csound instance) before creating
-    // a new one. Csound has process-global state; overlapping two instances
-    // causes STATUS_HEAP_CORRUPTION on Windows. reset() joins all threads
-    // (idle + araTestThread) and destroys Csound so we start clean.
-    processor.reset();
+    if (!hotSwapAudio)
+    {
+        // Phase 1 (full restart): stop the existing stream (if any) WITHOUT
+        // starting a new one. Passing false skips openStream/startStream, so
+        // the callback cannot run while we free the old buffer and destroy
+        // the old Csound instance.
+        // NOTE: initialiseAudio() re-scans devices and rewrites settings.json
+        // on every call (see addDevicesToSettings) - this shows up in
+        // [TIMING] logs.
+        {
+            cabbage::ScopedPhaseTimer teardownTimer("createCabbageProcessor teardown");
+            initialiseAudio(false);
+            initialiseMidi(true);
 
-    processor = std::make_unique<CabbageProcessor>(csdFileAndPath, channelConfigStr);
+            // Stream is now guaranteed stopped — safe to free the old input buffer.
+            if (emptyInputBufferInitialised)
+            {
+                for (unsigned int ch = 0; ch < prevNumInputChannels; ++ch)
+                    delete[] emptyInputBuffer[ch];
+                delete[] emptyInputBuffer;
+                emptyInputBuffer = nullptr;
+                emptyInputBufferInitialised = false;
+            }
+
+            // Clear the hostCallback before destroying the processor to prevent
+            // the idle thread from calling it during shutdown. The idle thread might
+            // still be executing onIdle() even after isIdleRunning is set to false,
+            // and if it calls hostCallback while the processor is being destroyed,
+            // it will try to access destroyed members (cabbage.widgetsMutex) causing a crash.
+            if (processor)
+            {
+                processor->hostCallback = nullptr;
+            }
+
+            // Fully destroy the old processor (and its Csound instance) before creating
+            // a new one. Csound has process-global state; overlapping two instances
+            // causes STATUS_HEAP_CORRUPTION on Windows. reset() joins all threads
+            // (idle + araTestThread) and destroys Csound so we start clean.
+            processor.reset();
+
+            processor = std::make_unique<CabbageProcessor>(csdFileAndPath, channelConfigStr);
+        }
+    }
+    else
+    {
+        // Phase 1 (hot-swap): the stream keeps running (emitting silence while
+        // canProcessAudio is false). Destroy the old processor and build the
+        // new shell under the swap mutex so the audio callback can never touch
+        // a half-built processor. NOTE: the old instance is still destroyed
+        // BEFORE creating the new one - overlapping two live Csound instances
+        // corrupts the heap on Windows (see above).
+        initialiseMidi(true);
+        {
+            cabbage::ScopedPhaseTimer hotSwapTimer("createCabbageProcessor hotSwap");
+            std::lock_guard<std::mutex> swapLock(processorSwapMutex);
+            if (processor)
+            {
+                processor->hostCallback = nullptr;
+            }
+            processor.reset();
+            processor = std::make_unique<CabbageProcessor>(csdFileAndPath, channelConfigStr);
+        }
+    }
 
     // CRITICAL: Set sample rate BEFORE setupCsound() so Csound compiles with correct SR.
     // prepareToPlay() calls initialiseAudioEngine() internally, which runs setupCsound(),
     // addChannels(), addParameters(), editor-size setup and startOnIdle().
-    processor->prepareToPlay(audioConfig.audioSR, bufferSize, bufferSize);
+    {
+        cabbage::ScopedPhaseTimer compileTimer("createCabbageProcessor csoundCompile");
+        processor->prepareToPlay(audioConfig.audioSR, bufferSize, bufferSize);
+    }
 
     if (!processor->getCabbageEngine().csdCompiledWithoutError())
     {
@@ -755,29 +874,51 @@ bool CabbageAudioApp::createCabbageProcessor()
         }
     };
 
-    // Phase 2: open and start the new stream. openStream may negotiate a
-    // different buffer size than requested (e.g. WASAPI format negotiation),
-    // so we must call it BEFORE allocating emptyInputBuffer so that bufferSize
-    // reflects the actual hardware value.  canProcessAudio is still false here,
-    // so the callback cannot call process() and will not dereference the buffer.
-    initialiseAudio(true);
-
-    // After initialiseAudio, numInputChannels/numOutputChannels reflect the actual
-    // hardware capabilities. Update the processor to use these clamped values so
-    // process() doesn't try to access more channels than are in the buffers.
-    processor->setActualChannelCounts(numInputChannels, numOutputChannels);
-
-    // Allocate emptyInputBuffer using the actual bufferSize that openStream
-    // confirmed (updated inside initialiseAudio).  The callback may already be
-    // running at this point but it only reads this buffer when canProcessAudio
-    // is true (set below), so there is no race.
-    emptyInputBuffer = new float *[numInputChannels];
-    for (unsigned int ch = 0; ch < numInputChannels; ++ch)
+    if (!hotSwapAudio)
     {
-        emptyInputBuffer[ch] = new float[bufferSize];
-        std::fill(emptyInputBuffer[ch], emptyInputBuffer[ch] + bufferSize, 0.0f);
+        // Phase 2 (full restart): open and start the new stream. openStream may negotiate a
+        // different buffer size than requested (e.g. WASAPI format negotiation),
+        // so we must call it BEFORE allocating emptyInputBuffer so that bufferSize
+        // reflects the actual hardware value.  canProcessAudio is still false here,
+        // so the callback cannot call process() and will not dereference the buffer.
+        {
+            cabbage::ScopedPhaseTimer audioStartTimer("createCabbageProcessor audioStart");
+            initialiseAudio(true);
+
+            // After initialiseAudio, numInputChannels/numOutputChannels reflect the actual
+            // hardware capabilities. Update the processor to use these clamped values so
+            // process() doesn't try to access more channels than are in the buffers.
+            processor->setActualChannelCounts(numInputChannels, numOutputChannels);
+
+            // Allocate emptyInputBuffer using the actual bufferSize that openStream
+            // confirmed (updated inside initialiseAudio).  The callback may already be
+            // running at this point but it only reads this buffer when canProcessAudio
+            // is true (set below), so there is no race.
+            emptyInputBuffer = new float *[numInputChannels];
+            for (unsigned int ch = 0; ch < numInputChannels; ++ch)
+            {
+                emptyInputBuffer[ch] = new float[bufferSize];
+                std::fill(emptyInputBuffer[ch], emptyInputBuffer[ch] + bufferSize, 0.0f);
+            }
+        }
+        emptyInputBufferInitialised = true;
     }
-    emptyInputBufferInitialised = true;
+    else
+    {
+        // Phase 2 (hot-swap): stream, buffers and counts are untouched - the
+        // live stream resumes processing on the new processor below.
+        lattice::logDebug << "Hot-swap complete - resuming on live stream";
+    }
+
+    // Initial populate: static CSD populate configs never flow through the
+    // opcode queue, so without this they would only ever run via runtime
+    // cabbageSet refreshes. Shared trigger with the plugin updateUI() path;
+    // results arrive asynchronously and the webview merges them like any
+    // other items update.
+    {
+        cabbage::ScopedPhaseTimer populateTimer("createCabbageProcessor initialPopulate");
+        processor->triggerInitialPopulate();
+    }
 
     canProcessAudio.store(true);
 
@@ -875,37 +1016,42 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
             audioDevice->stopStream();
         if (audioDevice->isStreamOpen())
             audioDevice->closeStream();
+        // Stream torn down: UI must re-gate until a new stream proves live.
+        audioStreamLive.store(false);
     }
 
     auto settingsFilePath = cabbage::File::getSettingsFile();
     lattice::logInfo << "Cabbage settings file: " << settingsFilePath;
     // Log the configured JS source dir(s) and the resolved widget path so that
     // "Unknown widget type" reports are self-diagnosing.
-    try
     {
-        std::ifstream settingsStream(settingsFilePath, std::ios::binary);
-        if (settingsStream.is_open())
+        cabbage::ScopedPhaseTimer settingsTimer("initialiseAudio settingsAndDeviceScan");
+        try
         {
-            std::ostringstream oss;
-            oss << settingsStream.rdbuf();
-            const auto settingsJson = nlohmann::json::parse(oss.str());
-            if (settingsJson.contains("currentConfig") && settingsJson["currentConfig"].contains("jsSourceDir"))
-                lattice::logInfo << "Cabbage jsSourceDir: " << settingsJson["currentConfig"]["jsSourceDir"].dump();
+            std::ifstream settingsStream(settingsFilePath, std::ios::binary);
+            if (settingsStream.is_open())
+            {
+                std::ostringstream oss;
+                oss << settingsStream.rdbuf();
+                const auto settingsJson = nlohmann::json::parse(oss.str());
+                if (settingsJson.contains("currentConfig") && settingsJson["currentConfig"].contains("jsSourceDir"))
+                    lattice::logInfo << "Cabbage jsSourceDir: " << settingsJson["currentConfig"]["jsSourceDir"].dump();
+                else
+                    lattice::logInfo << "Cabbage jsSourceDir: <not set>";
+            }
             else
-                lattice::logInfo << "Cabbage jsSourceDir: <not set>";
+            {
+                lattice::logInfo << "Cabbage settings file not found, using defaults";
+            }
         }
-        else
+        catch (const std::exception &e)
         {
-            lattice::logInfo << "Cabbage settings file not found, using defaults";
+            lattice::logInfo << "Cabbage settings could not be parsed: " << e.what();
         }
+        lattice::logInfo << "Cabbage widget sources: " << cabbage::File::findCabbageJSWidgetPath();
+        addDevicesToSettings(settingsFilePath);
+        audioConfig.loadFromJson(settingsFilePath);
     }
-    catch (const std::exception &e)
-    {
-        lattice::logInfo << "Cabbage settings could not be parsed: " << e.what();
-    }
-    lattice::logInfo << "Cabbage widget sources: " << cabbage::File::findCabbageJSWidgetPath();
-    addDevicesToSettings(settingsFilePath);
-    audioConfig.loadFromJson(settingsFilePath);
 
     // Check if audio devices are available
     if (audioDevice->getDeviceCount() < 1)
@@ -953,6 +1099,7 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
 
     if (startStream)
     {
+        cabbage::ScopedPhaseTimer streamTimer("initialiseAudio openAndStartStream");
         lattice::logDebug << "Attempting to start audio with the following settings:\nSR: " << audioConfig.audioSR
                           << "\nBuffer Size: " << audioConfig.bufferSize << "\nInput device: " << audioConfig.audioInDev
                           << "\nNumber of input channels: " << inputParameters.nChannels
@@ -972,6 +1119,7 @@ void CabbageAudioApp::initialiseAudio(bool startStream)
             bufferSize = bufferFrames;
 
             audioDevice->startStream();
+            loggedFirstCallbackAfterStart.store(false);
         }
         catch (const std::runtime_error &e)
         {
@@ -1001,6 +1149,8 @@ void CabbageAudioApp::deinitAudioAndMidi()
         lattice::logInfo << "Closing audio stream...";
         audioDevice->closeStream();
     }
+    // Stream torn down: UI must re-gate until a new stream proves live.
+    audioStreamLive.store(false);
 
     // Clean up MIDI devices
     if (midiInDevice)
@@ -1119,6 +1269,16 @@ void CabbageAudioApp::onIdle()
 
     while (messageQueue.try_dequeue(command))
     {
+        if (command == CabbageAudioApp::CommandType::InitCabbage)
+        {
+            // Clear before compiling: a save arriving mid-compile must still
+            // queue a follow-up compile (see addMessageToQueue()).
+            initCabbagePending.store(false);
+            // A new backend generation is starting: the UI must re-gate until
+            // it proves playable again (see backendReady emit below).
+            backendReadySent = false;
+        }
+
         switch (command)
         {
         case CommandType::KillProcessor:
@@ -1129,9 +1289,17 @@ void CabbageAudioApp::onIdle()
             break;
 
         case CommandType::InitCabbage:
+        {
+            cabbage::ScopedPhaseTimer initCabbageTimer("InitCabbage total (save to ready)");
             lattice::logDebug << "Processing InitCabbage command";
-            if (createCabbageProcessor())
+            bool created = false;
             {
+                cabbage::ScopedPhaseTimer createTimer("InitCabbage createCabbageProcessor");
+                created = createCabbageProcessor();
+            }
+            if (created)
+            {
+                cabbage::ScopedPhaseTimer readyTimer("InitCabbage ready+dump");
                 lattice::logDebug << "Cabbage processor created successfully";
                 // If this is a recompile (UI already open), enable dequeuing immediately
                 // so that queued genTable updates are sent
@@ -1148,6 +1316,7 @@ void CabbageAudioApp::onIdle()
                 sendJsonMessage(msg);
             }
             break;
+        }
 
         case CommandType::StopAudio:
             // Stop recording if active
@@ -1167,14 +1336,18 @@ void CabbageAudioApp::onIdle()
             }
             else
             {
-                // Wait for canDestroyProcessor with timeout to prevent deadlock
+                // Wait for canDestroyProcessor with timeout to prevent deadlock.
+                // Skipped entirely when audio is not processing (e.g. after a
+                // failed compile): no callback will ever set the flag, so
+                // waiting would burn the full timeout for nothing.
                 auto startWait = std::chrono::steady_clock::now();
                 auto timeout = std::chrono::milliseconds(1000); // 1 second timeout
-                while (!canDestroyProcessor.load() && (std::chrono::steady_clock::now() - startWait) < timeout)
+                while (!canDestroyProcessor.load() && canProcessAudio.load() &&
+                       (std::chrono::steady_clock::now() - startWait) < timeout)
                 {
                     std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 }
-                if (!canDestroyProcessor.load())
+                if (!canDestroyProcessor.load() && canProcessAudio.load())
                 {
                     lattice::logError << "Timeout waiting for canDestroyProcessor!";
                 }
@@ -1191,8 +1364,27 @@ void CabbageAudioApp::onIdle()
                 audioDevice->stopStream();
                 audioDevice->closeStream();
             }
+            // Stream torn down: UI must re-gate until a new stream proves live.
+            audioStreamLive.store(false);
             break;
         }
+    }
+
+    // Backend-ready gate: ungate the UI exactly when audio provably flows.
+    // Sent once per backend generation (backendReadySent resets on every
+    // InitCabbage): after a hot-swap the still-live stream qualifies
+    // immediately; after a full restart the first audio callback qualifies;
+    // with no audio device the stream can never start, so ungate right away
+    // and keep the UI editable. Requires a processor so the boot overlay
+    // (no instrument loaded yet) keeps its existing dump-driven behaviour.
+    if (!backendReadySent && processor &&
+        (audioStreamLive.load() || !audioDevice || !audioDevice->isStreamOpen()))
+    {
+        backendReadySent = true;
+        lattice::logDebug << "Backend ready - audio live, ungating UI";
+        nlohmann::json readyMsg;
+        readyMsg["command"] = "backendReady";
+        sendJsonMessage(readyMsg);
     }
 
     // Send VU meter peak + RMS levels to the webview on every idle tick (~20 Hz)
@@ -1218,6 +1410,18 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
 {
     // Cast userData to CabbageAudioApp*
     CabbageAudioApp *app = static_cast<CabbageAudioApp *>(userData);
+
+    // Verbose one-shot per stream start: proves the RT stream is delivering
+    // callbacks. Correlate t+ with controlData arrival/applied lines to tell
+    // a "stream not delivering" stall from a "clicks never applied" stall.
+    if (!app->loggedFirstCallbackAfterStart.exchange(true))
+    {
+        lattice::logDebug << "first audioCallback: t+" << cabbage::millisSinceStart()
+                          << "ms canProcessAudio=" << (app->canProcessAudio.load() ? 1 : 0)
+                          << " processor=" << (app->processor ? "live" : "null");
+        // The stream is provably delivering: UI may ungate (see onIdle).
+        app->audioStreamLive.store(true);
+    }
 
     // Cast buffers to float*
     float *myfltInputBuffer = static_cast<float *>(inputBuffer);
@@ -1256,45 +1460,53 @@ int CabbageAudioApp::audioCallback(void *outputBuffer, void *inputBuffer, unsign
         memset(deinterleavedOutput[ch], 0, nBufferFrames * sizeof(float));
     }
 
-    // Pass the deinterleaved buffers to the process method
+    // Pass the deinterleaved buffers to the process method.
+    // Hot-swap guard: during a recompile the processor is briefly half-built
+    // (old instance destroyed, new one compiling). try_to_lock lets the swap
+    // proceed without blocking the RT thread - skipped blocks emit the
+    // zeroed buffers as silence. canProcessAudio covers the normal stop path.
     if (app->canProcessAudio.load())
     {
-        app->canDestroyProcessor.store(true);
-        app->processor->process(deinterleavedInput, deinterleavedOutput, nBufferFrames);
-
-        // Update per-channel peak levels for the VU meter (lock-free atomic max)
-        if (app->vuPeakLevels)
+        std::unique_lock<std::mutex> swapLock(app->processorSwapMutex, std::try_to_lock);
+        if (swapLock.owns_lock() && app->processor)
         {
-            for (unsigned int ch = 0; ch < numOutputChannels; ++ch)
+            app->canDestroyProcessor.store(true);
+            app->processor->process(deinterleavedInput, deinterleavedOutput, nBufferFrames);
+
+            // Update per-channel peak levels for the VU meter (lock-free atomic max)
+            if (app->vuPeakLevels)
             {
-                float peak = 0.f;
-                for (unsigned int i = 0; i < nBufferFrames; ++i)
-                    peak = std::max(peak, std::abs(deinterleavedOutput[ch][i]));
-                float prev = app->vuPeakLevels[ch].load(std::memory_order_relaxed);
-                while (peak > prev &&
-                       !app->vuPeakLevels[ch].compare_exchange_weak(prev, peak, std::memory_order_relaxed))
-                { /* retry CAS */
+                for (unsigned int ch = 0; ch < numOutputChannels; ch++)
+                {
+                    float peak = 0.f;
+                    for (unsigned int i = 0; i < nBufferFrames; i++)
+                        peak = std::max(peak, std::abs(deinterleavedOutput[ch][i]));
+                    float prev = app->vuPeakLevels[ch].load(std::memory_order_relaxed);
+                    while (peak > prev &&
+                           !app->vuPeakLevels[ch].compare_exchange_weak(prev, peak, std::memory_order_relaxed))
+                    { /* retry CAS */
+                    }
                 }
             }
-        }
 
-        // Compute per-channel RMS for the hold indicator
-        if (app->vuRmsLevels)
-        {
-            for (unsigned int ch = 0; ch < numOutputChannels; ++ch)
+            // Compute per-channel RMS for the hold indicator
+            if (app->vuRmsLevels)
             {
-                float sumSq = 0.f;
-                for (unsigned int i = 0; i < nBufferFrames; ++i)
-                    sumSq += deinterleavedOutput[ch][i] * deinterleavedOutput[ch][i];
-                app->vuRmsLevels[ch].store(std::sqrt(sumSq / static_cast<float>(nBufferFrames)),
-                                           std::memory_order_relaxed);
+                for (unsigned int ch = 0; ch < numOutputChannels; ch++)
+                {
+                    float sumSq = 0.f;
+                    for (unsigned int i = 0; i < nBufferFrames; i++)
+                        sumSq += deinterleavedOutput[ch][i] * deinterleavedOutput[ch][i];
+                    app->vuRmsLevels[ch].store(std::sqrt(sumSq / static_cast<float>(nBufferFrames)),
+                                               std::memory_order_relaxed);
+                }
             }
-        }
 
-        // Record processed output if recording is active
-        if (app->recorder && app->recorder->isRecording())
-        {
-            app->recorder->pushSamples(deinterleavedOutput, nBufferFrames, numOutputChannels);
+            // Record processed output if recording is active
+            if (app->recorder && app->recorder->isRecording())
+            {
+                app->recorder->pushSamples(deinterleavedOutput, nBufferFrames, numOutputChannels);
+            }
         }
     }
 

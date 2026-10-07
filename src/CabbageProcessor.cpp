@@ -25,6 +25,48 @@
 #include <thread>
 #include "CabbageUtils.h"
 
+namespace
+{
+// The listbox value is an index into its items, so the channel range must always cover
+// the current item list. Unlike comboBox/optionButton the range normally already exists
+// (it comes from the widget's own defaults), so it is kept in sync rather than only
+// filled in when missing.
+void syncListBoxRangeWithItems(const nlohmann::json &widget, nlohmann::json &channel)
+{
+    if (!widget.contains("items") || !widget["items"].is_array() || widget["items"].empty())
+        return;
+
+    const float maxIndex = static_cast<float>(widget["items"].size() - 1);
+
+    if (!channel.contains("range") || !channel["range"].is_object())
+    {
+        channel["range"] = {
+            {"min", 0.0f},
+            {"max", maxIndex},
+            {"defaultValue", 0.0f},
+            {"increment", 1.0f},
+            {"skew", 1.0f}
+        };
+        return;
+    }
+
+    auto &range = channel["range"];
+    range["min"] = 0.0f;
+    range["max"] = maxIndex;
+
+    if (!range.contains("increment") || !range["increment"].is_number())
+        range["increment"] = 1.0f;
+    if (!range.contains("skew") || !range["skew"].is_number())
+        range["skew"] = 1.0f;
+
+    for (const char *key : {"defaultValue", "value"})
+    {
+        if (range.contains(key) && range[key].is_number())
+            range[key] = std::clamp(range[key].get<float>(), 0.0f, maxIndex);
+    }
+}
+} // namespace
+
 //========================================================================================
 pluginType *LatticeProcessorPluginFactory::createPlugin(const clap_host *host)
 {
@@ -337,6 +379,7 @@ void CabbageProcessor::addChannels(const std::string &config)
 //========================================================================================
 void CabbageProcessor::addParameters()
 {
+    cabbage::ScopedPhaseTimer addParamsTimer("addParameters");
     lattice::logDebug << "=== Starting addParameters() ===";
     lattice::logDebug << "Total widgets: " << cabbage.getWidgets().size();
 
@@ -458,6 +501,9 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                         };
                     }
 
+                    if (widgetType == "listBox")
+                        syncListBoxRangeWithItems(w, ch);
+
                     const float minVal = ch["range"]["min"].get<float>();
 
                     // Determine max value - widgets send denormalized index values for comboBox/optionButton
@@ -565,6 +611,9 @@ void CabbageProcessor::addParametersForWidget(nlohmann::json &w)
                             {"skew", 1}
                         };
                     }
+
+                    if (widgetType == "listBox")
+                        syncListBoxRangeWithItems(w, ch);
 
                     // Check channel type - default to "number" if not specified
                     std::string channelType = "number";
@@ -819,6 +868,116 @@ void CabbageProcessor::invokeHostCallback(const CabbageOpcodeData &data)
 #endif
 
 //========================================================================================
+// Single populate trigger shared by the plugin updateUI() path and the
+// CabbageApp (re)compile path. Iterates engine widgets and refreshes each
+// configured one via runPopulateAsync (async scan, queue delivery).
+// Widgets with no directory configured are skipped quietly (debug only):
+// scanning is meaningless for defaults, and a warning per compile would be
+// noise. runPopulateAsync still validates defensively.
+//========================================================================================
+void CabbageProcessor::triggerInitialPopulate()
+{
+    for (auto &w : cabbage.getWidgets())
+    {
+        if (!w.contains("populate") || !w["populate"].is_object())
+            continue;
+
+        std::string widgetChannel;
+        if (w.contains("id") && w["id"].is_string())
+        {
+            widgetChannel = w["id"].get<std::string>();
+        }
+        else if (w.contains("channels") && w["channels"].is_array() && !w["channels"].empty() &&
+                 w["channels"][0].contains("id") && w["channels"][0]["id"].is_string())
+        {
+            widgetChannel = w["channels"][0]["id"].get<std::string>();
+        }
+
+        if (widgetChannel.empty())
+        {
+            lattice::logDebug << "Skipping initial populate: widget has no channel id";
+            continue;
+        }
+
+        const auto &pop = w["populate"];
+        const bool hasDir =
+            (pop.contains("directories") && pop["directories"].is_string() &&
+             !pop["directories"].get<std::string>().empty()) ||
+            (pop.contains("directories") && pop["directories"].is_array() &&
+             std::any_of(pop["directories"].begin(), pop["directories"].end(), [](const nlohmann::json &dir) { return dir.is_string() && !dir.get<std::string>().empty(); }));
+        if (!hasDir || !pop.contains("fileType"))
+        {
+            lattice::logDebug << "Skipping initial populate for '" << widgetChannel
+                              << "': no directories configured";
+            continue;
+        }
+
+        runPopulateAsync(widgetChannel, pop);
+    }
+}
+
+//========================================================================================
+// Runs a populate directory scan for a widget channel; see declaration.
+//========================================================================================
+void CabbageProcessor::runPopulateAsync(const std::string &widgetChannel, nlohmann::json populateConfig)
+{
+    // Normalize directories: convert single string to array for consistency
+    if (populateConfig.contains("directories") && populateConfig["directories"].is_string()) {
+        std::string singleDir = populateConfig["directories"].get<std::string>();
+        populateConfig["directories"] = nlohmann::json::array({singleDir});
+        lattice::logDebug << "Converted single string directories to array for widget: " << widgetChannel;
+    }
+
+    // Verify it has the required fields before processing - including non-empty directory strings.
+    // Note: fileType presence (even empty) is enough here; processPopulateAsync
+    // normalizes empty/missing filters to "match all".
+    if (!(populateConfig.contains("directories") && populateConfig["directories"].is_array() &&
+          !populateConfig["directories"].empty() &&
+          std::any_of(populateConfig["directories"].begin(), populateConfig["directories"].end(), [](const nlohmann::json& dir) { return dir.is_string() && !dir.get<std::string>().empty(); }) &&
+          populateConfig.contains("fileType")))
+    {
+        lattice::logWarning << "Populate config missing directories array or fileType for: " << widgetChannel;
+        lattice::logWarning << "Current populate config: " << populateConfig.dump();
+        return;
+    }
+
+    lattice::logDebug << "Triggering processPopulateAsync for widget: " << widgetChannel;
+
+    // Process populate on background thread, then update widget with results
+    cabbage::Parser::processPopulateAsync(widgetChannel, populateConfig,
+        [this, widgetChannel](const nlohmann::json& result) {
+            lattice::logDebug << "Populate callback received for widget: " << widgetChannel;
+            lattice::logDebug << "Result contains items: " << (result.contains("items") ? "yes" : "no");
+            if (result.contains("items")) {
+                lattice::logDebug << "Items count: " << result["items"].size();
+            }
+
+            // Update widget with populated items (this runs on background thread)
+            cabbage.updateWidget(widgetChannel, [result](nlohmann::json &j) {
+                if (result.contains("items")) {
+                    j["items"] = result["items"];
+                    lattice::logDebug << "Updated widget items in internal state";
+                }
+                // Note: We DON'T update j["populate"] here to avoid triggering
+                // another populate detection in onIdle (which would create an infinite loop)
+            });
+
+            // Enqueue widget update to be sent from idle thread
+            // Create opcode data to trigger a widget update on the idle thread
+            CabbageOpcodeData opcodeUpdate;
+            opcodeUpdate.channel = widgetChannel;
+            opcodeUpdate.type = CabbageOpcodeData::MessageType::Identifier;
+            opcodeUpdate.identifier = "items";  // This will trigger a full widget update
+            opcodeUpdate.cabbageJson = result;  // Contains the items
+            opcodeUpdate.skipPopulateProcessing = true;  // CRITICAL: Prevent infinite loop
+
+            // Enqueue to opcode queue so it's processed by onIdle
+            cabbage.opcodeData.enqueue(opcodeUpdate);
+            lattice::logDebug << "Enqueued widget update for idle thread processing";
+        });
+}
+
+//========================================================================================
 // onIdle function
 //========================================================================================
 void CabbageProcessor::onIdle()
@@ -975,63 +1134,7 @@ void CabbageProcessor::onIdle()
 
                 if (widgetOpt.has_value() && widgetOpt->contains("populate") && (*widgetOpt)["populate"].is_object())
                 {
-                    std::string widgetChannel = dataCopy.channel;
-                    nlohmann::json populateConfig = (*widgetOpt)["populate"];
-
-//                    lattice::logDebug << "Populate config: " << populateConfig.dump();
-
-                    // Normalize directories: convert single string to array for consistency
-                    if (populateConfig.contains("directories") && populateConfig["directories"].is_string()) {
-                        std::string singleDir = populateConfig["directories"].get<std::string>();
-                        populateConfig["directories"] = nlohmann::json::array({singleDir});
-                        lattice::logDebug << "Converted single string directories to array for widget: " << widgetChannel;
-                    }
-
-                    // Verify it has the required fields before processing - including non-empty directory strings
-                    if (populateConfig.contains("directories") && populateConfig["directories"].is_array() && !populateConfig["directories"].empty() &&
-                        std::any_of(populateConfig["directories"].begin(), populateConfig["directories"].end(), [](const nlohmann::json& dir) { return dir.is_string() && !dir.get<std::string>().empty(); }) &&
-                        populateConfig.contains("fileType"))
-                    {
-                        lattice::logDebug << "Triggering processPopulateAsync for widget: " << widgetChannel;
-
-                        // Process populate on background thread, then update widget with results
-                        cabbage::Parser::processPopulateAsync(widgetChannel, populateConfig,
-                            [this, widgetChannel](const nlohmann::json& result) {
-                                lattice::logDebug << "Populate callback received for widget: " << widgetChannel;
-                                lattice::logDebug << "Result contains items: " << (result.contains("items") ? "yes" : "no");
-                                if (result.contains("items")) {
-                                    lattice::logDebug << "Items count: " << result["items"].size();
-                                }
-
-                                // Update widget with populated items (this runs on background thread)
-                                cabbage.updateWidget(widgetChannel, [result](nlohmann::json &j) {
-                                    if (result.contains("items")) {
-                                        j["items"] = result["items"];
-                                        lattice::logDebug << "Updated widget items in internal state";
-                                    }
-                                    // Note: We DON'T update j["populate"] here to avoid triggering
-                                    // another populate detection in onIdle (which would create an infinite loop)
-                                });
-
-                                // Enqueue widget update to be sent from idle thread
-                                // Create opcode data to trigger a widget update on the idle thread
-                                CabbageOpcodeData opcodeUpdate;
-                                opcodeUpdate.channel = widgetChannel;
-                                opcodeUpdate.type = CabbageOpcodeData::MessageType::Identifier;
-                                opcodeUpdate.identifier = "items";  // This will trigger a full widget update
-                                opcodeUpdate.cabbageJson = result;  // Contains the items
-                                opcodeUpdate.skipPopulateProcessing = true;  // CRITICAL: Prevent infinite loop
-
-                                // Enqueue to opcode queue so it's processed by onIdle
-                                cabbage.opcodeData.enqueue(opcodeUpdate);
-                                lattice::logDebug << "Enqueued widget update for idle thread processing";
-                            });
-                    }
-                    else
-                    {
-                        lattice::logWarning << "Populate config missing directories array or fileType for: " << widgetChannel;
-                        lattice::logWarning << "Current populate config: " << populateConfig.dump();
-                    }
+                    runPopulateAsync(dataCopy.channel, (*widgetOpt)["populate"]);
                 }
                 else
                 {
@@ -1597,69 +1700,10 @@ void CabbageProcessor::updateUI()
 
     lattice::logDebug << "Total widgets sent: " << widgetsSent;
 
-    // Process populate configurations for widgets that have them
-    for (auto &w : cabbage.getWidgets())
-    {
-        if (w.contains("populate") && w["populate"].is_object())
-        {
-            std::string widgetChannel;
-            if (w.contains("id") && w["id"].is_string())
-            {
-                widgetChannel = w["id"].get<std::string>();
-            }
-            else if (w.contains("channels") && w["channels"].is_array() && !w["channels"].empty() &&
-                     w["channels"][0].contains("id"))
-            {
-                widgetChannel = w["channels"][0]["id"].get<std::string>();
-            }
-
-            if (!widgetChannel.empty())
-            {
-                nlohmann::json populateConfig = w["populate"];
-
-                // Convert single string to array for consistency
-                if (populateConfig.contains("directories") && populateConfig["directories"].is_string())
-                {
-                    std::string singleDir = populateConfig["directories"].get<std::string>();
-                    populateConfig["directories"] = nlohmann::json::array({singleDir});
-                }
-
-                // Verify it has the required fields before processing
-                if (populateConfig.contains("directories") && populateConfig["directories"].is_array() &&
-                    !populateConfig["directories"].empty() &&
-                    std::any_of(populateConfig["directories"].begin(), populateConfig["directories"].end(), [](const nlohmann::json& dir) { return dir.is_string() && !dir.get<std::string>().empty(); }) &&
-                    populateConfig.contains("fileType"))
-                {
-                    lattice::logDebug << "Processing initial populate for widget: " << widgetChannel;
-
-                    // Process populate on background thread, then update widget with results
-                    cabbage::Parser::processPopulateAsync(
-                        widgetChannel, populateConfig, [this, widgetChannel](const nlohmann::json &result) {
-                            // Update widget with populated items (this runs on background thread)
-                            cabbage.updateWidget(widgetChannel, [result](nlohmann::json &j) {
-                                if (result.contains("items"))
-                                {
-                                    j["items"] = result["items"];
-                                }
-                            });
-
-                            // Send the updated widget directly to UI
-                            auto widgetCopy = cabbage.getWidgetCopyById(widgetChannel);
-                            if (widgetCopy.has_value())
-                            {
-                                nlohmann::json msg;
-                                msg["command"] = "widgetUpdate";
-                                msg["id"] = widgetChannel;
-                                msg["widgetJson"] = widgetCopy->dump();
-                                sendWebViewMessage(msg);
-                            }
-
-                            lattice::logDebug << "Finished processing initial populate for widget: " << widgetChannel;
-                        });
-                }
-            }
-        }
-    }
+    // Initial populate for widgets that configure it. Shares the trigger and
+    // delivery path with runtime refreshes and the CabbageApp load path, so
+    // results arrive identically (async scan + opcode-queue delivery).
+    triggerInitialPopulate();
 
     // Check if editor has any pending messages when loaded..
     for (const auto &param : webviewMessageQueue)

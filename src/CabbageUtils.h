@@ -30,6 +30,8 @@
 #include <filesystem>
 #include <future>
 #include <thread>
+#include <chrono>
+#include <string>
 #include <algorithm>
 #include <cctype>
 #ifdef LATTICE_WINDOWS
@@ -39,6 +41,51 @@
 
 namespace cabbage
 {
+
+
+// Verbose diagnostic timing helper. Logs elapsed wall-clock milliseconds for
+// a named phase when the object goes out of scope. All output goes to the
+// debug log channel with a greppable [TIMING] prefix, e.g.
+//   [TIMING] InitCabbage createCabbageProcessor: 812 ms
+// Intended to stay in the codebase permanently so future save-to-playable
+// latency investigations (and tests) can read phase timings from the log
+// without re-instrumenting. Zero behaviour change: construction and
+// destruction are the only effects.
+class ScopedPhaseTimer
+{
+public:
+    explicit ScopedPhaseTimer(const std::string &phaseName)
+        : name(phaseName), start(std::chrono::steady_clock::now())
+    {
+    }
+
+    ~ScopedPhaseTimer()
+    {
+        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::steady_clock::now() - start)
+                            .count();
+        lattice::logDebug << "[TIMING] " << name << ": " << ms << " ms";
+    }
+
+    // Non-copyable, non-movable: lifetime defines the measured scope.
+    ScopedPhaseTimer(const ScopedPhaseTimer &) = delete;
+    ScopedPhaseTimer &operator=(const ScopedPhaseTimer &) = delete;
+
+private:
+    std::string name;
+    std::chrono::steady_clock::time_point start;
+};
+
+// Milliseconds since first call (process uptime clock). Appended to key
+// verbose log lines as t+<ms> so save/click/sound events from different
+// threads (and different log statements) can be correlated on one timeline,
+// e.g. controlData arrival vs first audio callback.
+inline long long millisSinceStart()
+{
+    using clock = std::chrono::steady_clock;
+    static const clock::time_point epoch = clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(clock::now() - epoch).count();
+}
 
 
 class Utils

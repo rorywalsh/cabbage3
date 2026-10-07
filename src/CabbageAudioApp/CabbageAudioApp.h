@@ -142,7 +142,24 @@ class CabbageAudioApp
 
     void onIdle();
     void sendWidgetDataToVscode();
-    void addMessageToQueue(CabbageAudioApp::CommandType command) { messageQueue.enqueue(command); }
+    void addMessageToQueue(CabbageAudioApp::CommandType command)
+    {
+        // Coalesce duplicate InitCabbage requests (e.g. duplicate onFileChanged
+        // notifications for a single save): recompiling the same file twice in
+        // a row is pure waste, and each InitCabbage tears down and rebuilds
+        // the whole Csound session. At most one InitCabbage may be pending;
+        // the flag is cleared when the command is dequeued in onIdle(), so a
+        // save that lands mid-compile still triggers a follow-up compile.
+        if (command == CabbageAudioApp::CommandType::InitCabbage)
+        {
+            if (initCabbagePending.exchange(true))
+            {
+                lattice::logDebug << "InitCabbage already pending, skipping duplicate";
+                return;
+            }
+        }
+        messageQueue.enqueue(command);
+    }
     void setCsoundFile(std::string file) { csdFileAndPath = file; }
     void scanAudioDevices();  // Scan and populate settings with available audio/MIDI devices
     void initialiseCabbage(); // Initialize Cabbage if CSD file exists
@@ -169,7 +186,11 @@ class CabbageAudioApp
     void sendJsonMessage(const nlohmann::json &msg);
     bool createCabbageProcessor();
     void initialiseAudio(bool startStream);
-    void initialiseMidi(bool openPorts = false);
+    // Hot-swap decision for createCabbageProcessor(): true when the live
+    // stream can stay open across this recompile (same SR/buffer/devices/
+    // channel counts). Reads a fresh settings snapshot for comparison but
+    // performs no device enumeration.
+    bool canHotSwapAudio(unsigned int reqInputs, unsigned int reqOutputs);    void initialiseMidi(bool openPorts = false);
     void deinitAudioAndMidi();
 
     // stdin/stdout communication thread
@@ -178,6 +199,31 @@ class CabbageAudioApp
     std::mutex stdoutMutex; // Protect stdout writes
 
     moodycamel::ConcurrentQueue<CabbageAudioApp::CommandType> messageQueue;
+
+    // True while an InitCabbage command is waiting in messageQueue.
+    // Set by addMessageToQueue(), cleared when onIdle() dequeues the command.
+    std::atomic<bool> initCabbagePending{false};
+
+    // Verbose diagnostics: set false on every stream start so audioCallback
+    // logs its first invocation per stream (lets log readers correlate
+    // stream delivery with controlData arrival/applied lines).
+    std::atomic<bool> loggedFirstCallbackAfterStart{true};
+
+    // True once the live stream has delivered at least one audio callback.
+    // Set on the RT thread at the first callback after every stream start;
+    // cleared wherever the stream is stopped (see noteStreamStopped calls).
+    // onIdle uses it to emit backendReady, so the UI only ungates when audio
+    // provably flows. Never cleared on the hot-swap path (stream uninterrupted).
+    std::atomic<bool> audioStreamLive{false};
+
+    // Idle-thread only: tracks whether backendReady was sent for the current
+    // backend generation. Reset when an InitCabbage is dequeued.
+    bool backendReadySent{false};
+
+    // Guards the processor swap during a hot-swap recompile. The audio
+    // callback takes it with try_to_lock and outputs silence when the
+    // processor is half-built instead of touching it.
+    std::mutex processorSwapMutex;
 
     // Return a valid device ID for a given device name
     int getAudioDeviceId(const std::string &deviceName) const;

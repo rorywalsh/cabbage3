@@ -80,6 +80,11 @@ class CabbageProcessor : public lattice::Processor
     // Triggered by CabbageApp whenever websocket connection is established
     void setCabbageIsReady();
 
+    // Scans populate configs on all engine widgets and refreshes them via
+    // runPopulateAsync. Single trigger shared by the plugin updateUI() path
+    // and the CabbageApp (re)compile path, so both behave identically.
+    void triggerInitialPopulate();
+
     // Plugin load/save state
     void loadPluginState(nlohmann::json state) override;
     nlohmann::json savePluginState() override;
@@ -205,6 +210,12 @@ private:
 #endif // LATTICE_HAS_ARA || CabbageApp
     void onIdle();
     void onIdleScheduler();
+    // Runs a populate directory scan for a widget channel and delivers the
+    // resulting items through the opcode queue (populate re-triggering
+    // suppressed). Internal worker behind triggerInitialPopulate() and the
+    // runtime cabbageSet refresh path. Thread-safe to call: the scan runs on
+    // a worker thread, state updates + UI delivery via the queue.
+    void runPopulateAsync(const std::string &widgetChannel, nlohmann::json populateConfig);
     void stopOnIdle();
     void initialiseAudioEngine();
     void initialiseAraCompanion();

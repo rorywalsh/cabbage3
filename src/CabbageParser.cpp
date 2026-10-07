@@ -27,6 +27,7 @@
 #include <iomanip>
 #include <numeric>
 #include <algorithm>
+#include <cctype>
 #include <unordered_set>
 
 #ifdef CabbagePro
@@ -157,6 +158,7 @@ std::vector<nlohmann::json> Parser::parseCsdForWidgets(const std::string &csdFil
 
 std::string Parser::parseContent(const std::string &content, std::vector<nlohmann::json> &widgets)
 {
+    cabbage::ScopedPhaseTimer parseTimer("parseContent (CSD JSON parse + descriptor load)");
     std::string errorMessage;
     try
     {
@@ -1040,6 +1042,170 @@ void Parser::assignDefaultRangesToChannels(nlohmann::json &jsonObj)
 }
 
 //=====================================================================================
+// Maximum items a single populate scan may produce. Bounds scan time, the
+// widgetUpdate payload, and webview render cost (lists render every row -
+// there is no virtualization). Hit => warning + truncation (see below).
+//=====================================================================================
+static constexpr size_t kMaxPopulateFiles = 2000;
+
+//=====================================================================================
+// Natural (numeric-aware), case-insensitive ordering so numbered samples sort
+// as kick1, kick2, ..., kick10 rather than kick1, kick10, kick2.
+//=====================================================================================
+static bool naturalLess(const std::string &a, const std::string &b)
+{
+    size_t i = 0, j = 0;
+    const auto lower = [](unsigned char c) { return static_cast<char>(std::tolower(c)); };
+    while (i < a.size() && j < b.size())
+    {
+        const bool da = std::isdigit(static_cast<unsigned char>(a[i])) != 0;
+        const bool db = std::isdigit(static_cast<unsigned char>(b[j])) != 0;
+        if (da && db)
+        {
+            size_t e1 = i, e2 = j;
+            while (e1 < a.size() && std::isdigit(static_cast<unsigned char>(a[e1])) != 0)
+                ++e1;
+            while (e2 < b.size() && std::isdigit(static_cast<unsigned char>(b[e2])) != 0)
+                ++e2;
+            const size_t len1 = e1 - i, len2 = e2 - j;
+            if (len1 != len2)
+                return len1 < len2;
+            const int cmp = a.compare(i, len1, b, j, len2);
+            if (cmp != 0)
+                return cmp < 0;
+            i = e1;
+            j = e2;
+        }
+        else
+        {
+            const char ca = lower(static_cast<unsigned char>(a[i]));
+            const char cb = lower(static_cast<unsigned char>(b[j]));
+            if (ca != cb)
+                return ca < cb;
+            ++i;
+            ++j;
+        }
+    }
+    // At least one side exhausted: shorter sorts first, identical => false.
+    return (i == a.size()) && (j != b.size());
+}
+
+//=====================================================================================
+// Collect files for populate listings. Exists because populate needs three
+// things lattice::File::getFilesOfType cannot express: flat (non-recursive)
+// scans, early termination at a result cap, and no-throw traversal that
+// survives unreadable subdirectories (one bad dir must not void the scan).
+// Extension matching uses lowercased dot-form tokens (".wav"); matchAllFiles
+// covers the "*" filter. Never throws.
+//=====================================================================================
+static std::vector<std::string> collectPopulateFiles(
+    const std::string &directory,
+    const std::unordered_set<std::string> &extensions,
+    bool matchAllFiles,
+    bool recursive,
+    size_t maxFiles,
+    bool &wasTruncated)
+{
+    namespace fs = std::filesystem;
+    std::vector<std::string> files;
+    wasTruncated = false;
+    std::error_code ec;
+
+    auto tryAdd = [&](const fs::directory_entry &entry) -> bool {
+        std::error_code ec2;
+        if (!entry.is_regular_file(ec2) || ec2)
+            return true; // skip, keep going
+        if (!matchAllFiles)
+        {
+            std::string ext = entry.path().extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            if (extensions.find(ext) == extensions.end())
+                return true;
+        }
+        if (files.size() >= maxFiles)
+        {
+            wasTruncated = true;
+            return false; // stop
+        }
+        files.push_back(entry.path().string());
+        return true;
+    };
+
+    if (!recursive)
+    {
+        fs::directory_iterator it(directory, fs::directory_options::skip_permission_denied, ec);
+        if (ec)
+            return files;
+        const fs::directory_iterator end;
+        for (; it != end; it.increment(ec))
+        {
+            if (ec)
+                break;
+            if (!tryAdd(*it))
+                break;
+        }
+    }
+    else
+    {
+        fs::recursive_directory_iterator it(directory, fs::directory_options::skip_permission_denied, ec);
+        if (ec)
+            return files;
+        const fs::recursive_directory_iterator end;
+        for (; it != end; it.increment(ec))
+        {
+            if (ec)
+                break;
+            if (!tryAdd(*it))
+                break;
+        }
+    }
+    return files;
+}
+
+//=====================================================================================
+// Normalize a populate fileType filter so the documented and legacy forms all
+// work. Matching downstream is verbatim against ".ext", so without this step
+// "*.wav" (documented), "wav" and "" (the default) all match nothing.
+// Rules per ';'-separated token: "*" stays (match all); a leading "*" is
+// stripped ("*.wav" -> ".wav"); a missing leading dot is added ("wav" ->
+// ".wav"). An empty/missing filter means "all files" ("*").
+//=====================================================================================
+static std::string normalizePopulateFileTypes(const std::string &fileTypes)
+{
+    auto trim = [](std::string s)
+    {
+        const char *ws = " \t\r\n";
+        s.erase(0, s.find_first_not_of(ws));
+        if (!s.empty())
+            s.erase(s.find_last_not_of(ws) + 1);
+        return s;
+    };
+
+    std::stringstream ss(fileTypes);
+    std::string token, out;
+    bool first = true;
+    while (std::getline(ss, token, ';'))
+    {
+        token = trim(token);
+        if (token.empty())
+            continue;
+        if (token != "*")
+        {
+            if (token[0] == '*')
+                token.erase(0, 1);
+            if (!token.empty() && token[0] != '.')
+                token = "." + token;
+        }
+        if (!first)
+            out += ";";
+        out += token;
+        first = false;
+    }
+    return out.empty() ? std::string("*") : out;
+}
+
+//=====================================================================================
 // Process populate configuration asynchronously to avoid blocking calling thread
 // This is critical when called from audio thread or during state save operations
 // The issue is that populate needs to do file I/O which can be slow,
@@ -1083,9 +1249,25 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
                 return;
             }
 
-            if (!config.contains("fileType") || !config["fileType"].is_string()) {
-                lattice::logError << "populate missing 'fileType' for widget: " << widgetChannel;
-                return;
+            // Normalize the fileType filter (see normalizePopulateFileTypes):
+            // empty/missing means "all files"; "*.ext" and bare "ext" become
+            // ".ext". Without this, the documented "*.wav" form and the ""
+            // default match nothing downstream.
+            if (!config.contains("fileType") || !config["fileType"].is_string() ||
+                config["fileType"].get<std::string>().empty())
+            {
+                config["fileType"] = "*";
+                lattice::logDebug << "populate fileType empty/missing for widget: " << widgetChannel
+                                  << " - matching all files";
+            }
+            else
+            {
+                const std::string rawType = config["fileType"].get<std::string>();
+                const std::string normalizedType = normalizePopulateFileTypes(rawType);
+                if (normalizedType != rawType)
+                    lattice::logDebug << "populate fileType normalized '" << rawType << "' -> '"
+                                      << normalizedType << "' for widget: " << widgetChannel;
+                config["fileType"] = normalizedType;
             }
 
             std::string fileType = cabbage::Utils::sanitisePath(config["fileType"].get<std::string>());
@@ -1100,9 +1282,30 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
                 }
             }
 
-            // Collect files from all directories, avoiding duplicates
+            // Collect files from all directories, avoiding duplicates.
+            // Flat (non-recursive) by default - nested scans are opt-in via
+            // "recursive": true. Results are capped (kMaxPopulateFiles) so
+            // pathological trees can't stall the scan or flood the UI with an
+            // unrenderable list; the cap applies in scan order, before sorting.
+            const bool recursive = config.value("recursive", false);
+            const bool matchAll = (fileType == "*");
+            std::unordered_set<std::string> extensions;
+            if (!matchAll)
+            {
+                std::stringstream ss(fileType);
+                std::string token;
+                while (std::getline(ss, token, ';'))
+                {
+                    std::transform(token.begin(), token.end(), token.begin(),
+                                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                    if (!token.empty())
+                        extensions.insert(token);
+                }
+            }
+
             std::vector<std::string> files;
             std::unordered_set<std::string> seenFiles;
+            bool truncated = false;
             for (const auto& directory : directories) {
 //                lattice::logDebug << "Scanning directory: " << directory;
                 try {
@@ -1112,8 +1315,14 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
                         continue;
                     }
 
-                    auto dirFiles = File::getFilesOfType(directory, fileType);
-                    lattice::logDebug << "Found " << dirFiles.size() << " files in directory: " << directory;
+                    const size_t budget = (files.size() >= kMaxPopulateFiles) ? 0
+                                                                             : (kMaxPopulateFiles - files.size());
+                    bool dirTruncated = false;
+                    auto dirFiles = collectPopulateFiles(directory, extensions, matchAll, recursive,
+                                                          budget, dirTruncated);
+                    truncated = truncated || dirTruncated;
+                    lattice::logDebug << "Found " << dirFiles.size() << " files in directory: " << directory
+                                      << (recursive ? " (recursive)" : " (flat)");
                     for (const auto &f : dirFiles) {
                         if (seenFiles.insert(f).second) {
                             files.push_back(f);
@@ -1121,6 +1330,8 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
                             lattice::logDebug << "Skipping duplicate file: " << f;
                         }
                     }
+                    if (truncated)
+                        break; // budget exhausted - further directories can't contribute
                 } catch (const std::exception &e) {
                     lattice::logWarning << "Error scanning directory '" << directory << "': " << e.what();
                     continue;
@@ -1217,7 +1428,19 @@ void Parser::processPopulateAsync(const std::string& widgetChannel, const nlohma
                     files.push_back(item.path);
                 }
             }
-            
+            else
+            {
+                // Default order: natural sort (numeric-aware) replaces the
+                // lattice traversal order now that collection is cabbage-side.
+                std::sort(files.begin(), files.end(), naturalLess);
+            }
+
+            if (truncated) {
+                lattice::logWarning << "populate results truncated to " << kMaxPopulateFiles
+                                    << " items for widget '" << widgetChannel
+                                    << "' - refine directories/fileType";
+            }
+
             // Build result JSON
             result["populate"] = config;
 

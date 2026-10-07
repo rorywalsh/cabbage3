@@ -2153,6 +2153,13 @@ bool Engine::processWebViewCommand(const nlohmann::json &message)
             return false;
         }
 
+        // Verbose arrival log (pairs with "Processor is null" drops in
+        // CabbageAudioApp): lets tests and log readers correlate every UI
+        // gesture that reached the backend with the resulting update.
+        lattice::logDebug << "controlData received: channel='" << channel
+                          << "' gesture='" << message.value("gesture", "complete")
+                          << "' t+" << cabbage::millisSinceStart() << "ms";
+
         // Extract value - can be string or number
         nlohmann::json valueJson = message["value"];
         std::string gesture = message.value("gesture", "complete");
@@ -2413,6 +2420,14 @@ std::string Engine::handleParameterUpdate(const nlohmann::json &message)
             }
         }
     });
+
+    // Verbose applied log for discrete gestures (drag "value" gestures are
+    // excluded to avoid flooding the log): proves the channel was written.
+    if (gesture != "value")
+    {
+        lattice::logDebug << "controlData applied: channel='" << channel << "' value=" << quantizedValue
+                          << " t+" << cabbage::millisSinceStart() << "ms";
+    }
 
     return gesture;
 }

@@ -354,7 +354,11 @@ if (CabbageApp STREQUAL "${CABBAGE_BUILD_TARGET}")
     target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/_deps/rtmidi-build)
 
     if (APPLE)
-        target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ${CSOUND_FRAMEWORK} "-framework Cocoa" ${PRO_EXTRA_LIBS})
+        # CoreMIDI: CabbageAudioApp.cpp probes MIDIClientCreate directly (see
+        # coreMidiClientAvailable) because the vendored RtMidi turns a failed
+        # client creation into std::terminate() instead of a catchable
+        # exception (its CoreMIDI singleton creator is declared throw()).
+        target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ${CSOUND_FRAMEWORK} "-framework Cocoa" "-framework CoreMIDI" ${PRO_EXTRA_LIBS})
     else()
         target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio rtmidi ${CSOUND_LIBRARY} ${PRO_EXTRA_LIBS})
     endif()
